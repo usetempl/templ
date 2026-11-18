@@ -1,0 +1,22 @@
+{
+  "CARD_BILLING_VERIFIED": [["cardBillingVerified"]],
+  "SUPPORT_NOTIFICATIONS_VERIFIED": [["notificationDeliveryProved"]],
+  "TRANSACTION_CHECKS_VERIFIED": [["supportDiagnosisVerified"]],
+  "TEAM_CHANNEL_ALERTS_VERIFIED": [
+    ["supportAlertsVerified", "supportAlerts.webhook"],
+    ["supportAlertsVerified", "supportAlerts.slack"],
+    ["supportAlertsVerified", "supportAlerts.discord"]
+  ],
+  "TELEGRAM_ALERTS_VERIFIED": [
+    ["supportAlertsVerified", "supportAlerts.telegram"]
+  ],
+  "TYPED_CONTEXT_VERIFIED": [["supportWidgetVerified"]],
+  "SECRET_GUARD_VERIFIED": [
+    ["supportWidgetVerified", "supportWorkflowVerified"]
+  ],
+  "AI_MODE_VERIFIED": [["supportWorkflowVerified"]],
+  "ASK_AI_VERIFIED": [["aiDraftsProved"]],
+  "FOLLOW_UPS_VERIFIED": [["supportFollowUpsVerified"]],
+  "EVIDENCE_CHECK_VERIFIED": [["aiDraftsProved", "managedAgentVerified"]],
+  "EMAIL_SIGN_IN_VERIFIED": [["emailSignInVerified"]]
+}

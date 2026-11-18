@@ -1,0 +1,28 @@
+{
+  "name": "community-worker",
+  "private": true,
+  "version": "4.0.0",
+  "type": "module",
+  "description": "Wallet support, private cases and team workflows",
+  "scripts": {
+    "type-check": "tsc --noEmit",
+    "test": "vitest run test/solana-auth.test.ts test/support-widget-access-workerd.test.ts test/support-handoff-workerd.test.ts test/support-widget-session-workerd.test.ts test/release-activation.test.ts --maxWorkers=2",
+    "cf:dev": "wrangler dev --env staging",
+    "cf:deploy:staging": "wrangler deploy --env staging"
+  },
+  "dependencies": {
+    "@solana/spl-token": "0.4.14",
+    "@solana/web3.js": "1.98.4",
+    "@templ/chat": "workspace:*",
+    "@templ/e2ee": "workspace:*",
+    "buffer": "6.0.3",
+    "tldts": "7.0.19",
+    "viem": "2.55.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4",
+    "typescript": "^5",
+    "vitest": "4.1.12",
+    "wrangler": "^4"
+  }
+}

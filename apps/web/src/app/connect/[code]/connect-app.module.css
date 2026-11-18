@@ -1,0 +1,105 @@
+.page {
+  --templ-text-body: 16px;
+  --templ-text-small: 15px;
+  --templ-text-caption: 13px;
+  --templ-text-mono: 15px;
+  display: grid;
+  place-items: start center;
+  min-height: 100%;
+  padding: clamp(24px, 5vw, 56px) 16px 64px;
+}
+.panel {
+  display: grid;
+  gap: 24px;
+  width: min(100%, 560px);
+  padding: clamp(24px, 5vw, 36px);
+  border: 1px solid var(--border-2);
+  border-radius: 24px;
+  background: var(--surface-2);
+  box-shadow: var(--shadow-card);
+}
+.header {
+  display: grid;
+  gap: 12px;
+}
+.mark {
+  width: 56px;
+}
+.header h1 {
+  margin: 0;
+  color: var(--fg);
+  font-family: var(--font-display-stack);
+  font-size: clamp(1.9rem, 4vw, 2.6rem);
+  font-weight: 400;
+  letter-spacing: -0.04em;
+}
+.header p,
+.hint {
+  margin: 0;
+  color: var(--fg-2);
+  line-height: 1.5;
+}
+.details {
+  display: grid;
+  gap: 14px;
+  margin: 0;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface-1);
+}
+.details div {
+  display: grid;
+  gap: 5px;
+}
+.details dt {
+  color: var(--fg-3);
+  font-size: var(--templ-text-caption);
+}
+.details dd {
+  margin: 0;
+  color: var(--fg);
+  overflow-wrap: anywhere;
+}
+.origins {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 0.85rem;
+}
+.code {
+  font-family: var(--font-geist-mono), monospace;
+  letter-spacing: 0.08em;
+}
+.form,
+.choices {
+  display: grid;
+  gap: 18px;
+}
+.choices {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.choices legend {
+  margin-bottom: 14px;
+  color: var(--fg);
+  font-weight: 600;
+}
+.choice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--fg);
+}
+.choice input {
+  accent-color: var(--templ-brand);
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}

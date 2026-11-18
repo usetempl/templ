@@ -1,0 +1,215 @@
+/** Words for follow-ups, specialists, routing, watches and position reads.
+ * Team and specialist views only; the member reads only the line the
+ * service writes. Checked against the no-ai-slop eval: plain actions, what
+ * happens next, no promise beyond the date the team set. */
+export const FOLLOW_UP_COPY = {
+  title: "Follow-ups",
+  teamOnly: "Team only",
+  empty: "No follow-ups. Add one when work continues after your reply.",
+  memberSees: "The user sees",
+  add: "Add follow-up",
+  adding: "Adding",
+  type: "Type",
+  what: "What needs doing (team only)",
+  whatHelp: "Keep wallets and hashes in a note.",
+  owner: "Owner",
+  ownerNone: "Nobody yet",
+  ownerTeam: "Team",
+  ownerSpecialists: "Specialists",
+  ownerGroups: "Groups",
+  group: "Group: {name}",
+  lineLabel: "User sees",
+  lineHelp:
+    "Shown in the widget and the app. No links, addresses or instructions.",
+  nextUpdate: "Next update by",
+  nextUpdateOn: "Next update by {date}",
+  due: "Due (team only, UTC)",
+  dueOn: "Due {date}",
+  link: "Link (GitHub or Linear)",
+  after: "Waits for",
+  afterStep: "After #{n}",
+  showMember: "Show to the user",
+  hiddenFromMember: "Team only",
+  overdue: "Overdue",
+  updateMissed: "Update missed",
+  byAgent: "Added by the AI agent",
+  byRoute: "Added from the handoff",
+  current: "The user sees this step",
+  open: "Open",
+  blocked: "Blocked",
+  done: "Done",
+  cancelled: "Cancelled",
+  markDone: "Mark done",
+  block: "Mark blocked",
+  reopen: "Reopen",
+  cancel: "Cancel follow-up",
+  cancelAsk: "Cancel this follow-up? The user stops seeing it.",
+  cancelYes: "Cancel it",
+  keep: "Keep it",
+  take: "Take it",
+  giveBack: "Give it back",
+  resolveBlocked: "Close or cancel the open follow-ups first.",
+  unreadableOne: "One follow-up can't be read.",
+  unreadable: "{n} follow-ups can't be read.",
+  discard: "Remove #{id}",
+  discardAsk: "Remove follow-up #{id} for good? Templ can't read it.",
+  discardYes: "Remove it",
+  watch: "Closes itself when",
+  watchTx: "the transaction confirms",
+  watchSourceAlchemy: "Last check: Alchemy (one provider).",
+  watchBlock: "block {n} is reached",
+  watchTime: "{time} UTC passes",
+  watchFailed: "The transaction failed, so this follow-up is blocked.",
+  watchExpired: "Nothing changed for 30 days, so this follow-up is blocked.",
+  watchMet:
+    "Its watch condition is met. It closes when the steps it waits for are done.",
+  watchSet: "Watch the chain",
+  watchKind: "Close when",
+  watchKindTx: "A transaction confirms",
+  watchKindBlock: "A block is reached",
+  watchKindTime: "A time passes",
+  watchHash: "Transaction hash or signature",
+  watchNetwork: "Network",
+  watchNumber: "Block number",
+  watchAt: "Time (UTC)",
+  watchSave: "Start watching",
+  watchClear: "Stop watching",
+  error: "That didn't work. Try again.",
+  you: "you",
+} as const;
+
+export const FOLLOW_UP_QUEUE_COPY = {
+  title: "Follow-ups",
+  lede: "Work that continues after a reply, oldest first.",
+  views: { open: "Open", overdue: "Overdue", mine: "Mine", group: "Groups" },
+  byOwner: "By owner",
+  ownerCol: "Owner",
+  openCol: "Open",
+  blockedCol: "Blocked",
+  overdueCol: "Overdue",
+  oldestCol: "Oldest",
+  ageCol: "Age",
+  typeCol: "Type",
+  whatCol: "What needs doing",
+  dueCol: "Due",
+  stateCol: "State",
+  openRequest: "Open case",
+  waitingFor: "Waiting for someone in {group}",
+  empty: "No open follow-ups.",
+  emptyMine: "Nothing is yours right now.",
+  emptyGroup: "Nothing waits in your groups.",
+  incomplete: "Showing the first 2,000 open follow-ups.",
+} as const;
+
+export const SPECIALIST_COPY = {
+  title: "Your follow-ups",
+  lede: "Cases you can read because you own a follow-up on them or a teammate mentioned you.",
+  bannerOwner: "You can read this case while you own an open follow-up on it.",
+  bannerMention:
+    "You can read this case until {date} because a teammate mentioned you.",
+  bannerNotes: "Your notes go to the team. The user doesn't see them.",
+  noReply: "Specialists can't reply to users.",
+  back: "All follow-ups",
+  note: "Note for the team",
+  notePlaceholder: "What you did or found",
+  addNote: "Add note",
+  notes: "Notes",
+  messages: "Case",
+  gone: "You can't read this case any more.",
+} as const;
+
+export const ROUTING_COPY = {
+  title: "Follow-up routing",
+  lede: "When a case is handed off for one of these reasons, Templ adds a follow-up for the group you choose.",
+  unreadable: "Routing settings can't be read. Saving replaces them.",
+  groups: "Groups",
+  groupsHelp:
+    "Only the manager changes who is in a group. A specialist in a group can take its follow-ups.",
+  groupName: "Group name",
+  people: "People",
+  addGroup: "Add group",
+  removeGroup: "Remove group",
+  rules: "Rules",
+  reason: "Handed off for",
+  type: "Type",
+  group: "Group",
+  memberSees: "User sees",
+  memberSeesDefault: "Default line",
+  nextDays: "Next update after (days)",
+  dueDays: "Due after (days, optional)",
+  show: "Show to the user",
+  addRule: "Add rule",
+  removeRule: "Remove rule",
+  save: "Save routing",
+  saving: "Saving",
+  saved: "Routing saved.",
+  specialists: "Specialists",
+  specialistsHelp:
+    "A specialist reads only the cases where they own a follow-up or a teammate mentions them. They can't reply to users.",
+  noSpecialists: "No specialists yet.",
+  addLabel: "Add a specialist by account ID or EVM wallet",
+  addInvalid: "Enter an account ID or an EVM wallet.",
+  add: "Add specialist",
+  remove: "Remove",
+  roleChanged:
+    "The Specialist role was changed elsewhere, so access didn't change. Ask Templ for help.",
+  noGroups: "Add a group first.",
+} as const;
+
+export const POSITION_COPY = {
+  title: "Position reads",
+  lede: "Read the user's proven wallet at a vault or token from your protocol profile. Values land in Evidence.",
+  network: "Network",
+  token: "Vault or token address",
+  compare: "Earlier block (optional)",
+  read: "Read position",
+  legacy: "Check older products",
+  queued: "Reading",
+  done: "Read. See Evidence {ids}.",
+  noneHeld: "The wallet holds no older products from your profile.",
+  held: "Holds an older product: {label}",
+  unavailable: "Couldn't read it. {reason}",
+} as const;
+
+export const FOLLOW_UP_ERRORS: Record<string, string> = {
+  "follow-up-waiting": "Finish the follow-ups this one waits for first.",
+  "follow-up-stale": "Someone changed this follow-up. Reload it and try again.",
+  "actions-open": "Close or cancel the open follow-ups first.",
+  "position-no-proof":
+    "The user hasn't proven a wallet on this network, so Templ can't read their position.",
+};
+
+/** Why a position read gave no value, by the service's code. */
+export const POSITION_FAILURES: Record<string, string> = {
+  "not-in-profile": "That token isn't in your protocol profile any more.",
+  "not-configured": "Templ doesn't read this network yet.",
+  "providers-disagree": "The two providers didn't agree. Try again later.",
+  "provider-error": "A provider didn't answer. Try again later.",
+  budget: "This workspace has used its chain reads for now. Try again later.",
+  "stale-head": "A provider is behind the chain. Try again later.",
+  "call-error": "The token contract refused the read.",
+  "bad-input": "Check the token and the earlier block.",
+  "evidence-refused": "Templ couldn't save the value as evidence.",
+};
+export const POSITION_FAILURE_FALLBACK = "Try again later.";
+
+/** Activity lines for follow-up changes, by the service's detail code. */
+export const FOLLOW_UP_ACTIVITY = {
+  changed: "Follow-up changed",
+  created: "Follow-up added",
+  update: "Follow-up edited",
+  take: "Follow-up taken",
+  release: "Follow-up given back",
+  open: "Follow-up open again",
+  blocked: "Follow-up blocked",
+  done: "Follow-up done",
+  cancelled: "Follow-up cancelled",
+  "done-by-watch": "Follow-up closed by its watch",
+  "watch-failed": "Watch saw a failed transaction, follow-up blocked",
+  "watch-expired": "Watch ran 30 days, follow-up blocked",
+} as const;
+export function followUpActivityText(detail: string | undefined): string {
+  return detail && Object.hasOwn(FOLLOW_UP_ACTIVITY, detail)
+    ? FOLLOW_UP_ACTIVITY[detail as keyof typeof FOLLOW_UP_ACTIVITY]
+    : FOLLOW_UP_ACTIVITY.changed;
+}

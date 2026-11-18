@@ -1,0 +1,75 @@
+.page {
+  display: grid;
+  place-items: center;
+  min-height: calc(100dvh - 100px);
+  padding: clamp(var(--templ-space-6), 5vw, var(--templ-space-16));
+}
+.panel {
+  position: relative;
+  isolation: isolate;
+  width: min(100%, 620px);
+  padding: clamp(var(--templ-space-6), 5vw, var(--templ-space-12));
+  border: var(--templ-border-width) solid
+    var(--templ-line);
+  border-radius: var(--templ-radius-surface);
+  background: var(--templ-surface);
+  box-shadow: var(--templ-shadow-lg);
+}
+.icon {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  border: var(--templ-border-width) solid var(--templ-action-border);
+  border-radius: var(--templ-radius-surface);
+  background: var(--templ-surface);
+  color: var(--templ-accent-text);
+}
+.panel h1 {
+  margin: var(--templ-space-6) 0 var(--templ-space-3);
+  color: var(--templ-text);
+  font-size: var(--templ-text-h1);
+  font-weight: var(--templ-weight-heading);
+  line-height: 1.05;
+}
+.panel p {
+  max-width: 440px;
+  margin: 0 0 var(--templ-space-6);
+  color: var(--templ-text);
+  font-size: var(--templ-text-body);
+  line-height: var(--templ-line-body);
+}
+.primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--templ-space-3);
+  min-height: 52px;
+  padding: var(--templ-space-3) var(--templ-space-5);
+  border: var(--templ-border-width) solid var(--templ-action-border);
+  border-radius: var(--templ-radius-control);
+  background: var(--templ-accent);
+  color: var(--templ-on-accent);
+  font: var(--templ-weight-label) var(--templ-text-small) / var(--templ-line-body) var(--templ-font-sans);
+  cursor: pointer;
+  text-decoration: none;
+  box-shadow: none;
+}
+.primary:disabled {
+  cursor: default;
+}
+.primary:focus-visible {
+  outline: var(--templ-focus-width) solid var(--templ-focus);
+  outline-offset: var(--templ-focus-offset);
+}
+.primary svg {
+  flex: none;
+}
+@media (max-width: 520px) {
+  .page {
+    padding: var(--templ-space-5);
+  }
+  .primary {
+    width: 100%;
+  }
+}

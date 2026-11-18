@@ -1,0 +1,23 @@
+{
+  "name": "@templ/secure-support",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "type-check": "tsc --noEmit && tsc --project tsconfig.client.json",
+    "build": "node --import tsx build.mts",
+    "test": "vitest run --maxWorkers=2 && node --test test/native-proxy-workerd.review.mjs",
+    "lint": "eslint src client test"
+  },
+  "dependencies": {
+    "@templ/chat": "workspace:*",
+    "@templ/e2ee": "workspace:*",
+    "viem": "2.55.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4",
+    "typescript": "^5",
+    "vitest": "4.1.12",
+    "wrangler": "^4"
+  }
+}

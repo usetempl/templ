@@ -1,0 +1,98 @@
+.shape {
+  display: inline-block;
+  width: var(--shape-width);
+  max-width: 100%;
+  height: var(--shape-height);
+  flex: none;
+  overflow: hidden;
+  vertical-align: middle;
+  border-radius: var(--templ-radius-surface);
+  background: var(--templ-line);
+}
+.shape[data-round] {
+  border-radius: var(--templ-radius-surface);
+}
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+.spinner {
+  composes: loadingMark from "./ui/design-system.module.css";
+  display: inline-block;
+  flex: none;
+  margin-inline-end: var(--templ-space-2);
+  vertical-align: middle;
+}
+.chat {
+  width: 100%;
+  min-height: 0;
+  flex: 1;
+}
+.chat > div {
+  display: flex;
+  height: 100%;
+  flex-direction: column;
+}
+.fullChat {
+  height: calc(100dvh - 70px);
+  min-height: 360px;
+}
+.chatHeader {
+  display: flex;
+  align-items: center;
+  gap: var(--templ-space-3);
+  min-height: 72px;
+  padding: var(--templ-space-2) var(--templ-space-3);
+  border-bottom: var(--templ-border-width) solid var(--templ-line);
+}
+.identity {
+  display: grid;
+  min-width: 0;
+  flex: 1;
+  gap: var(--templ-space-2);
+}
+.chatBody {
+  display: flex;
+  min-height: 220px;
+  flex: 1;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: var(--templ-space-8);
+  padding: var(--templ-space-8)
+    clamp(var(--templ-space-4), 3vw, var(--templ-space-10));
+}
+.chatLines {
+  display: grid;
+  gap: var(--templ-space-3);
+  width: min(660px, 100%);
+}
+.chatLines:nth-child(2) {
+  opacity: 0.75;
+}
+.chatLines:nth-child(3) {
+  opacity: 0.55;
+}
+.chatLines .shape {
+  height: 16px;
+  border-radius: var(--templ-radius-control);
+  background: var(--templ-line);
+}
+/* Reserve the message composer while its data loads. */
+.composer {
+  min-height: 103px;
+  flex: 0 0 auto;
+  padding: var(--templ-space-2) var(--templ-space-3)
+    max(var(--templ-space-2), env(safe-area-inset-bottom));
+}
+.composerHelp {
+  display: flex;
+  align-items: center;
+  min-height: 17px;
+  margin: var(--templ-space-1) var(--templ-space-1) 0;
+}

@@ -1,0 +1,188 @@
+.chat {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-height: 100dvh;
+  color: var(--secure-text, #242728);
+  background: var(--secure-bg, #fafbf9);
+  font-family: var(--font-geist-sans, Geist), system-ui, sans-serif;
+  line-height: 1.5;
+}
+.header,
+.compose {
+  padding: 1rem clamp(1rem, 4vw, 2.5rem);
+  border-color: var(--secure-border, #cbd1ce);
+  border-style: solid;
+  border-width: 0 0 1px;
+}
+.header h1 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+.header p {
+  margin: 0.5rem 0 0;
+  max-width: 60rem;
+}
+.messages {
+  display: grid;
+  align-content: start;
+  gap: 1rem;
+  flex: 1;
+  padding: 1.5rem clamp(1rem, 4vw, 2.5rem);
+}
+.message {
+  min-width: 0;
+  max-width: 60rem;
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.message strong {
+  display: block;
+  font-size: 0.875rem;
+}
+.note {
+  padding-left: 1rem;
+  border-left: 2px solid var(--secure-border, #cbd1ce);
+}
+.compose {
+  display: grid;
+  gap: 0.75rem;
+  border-width: 1px 0 0;
+}
+.compose textarea,
+.compose input[type="search"] {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  padding: 0.75rem;
+  color: inherit;
+  background: var(--secure-bg, #fafbf9);
+  border: 1px solid var(--secure-border, #cbd1ce);
+  border-radius: 0.5rem;
+  font: inherit;
+}
+.compose textarea {
+  min-height: 6rem;
+  resize: vertical;
+}
+.compose button {
+  padding: 0.625rem 1rem;
+  color: inherit;
+  border: 1px solid var(--secure-border, #cbd1ce);
+  border-radius: 0.5rem;
+  background: var(--secure-bg, #fafbf9);
+  font: inherit;
+  cursor: pointer;
+}
+.compose button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+.details {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.75rem 0;
+  min-width: 0;
+}
+.details label {
+  overflow-wrap: anywhere;
+}
+.status {
+  margin: 0;
+  min-height: 1.5em;
+}
+.chat :focus-visible {
+  outline: 2px solid var(--secure-text, #242728);
+  outline-offset: 3px;
+}
+@media (prefers-color-scheme: dark) {
+  .chat {
+    --secure-text: #e8ebe7;
+    --secure-bg: #181b1a;
+    --secure-border: #69736e;
+  }
+}
+
+/* Own conversation keeps the shared controller and customer-custody view separate. */
+.compact { --secure-text: var(--own-text, #242728); --secure-bg: var(--own-bg, #fafbf9); --secure-border: var(--own-border, #d7dcd8); height: 100%; min-height: 0; overflow: hidden; font-size: 14px; }
+.compact .header { position: relative; display: flex; align-items: center; gap: 6px; padding: 8px 12px; flex: none; background: var(--own-bg); }
+.compact .header > img { flex: 0 0 36px; }
+.compact button { cursor: pointer; }
+.compact button:disabled { cursor: default; opacity: .55; }
+.compact .messages { display: block; min-height: 0; transition: opacity .22s ease-out, transform .22s ease-out; overflow-y: auto; overscroll-behavior: contain; padding: 10px 12px 16px; background: color-mix(in srgb, var(--own-raised) 65%, var(--own-bg)); scrollbar-width: thin; }
+.compact .message { width: fit-content; max-width: 88%; box-sizing: border-box; padding: 8px 11px 5px; margin: 0 0 10px; border: 0; background: var(--own-bg); border-radius: 14px 14px 14px 4px; box-shadow: 0 1px 1px #14241a14; font-size: 14px; line-height: 1.45; }
+.compact .message strong { display: block; color: var(--own-muted); font-size: 12px; margin-bottom: 3px; font-weight: 600; }
+.compact .message time { display: block; margin-top: 3px; font-size: 10px; line-height: 1.2; text-align: right; color: var(--own-muted); font-variant-numeric: tabular-nums; }
+.compact .message .deliveryMeta { display: flex; justify-content: flex-end; align-items: center; gap: 4px; margin-top: 3px; }
+.compact .deliveryMeta time { margin: 0; }
+.compact .deliveryMeta svg { display: block; width: 13px; height: 13px; }
+.compact .message .deliveryActions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 3px 8px; }
+.compact .deliveryActions button { min-height: 36px; padding: 4px 6px; border: 0; background: transparent; color: var(--own-text); font: inherit; font-weight: 600; text-decoration: underline; }
+.compact .deliveryActions button[hidden] { display: none; }
+.compact .member { margin-left: auto; background: var(--own-selected); border-radius: 14px 14px 4px 14px; }
+.compact .member strong { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+.compact .member[data-grouped='true'] { margin-top: -7px; border-top-right-radius: 5px; }
+.compact .note { border-left: 3px solid #698b43; }
+.compact .message span { display: block; font-size: 11px; line-height: 1.5; color: var(--own-muted); }
+.day { margin: 6px auto 14px; padding: 3px 10px; width: fit-content; border-radius: 20px; background: var(--own-border); color: var(--own-text); font-size: 11px; font-weight: 500; }
+.compact .compose { flex: 0 1 auto; min-height: 0; max-height: 60%; padding: 5px 10px 8px; gap: 3px; border: 0; background: var(--own-bg); overflow-y: auto; }
+.composeRow { display: flex; align-items: flex-end; gap: 8px; }
+.compact .compose textarea { box-sizing: border-box; flex: 1; width: 0; min-width: 0; min-height: 44px; max-height: 140px; resize: none; border: 0; border-radius: 22px; background: var(--own-raised); padding: 11px 16px; font: inherit; font-size: 16px; line-height: 22px; }
+.compact .composeRow > button { display: grid; place-items: center; flex: 0 0 44px; width: 44px; height: 44px; padding: 0; border: 0; border-radius: 50%; background: #99ff00; color: #20251e; }
+.compact .composeRow > button svg { width: 22px; height: 22px; }
+.compact .actions { gap: 8px; }
+.compact .actions button { min-height: 36px; padding: 4px 8px; font-size: 12px; }
+.sharing { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; min-width: 0; }
+.sharing[hidden] { display: none; }
+.sharing > span { display: none; }
+.sharing .details { display: flex; flex: 1; min-width: 0; overflow-x: auto; gap: 6px; scrollbar-width: thin; padding: 3px 0; }
+.sharing .details label { display: inline-flex; gap: 5px; align-items: center; flex: 0 0 auto; min-height: 34px; padding: 0 8px; border: 1px solid var(--secure-border); border-radius: 16px; font-size: 12px; cursor: pointer; }
+.sharing .details input { accent-color: #5e8a28; width: 16px; height: 16px; margin: 0; }
+.sharing .details label:has(:checked) { background: var(--own-selected); }
+.sharing .details label:has(:disabled) { opacity: .55; cursor: not-allowed; }
+.sharing:not(.expanded) .details label:not(:has(:checked)) { display: none; }
+.detailValue { display: none; }
+.compact .sharing > button { font-size: 11px; min-height: 30px; padding: 2px 4px; border: 0; background: transparent; color: var(--own-muted); }
+.sharing:not(.expanded) > button:nth-of-type(2), .sharingInformation { display: none; }
+.expanded .sharingInformation { display: flex; flex-basis: 100%; gap: 12px; font-size: 11px; }
+.sharingInformation a { color: var(--own-muted); text-underline-offset: 2px; }
+.expanded .details { order: 1; flex-basis: 100%; display: grid; max-height: 150px; overflow-x: hidden; overflow-y: auto; }
+.expanded .details label { display: grid; grid-template-columns: 16px minmax(0, 1fr); padding: 7px 8px; border-radius: 8px; }
+.expanded .detailValue { display: block; grid-column: 2; font-size: 11px; color: var(--own-muted); }
+.search { display: flex; gap: 8px; padding: 6px 16px; }
+.search input { min-width: 0; flex: 1; font: inherit; font-size: 12px; padding: 5px 8px; border: 1px solid var(--secure-border); border-radius: 4px; background: transparent; color: inherit; }
+.search button { border: 0; color: var(--own-muted); background: transparent; font: inherit; font-size: 12px; padding: 4px 0 4px 8px; }
+.welcome { box-sizing: border-box; max-width: min(300px, 88%); margin: 28px auto 12px; padding: 12px 16px; border-radius: 12px; background: var(--own-bg); text-align: center; }
+.welcome h2 { margin: 0 0 2px; font-size: 14px; line-height: 1.4; font-weight: 600; }
+.welcome p { margin: 0; font-size: 13px; line-height: 1.45; color: var(--own-muted); }
+/* Opening, history, empty and failure follow the view's connection and history flags. */
+.compact[data-view='opening'] .messages { opacity: 0; transform: translateY(6px); }
+.compact .messages[hidden] { display: none; }
+.opening { position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: #5e8a28; transform-origin: left center; opacity: 0; pointer-events: none; transition: opacity .3s ease-out .12s; }
+.compact[data-loading='true'] .opening { opacity: 1; transition: none; animation: opening-progress 8s cubic-bezier(.1, .6, .2, 1) forwards; }
+@keyframes opening-progress { from { transform: scaleX(0); } to { transform: scaleX(.9); } }
+.chatState { flex: none; display: grid; justify-items: start; gap: 4px; padding: 0 12px; background: var(--own-bg); font-size: 12px; line-height: 1.4; }
+.chatState > p { margin: 6px 0 0; padding: 7px 10px; border-radius: 8px; background: var(--own-raised); color: var(--own-text); }
+.chatState > p:empty, .chatState > button[hidden] { display: none; }
+.chatState > button { min-height: 36px; padding: 4px 12px; border: 1px solid var(--secure-border); border-radius: 18px; background: var(--own-bg); color: inherit; font: inherit; font-weight: 500; }
+.chatState > p, .chatState > button { animation: state-in .2s ease-out; }
+@keyframes state-in { from { opacity: 0; transform: translateY(4px); } }
+/* One quiet line above the composer. The delay keeps instant states from flashing. */
+.activity { display: flex; align-items: center; gap: 6px; margin-top: 6px; color: var(--own-muted); font-size: 12px; animation: state-in .2s ease-out .15s backwards; }
+.activity[hidden] { display: none; }
+.firstSendEstimate { color: var(--own-muted); margin-inline-start: 20px; }
+.activity svg { flex: none; width: 14px; height: 14px; }
+.activity svg path:last-child { animation: lock-settle .7s ease-in-out .15s 5 alternate both; }
+@keyframes lock-settle { from { transform: translateY(-1.5px); } to { transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) {
+  .compact .messages, .opening, .chatState > p, .chatState > button, .activity, .activity svg path:last-child { transition: none; animation: none; }
+  .compact[data-view='opening'] .messages { transform: none; }
+  .compact[data-loading='true'] .opening { animation: none; transform: scaleX(.4); }
+}
+.srOnly { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }

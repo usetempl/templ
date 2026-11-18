@@ -1,0 +1,39 @@
+/* Templ accent shared by the app, docs and blog. */
+:root,
+[data-theme="light"] {
+  --templ-accent: #99ff00;
+  --templ-accent-hover: #8fe800;
+  --templ-accent-active: #82d400;
+  --templ-accent-soft: #edf8dd;
+  --templ-accent-text: #367000;
+  --templ-action-border: #131313;
+  --templ-on-accent: #131313;
+  --templ-focus: #131313;
+  --templ-chart-1: #367000;
+}
+
+[data-theme="dark"] {
+  --templ-accent: #99ff00;
+  --templ-accent-hover: #8fe800;
+  --templ-accent-active: #82d400;
+  --templ-accent-soft: #202b15;
+  --templ-accent-text: #bbff66;
+  --templ-action-border: #99ff00;
+  --templ-on-accent: #131313;
+  --templ-focus: #99ff00;
+  --templ-chart-1: #99ff00;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    --templ-accent: #99ff00;
+    --templ-accent-hover: #8fe800;
+    --templ-accent-active: #82d400;
+    --templ-accent-soft: #202b15;
+    --templ-accent-text: #bbff66;
+    --templ-action-border: #99ff00;
+    --templ-on-accent: #131313;
+    --templ-focus: #99ff00;
+    --templ-chart-1: #99ff00;
+  }
+}

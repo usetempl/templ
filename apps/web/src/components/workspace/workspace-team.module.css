@@ -1,0 +1,32 @@
+.stack {
+  grid-template-columns: minmax(0, 1fr);
+}
+.stack > * {
+  min-width: 0;
+}
+.accountNote > div {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.confirm {
+  margin: auto;
+  width: min(440px, calc(100vw - 32px));
+  padding: var(--templ-space-6);
+  color: var(--templ-text);
+  background: var(--templ-raised);
+  border: var(--templ-border-width) solid var(--templ-border-strong);
+  border-radius: var(--templ-radius-surface);
+  box-shadow: var(--templ-shadow-lg);
+}
+.confirm::backdrop {
+  background: var(--templ-overlay);
+}
+.confirm h2 {
+  margin: 0;
+  font-size: var(--templ-text-lead);
+}
+.confirm p {
+  margin: var(--templ-space-4) 0 var(--templ-space-5);
+  line-height: var(--templ-line-body);
+  color: var(--templ-muted);
+}

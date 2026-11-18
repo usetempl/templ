@@ -1,0 +1,265 @@
+/* The transaction check panel in the request details. It reuses the
+ * details column's section, row and badge styles; these rules add the
+ * status chip, the result card and the phone layout. */
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--templ-space-2);
+}
+.candidate {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--templ-space-2);
+  padding: var(--templ-space-2) var(--templ-space-3);
+  border: var(--templ-border-width) solid var(--templ-line);
+  border-radius: var(--templ-radius-surface);
+  background: var(--templ-raised);
+  font-size: var(--templ-text-small);
+}
+.hash {
+  color: var(--templ-text);
+  font-family: var(--templ-font-mono), ui-monospace, monospace;
+  font-size: var(--templ-text-caption);
+}
+.card {
+  display: grid;
+  gap: var(--templ-space-2);
+  min-width: 0;
+  padding: var(--templ-space-3);
+  border: var(--templ-border-width) solid var(--templ-line);
+  border-radius: var(--templ-radius-surface);
+  background: var(--templ-raised);
+}
+.chip {
+  padding: 1px var(--templ-space-2);
+  border-radius: var(--templ-radius-control);
+  background: var(--templ-surface);
+  color: var(--templ-muted);
+  font-size: var(--templ-text-caption);
+  font-weight: var(--templ-weight-heading);
+}
+.chip[data-tone="good"] {
+  background: var(--templ-accent-soft);
+  color: var(--templ-muted);
+}
+.chip[data-tone="bad"] {
+  background: var(--templ-danger-soft);
+  color: var(--templ-danger-text);
+}
+.chip[data-tone="wait"] {
+  color: var(--templ-warning-text);
+}
+.block {
+  display: grid;
+  gap: var(--templ-space-1);
+}
+.block h4 {
+  margin: 0;
+  color: var(--templ-muted);
+  font-size: var(--templ-text-caption);
+  font-weight: var(--templ-weight-heading);
+}
+.text {
+  margin: 0;
+  color: var(--templ-text);
+  font-size: var(--templ-text-small);
+  line-height: var(--templ-line-body);
+  overflow-wrap: anywhere;
+}
+.findings {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding-left: var(--templ-space-4);
+  color: var(--templ-muted);
+  font-size: var(--templ-text-mono);
+}
+.person {
+  margin: 0;
+  color: var(--templ-warning-text);
+  font-size: var(--templ-text-small);
+}
+.evidence {
+  display: grid;
+  gap: var(--templ-space-1);
+  margin: 0;
+}
+.fact {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.4fr);
+  gap: var(--templ-space-2);
+  font-size: var(--templ-text-mono);
+}
+.fact dt {
+  color: var(--templ-muted);
+}
+.fact dd {
+  display: grid;
+  gap: 1px;
+  margin: 0;
+  min-width: 0;
+}
+.value {
+  color: var(--templ-text);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.confirm {
+  display: grid;
+  gap: var(--templ-space-2);
+  padding: var(--templ-space-2);
+  border: var(--templ-border-width) solid var(--templ-border-strong);
+  border-radius: var(--templ-radius-surface);
+}
+.confirm p {
+  margin: 0;
+  color: var(--templ-text);
+  font-size: var(--templ-text-small);
+}
+.rate {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--templ-space-1);
+  color: var(--templ-muted);
+  font-size: var(--templ-text-caption);
+}
+.refusal {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: var(--templ-space-2) var(--templ-space-3) var(--templ-space-2)
+    var(--templ-space-6);
+  border-radius: var(--templ-radius-surface);
+  background: var(--templ-danger-soft);
+  color: var(--templ-text);
+  font-size: var(--templ-text-mono);
+  line-height: var(--templ-line-body);
+}
+.paste {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: var(--templ-space-2);
+}
+/* Phone width: the card stacks, evidence rows take two lines, buttons are
+ * at least 44 px tall, and nothing scrolls sideways. */
+@media (max-width: 480px) {
+  .fact {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2px;
+  }
+  .paste {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .card :global(.button),
+  .candidate :global(.button),
+  .paste :global(.button),
+  .rate :global(.button) {
+    min-height: 44px;
+  }
+}
+
+.inline {
+  display: grid;
+  flex: 0 0 auto;
+  gap: var(--templ-space-2);
+  margin: var(--templ-space-3) var(--templ-space-5);
+  padding: var(--templ-space-3);
+  border: var(--templ-border-width) solid var(--templ-line);
+  border-radius: var(--templ-radius-surface);
+  background: var(--templ-raised);
+  min-width: 0;
+}
+.summaryHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--templ-space-2);
+  font-size: var(--templ-text-small);
+}
+.summaryText {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  margin: 0;
+  color: var(--templ-text);
+  font-size: var(--templ-text-small);
+  line-height: var(--templ-line-body);
+  overflow-wrap: anywhere;
+}
+.disclosure {
+  min-width: 0;
+  font-size: var(--templ-text-small);
+}
+.disclosure > summary {
+  width: fit-content;
+  padding: var(--templ-space-1) 0;
+  color: var(--templ-text);
+  cursor: pointer;
+}
+.expanded {
+  display: grid;
+  gap: var(--templ-space-2);
+  max-height: min(20dvh, 200px);
+  min-height: 0;
+  margin-top: var(--templ-space-2);
+  padding-right: var(--templ-space-2);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+.inline h3 {
+  margin: 0;
+  font-size: var(--templ-text-small);
+}
+.shared {
+  display: grid;
+  gap: var(--templ-space-1);
+  min-width: 0;
+}
+.contextFacts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--templ-space-1) var(--templ-space-4);
+  margin: 0;
+  font-size: var(--templ-text-caption);
+}
+.contextFacts > div {
+  min-width: 0;
+}
+.contextFacts dt {
+  color: var(--templ-muted);
+}
+.contextFacts dd {
+  margin: 0;
+  color: var(--templ-text);
+  overflow-wrap: anywhere;
+}
+.advanced {
+  display: grid;
+  gap: var(--templ-space-2);
+  font-size: var(--templ-text-small);
+}
+.advanced summary {
+  color: var(--templ-muted);
+  cursor: pointer;
+}
+.advanced[open] > :not(summary) {
+  margin-top: var(--templ-space-2);
+}
+.optional {
+  flex: 0 0 auto;
+  min-width: 0;
+  margin: var(--templ-space-3) var(--templ-space-5);
+}
+@media (max-width: 480px) {
+  .inline,
+  .optional {
+    margin-inline: var(--templ-space-3);
+  }
+}

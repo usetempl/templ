@@ -1,0 +1,342 @@
+/* App layouts compose the shared component contracts. */
+.pageHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--templ-space-4) var(--templ-space-6);
+  margin-bottom: var(--templ-space-8);
+}
+.pageHeader > div {
+  min-width: 0;
+}
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--templ-space-2);
+  margin-bottom: var(--templ-space-2);
+  color: var(--templ-muted);
+  font-size: var(--templ-text-small);
+  font-weight: var(--templ-weight-label);
+}
+.pageTitle {
+  margin: 0;
+  color: var(--templ-text);
+  font: var(--templ-weight-heading) var(--templ-text-h1) /
+    var(--templ-line-heading) var(--templ-font-sans);
+  letter-spacing: var(--templ-tracking-heading);
+}
+.displayTitle {
+  font-size: var(--templ-text-display);
+  line-height: var(--templ-line-display);
+}
+.pageDescription {
+  max-width: var(--templ-prose-max);
+  margin-top: var(--templ-space-2);
+  color: var(--templ-muted);
+  font-size: var(--templ-text-body);
+  line-height: var(--templ-line-body);
+}
+.pageActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--templ-space-2);
+}
+.card {
+  composes: card from "./design-system.module.css";
+  padding: 0;
+}
+.cardHeader {
+  composes: cardHeader from "./design-system.module.css";
+  padding: var(--templ-space-6) var(--templ-space-6) 0;
+}
+.cardHeader > div {
+  min-width: 0;
+}
+.cardTitle {
+  composes: cardTitle from "./design-system.module.css";
+}
+.cardDescription {
+  composes: cardMeta from "./design-system.module.css";
+}
+.cardBody {
+  padding: var(--templ-space-4) var(--templ-space-6) var(--templ-space-6);
+}
+.cardFooter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--templ-space-2);
+  padding: var(--templ-space-4) var(--templ-space-6);
+  border-top: var(--templ-border-width) solid var(--templ-line);
+  background: var(--templ-surface);
+  border-radius: 0 0 var(--templ-radius-surface) var(--templ-radius-surface);
+}
+.cardFooter > :first-child:not(:only-child) {
+  margin-right: auto;
+}
+.badge {
+  composes: pill neutral from "./design-system.module.css";
+}
+.badge svg {
+  width: 14px;
+  height: 14px;
+}
+.badge[data-tone="warning"] {
+  border-color: transparent;
+  background: var(--templ-warning-soft);
+  color: var(--templ-warning-text);
+}
+.badge[data-tone="danger"] {
+  border-color: transparent;
+  background: var(--templ-danger-soft);
+  color: var(--templ-danger-text);
+}
+.dot {
+  width: 6px;
+  height: 6px;
+  flex: none;
+  border-radius: var(--templ-radius-control);
+  background: currentColor;
+}
+.field {
+  composes: field from "./design-system.module.css";
+}
+.input {
+  composes: input from "./design-system.module.css";
+}
+.check {
+  composes: checkLabel from "./design-system.module.css";
+}
+.check > input {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin: 2px 0 0;
+  accent-color: var(--templ-accent);
+}
+.check > input:focus-visible {
+  outline: var(--templ-focus-width) solid var(--templ-focus);
+  outline-offset: var(--templ-focus-offset);
+}
+.mono {
+  font-family: var(--templ-font-mono);
+}
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--templ-space-2);
+}
+.tab {
+  composes: button ghost from "./design-system.module.css";
+}
+.tabs > button[aria-pressed="true"] {
+  border-color: var(--templ-action-border);
+  background: var(--templ-accent-soft);
+  color: var(--templ-accent-text);
+}
+.fieldLabel {
+  composes: label from "./design-system.module.css";
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--templ-space-3);
+}
+.fieldOptional {
+  color: var(--templ-muted);
+  font-size: var(--templ-text-small);
+  font-weight: var(--templ-weight-body);
+}
+.fieldHint {
+  composes: helper from "./design-system.module.css";
+}
+.fieldError {
+  composes: errorText from "./design-system.module.css";
+}
+.callout {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--templ-space-3);
+  padding: var(--templ-space-4);
+  border: var(--templ-border-width) solid var(--templ-line);
+  border-radius: var(--templ-radius-surface);
+  background: var(--templ-surface);
+  color: var(--templ-muted);
+  font-size: var(--templ-text-small);
+  line-height: var(--templ-line-body);
+}
+.callout > svg {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+}
+.callout p {
+  color: inherit;
+}
+.callout strong {
+  color: var(--templ-text);
+  font-weight: var(--templ-weight-heading);
+}
+.callout a {
+  color: var(--templ-accent-text);
+}
+.callout[data-tone="warning"] {
+  border-color: var(--templ-warning);
+  background: var(--templ-warning-soft);
+  color: var(--templ-warning-text);
+}
+.callout[data-tone="danger"] {
+  border-color: var(--templ-danger);
+  background: var(--templ-danger-soft);
+  color: var(--templ-danger-text);
+}
+.copyBlock {
+  position: relative;
+  min-width: 0;
+  border: var(--templ-border-width) solid var(--templ-line);
+  border-radius: var(--templ-radius-data);
+  background: var(--templ-surface);
+  overflow: hidden;
+}
+.copyBlockHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--templ-space-3);
+  min-height: var(--templ-control-height);
+  padding: var(--templ-space-1) var(--templ-space-2) var(--templ-space-1)
+    var(--templ-space-4);
+  border-bottom: var(--templ-border-width) solid var(--templ-line);
+  color: var(--templ-muted);
+  font-size: var(--templ-text-caption);
+  font-weight: var(--templ-weight-label);
+}
+.copyBlock pre {
+  margin: 0;
+  padding: var(--templ-space-4);
+  overflow-x: auto;
+  border: 0;
+  color: var(--templ-text);
+  font: var(--templ-weight-body) var(--templ-text-mono) / var(--templ-line-mono)
+    var(--templ-font-mono);
+  tab-size: 2;
+}
+.copyButton {
+  composes: button ghost compact from "./design-system.module.css";
+}
+.copyButton svg {
+  width: 16px;
+  height: 16px;
+}
+.copyInline {
+  composes: hashBlock from "./design-system.module.css";
+}
+.copyInline code {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--templ-text);
+  font-size: var(--templ-text-mono);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.empty {
+  composes: statePanel from "./design-system.module.css";
+  justify-items: center;
+  padding: var(--templ-space-12) var(--templ-space-6);
+  border: 0;
+  text-align: center;
+}
+.emptyIcon {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  margin-bottom: var(--templ-space-2);
+  border: var(--templ-border-width) solid var(--templ-line);
+  border-radius: var(--templ-radius-surface);
+  background: var(--templ-surface);
+  color: var(--templ-muted);
+}
+.emptyIcon svg {
+  width: 24px;
+  height: 24px;
+}
+.emptyTitle {
+  composes: cardTitle from "./design-system.module.css";
+}
+.emptyBody {
+  max-width: var(--templ-prose-max);
+  color: var(--templ-muted);
+  font-size: var(--templ-text-small);
+  line-height: var(--templ-line-body);
+}
+.emptyActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--templ-space-2);
+  margin-top: var(--templ-space-3);
+}
+.stat {
+  composes: numberTile from "./design-system.module.css";
+  display: grid;
+  gap: var(--templ-space-2);
+}
+.statLabel {
+  composes: tileLabel from "./design-system.module.css";
+}
+.statValue {
+  composes: tileValue from "./design-system.module.css";
+}
+.statHint {
+  composes: tileCaption from "./design-system.module.css";
+}
+.meter {
+  position: relative;
+  height: 8px;
+  overflow: hidden;
+  border-radius: var(--templ-radius-data);
+  background: var(--templ-surface);
+}
+.meter > span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: inherit;
+  background: var(--templ-chart-2);
+  transition: width var(--templ-duration-normal) var(--templ-ease-standard);
+}
+.meter[data-tone="warning"] > span {
+  background: var(--templ-warning);
+}
+.meter[data-tone="danger"] > span {
+  background: var(--templ-danger);
+}
+.skeleton {
+  composes: skeleton from "./design-system.module.css";
+}
+.spin {
+  composes: loadingMark from "./design-system.module.css";
+  display: inline-block;
+}
+@media (max-width: 767px) {
+  .pageTitle {
+    font-size: var(--templ-text-h2);
+  }
+  .cardHeader {
+    padding: var(--templ-space-4) var(--templ-space-4) 0;
+  }
+  .cardBody {
+    padding: var(--templ-space-4);
+  }
+  .cardFooter {
+    padding: var(--templ-space-4);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .meter > span {
+    transition: none;
+  }
+}

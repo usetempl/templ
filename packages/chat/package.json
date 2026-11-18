@@ -1,0 +1,31 @@
+{
+  "name": "@templ/chat",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./payments": null,
+    "./contracts-v5": null,
+    "./plan-assets": null,
+    "./plan-catalog": null,
+    "./plan-payment-deployments": null,
+    "./*": "./src/*.ts"
+  },
+  "files": [
+    "src"
+  ],
+  "scripts": {
+    "type-check": "tsc --noEmit",
+    "lint": "eslint . --fix",
+    "format": "prettier --write . --ignore-path ../../.prettierignore",
+    "test": "vitest run src/widget-wallet.test.ts --maxWorkers=2"
+  },
+  "devDependencies": {
+    "typescript": "^5",
+    "vitest": "4.1.12",
+    "@types/node": "^20"
+  },
+  "peerDependencies": {
+    "viem": "^2.55.0"
+  }
+}

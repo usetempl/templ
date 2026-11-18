@@ -1,0 +1,49 @@
+.region {
+  position: fixed;
+  z-index: var(--templ-z-toast);
+  left: 50%;
+  bottom: max(var(--templ-space-6), env(safe-area-inset-bottom));
+  width: min(440px, calc(100% - var(--templ-space-8)));
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+.toast {
+  composes: toast from "./ui/design-system.module.css";
+  pointer-events: auto;
+}
+.toast > svg {
+  flex: 0 0 auto;
+  color: var(--templ-muted);
+}
+.toast span {
+  min-width: 0;
+  font: var(--templ-weight-body) var(--templ-text-small) /
+    var(--templ-line-body) var(--templ-font-sans);
+}
+.toast button {
+  display: grid;
+  place-items: center;
+  min-width: var(--templ-control-compact);
+  min-height: var(--templ-control-compact);
+  border: var(--templ-border-width) solid var(--templ-border-strong);
+  border-radius: var(--templ-radius-control);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+.toast button:hover {
+  background: var(--templ-neutral-hover);
+}
+.toast button:active {
+  background: var(--templ-neutral-active);
+}
+.toast button:focus-visible {
+  outline: var(--templ-focus-width) solid var(--templ-focus);
+  outline-offset: var(--templ-focus-offset);
+}
+@media (pointer: coarse) {
+  .toast button {
+    min-width: var(--templ-control-height);
+    min-height: var(--templ-control-height);
+  }
+}

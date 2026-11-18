@@ -1,0 +1,189 @@
+/* The AI mode of one request, Hand off and the handoff banner. */
+
+.control {
+  display: grid;
+  gap: var(--templ-space-1);
+  min-width: 0;
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--templ-space-1);
+}
+.anchor {
+  position: relative;
+}
+.primary {
+  white-space: nowrap;
+}
+.menuButton {
+  composes: button secondary compact from "./ui/design-system.module.css";
+  gap: var(--templ-space-1);
+  padding: var(--templ-space-1) var(--templ-space-2);
+}
+.menuButton:hover,
+.menuButton[aria-expanded="true"] {
+  background: var(--templ-neutral-active);
+  color: var(--templ-text);
+}
+.status,
+.fine,
+.warn {
+  margin: 0;
+  font-size: var(--templ-text-caption);
+  line-height: var(--templ-line-body);
+}
+.status {
+  color: var(--templ-muted);
+}
+.fine {
+  color: var(--templ-muted);
+}
+.fine a {
+  color: var(--templ-text);
+}
+.warn {
+  color: var(--templ-warning-text);
+}
+.popover {
+  position: absolute;
+  z-index: var(--templ-z-dropdown);
+  bottom: calc(100% + var(--templ-space-2));
+  right: 0;
+  display: grid;
+  gap: var(--templ-space-2);
+  width: min(320px, calc(100vw - 32px));
+  padding: var(--templ-space-3);
+  border: var(--templ-border-width) solid var(--templ-border-strong);
+  border-radius: var(--templ-radius-surface);
+  background: var(--templ-raised);
+  box-shadow: var(--templ-shadow-lg);
+}
+.popover[data-align="start"] {
+  right: auto;
+  left: 0;
+}
+.popoverTitle {
+  margin: 0;
+  color: var(--templ-text);
+  font-size: var(--templ-text-small);
+  font-weight: var(--templ-weight-heading);
+}
+.menu {
+  display: grid;
+  gap: 2px;
+}
+.reasons {
+  max-height: min(50dvh, 360px);
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+.item {
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  min-height: var(--templ-control-compact);
+  padding: var(--templ-space-2) var(--templ-space-2);
+  border: var(--templ-border-width) solid transparent;
+  border-radius: var(--templ-radius-control);
+  background: transparent;
+  color: var(--templ-muted);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.item:hover,
+.item:focus-visible {
+  outline: var(--templ-focus-width) solid var(--templ-focus);
+  outline-offset: var(--templ-focus-offset);
+  border-color: var(--templ-border-strong);
+  background: var(--templ-surface);
+  color: var(--templ-text);
+}
+.item[aria-checked="true"] {
+  border-color: var(--templ-action-border);
+  background: var(--templ-accent-soft);
+  color: var(--templ-text);
+}
+.item[aria-disabled="true"] {
+  cursor: not-allowed;
+  opacity: 1;
+  color: var(--templ-muted);
+  background: var(--templ-surface);
+  border-color: var(--templ-border-strong);
+  transform: none;
+}
+.itemLabel {
+  font-size: var(--templ-text-small);
+  font-weight: var(--templ-weight-heading);
+}
+.hint {
+  color: var(--templ-muted);
+  font-size: var(--templ-text-caption);
+  line-height: var(--templ-line-body);
+}
+.banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--templ-space-2);
+  margin: 0;
+  padding: var(--templ-space-2) var(--templ-space-3);
+  border: 0;
+  border-left: 2px solid var(--templ-warning);
+  border-radius: 0;
+  background: var(--templ-warning-soft);
+  color: var(--templ-text);
+  font-size: var(--templ-text-small);
+  line-height: var(--templ-line-body);
+}
+.bannerText {
+  display: flex;
+  flex-wrap: wrap;
+  flex: 1;
+  gap: var(--templ-space-1) var(--templ-space-3);
+  min-width: 0;
+}
+.bannerText strong {
+  color: var(--templ-text);
+  font-weight: var(--templ-weight-heading);
+}
+.bannerNote {
+  flex-basis: 100%;
+  margin: var(--templ-space-1) 0 0;
+  color: var(--templ-text);
+  overflow-wrap: anywhere;
+  white-space: pre-line;
+}
+.link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--templ-text);
+  font: inherit;
+  font-weight: var(--templ-weight-heading);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+@media (pointer: coarse) {
+  .item {
+    min-height: var(--templ-control-height);
+  }
+}
+
+@media (max-width: 480px) {
+  .control {
+    position: relative;
+    width: 100%;
+  }
+  .control .anchor {
+    position: static;
+  }
+  .control .popover {
+    width: min(320px, 100%);
+  }
+}

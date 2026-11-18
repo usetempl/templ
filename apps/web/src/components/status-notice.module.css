@@ -1,0 +1,24 @@
+.notice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--templ-space-1) var(--templ-space-3);
+  margin: 0;
+  padding: var(--templ-space-2) var(--templ-space-4);
+  border-bottom: var(--templ-border-width) solid var(--templ-action-border);
+  background: var(--templ-accent-soft);
+  color: var(--templ-text);
+  font-size: var(--templ-text-small);
+  line-height: var(--templ-line-body);
+}
+.note {
+  color: var(--templ-muted);
+}
+.notice a {
+  color: var(--templ-accent-text);
+  text-underline-offset: 3px;
+}
+.notice a:focus-visible {
+  outline: var(--templ-focus-width) solid var(--templ-focus);
+  outline-offset: var(--templ-focus-offset);
+}

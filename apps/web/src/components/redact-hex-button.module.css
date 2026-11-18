@@ -1,0 +1,38 @@
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin-top: 0.5rem;
+  font-size: var(--templ-text-caption);
+}
+.chip {
+  border: var(--templ-border-width) solid var(--templ-line);
+  border-radius: var(--templ-radius-control);
+  padding: 0.2rem 0.4rem;
+  color: var(--templ-muted);
+}
+.button {
+  font: inherit;
+  border: 0;
+  background: transparent;
+  color: var(--templ-accent-text);
+  padding: 0.4rem;
+  cursor: pointer;
+}
+.button:disabled {
+  cursor: wait;
+  opacity: 1;
+  color: var(--templ-muted);
+  background: var(--templ-surface);
+  border-color: var(--templ-border-strong);
+  transform: none;
+}
+.button:focus-visible {
+  outline: var(--templ-focus-width) solid var(--templ-focus);
+  outline-offset: var(--templ-focus-offset);
+}
+.error {
+  flex-basis: 100%;
+  color: var(--templ-text);
+}

@@ -1,0 +1,87 @@
+.notice {
+  position: fixed;
+  top: var(--templ-space-16);
+  right: var(--templ-space-3);
+  z-index: var(--templ-z-toast);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--templ-space-3);
+  max-width: calc(100vw - 2 * var(--templ-space-3));
+  padding: var(--templ-space-3) var(--templ-space-4);
+  border: var(--templ-border-width) solid var(--templ-border-strong);
+  border-radius: var(--templ-radius-surface);
+  background: var(--templ-raised);
+  color: var(--templ-text);
+  box-shadow: var(--templ-shadow-lg);
+  font-size: var(--templ-text-small);
+}
+.notice a,
+.notice button {
+  padding: var(--templ-space-1);
+  border: 0;
+  background: transparent;
+  color: var(--templ-accent-text);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+/* Same site action shape as the landing Try the chat button. */
+.launcher {
+  composes: button primary from "./ui/design-system.module.css";
+  position: fixed;
+  right: 20px;
+  bottom: 36px;
+  z-index: 2147483000;
+  gap: var(--site-action-gap);
+  min-height: var(--site-action-height);
+  padding: 0 var(--site-action-padding-inline);
+  border: var(--site-action-border-width) solid var(--templ-action-border);
+  border-radius: var(--site-action-radius);
+  font-size: var(--site-action-font-size);
+  font-weight: var(--site-action-weight);
+  line-height: var(--site-action-line);
+}
+.launcher[hidden] { display: none; }
+.launcherMark {
+  flex: none;
+  width: 20px;
+  height: 20px;
+}
+.launcher:focus-visible {
+  outline: var(--templ-focus-width) solid var(--templ-focus);
+  outline-offset: var(--templ-focus-offset);
+}
+@media (max-width: 480px) {
+  .launcher {
+    right: 16px;
+    bottom: max(16px, env(safe-area-inset-bottom));
+  }
+}
+
+.spinner {
+  width: 24px;
+  height: 24px;
+  flex: none;
+  border: 2px solid var(--templ-border-strong);
+  border-top-color: var(--templ-accent);
+  border-radius: 50%;
+  animation: support-spin 0.8s linear infinite;
+}
+@keyframes support-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.notice:has(.spinner) {
+  top: auto;
+  bottom: 100px;
+  right: 20px;
+  padding: 16px 20px;
+  font-size: 16px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+  }
+}

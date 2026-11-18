@@ -1,0 +1,371 @@
+@import "tailwindcss";
+@import "../../../../packages/chat/src/design-system/tokens.css";
+
+@import "../../../../packages/chat/src/design-system/brand.css";
+
+:root {
+  --templ-brand: var(--templ-accent);
+  --templ-highlight: var(--templ-accent);
+  --templ-on-brand: var(--templ-on-accent);
+  --templ-on-highlight: var(--templ-on-accent);
+  --templ-subtle-bg: var(--templ-accent-soft);
+  --templ-subtle-border: var(--templ-line);
+  --surface-0: var(--templ-bg);
+  --surface-1: var(--templ-surface);
+  --surface-2: var(--templ-raised);
+  --surface-3: var(--templ-surface);
+  --surface-4: var(--templ-neutral-hover);
+  --surface-5: var(--templ-neutral-active);
+  --border: var(--templ-line);
+  --border-2: var(--templ-border-strong);
+  --border-3: var(--templ-muted);
+  --fg: var(--templ-text);
+  --fg-2: var(--templ-muted);
+  --fg-3: var(--templ-muted);
+  --fg-4: var(--templ-muted);
+  --success: var(--templ-success);
+  --success-soft: var(--templ-success-soft);
+  --success-text: var(--templ-success-text);
+  --warning: var(--templ-warning);
+  --warning-soft: var(--templ-warning-soft);
+  --danger: var(--templ-danger);
+  --danger-soft: var(--templ-danger-soft);
+  --ink: var(--templ-ink);
+  --community-on-accent: var(--templ-on-accent);
+  --brand-soft: var(--templ-accent-soft);
+  --brand-line: var(--templ-line);
+  --status-open: var(--templ-muted);
+  --status-waiting: var(--templ-warning);
+  --status-resolved: var(--templ-success);
+  --status-spam: var(--templ-danger);
+  --info: var(--templ-muted);
+  --info-soft: var(--templ-surface);
+  --radius-xs: var(--templ-radius-control);
+  --radius-sm: var(--templ-radius-control);
+  --radius: var(--templ-radius-surface);
+  --radius-lg: var(--templ-radius-surface);
+  --radius-xl: var(--templ-radius-surface);
+  --shadow-card: var(--templ-shadow-sm);
+  --shadow-pop: var(--templ-shadow-md);
+  --font-display: var(--templ-font-display);
+  --font-display-stack: var(--templ-font-display);
+  --button-height: var(--templ-control-height);
+  --button-height-small: var(--templ-control-compact);
+  --button-height-large: var(--templ-control-height);
+  --button-radius: var(--templ-radius-control);
+  --templ-response-press: var(--templ-duration-fast);
+  --templ-response-fast: var(--templ-duration-fast);
+  --templ-response-panel: var(--templ-duration-normal);
+  --templ-response-theme: var(--templ-duration-slow);
+  --templ-motion-slide-out: var(--templ-ease-standard);
+  --templ-motion-slide-in: var(--templ-ease-standard);
+  --templ-motion-slide-in-out: var(--templ-ease-standard);
+  --templ-motion-jelly: var(--templ-ease-standard);
+  --templ-motion-boink: var(--templ-ease-exit);
+  --templ-font-sans: var(--font-sans), Arial, sans-serif;
+  --templ-font-mono: var(--font-mono), ui-monospace, monospace;
+  font-family: var(--templ-font-sans);
+  font-synthesis: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Site actions: landing calls to action and the Talk to us launcher share
+ * one shape. Colors and states come from the design-system button.
+ * Site outer surfaces (landing cards, the demo frame and Own's widget panel)
+ * share the button corner through --site-corner-radius. */
+:root {
+  --site-corner-radius: var(--templ-radius-control);
+  --site-action-height: 48px;
+  --site-action-padding-inline: 22px;
+  --site-action-gap: var(--templ-space-2);
+  --site-action-radius: var(--site-corner-radius);
+  --site-action-border-width: var(--templ-border-width);
+  --site-action-font-size: 16px;
+  --site-action-weight: var(--templ-weight-label);
+  --site-action-line: 1.25;
+  --site-action-icon: 18px;
+}
+
+* {
+  box-sizing: border-box;
+}
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: var(--templ-space-16);
+}
+body {
+  margin: 0;
+  background: var(--surface-0);
+  color: var(--fg);
+  font-size: var(--templ-text-body);
+  line-height: var(--templ-line-body);
+  text-rendering: optimizeLegibility;
+}
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+input::placeholder,
+textarea::placeholder {
+  color: var(--templ-muted);
+  opacity: 1;
+}
+/* Tabler's ChevronDown keeps the indicator inside the field padding. */
+:root {
+  --templ-select-chevron-light: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23131313' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6l6 -6'/%3E%3C/svg%3E");
+  --templ-select-chevron-dark: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23f2f2f2' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6l6 -6'/%3E%3C/svg%3E");
+  --templ-select-chevron: var(--templ-select-chevron-light);
+}
+[data-theme="light"] {
+  --templ-select-chevron: var(--templ-select-chevron-light);
+}
+[data-theme="dark"] {
+  --templ-select-chevron: var(--templ-select-chevron-dark);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    --templ-select-chevron: var(--templ-select-chevron-dark);
+  }
+}
+select:not([multiple]):not([size]),
+select:not([multiple])[size="1"] {
+  appearance: none;
+  background-image: var(--templ-select-chevron);
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 16px;
+  padding-inline-end: 40px;
+  text-overflow: ellipsis;
+}
+select:not([multiple]):not([size]):dir(rtl),
+select:not([multiple])[size="1"]:dir(rtl) {
+  background-position: left 12px center;
+}
+@media (forced-colors: active) {
+  select:not([multiple]):not([size]),
+  select:not([multiple])[size="1"] {
+    appearance: auto;
+    background-image: none;
+  }
+}
+a,
+button,
+input,
+textarea,
+select {
+  -webkit-tap-highlight-color: transparent;
+}
+a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+button {
+  cursor: pointer;
+}
+button:disabled {
+  cursor: not-allowed;
+  opacity: 1;
+}
+a:focus-visible,
+button:focus-visible,
+summary:focus-visible {
+  outline: 2px solid var(--templ-focus);
+  outline-offset: 3px;
+}
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}
+h1,
+h2,
+h3 {
+  line-height: var(--templ-line-heading);
+  font-weight: var(--templ-weight-heading);
+  letter-spacing: var(--templ-tracking-heading);
+  text-wrap: balance;
+}
+p {
+  color: var(--fg-2);
+  text-wrap: pretty;
+}
+code,
+kbd,
+samp,
+pre {
+  font-family: var(--font-mono), ui-monospace, monospace;
+}
+img {
+  display: block;
+  max-width: 100%;
+  object-fit: cover;
+}
+::selection {
+  background: var(--templ-highlight);
+  color: var(--templ-on-brand);
+}
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+.skip-link {
+  position: fixed;
+  left: var(--templ-space-4);
+  top: -100px;
+  z-index: var(--templ-z-toast);
+  padding: var(--templ-space-2) var(--templ-space-3);
+  border-radius: var(--templ-radius-control);
+  background: var(--templ-brand);
+  color: var(--templ-on-brand);
+}
+.skip-link:focus {
+  top: var(--templ-space-2);
+}
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--templ-space-2);
+  min-height: var(--templ-control-height);
+  padding: var(--templ-space-2) var(--templ-space-4);
+  border: var(--templ-border-width) solid var(--templ-action-border);
+  border-radius: var(--templ-radius-control);
+  color: var(--templ-on-accent);
+  background: var(--templ-accent);
+  font: var(--templ-weight-label) var(--templ-text-small) /
+    var(--templ-line-body) var(--templ-font-sans);
+  text-decoration: none;
+  white-space: nowrap;
+  transition: transform var(--templ-duration-fast) var(--templ-ease-standard);
+}
+.button:hover {
+  background: var(--templ-accent-hover);
+  border-color: var(--templ-action-border);
+}
+.button:active {
+  background: var(--templ-accent-active);
+  transform: translateY(1px);
+}
+.button.secondary,
+.button.quiet {
+  border-color: var(--templ-border-strong);
+  color: var(--templ-text);
+  background: var(--templ-raised);
+}
+.button.quiet {
+  background: transparent;
+}
+.button.secondary:hover,
+.button.quiet:hover {
+  background: var(--templ-neutral-hover);
+}
+.button.secondary:active,
+.button.quiet:active {
+  background: var(--templ-neutral-active);
+}
+.button.destructive {
+  border-color: var(--templ-danger);
+  color: var(--templ-on-danger);
+  background: var(--templ-danger);
+}
+.button.destructive:hover {
+  background: var(--templ-danger-hover);
+}
+.button.destructive:active {
+  background: var(--templ-danger-active);
+}
+.button:focus-visible {
+  outline: var(--templ-focus-width) solid var(--templ-focus);
+  outline-offset: var(--templ-focus-offset);
+}
+.button:disabled,
+.button[aria-disabled="true"] {
+  border-color: var(--templ-border-strong);
+  color: var(--templ-muted);
+  background: var(--templ-surface);
+  cursor: not-allowed;
+  transform: none;
+}
+.button[aria-busy="true"] {
+  cursor: wait;
+  transform: none;
+}
+.button.small {
+  min-height: var(--templ-control-compact);
+  padding: var(--templ-space-1) var(--templ-space-3);
+}
+.button.large {
+  min-height: var(--templ-control-height);
+}
+.button.icon {
+  width: var(--templ-control-height);
+  padding: var(--templ-space-2);
+}
+@media (pointer: coarse) {
+  .button.small {
+    min-height: var(--templ-control-height);
+  }
+}
+.button svg {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+}
+input[type="range"] {
+  display: block;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  border: 0;
+  border-radius: var(--templ-radius-control);
+  background: linear-gradient(
+    to right,
+    var(--templ-brand) var(--range-value),
+    var(--surface-2) var(--range-value)
+  );
+  cursor: pointer;
+}
+input[type="range"]:focus-visible {
+  outline: 2px solid var(--templ-focus);
+  outline-offset: 6px;
+  box-shadow: none;
+}
+input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border: 3px solid var(--border);
+  border-radius: var(--templ-radius-control);
+  outline: 1px solid var(--templ-brand);
+  background: var(--templ-brand);
+}
+input[type="range"]::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border: 3px solid var(--border);
+  border-radius: var(--templ-radius-control);
+  outline: 1px solid var(--templ-brand);
+  background: var(--templ-brand);
+}
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    transition: none !important;
+    animation: none !important;
+  }
+}

@@ -1,0 +1,234 @@
+.editor {
+  display: grid;
+  grid-template-columns: minmax(260px, 340px) minmax(0, 1fr);
+  gap: var(--templ-space-6);
+  align-items: start;
+  min-width: 0;
+}
+.controls {
+  display: grid;
+  gap: var(--templ-space-5);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.controls:disabled {
+  opacity: 0.65;
+}
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+.section {
+  display: grid;
+  gap: var(--templ-space-3);
+  min-width: 0;
+}
+.section + .section {
+  padding-top: var(--templ-space-4);
+  border-top: var(--templ-border-width) solid var(--templ-line);
+}
+.section h3 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--templ-space-2);
+  margin: 0;
+  font-size: var(--templ-text-body);
+  font-weight: var(--templ-weight-heading);
+}
+.section h3 span,
+.section p,
+.hint {
+  margin: 0;
+  color: var(--templ-muted);
+  font-size: var(--templ-text-small);
+  line-height: var(--templ-line-body);
+  font-weight: var(--templ-weight-body);
+}
+.section label {
+  display: grid;
+  gap: var(--templ-space-2);
+  min-width: 0;
+  color: var(--templ-text);
+  font-size: var(--templ-text-small);
+}
+.input {
+  composes: input from "../ui/design-system.module.css";
+  min-width: 0;
+}
+.row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--templ-space-3);
+}
+.colorField {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 34px 92px;
+  align-items: center;
+  gap: var(--templ-space-2);
+  min-width: 0;
+}
+.colorField input[type="color"] {
+  width: 34px;
+  height: 34px;
+  padding: 2px;
+  border: var(--templ-border-width) solid var(--templ-border-strong);
+  border-radius: var(--templ-radius-control);
+  background: var(--templ-surface);
+  cursor: pointer;
+}
+.colorField input:not([type="color"]) {
+  padding-inline: 8px;
+  font-family: var(--templ-font-mono);
+  font-size: var(--templ-text-small);
+}
+.colorField .error {
+  grid-column: 1/-1;
+}
+.error {
+  color: var(--templ-danger-text);
+  font-size: var(--templ-text-small);
+}
+.swatches {
+  display: grid;
+  grid-template-columns: repeat(9, minmax(0, 1fr));
+  gap: 7px;
+  padding-block: var(--templ-space-1);
+}
+.swatches button {
+  width: 100%;
+  aspect-ratio: 1;
+  min-width: 0;
+  border: var(--templ-border-width) solid var(--templ-border-strong);
+  border-radius: var(--templ-radius-control);
+  cursor: pointer;
+}
+.swatches button[aria-pressed="true"] {
+  outline: 2px solid var(--templ-text);
+  outline-offset: 2px;
+}
+.choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--templ-space-1);
+}
+.choice {
+  composes: button secondary compact from "../ui/design-system.module.css";
+}
+.choices button[aria-pressed="true"] {
+  border-color: var(--templ-action-border);
+  background: var(--templ-accent-soft);
+  color: var(--templ-text);
+}
+.section .check {
+  display: flex;
+  align-items: center;
+  gap: var(--templ-space-2);
+}
+.check input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--templ-accent);
+}
+.preview {
+  position: sticky;
+  top: var(--templ-space-4);
+  display: grid;
+  gap: var(--templ-space-3);
+  min-width: 0;
+}
+.previewHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--templ-space-2);
+  font-size: var(--templ-text-small);
+}
+.previewHost {
+  min-width: 0;
+  padding: var(--templ-space-4);
+  border: var(--templ-border-width) solid var(--templ-border-strong);
+  border-radius: var(--templ-radius-surface);
+}
+.previewHost[data-theme="light"] {
+  background: #f5f5f5;
+  color: #202020;
+  color-scheme: light;
+}
+.previewHost[data-theme="dark"] {
+  background: #161616;
+  color: #f2f2f2;
+  color-scheme: dark;
+}
+.previewFrame {
+  position: relative;
+  width: 100%;
+  max-width: 430px;
+  height: 560px;
+  margin-inline: auto;
+}
+.editor :is(button, input, textarea, select):focus-visible {
+  outline: var(--templ-focus-width) solid var(--templ-focus);
+  outline-offset: var(--templ-focus-offset);
+}
+@media (max-width: 1000px) {
+  .editor {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .preview {
+    position: static;
+    grid-row: 1;
+  }
+  .previewFrame {
+    height: 500px;
+  }
+  .controls {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+  }
+  .section + .section {
+    border-top: 0;
+    padding-top: 0;
+  }
+}
+@media (max-width: 600px) {
+  .controls {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .section + .section {
+    border-top: var(--templ-border-width) solid var(--templ-line);
+    padding-top: var(--templ-space-4);
+  }
+  .previewHost {
+    padding: var(--templ-space-2);
+  }
+  .previewFrame {
+    height: 480px;
+  }
+  .choices button {
+    min-height: 44px;
+  }
+}
+
+@media (max-width: 600px) {
+  .swatches {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+  .swatches button {
+    min-height: 44px;
+  }
+  .colorField {
+    grid-template-columns: minmax(0, 1fr) 44px 100px;
+  }
+  .colorField input[type="color"] {
+    width: 44px;
+    height: 44px;
+  }
+}

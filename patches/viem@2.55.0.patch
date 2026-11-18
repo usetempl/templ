@@ -1,0 +1,308 @@
+diff --git a/_cjs/actions/token/approve.js b/_cjs/actions/token/approve.js
+index 726bd09cb3b4460be0a8383fbf3fded1dae419d7..4b7e3fbbd6c15dec0fcf81d45cf2b61a88e28d08 100644
+--- a/_cjs/actions/token/approve.js
++++ b/_cjs/actions/token/approve.js
+@@ -21,7 +21,10 @@ async function approve(client, parameters) {
+     function call(client, parameters) {
+         return (0, internal_js_1.defineCall)(getCall(client, parameters));
+     }
+-    approve.call = call;
++    // Do not assign through a possibly hardened Function.prototype.call.
++    Object.defineProperty(approve, 'call', {
++        configurable: true, enumerable: true, writable: true, value: call,
++    });
+     async function estimateGas(client, parameters) {
+         return (0, estimateContractGas_js_1.estimateContractGas)(client, {
+             ...(0, internal_js_1.pickWriteParameters)(parameters),
+diff --git a/_cjs/actions/token/getAllowance.js b/_cjs/actions/token/getAllowance.js
+index 8660140149529fbea496fa3d7a1fe7fa20229535..faaff3d06fa950319caaba0a2de35845c1f26e1a 100644
+--- a/_cjs/actions/token/getAllowance.js
++++ b/_cjs/actions/token/getAllowance.js
+@@ -27,6 +27,9 @@ async function getAllowance(client, parameters) {
+             args: [args.account, args.spender],
+         });
+     }
+-    getAllowance.call = call;
++    // Do not assign through a possibly hardened Function.prototype.call.
++    Object.defineProperty(getAllowance, 'call', {
++        configurable: true, enumerable: true, writable: true, value: call,
++    });
+ })(getAllowance || (exports.getAllowance = getAllowance = {}));
+ //# sourceMappingURL=getAllowance.js.map
+diff --git a/_cjs/actions/token/getBalance.js b/_cjs/actions/token/getBalance.js
+index 95e8a354722dfb08ebb646e9522d37542912ef9c..e55e31274c5521d99fd1889163fee296d3e8276c 100644
+--- a/_cjs/actions/token/getBalance.js
++++ b/_cjs/actions/token/getBalance.js
+@@ -36,6 +36,9 @@ async function getBalance(client, parameters) {
+             args: [account],
+         });
+     }
+-    getBalance.call = call;
++    // Do not assign through a possibly hardened Function.prototype.call.
++    Object.defineProperty(getBalance, 'call', {
++        configurable: true, enumerable: true, writable: true, value: call,
++    });
+ })(getBalance || (exports.getBalance = getBalance = {}));
+ //# sourceMappingURL=getBalance.js.map
+diff --git a/_cjs/actions/token/getTotalSupply.js b/_cjs/actions/token/getTotalSupply.js
+index fc6ad09ddd8d9f061c9fd1887a7b902f7a68ca6e..42269925c8c24d71c1d47eca9f7cd8f2bb398690 100644
+--- a/_cjs/actions/token/getTotalSupply.js
++++ b/_cjs/actions/token/getTotalSupply.js
+@@ -27,6 +27,9 @@ async function getTotalSupply(client, parameters) {
+             functionName: 'totalSupply',
+         });
+     }
+-    getTotalSupply.call = call;
++    // Do not assign through a possibly hardened Function.prototype.call.
++    Object.defineProperty(getTotalSupply, 'call', {
++        configurable: true, enumerable: true, writable: true, value: call,
++    });
+ })(getTotalSupply || (exports.getTotalSupply = getTotalSupply = {}));
+ //# sourceMappingURL=getTotalSupply.js.map
+diff --git a/_cjs/actions/token/transfer.js b/_cjs/actions/token/transfer.js
+index 9105404dac58b176404e019d833a65e7ad6cd7f5..76ce524f67a2b7c8ee2863cc26265eef99c4bf05 100644
+--- a/_cjs/actions/token/transfer.js
++++ b/_cjs/actions/token/transfer.js
+@@ -21,7 +21,10 @@ async function transfer(client, parameters) {
+     function call(client, parameters) {
+         return (0, internal_js_1.defineCall)(getCall(client, parameters));
+     }
+-    transfer.call = call;
++    // Do not assign through a possibly hardened Function.prototype.call.
++    Object.defineProperty(transfer, 'call', {
++        configurable: true, enumerable: true, writable: true, value: call,
++    });
+     async function estimateGas(client, parameters) {
+         return (0, estimateContractGas_js_1.estimateContractGas)(client, {
+             ...(0, internal_js_1.pickWriteParameters)(parameters),
+diff --git a/_cjs/clients/createClient.js b/_cjs/clients/createClient.js
+index 47bfd32eabf66c9d890deb8cf47c46f334f96235..14230270cada8a434f99114ec4c3781af9c3af82 100644
+--- a/_cjs/clients/createClient.js
++++ b/_cjs/clients/createClient.js
+@@ -76,11 +76,15 @@ function bindActionDecorators(client, action) {
+     ])
+         if (Object.hasOwn(action, key)) {
+             const helper = action[key];
+-            wrapped[key] = (args = {}) => {
++            // Define an own helper even when a wallet hardens Function.prototype.call.
++            Object.defineProperty(wrapped, key, {
++                configurable: true, enumerable: true, writable: true,
++                value: (args = {}) => {
+                 if (helper.length === 1)
+                     return helper(args);
+                 return helper(client, args);
+-            };
++                },
++            });
+         }
+     for (const key of ['extractEvent', 'extractEvents'])
+         if (Object.hasOwn(action, key))
+diff --git a/_esm/actions/token/approve.js b/_esm/actions/token/approve.js
+index 1c2847fcfeb3c16e87ad9c14ad1750d9562f4002..dab24526fce1c53a27fc48f97e0da53db87256fa 100644
+--- a/_esm/actions/token/approve.js
++++ b/_esm/actions/token/approve.js
+@@ -59,7 +59,10 @@ export async function approve(client, parameters) {
+     function call(client, parameters) {
+         return defineCall(getCall(client, parameters));
+     }
+-    approve.call = call;
++    // Do not assign through a possibly hardened Function.prototype.call.
++    Object.defineProperty(approve, 'call', {
++        configurable: true, enumerable: true, writable: true, value: call,
++    });
+     /**
+      * Estimates the gas required to approve a spender. `amount.decimals` is
+      * inferred from declared client tokens when omitted.
+diff --git a/_esm/actions/token/getAllowance.js b/_esm/actions/token/getAllowance.js
+index 5327d0884d079e10fc6abcc815415ed0af0cd474..bf5f6501dc884c3aaae492c9158d11c2f6179447 100644
+--- a/_esm/actions/token/getAllowance.js
++++ b/_esm/actions/token/getAllowance.js
+@@ -57,6 +57,9 @@ export async function getAllowance(client, parameters) {
+             args: [args.account, args.spender],
+         });
+     }
+-    getAllowance.call = call;
++    // Do not assign through a possibly hardened Function.prototype.call.
++    Object.defineProperty(getAllowance, 'call', {
++        configurable: true, enumerable: true, writable: true, value: call,
++    });
+ })(getAllowance || (getAllowance = {}));
+ //# sourceMappingURL=getAllowance.js.map
+diff --git a/_esm/actions/token/getBalance.js b/_esm/actions/token/getBalance.js
+index 360c29703f554777b9208e06d9fcdc675190b47c..45082cdd65c41ce92e94be4ade47da3bf7d8b123 100644
+--- a/_esm/actions/token/getBalance.js
++++ b/_esm/actions/token/getBalance.js
+@@ -65,6 +65,9 @@ export async function getBalance(client, parameters) {
+             args: [account],
+         });
+     }
+-    getBalance.call = call;
++    // Do not assign through a possibly hardened Function.prototype.call.
++    Object.defineProperty(getBalance, 'call', {
++        configurable: true, enumerable: true, writable: true, value: call,
++    });
+ })(getBalance || (getBalance = {}));
+ //# sourceMappingURL=getBalance.js.map
+diff --git a/_esm/actions/token/getTotalSupply.js b/_esm/actions/token/getTotalSupply.js
+index 10ce8580b093ca66da7d1937071a6e1d5bbeba56..b6817f5130f40ec31ace25f95ee3b4bdf65cb031 100644
+--- a/_esm/actions/token/getTotalSupply.js
++++ b/_esm/actions/token/getTotalSupply.js
+@@ -55,6 +55,9 @@ export async function getTotalSupply(client, parameters) {
+             functionName: 'totalSupply',
+         });
+     }
+-    getTotalSupply.call = call;
++    // Do not assign through a possibly hardened Function.prototype.call.
++    Object.defineProperty(getTotalSupply, 'call', {
++        configurable: true, enumerable: true, writable: true, value: call,
++    });
+ })(getTotalSupply || (getTotalSupply = {}));
+ //# sourceMappingURL=getTotalSupply.js.map
+diff --git a/_esm/actions/token/transfer.js b/_esm/actions/token/transfer.js
+index d6e94a4c474e6a17588b8961a3d6914ee3518233..376ee9242c5f94c1dd4ff499981ba1ab9b822954 100644
+--- a/_esm/actions/token/transfer.js
++++ b/_esm/actions/token/transfer.js
+@@ -75,7 +75,10 @@ export async function transfer(client, parameters) {
+     function call(client, parameters) {
+         return defineCall(getCall(client, parameters));
+     }
+-    transfer.call = call;
++    // Do not assign through a possibly hardened Function.prototype.call.
++    Object.defineProperty(transfer, 'call', {
++        configurable: true, enumerable: true, writable: true, value: call,
++    });
+     /**
+      * Estimates the gas required to transfer ERC-20 tokens. `amount.decimals` is
+      * inferred from declared client tokens when omitted.
+diff --git a/_esm/clients/createClient.js b/_esm/clients/createClient.js
+index f59a49c56b7c195846599b7a2817aac7bb619181..de60cc5c32011fcd21160b93dc17752b60c63553 100644
+--- a/_esm/clients/createClient.js
++++ b/_esm/clients/createClient.js
+@@ -87,7 +87,10 @@ export function bindActionDecorators(client, action) {
+     ])
+         if (Object.hasOwn(action, key)) {
+             const helper = action[key];
+-            wrapped[key] = (args = {}) => {
++            // Define an own helper even when a wallet hardens Function.prototype.call.
++            Object.defineProperty(wrapped, key, {
++                configurable: true, enumerable: true, writable: true,
++                value: (args = {}) => {
+                 // Single-parameter helpers are client-less (e.g. `dex.buy.call(args)`).
+                 // Everything else is called with `(client, args)`: two-parameter
+                 // helpers, rest-parameter helpers that accept `(client, args)` or
+@@ -96,7 +99,8 @@ export function bindActionDecorators(client, action) {
+                 if (helper.length === 1)
+                     return helper(args);
+                 return helper(client, args);
+-            };
++                },
++            });
+         }
+     for (const key of ['extractEvent', 'extractEvents'])
+         if (Object.hasOwn(action, key))
+diff --git a/actions/token/approve.ts b/actions/token/approve.ts
+index 8f2ca343214792877d2f4d883cd4725ec56011c3..20922ca56ae71bdf826f8d5113ab008823f4b6fe 100644
+--- a/actions/token/approve.ts
++++ b/actions/token/approve.ts
+@@ -64,6 +64,11 @@ export async function approve<
+   return approve.inner(writeContract, client, parameters)
+ }
+ 
++// The namespace defines its own call helper; inherited intrinsics may be read-only.
++Object.defineProperty(approve, 'call', {
++  configurable: true, enumerable: true, writable: true, value: undefined,
++})
++
+ export namespace approve {
+   export type Args<
+     chain extends Chain | undefined = Chain | undefined,
+diff --git a/actions/token/getAllowance.ts b/actions/token/getAllowance.ts
+index 01f20b948154a6d6be9df1c4a3585fb5e9674cd5..49ef7bf462a3339cd5342a701d2d1c85cdd43036 100644
+--- a/actions/token/getAllowance.ts
++++ b/actions/token/getAllowance.ts
+@@ -60,6 +60,11 @@ export async function getAllowance<
+   return toAmount(amount as bigint, resolved)
+ }
+ 
++// The namespace defines its own call helper; inherited intrinsics may be read-only.
++Object.defineProperty(getAllowance, 'call', {
++  configurable: true, enumerable: true, writable: true, value: undefined,
++})
++
+ export namespace getAllowance {
+   export type Args<
+     chain extends Chain | undefined = Chain | undefined,
+diff --git a/actions/token/getBalance.ts b/actions/token/getBalance.ts
+index c6a689145c492ea06358979cf0961a92aecfc8e8..829e0d694b59eeab7fb5b40a9fc5a569b9d2a507 100644
+--- a/actions/token/getBalance.ts
++++ b/actions/token/getBalance.ts
+@@ -69,6 +69,11 @@ export async function getBalance<
+   return toAmount(amount, resolved)
+ }
+ 
++// The namespace defines its own call helper; inherited intrinsics may be read-only.
++Object.defineProperty(getBalance, 'call', {
++  configurable: true, enumerable: true, writable: true, value: undefined,
++})
++
+ export namespace getBalance {
+   export type Args<
+     chain extends Chain | undefined = Chain | undefined,
+diff --git a/actions/token/getTotalSupply.ts b/actions/token/getTotalSupply.ts
+index 1148f0f255ebffbbad8d71c6a179f5802dcdee32..33238ff37386308c671ee0c703b68ee1b74c1836 100644
+--- a/actions/token/getTotalSupply.ts
++++ b/actions/token/getTotalSupply.ts
+@@ -57,6 +57,11 @@ export async function getTotalSupply<
+   return toAmount(amount as bigint, resolved)
+ }
+ 
++// The namespace defines its own call helper; inherited intrinsics may be read-only.
++Object.defineProperty(getTotalSupply, 'call', {
++  configurable: true, enumerable: true, writable: true, value: undefined,
++})
++
+ export namespace getTotalSupply {
+   export type Args<
+     chain extends Chain | undefined = Chain | undefined,
+diff --git a/actions/token/transfer.ts b/actions/token/transfer.ts
+index 7106a52faaad32307487dcaebe37234f81f12b9f..206633ae6c69fcca5e1aa29e9d8c87593db096f3 100644
+--- a/actions/token/transfer.ts
++++ b/actions/token/transfer.ts
+@@ -79,6 +79,11 @@ export async function transfer<
+   return transfer.inner(writeContract, client, parameters)
+ }
+ 
++// The namespace defines its own call helper; inherited intrinsics may be read-only.
++Object.defineProperty(transfer, 'call', {
++  configurable: true, enumerable: true, writable: true, value: undefined,
++})
++
+ export namespace transfer {
+   export type Args<
+     chain extends Chain | undefined = Chain | undefined,
+diff --git a/clients/createClient.ts b/clients/createClient.ts
+index 14b62e225a6c1dd1ecfb038849ac1d4821433c1e..42e130081f603bf4b03e542e629d553204ad8fd1 100644
+--- a/clients/createClient.ts
++++ b/clients/createClient.ts
+@@ -370,7 +370,10 @@ export function bindActionDecorators(
+   ] as const)
+     if (Object.hasOwn(action, key)) {
+       const helper = action[key]
+-      wrapped[key] = (args: any = {}) => {
++      // Define an own helper even when a wallet hardens Function.prototype.call.
++      Object.defineProperty(wrapped, key, {
++        configurable: true, enumerable: true, writable: true,
++        value: (args: any = {}) => {
+         // Single-parameter helpers are client-less (e.g. `dex.buy.call(args)`).
+         // Everything else is called with `(client, args)`: two-parameter
+         // helpers, rest-parameter helpers that accept `(client, args)` or
+@@ -378,7 +381,8 @@ export function bindActionDecorators(
+         // zero-argument helpers, which ignore the extra arguments.
+         if (helper.length === 1) return helper(args)
+         return helper(client, args)
+-      }
++        },
++      })
+     }
+   for (const key of ['extractEvent', 'extractEvents'] as const)
+     if (Object.hasOwn(action, key)) wrapped[key] = action[key]

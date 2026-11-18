@@ -1,0 +1,1 @@
+var o=/^(?=.{3,253}$)[a-z0-9-]+(?:\.[a-z0-9-]+)+$/;function a(n,e){if(!o.test(e)||n.querySelector("[data-domain]"))return;let t=document.createElement("span");t.className="sub",t.dataset.domain="",t.title=`This team proved it controls ${e}.`,t.textContent=`Verified domain: ${e}`,n.append(t)}export{a as domain};

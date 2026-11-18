@@ -1,0 +1,93 @@
+/* Results from paid pilots: one card per team, shown only with a record. */
+.results {
+  position: relative;
+  z-index: 1;
+  width: min(
+    calc(100% - 2 * var(--lp-gutter, var(--templ-space-6))),
+    var(--lp-width, var(--templ-content-max))
+  );
+  margin-inline: auto;
+  padding-top: var(--lp-space, var(--templ-space-24));
+}
+.title {
+  max-width: 18ch;
+  margin: 0 0 clamp(var(--templ-space-6), 3vw, var(--templ-space-8));
+  color: var(--fg);
+  font-family: var(--font-display-stack);
+  font-size: var(--templ-text-h2);
+  font-weight: var(--templ-weight-heading);
+  letter-spacing: var(--templ-tracking-heading);
+  line-height: 1.04;
+}
+.accent {
+  color: var(--fg);
+}
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 460px), 1fr));
+  gap: var(--templ-space-4);
+}
+.card {
+  display: grid;
+  gap: var(--templ-space-4);
+  min-width: 0;
+  padding: var(--templ-space-6) var(--templ-space-6) var(--templ-space-6);
+  border: var(--lp-border-width) solid var(--lp-outline);
+  box-shadow: var(--lp-shadow-1);
+  border-radius: var(--lp-radius);
+  background: var(--surface-0);
+}
+.card h3 {
+  margin: 0;
+  color: var(--fg);
+  font-size: var(--templ-text-body);
+  font-weight: var(--templ-weight-heading);
+}
+.facts {
+  display: grid;
+  gap: var(--templ-space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--fg-3);
+  font-size: var(--templ-text-small);
+}
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--templ-text-small);
+}
+.table th,
+.table td {
+  padding: var(--templ-space-2) var(--templ-space-2) var(--templ-space-2) 0;
+  border-top: var(--templ-border-width) solid var(--border-2);
+  text-align: left;
+  vertical-align: top;
+}
+.table thead th {
+  border-top: 0;
+  color: var(--fg-3);
+  font-weight: var(--templ-weight-label);
+}
+.table tbody th {
+  color: var(--fg);
+  font-weight: var(--templ-weight-label);
+}
+.table td {
+  color: var(--fg-2);
+  font-variant-numeric: tabular-nums;
+}
+.method {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--templ-space-2);
+  color: var(--lp-accent-text);
+  font-size: var(--templ-text-small);
+  font-weight: var(--templ-weight-label);
+  text-decoration: none;
+}
+.method svg {
+  width: 17px;
+  height: 17px;
+  color: var(--lp-accent-text);
+}

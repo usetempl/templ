@@ -1,0 +1,140 @@
+/* The Trust page's provider list, retention table, operator details and the
+   data-request button. Section and text defaults come from policy-page. */
+.note {
+  margin-top: var(--templ-space-3);
+}
+.providers {
+  display: grid;
+  gap: var(--templ-space-3);
+  margin: var(--templ-space-4) 0 0;
+  padding: 0;
+  list-style: none;
+}
+.providers .provider {
+  margin: 0;
+  padding: var(--templ-space-3) var(--templ-space-4);
+  border: var(--templ-border-width) solid var(--templ-border-strong);
+  border-radius: var(--templ-radius-control);
+  background: var(--templ-raised);
+}
+.providerHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--templ-space-1) var(--templ-space-3);
+  color: var(--templ-text);
+}
+.status {
+  padding: 2px var(--templ-space-2);
+  border: var(--templ-border-width) solid var(--templ-border-strong);
+  border-radius: var(--templ-radius-surface);
+  color: var(--templ-muted);
+  font-size: var(--templ-text-caption);
+  font-weight: var(--templ-weight-heading);
+  line-height: var(--templ-line-body);
+  white-space: nowrap;
+}
+.status[data-status="live"] {
+  border-color: var(--templ-action-border);
+  color: var(--templ-accent-text);
+}
+.status[data-status="planned"] {
+  color: var(--templ-muted);
+}
+.providers .provider .line {
+  margin: var(--templ-space-1) 0 0;
+  font-size: var(--templ-text-body);
+  line-height: var(--templ-line-body);
+}
+.tableWrap {
+  overflow-x: auto;
+}
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--templ-text-body);
+  line-height: var(--templ-line-body);
+}
+.table th,
+.table td {
+  padding: var(--templ-space-2) var(--templ-space-3) var(--templ-space-2) 0;
+  border-bottom: var(--templ-border-width) solid var(--templ-border-strong);
+  text-align: left;
+  vertical-align: top;
+}
+.table thead th {
+  padding-top: 0;
+  color: var(--templ-muted);
+  font-size: var(--templ-text-mono);
+  font-weight: var(--templ-weight-heading);
+}
+.table tbody th {
+  width: 46%;
+  color: var(--templ-text);
+  font-weight: var(--templ-weight-heading);
+}
+.table td {
+  color: var(--templ-text);
+}
+.details {
+  display: grid;
+  gap: var(--templ-space-2);
+  margin: 0;
+}
+.details div {
+  display: grid;
+  grid-template-columns: minmax(150px, 220px) 1fr;
+  gap: var(--templ-space-1) var(--templ-space-5);
+}
+.details dt {
+  color: var(--templ-muted);
+}
+.details dd {
+  margin: 0;
+  color: var(--templ-text);
+}
+.actions {
+  margin: var(--templ-space-4) 0;
+}
+.actions .action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--templ-control-height);
+  padding: var(--templ-space-3) var(--templ-space-4);
+  border: var(--templ-border-width) solid var(--templ-action-border);
+  border-radius: var(--templ-radius-surface);
+  background: var(--templ-accent);
+  color: var(--templ-on-accent);
+  font: inherit;
+  font-size: var(--templ-text-body);
+  font-weight: var(--templ-weight-heading);
+  text-decoration: none;
+  cursor: pointer;
+  transition: transform var(--templ-duration-fast);
+}
+.actions .action:hover {
+  color: var(--templ-on-accent);
+}
+.actions .action:active {
+  transform: translateY(1px);
+}
+.actions .action:focus-visible {
+  outline: var(--templ-focus-width) solid var(--templ-focus);
+  outline-offset: var(--templ-focus-offset);
+}
+@media (max-width: 600px) {
+  .details div {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+  .table tbody th {
+    width: 50%;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .actions .action {
+    transition: none;
+  }
+}

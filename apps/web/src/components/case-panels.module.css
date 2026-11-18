@@ -1,0 +1,197 @@
+/* The case frame, evidence and Ask AI panels in the request details. They
+ * reuse the details column's section, field and fact styles; these rules
+ * add only what those don't cover. */
+.panels {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+  border-top: var(--templ-border-width) solid var(--templ-line);
+}
+.switcher {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--templ-space-2);
+  color: var(--templ-muted);
+  font-size: var(--templ-text-caption);
+}
+.switcher div {
+  display: flex;
+  gap: var(--templ-space-1);
+}
+.iconButton {
+  display: inline-grid;
+  place-items: center;
+  min-width: 32px;
+  min-height: 32px;
+  border: var(--templ-border-width) solid var(--templ-line);
+  border-radius: var(--templ-radius-control);
+  background: var(--templ-raised);
+  color: var(--templ-muted);
+  cursor: pointer;
+}
+.iconButton:disabled {
+  opacity: 1;
+  color: var(--templ-muted);
+  background: var(--templ-surface);
+  border-color: var(--templ-border-strong);
+  cursor: default;
+  transform: none;
+}
+.iconButton:not(:disabled):active {
+  transform: translateY(1px);
+}
+.by {
+  display: block;
+  color: var(--templ-muted);
+  font-size: var(--templ-text-caption);
+}
+.rows {
+  display: grid;
+  gap: var(--templ-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.row {
+  composes: caseCard from "./ui/design-system.module.css";
+  display: grid;
+  gap: var(--templ-space-1);
+  min-width: 0;
+  padding: var(--templ-space-2) var(--templ-space-3);
+  border: var(--templ-border-width) solid var(--templ-line);
+  border-radius: var(--templ-radius-surface);
+  background: var(--templ-raised);
+  font-size: var(--templ-text-small);
+}
+.row[data-closed="true"] {
+  opacity: 1;
+  color: var(--templ-muted);
+  background: var(--templ-surface);
+  border-color: var(--templ-border-strong);
+}
+.rowHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--templ-space-1);
+  color: var(--templ-muted);
+  font-size: var(--templ-text-caption);
+}
+.rowId {
+  color: var(--templ-text);
+  font-family: var(--templ-font-mono), ui-monospace, monospace;
+  font-weight: var(--templ-weight-heading);
+}
+.value {
+  color: var(--templ-text);
+  font-size: var(--templ-text-body);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.badge {
+  composes: tag from "./ui/design-system.module.css";
+  padding: 1px var(--templ-space-2);
+  border-radius: var(--templ-radius-control);
+  background: var(--templ-surface);
+  color: var(--templ-muted);
+  font-size: var(--templ-text-caption);
+}
+.link {
+  display: grid;
+  gap: 2px;
+  overflow-wrap: anywhere;
+  color: var(--templ-muted);
+  font-size: var(--templ-text-caption);
+}
+.draft {
+  display: grid;
+  gap: var(--templ-space-2);
+  padding: var(--templ-space-3);
+  border: var(--templ-border-width) solid var(--templ-action-border);
+  border-radius: var(--templ-radius-surface);
+  background: var(--templ-accent-soft);
+}
+.draft[data-closed="true"] {
+  border-color: var(--templ-line);
+  background: var(--templ-raised);
+}
+.draftText {
+  margin: 0;
+  color: var(--templ-text);
+  font-size: var(--templ-text-small);
+  line-height: var(--templ-line-body);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.problems {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding-left: var(--templ-space-4);
+  color: var(--templ-warning-text);
+  font-size: var(--templ-text-caption);
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--templ-space-2);
+}
+.status {
+  display: flex;
+  align-items: center;
+  gap: var(--templ-space-2);
+  color: var(--templ-muted);
+  font-size: var(--templ-text-small);
+}
+.pulse {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--templ-accent-text);
+  animation: pulse 1.4s ease-in-out infinite;
+}
+@keyframes pulse {
+  50% {
+    opacity: 0.25;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pulse {
+    animation: none;
+  }
+}
+.why summary {
+  cursor: pointer;
+  color: var(--templ-muted);
+  font-size: var(--templ-text-caption);
+}
+.why ul {
+  margin: var(--templ-space-1) 0 0;
+  padding-left: var(--templ-space-4);
+  color: var(--templ-muted);
+  font-size: var(--templ-text-caption);
+}
+.skeleton {
+  height: 72px;
+  margin: var(--templ-space-3) var(--templ-space-3);
+  border-radius: var(--templ-radius-surface);
+  background: var(--templ-surface);
+}
+.formRow {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--templ-space-2);
+}
+@media (max-width: 480px) {
+  .formRow {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .actions :global(.button),
+  .iconButton {
+    min-height: 44px;
+  }
+  .iconButton {
+    min-width: 44px;
+  }
+}

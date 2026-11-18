@@ -1,0 +1,122 @@
+/* Live now: one strip of what works, then a closed list of what doesn't
+ * yet, one click away. */
+.today {
+  position: relative;
+  padding-top: clamp(var(--templ-space-6), 4vw, var(--templ-space-10));
+  scroll-margin-top: var(--templ-space-24);
+}
+.band {
+  border: var(--templ-border-width) solid var(--templ-line);
+  border-radius: var(--templ-radius-surface);
+  background: var(--templ-bg);
+}
+.now {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--templ-space-3)
+    clamp(var(--templ-space-6), 3vw, var(--templ-space-10));
+  padding: var(--templ-space-5)
+    clamp(var(--templ-space-5), 2.4vw, var(--templ-space-6));
+}
+/* Two classes, so the page's heading font and color rule doesn't win. */
+.band .title {
+  margin: 0;
+  color: var(--templ-accent-text);
+  font-family: inherit;
+  font-size: var(--templ-text-body);
+  font-weight: var(--templ-weight-heading);
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+.now ul,
+.later ul {
+  display: grid;
+  gap: var(--templ-space-2)
+    clamp(var(--templ-space-5), 3vw, var(--templ-space-8));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.now ul {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+}
+.now li,
+.later li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: var(--templ-space-2);
+  font-size: var(--templ-text-body);
+  line-height: var(--templ-line-body);
+  text-wrap: pretty;
+}
+.now li {
+  color: var(--templ-text);
+}
+.now li svg,
+.later li svg {
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+}
+.now li svg {
+  color: var(--templ-accent-text);
+}
+.later {
+  border-top: var(--templ-border-width) solid var(--templ-line);
+}
+.later summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--templ-space-3);
+  min-height: 48px;
+  padding: 0 clamp(var(--templ-space-5), 2.4vw, var(--templ-space-6));
+  color: var(--templ-muted);
+  font-size: var(--templ-text-body);
+  font-weight: var(--templ-weight-heading);
+  list-style: none;
+  cursor: pointer;
+}
+.later summary::-webkit-details-marker {
+  display: none;
+}
+.later summary:hover {
+  color: var(--templ-text);
+}
+.later summary svg {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  color: var(--templ-muted);
+  transition: transform var(--templ-duration-normal) var(--templ-ease-standard);
+}
+.later[open] summary svg {
+  transform: rotate(45deg);
+}
+.later ul {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+  padding: var(--templ-space-1)
+    clamp(var(--templ-space-5), 2.4vw, var(--templ-space-6))
+    var(--templ-space-5);
+}
+.later li {
+  color: var(--templ-muted);
+}
+@media (max-width: 767px) {
+  .now {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .later summary svg {
+    transition: none;
+  }
+}
+.now .empty {
+  margin: 0;
+  color: var(--templ-muted);
+  font-size: var(--templ-text-body);
+  line-height: var(--templ-line-body);
+}

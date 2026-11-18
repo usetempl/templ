@@ -1,0 +1,130 @@
+/* Printable billing pages: a statement and a receipt. On paper they drop
+   the dark theme and the Print button. */
+.document {
+  display: grid;
+  gap: var(--templ-space-6);
+  width: min(100%, 880px);
+  margin: 0 auto;
+  padding: clamp(var(--templ-space-6), 5vw, var(--templ-space-12))
+    var(--templ-space-4);
+  color: var(--templ-text);
+}
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--templ-space-4);
+}
+.head h1 {
+  margin: 0 0 var(--templ-space-1);
+  font-size: var(--templ-text-h1);
+  line-height: 1.1;
+}
+.issuer {
+  margin: 0;
+  color: var(--templ-muted);
+  font-size: var(--templ-text-small);
+}
+.print {
+  min-height: 40px;
+  padding: var(--templ-space-2) var(--templ-space-4);
+  border: var(--templ-border-width) solid
+    var(--templ-action-border);
+  border-radius: var(--templ-radius-surface);
+  background: var(--templ-accent);
+  color: var(--templ-muted);
+  font-weight: var(--templ-weight-heading);
+  cursor: pointer;
+}
+.totals {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: var(--templ-space-3) var(--templ-space-5);
+  margin: 0;
+}
+.totals div {
+  display: grid;
+  gap: 2px;
+}
+.totals dt,
+.details dt {
+  color: var(--templ-muted);
+  font-size: var(--templ-text-mono);
+}
+.totals dd {
+  margin: 0;
+  font-size: var(--templ-text-lead);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--templ-weight-heading);
+}
+.details {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--templ-space-2) var(--templ-space-4);
+  margin: 0;
+}
+.details dd {
+  margin: 0;
+}
+.document h2 {
+  margin: 0 0 var(--templ-space-2);
+  font-size: var(--templ-text-lead);
+}
+.table {
+  composes: table from "./ui/design-system.module.css";
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--templ-text-small);
+  font-variant-numeric: tabular-nums;
+}
+.table th,
+.table td {
+  padding: var(--templ-space-2) var(--templ-space-2) var(--templ-space-2) 0;
+  border-bottom: var(--templ-border-width) solid
+    var(--templ-line);
+  text-align: left;
+  vertical-align: top;
+}
+.table th {
+  color: var(--templ-muted);
+  font-weight: var(--templ-weight-label);
+}
+.mono {
+  font-family: var(--templ-font-mono, ui-monospace, monospace);
+  font-size: var(--templ-text-caption);
+  overflow-wrap: anywhere;
+}
+.status {
+  display: grid;
+  gap: var(--templ-space-3);
+  justify-items: start;
+  width: min(100%, 880px);
+  margin: 0 auto;
+  padding: var(--templ-space-12) var(--templ-space-4);
+}
+@media print {
+  .document {
+    color: var(--templ-muted);
+    padding: 0;
+  }
+  .issuer,
+  .totals dt,
+  .details dt,
+  .table th {
+    color: var(--templ-muted);
+  }
+  .table th,
+  .table td {
+    border-color: var(--templ-line);
+  }
+  .print {
+    display: none;
+  }
+}
+
+.table th,
+.table td {
+  padding: var(--templ-space-3) var(--templ-space-4);
+  border-color: var(--templ-line);
+}

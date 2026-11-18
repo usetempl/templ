@@ -1,0 +1,97 @@
+{
+  "version": 4,
+  "environment": "staging",
+  "chainId": 8453,
+  "chainName": "Base",
+  "productionReleaseEnabled": false,
+  "mode": "dormant",
+  "protocolRecipient": "0x0000000000000000000000000000000000000000",
+  "blockers": [],
+  "safetyServiceVerified": false,
+  "feedbackVerified": false,
+  "realtimeVerified": false,
+  "mediaStorageVerified": false,
+  "agentSdkVerified": false,
+  "conversationsVerified": false,
+  "supportWorkflowVerified": false,
+  "supportConnectVerified": false,
+  "installCheckVerified": false,
+  "supportWidgetVerified": false,
+  "supportWidgetSolanaVerified": false,
+  "accountSignInVerified": false,
+  "smartWalletSignInVerified": false,
+  "supportWidgetRememberVerified": false,
+  "guestCheckVerified": false,
+  "agentPythonVerified": false,
+  "aiDraftsProved": false,
+  "supportAlertsVerified": false,
+  "notificationDeliveryProved": false,
+  "supportFollowUpsVerified": false,
+  "supportQualityVerified": false,
+  "protocolProfileVerified": false,
+  "priorityFeedVerified": false,
+  "supportDiagnosisVerified": false,
+  "supportDiagnosisSolanaVerified": false,
+  "cardBillingVerified": false,
+  "productManualBillingVerified": false,
+  "productUsageAiResolutionVerified": false,
+  "productResolutionBillingVerified": false,
+  "productResolutionReviewVerified": false,
+  "supportPilotOrderFormsVerified": false,
+  "productGrantsVerified": false,
+  "managedAgentVerified": false,
+  "verifiedDomainVerified": false,
+  "iframeIsolationVerified": false,
+  "installableInboxVerified": false,
+  "workspaceExportVerified": false,
+  "supportCorpusVerified": false,
+  "hostedSupportPageVerified": false,
+  "emailSignInVerified": false,
+  "solana": {
+    "signIn": false,
+    "planBilling": "implemented-gated"
+  },
+  "productOffer": {
+    "version": "2026-09-30",
+    "checkoutVerified": false,
+    "payment": "direct-transfer",
+    "recipients": {
+      "ethereum-usdc": null,
+      "ethereum-usdt": null,
+      "base-usdc": null,
+      "bnb-usdc": null,
+      "bnb-usdt": null,
+      "solana-usdc": null,
+      "solana-usdt": null
+    },
+    "rails": {
+      "ethereum-usdc": false,
+      "ethereum-usdt": false,
+      "base-usdc": false,
+      "bnb-usdc": false,
+      "bnb-usdt": false,
+      "solana-usdc": false,
+      "solana-usdt": false
+    }
+  },
+  "templSupport": {
+    "workspaceId": null,
+    "verified": false,
+    "expiresAt": null
+  },
+  "exampleVault": {
+    "workspaceId": null
+  },
+  "supportAlerts": {
+    "webhook": false,
+    "slack": false,
+    "discord": false,
+    "telegram": false
+  },
+  "agentApi": {
+    "version": null
+  },
+  "supportDiagnosis": {
+    "chains": []
+  }
+}

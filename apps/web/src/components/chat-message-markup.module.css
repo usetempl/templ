@@ -1,0 +1,75 @@
+.message {
+  min-width: 0;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.message :where(p, ul, ol, pre, blockquote) {
+  margin: 0;
+}
+.message p {
+  margin: 0;
+  white-space: pre-wrap;
+}
+.message > :not(:first-child) {
+  margin-block-start: 0.75em;
+}
+.message ul,
+.message ol {
+  margin-block-end: 0;
+  padding-inline-start: 1.4em;
+}
+.message li + li {
+  margin-block-start: 0.35em;
+}
+.message li > :not(:first-child) {
+  margin-block-start: 0.35em;
+}
+.message li > ul,
+.message li > ol {
+  margin-block-start: 0.35em;
+}
+.message .heading {
+  font-weight: 600;
+}
+.message blockquote {
+  margin-inline: 0;
+  margin-block-end: 0;
+  padding-inline-start: 0.75em;
+  border-inline-start: 2px solid var(--templ-border-strong);
+}
+.message code {
+  padding: 0.1em 0.25em;
+  border-radius: var(--templ-radius-control);
+  background: var(--templ-raised);
+  font-family: var(--templ-font-mono);
+  font-size: 0.9em;
+}
+.message pre {
+  max-width: 100%;
+  margin-block-end: 0;
+  padding: 0.75em;
+  overflow-x: auto;
+  border: var(--templ-border-width) solid var(--templ-border-strong);
+  border-radius: var(--templ-radius-control);
+  background: var(--templ-raised);
+  white-space: pre;
+  overflow-wrap: normal;
+}
+.message pre code {
+  padding: 0;
+  background: none;
+  font-size: 0.9em;
+}
+.message a {
+  color: var(--templ-accent-text);
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+.message ul {
+  list-style: disc outside;
+}
+.message ol {
+  list-style: decimal outside;
+}

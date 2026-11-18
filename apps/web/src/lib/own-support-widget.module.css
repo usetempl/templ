@@ -1,0 +1,64 @@
+.panel {
+  position: fixed;
+  z-index: 2147483001;
+  right: 8px;
+  bottom: 8px;
+  width: min(392px, calc(100vw - 32px));
+  height: min(480px, calc(100dvh - 16px));
+  box-sizing: border-box;
+  overflow: hidden;
+  background: #fafbf9;
+  color: #242728;
+  border: 1px solid #d7dcd8;
+  border-radius: var(--site-corner-radius, 4px);
+  box-shadow: 0 8px 36px #17241b24;
+}
+.panel[hidden] {
+  display: none;
+}
+.panel:not([hidden]) { animation: own-open .18s ease-out both; }
+.panel iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  display: block;
+}
+.close {
+  position: absolute;
+  right: 10px;
+  top: 10px;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 4px;
+  background: #fafbf9;
+  color: #242728;
+  font-size: 24px;
+  cursor: pointer;
+}
+.close[hidden] {
+  display: none;
+}
+.close:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+@media (max-width: 480px) {
+  .panel {
+    right: 8px;
+    bottom: max(8px, env(safe-area-inset-bottom));
+    width: calc(100vw - 16px);
+    height: calc(100dvh - 16px - env(safe-area-inset-bottom));
+  }
+}
+.loading { position: absolute; inset: 0; display: flex; flex-direction: column; background: #fafbf9; }
+.loading header { display: flex; align-items: center; gap: 8px; min-height: 64px; box-sizing: border-box; padding: 8px 12px; border-bottom: 1px solid #d7dcd8; }
+.loading strong { flex: 1; font-size: 15px; }
+.loading span { width: 14px; height: 14px; margin-right: 36px; border: 2px solid #d7dcd8; border-top-color: #58625b; border-radius: 50%; animation: own-opening .85s linear infinite; }
+.loading p { margin: 20px 16px; font-size: 14px; line-height: 1.5; }
+.panel[data-theme='dark'], .panel[data-theme='dark'] .loading, .panel[data-theme='dark'] .close { background: #181b1a; color: #e8ebe7; border-color: #465049; }
+.panel[data-theme='dark'] .loading header { border-color: #465049; }
+.panel[data-theme='dark'] .loading span { border-color: #465049; border-top-color: #afb8b0; }
+@keyframes own-opening { to { transform: rotate(360deg); } }
+@keyframes own-open { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) { .panel:not([hidden]), .loading span { animation: none; } }

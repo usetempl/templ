@@ -1,0 +1,299 @@
+.stack {
+  display: grid;
+  gap: var(--templ-space-5);
+  scroll-margin-top: var(--templ-space-6);
+}
+.points {
+  display: grid;
+  gap: var(--templ-space-1);
+  margin: 0 0 var(--templ-space-3);
+  padding-left: var(--templ-space-4);
+  color: var(--templ-muted);
+}
+.note {
+  margin: var(--templ-space-1) 0 0;
+  color: var(--templ-muted);
+  font-size: var(--templ-text-small);
+  overflow-wrap: anywhere;
+}
+.status {
+  margin: var(--templ-space-2) 0 0;
+  color: var(--templ-muted);
+  font-size: var(--templ-text-small);
+}
+.error {
+  margin: var(--templ-space-2) 0 0;
+  color: var(--templ-danger-text);
+  font-size: var(--templ-text-small);
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--templ-space-2);
+  margin-top: var(--templ-space-2);
+}
+.correction {
+  flex-basis: 100%;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.fields {
+  display: grid;
+  gap: var(--templ-space-3);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--templ-space-1);
+  margin-bottom: var(--templ-space-3);
+}
+.rows {
+  display: grid;
+  gap: var(--templ-space-3);
+  margin: var(--templ-space-3) 0 0;
+  padding: 0;
+  list-style: none;
+}
+.row {
+  display: grid;
+  gap: var(--templ-space-1);
+  padding: var(--templ-space-3) var(--templ-space-4);
+  border: var(--templ-border-width) solid var(--templ-border-strong);
+  border-radius: var(--templ-radius-control);
+  background: var(--templ-raised);
+  min-width: 0;
+}
+.rowHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--templ-space-2);
+  overflow-wrap: anywhere;
+}
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--templ-space-1);
+  margin: 0;
+}
+.review {
+  display: grid;
+  gap: var(--templ-space-2);
+  margin-top: var(--templ-space-3);
+  padding-top: var(--templ-space-3);
+  border-top: var(--templ-border-width) solid var(--templ-border-strong);
+}
+.rubric {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.rubric legend {
+  font-weight: var(--templ-weight-heading);
+}
+.subhead {
+  margin: var(--templ-space-5) 0 var(--templ-space-1);
+  font-size: var(--templ-text-body);
+}
+.table {
+  composes: table from "../ui/design-system.module.css";
+  width: 100%;
+  margin-top: var(--templ-space-3);
+  border-collapse: collapse;
+  font-size: var(--templ-text-small);
+}
+.table caption {
+  margin-bottom: var(--templ-space-1);
+  text-align: left;
+  font-weight: var(--templ-weight-heading);
+}
+.table th,
+.table td {
+  padding: var(--templ-space-1) var(--templ-space-1);
+  border-top: var(--templ-border-width) solid var(--templ-border-strong);
+  text-align: left;
+  vertical-align: middle;
+}
+.table th {
+  font-weight: var(--templ-weight-body);
+  overflow-wrap: anywhere;
+}
+.number {
+  width: 3.5em;
+  text-align: right !important;
+  font-variant-numeric: tabular-nums;
+}
+.spark {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  width: 100%;
+  max-width: 180px;
+  height: 22px;
+}
+.spark span {
+  flex: 1;
+  min-height: 1px;
+  border-radius: var(--templ-radius-data);
+  background: var(--templ-chart-1);
+}
+@media (max-width: 480px) {
+  .actions :global(.button) {
+    min-height: 44px;
+  }
+  .spark {
+    max-width: 96px;
+  }
+}
+.label {
+  margin: var(--templ-space-2) 0 0;
+  font-size: var(--templ-text-small);
+  font-weight: var(--templ-weight-heading);
+}
+.turn {
+  margin: 0;
+  padding: var(--templ-space-2) var(--templ-space-2);
+  border-radius: var(--templ-radius-control);
+  background: var(--templ-surface, var(--templ-raised));
+  overflow-wrap: anywhere;
+  list-style: none;
+}
+.checks {
+  display: grid;
+  gap: var(--templ-space-1);
+  margin: var(--templ-space-1) 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--templ-text-small);
+  overflow-wrap: anywhere;
+}
+.checks mark {
+  padding: 0 3px;
+  border-radius: var(--templ-radius-surface);
+  background: var(--templ-warning-soft, var(--templ-raised));
+  color: inherit;
+}
+/* The answer-quality panel in the request details. */
+.replies {
+  display: grid;
+  gap: var(--templ-space-2);
+  margin: var(--templ-space-2) 0 0;
+  padding: 0;
+  list-style: none;
+}
+.reply {
+  display: grid;
+  gap: var(--templ-space-1);
+  min-width: 0;
+}
+.replyHead {
+  color: var(--templ-muted);
+  font-size: var(--templ-text-caption);
+}
+.excerpt {
+  margin: 0;
+  color: var(--templ-muted);
+  font-size: var(--templ-text-small);
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--templ-space-1);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.chip {
+  min-height: 32px;
+  padding: var(--templ-space-1) var(--templ-space-2);
+  border: var(--templ-border-width) solid var(--templ-line);
+  border-radius: var(--templ-radius-control);
+  background: var(--templ-raised);
+  color: var(--templ-muted);
+  font: inherit;
+  font-size: var(--templ-text-mono);
+  cursor: pointer;
+}
+.chip[aria-pressed="true"] {
+  border-color: var(--templ-action-border);
+  background: var(--templ-accent-soft, var(--templ-raised));
+  color: var(--templ-text);
+}
+.chip:focus-visible {
+  outline: var(--templ-focus-width) solid var(--templ-focus);
+  outline-offset: var(--templ-focus-offset);
+}
+@media (max-width: 480px) {
+  .chip {
+    min-height: 44px;
+  }
+}
+
+.table th,
+.table td {
+  padding: var(--templ-space-3) var(--templ-space-4);
+  border-color: var(--templ-line);
+}
+.table thead th {
+  color: var(--templ-muted);
+  font-weight: var(--templ-weight-label);
+  white-space: nowrap;
+}
+/* A check rule's code, shown as detail under its name. */
+.code {
+  display: block;
+  margin-top: var(--templ-space-1);
+  color: var(--templ-muted);
+  font-family: var(--templ-font-mono);
+  font-size: var(--templ-text-mono);
+  overflow-wrap: anywhere;
+}
+.table th > .code:first-child {
+  margin-top: 0;
+  color: inherit;
+}
+/* Recurring problems: a fixed chart width, narrower on smaller screens. */
+.trendTable .spark {
+  width: 160px;
+}
+@media (max-width: 768px) {
+  .trendTable .spark {
+    width: 120px;
+  }
+}
+@media (max-width: 480px) {
+  .trendTable th,
+  .trendTable td {
+    padding: var(--templ-space-2) var(--templ-space-1);
+  }
+  .trendTable thead th {
+    white-space: normal;
+  }
+  .trendTable thead .number {
+    white-space: nowrap;
+  }
+  .trendTable .spark {
+    width: 72px;
+    max-width: 72px;
+    gap: 1px;
+  }
+}
+
+.storageTerms {
+  margin: var(--templ-space-2) 0;
+  color: var(--templ-muted);
+  font: inherit;
+  font-size: var(--templ-text-small);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

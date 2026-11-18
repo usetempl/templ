@@ -1,0 +1,294 @@
+{
+  "installConnect": {
+    "releaseFlag": "supportConnectVerified",
+    "killSwitch": "SUPPORT_CONNECT_ENABLED",
+    "name": "Connect an app"
+  },
+  "teamInvites": {
+    "releaseFlag": "supportWorkflowVerified",
+    "workspaceOnly": true,
+    "killSwitch": "SUPPORT_TEAM_INVITES_ENABLED",
+    "name": "Team invite links"
+  },
+  "nativeTelegram": {
+    "releaseFlag": "supportWorkflowVerified",
+    "workspaceOnly": true,
+    "killSwitch": "NATIVE_TELEGRAM_BRIDGE_ENABLED",
+    "name": "Telegram replies"
+  },
+  "widgetIntro": {
+    "releaseFlag": "supportWidgetVerified",
+    "workspaceOnly": true,
+    "killSwitch": "SUPPORT_WIDGET_INTRO_ENABLED",
+    "name": "Widget questions and reply time"
+  },
+  "supportDiagnostics": {
+    "releaseFlag": "supportWidgetVerified",
+    "workspaceOnly": true,
+    "killSwitch": "SUPPORT_DIAGNOSTICS_ENABLED",
+    "name": "Optional browser troubleshooting details"
+  },
+  "supportEncryption": {
+    "releaseFlag": "supportEncryptionVerified",
+    "workspaceOnly": true,
+    "killSwitch": "SUPPORT_ENCRYPTION_ENABLED",
+    "name": "Customer-controlled encrypted support"
+  },
+  "loopbackOrigins": {
+    "releaseFlag": "supportWidgetVerified",
+    "workspaceOnly": true,
+    "killSwitch": "SUPPORT_WIDGET_LOOPBACK",
+    "name": "Localhost widget origins"
+  },
+  "solanaSignIn": {
+    "releaseFlag": "supportWidgetSolanaVerified",
+    "killSwitch": "SUPPORT_WIDGET_SOLANA_ENABLED",
+    "name": "Solana sign-in"
+  },
+  "smartWalletSignIn": {
+    "releaseFlag": "smartWalletSignInVerified",
+    "killSwitch": "SUPPORT_WIDGET_SMART_WALLETS",
+    "name": "Smart wallet sign-in"
+  },
+  "rememberSignIn": {
+    "releaseFlag": "supportWidgetRememberVerified",
+    "killSwitch": "SUPPORT_WIDGET_REMEMBER",
+    "name": "Remember sign-in"
+  },
+  "guestCheck": {
+    "releaseFlag": "guestCheckVerified",
+    "killSwitch": "GUEST_TURNSTILE_ENABLED",
+    "name": "Guest check"
+  },
+  "aiDrafts": {
+    "releaseFlag": "aiDraftsProved",
+    "killSwitch": "SUPPORT_AI_DRAFTS_ENABLED",
+    "name": "AI drafts"
+  },
+  "handoffLearning": {
+    "releaseFlag": "aiDraftsProved",
+    "workspaceOnly": true,
+    "killSwitch": "SUPPORT_HANDOFF_LEARNING_ENABLED",
+    "name": "Learn from human handoff answers"
+  },
+  "aiInteractionImprovements": {
+    "releaseFlag": "aiDraftsProved",
+    "workspaceOnly": true,
+    "killSwitch": "SUPPORT_AI_INTERACTIONS_ENABLED",
+    "name": "Checked FAQ answers and bounded clarification"
+  },
+  "appTelegramDrafts": {
+    "releaseFlag": "aiDraftsProved",
+    "workspaceOnly": true,
+    "killSwitch": "SUPPORT_AI_DRAFTS_ENABLED",
+    "name": "App Telegram reply drafts"
+  },
+  "diagnosis.evm": {
+    "releaseFlag": "supportDiagnosisVerified",
+    "killSwitch": "SUPPORT_DIAGNOSIS_ENABLED",
+    "name": "EVM transaction checks"
+  },
+  "diagnosis.solana": {
+    "releaseFlag": "supportDiagnosisSolanaVerified",
+    "killSwitch": "SUPPORT_DIAGNOSIS_ENABLED",
+    "name": "Solana transaction checks"
+  },
+  "emailNotices": {
+    "releaseFlag": "notificationDeliveryProved",
+    "killSwitch": "SUPPORT_NOTIFICATIONS_ENABLED",
+    "name": "Email notices"
+  },
+  "followUps": {
+    "releaseFlag": "supportFollowUpsVerified",
+    "killSwitch": "SUPPORT_FOLLOW_UPS_ENABLED",
+    "name": "Follow-ups"
+  },
+  "brainStorageCollection": {
+    "releaseFlag": "brainStorageCollectionVerified",
+    "killSwitch": "BRAIN_STORAGE_COLLECTION_ENABLED",
+    "money": true,
+    "name": "Storage collection"
+  },
+  "brainStorage": {
+    "releaseFlag": "supportQualityVerified",
+    "workspaceOnly": true,
+    "killSwitch": "SUPPORT_BRAIN_STORAGE_ENABLED",
+    "name": "Brain storage review"
+  },
+  "quality": {
+    "releaseFlag": "supportQualityVerified",
+    "killSwitch": "SUPPORT_QUALITY_ENABLED",
+    "name": "Quality checks"
+  },
+  "protocolProfile": {
+    "releaseFlag": "protocolProfileVerified",
+    "killSwitch": "SUPPORT_PROTOCOL_PROFILE_ENABLED",
+    "name": "App profile"
+  },
+  "priorityFeed": {
+    "releaseFlag": "priorityFeedVerified",
+    "killSwitch": "SUPPORT_PRIORITY_FEED_ENABLED",
+    "name": "Priorities"
+  },
+  "managedAgent": {
+    "releaseFlag": "managedAgentVerified",
+    "killSwitch": "MANAGED_AGENT_ENABLED",
+    "name": "Managed AI agent"
+  },
+  "agentApi": {
+    "releaseFlag": "agentSdkVerified",
+    "killSwitch": "AGENT_API_ENABLED",
+    "name": "AI agent API"
+  },
+  "installCheck": {
+    "releaseFlag": "installCheckVerified",
+    "killSwitch": "SUPPORT_INSTALL_CHECK_ENABLED",
+    "name": "Install check"
+  },
+  "hostedSupportPage": {
+    "releaseFlag": "hostedSupportPageVerified",
+    "killSwitch": "SUPPORT_HOSTED_PAGE_ENABLED",
+    "name": "Hosted support page"
+  },
+  "verifiedDomain": {
+    "releaseFlag": "verifiedDomainVerified",
+    "killSwitch": "SUPPORT_DOMAIN_VERIFY_ENABLED",
+    "name": "Verified domain"
+  },
+  "frameMode": {
+    "releaseFlag": "iframeIsolationVerified",
+    "killSwitch": "SUPPORT_WIDGET_FRAME_ENABLED",
+    "name": "Widget frame mode"
+  },
+  "installableInbox": {
+    "releaseFlag": "installableInboxVerified",
+    "killSwitch": "SUPPORT_PUSH_ENABLED",
+    "name": "Installable inbox"
+  },
+  "workspaceExport": {
+    "releaseFlag": "workspaceExportVerified",
+    "killSwitch": "SUPPORT_WORKSPACE_EXPORT_ENABLED",
+    "name": "Workspace export"
+  },
+  "manualBilling": {
+    "releaseFlag": "productManualBillingVerified",
+    "killSwitch": "PRODUCT_MANUAL_BILLING_ENABLED",
+    "name": "Manual billing",
+    "money": true
+  },
+  "usageAiResolution": {
+    "releaseFlag": "productUsageAiResolutionVerified",
+    "killSwitch": "PRODUCT_USAGE_AI_RESOLUTION_ENABLED",
+    "name": "Templ AI resolution fee",
+    "money": true
+  },
+  "standardMonthlyBilling": {
+    "releaseFlag": "productStandardMonthlyBillingVerified",
+    "killSwitch": "PRODUCT_STANDARD_MONTHLY_BILLING_ENABLED",
+    "name": "Monthly AI metering",
+    "money": true
+  },
+  "resolutionBilling": {
+    "releaseFlag": "productResolutionBillingVerified",
+    "killSwitch": "PRODUCT_RESOLUTION_BILLING_ENABLED",
+    "name": "Resolved case billing",
+    "money": true
+  },
+  "pilotOrderForms": {
+    "releaseFlag": "supportPilotOrderFormsVerified",
+    "killSwitch": "PRODUCT_PILOT_ORDER_FORMS_ENABLED",
+    "name": "Pilot order forms",
+    "money": true
+  },
+  "cardBilling": {
+    "releaseFlag": "cardBillingVerified",
+    "killSwitch": "CARD_BILLING_ENABLED",
+    "name": "Monthly card billing",
+    "money": true
+  },
+  "alerts.webhook": {
+    "releaseFlag": "supportAlerts.webhook",
+    "releaseRequires": ["supportAlertsVerified"],
+    "killSwitch": "SUPPORT_ALERTS_ENABLED",
+    "name": "Webhook alerts"
+  },
+  "alerts.slack": {
+    "releaseFlag": "supportAlerts.slack",
+    "releaseRequires": ["supportAlertsVerified"],
+    "killSwitch": "SUPPORT_ALERTS_ENABLED",
+    "name": "Slack alerts"
+  },
+  "alerts.discord": {
+    "releaseFlag": "supportAlerts.discord",
+    "releaseRequires": ["supportAlertsVerified"],
+    "killSwitch": "SUPPORT_ALERTS_ENABLED",
+    "name": "Discord alerts"
+  },
+  "alerts.telegram": {
+    "releaseFlag": "supportAlerts.telegram",
+    "releaseRequires": ["supportAlertsVerified"],
+    "killSwitch": "SUPPORT_ALERTS_ENABLED",
+    "name": "Telegram alerts"
+  },
+  "pay.base-usdc": {
+    "releaseFlag": "productOffer.rails.base-usdc",
+    "releaseRequires": ["productOffer.checkoutVerified"],
+    "killSwitch": "PRODUCT_PAYMENTS_ENABLED",
+    "name": "Base USDC payments",
+    "money": true
+  },
+  "pay.solana-usdc": {
+    "releaseFlag": "productOffer.rails.solana-usdc",
+    "releaseRequires": ["productOffer.checkoutVerified"],
+    "killSwitch": "PRODUCT_PAYMENTS_ENABLED",
+    "name": "Solana USDC payments",
+    "money": true
+  },
+  "pay.ethereum-usdc": {
+    "releaseFlag": "productOffer.rails.ethereum-usdc",
+    "releaseRequires": ["productOffer.checkoutVerified"],
+    "killSwitch": "PRODUCT_PAYMENTS_ENABLED",
+    "name": "Ethereum USDC payments",
+    "money": true
+  },
+  "pay.ethereum-usdt": {
+    "releaseFlag": "productOffer.rails.ethereum-usdt",
+    "releaseRequires": ["productOffer.checkoutVerified"],
+    "killSwitch": "PRODUCT_PAYMENTS_ENABLED",
+    "name": "Ethereum USDT payments",
+    "money": true
+  },
+  "pay.bnb-usdc": {
+    "releaseFlag": "productOffer.rails.bnb-usdc",
+    "releaseRequires": ["productOffer.checkoutVerified"],
+    "killSwitch": "PRODUCT_PAYMENTS_ENABLED",
+    "name": "BNB USDC payments",
+    "money": true
+  },
+  "pay.bnb-usdt": {
+    "releaseFlag": "productOffer.rails.bnb-usdt",
+    "releaseRequires": ["productOffer.checkoutVerified"],
+    "killSwitch": "PRODUCT_PAYMENTS_ENABLED",
+    "name": "BNB USDT payments",
+    "money": true
+  },
+  "pay.solana-usdt": {
+    "releaseFlag": "productOffer.rails.solana-usdt",
+    "releaseRequires": ["productOffer.checkoutVerified"],
+    "killSwitch": "PRODUCT_PAYMENTS_ENABLED",
+    "name": "Solana USDT payments",
+    "money": true
+  },
+  "appAiReplies": {
+    "releaseFlag": "supportWorkflowVerified",
+    "workspaceOnly": true,
+    "killSwitch": "SUPPORT_APP_AI_REPLIES_ENABLED",
+    "name": "App AI replies"
+  },
+  "supportChatFirst": {
+    "releaseFlag": "supportWidgetVerified",
+    "workspaceOnly": true,
+    "killSwitch": "SUPPORT_WIDGET_CHAT_FIRST_ENABLED",
+    "name": "Chat-first support"
+  }
+}

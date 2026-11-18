@@ -1,0 +1,163 @@
+.page {
+  --templ-text-body: 18px;
+  --templ-text-h2: clamp(30px, 3.4vw, 42px);
+  --lp-width: 1200px;
+  --lp-gutter: clamp(20px, 4.5vw, 64px);
+  --site-width: var(--lp-width);
+  --site-gutter: var(--lp-gutter);
+  --lp-space: clamp(56px, 7vw, 88px);
+  --lp-accent: #99ff00;
+  --lp-outline: var(--fg);
+  --lp-radius: var(--site-corner-radius, var(--templ-radius-control, 4px));
+  min-height: 100dvh;
+  background: var(--surface-0);
+  color: var(--fg-2);
+  font-size: 18px;
+}
+.page h1,
+.page h2 {
+  color: var(--fg);
+  font-family: var(--font-display-stack);
+  font-weight: var(--templ-weight-heading);
+  letter-spacing: var(--templ-tracking-heading);
+}
+.page a:focus-visible,
+.page button:focus-visible,
+.page textarea:focus-visible {
+  outline: var(--templ-focus-width) solid var(--templ-focus);
+  outline-offset: var(--templ-focus-offset);
+}
+.hero {
+  padding: 48px 0 36px;
+}
+.heroInner {
+  width: min(calc(100% - 2 * var(--lp-gutter)), var(--lp-width));
+  margin: auto;
+  display: grid;
+  grid-template-columns: 1.15fr 1fr;
+  gap: 64px;
+  align-items: center;
+}
+.heroCopy {
+  min-width: 0;
+}
+.heroTitle {
+  font-size: clamp(36px, 4.1vw, 52px);
+  line-height: 1.08;
+  margin: 0;
+  text-wrap: balance;
+}
+.subline {
+  font-size: 18px;
+  line-height: 1.6;
+  margin: 24px 0 0;
+  max-width: 400px;
+}
+.heroFrame {
+  min-width: 0;
+}
+.conversation {
+  margin: 0;
+}
+.heroWidget {
+  position: relative;
+  height: 390px;
+  border: 1px solid var(--border);
+  /* The demo's own panel corner is already square inside this frame. */
+  border-radius: var(--lp-radius);
+  overflow: hidden;
+  background: var(--surface-1);
+}
+.previewSurface {
+  height: 100%;
+  pointer-events: none;
+  user-select: none;
+}
+.previewAction {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+  cursor: pointer;
+  touch-action: pan-y;
+}
+.previewAction:focus-visible {
+  outline: var(--templ-focus-width) solid var(--templ-focus);
+  outline-offset: -4px;
+}
+.previewAction > span {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+/* Keep the page geometry while the real conversation owns the chat surface. */
+:global(body:has([data-templ-own-support]:not([hidden]))) .conversation {
+  visibility: hidden;
+}
+.inlineWidget {
+  display: block;
+  height: 100%;
+  width: 100%;
+}
+.conversation figcaption {
+  font-size: 12px;
+  text-align: center;
+  margin-top: 12px;
+  color: var(--fg-2);
+}
+.close {
+  border-top: 1px solid var(--border);
+  padding: var(--lp-space) var(--lp-gutter);
+}
+.closeInner {
+  max-width: var(--lp-width);
+  margin: auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 32px;
+}
+.close h2 {
+  margin: 0;
+  font-size: clamp(28px, 3vw, 40px);
+  line-height: 1.15;
+  max-width: 560px;
+}
+.preview {
+  margin: 0;
+  padding: 12px 24px;
+  text-align: center;
+  font-size: 14px;
+  background: var(--lp-accent);
+  color: #111;
+}
+@media (max-width: 767px) {
+  .hero {
+    padding-top: 32px;
+  }
+  .heroInner {
+    grid-template-columns: 1fr;
+    gap: 32px;
+  }
+  .heroTitle {
+    font-size: 36px;
+    max-width: 540px;
+  }
+  .subline {
+    margin-top: 20px;
+  }
+  .heroWidget {
+    height: 370px;
+  }
+  .closeInner {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

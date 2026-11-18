@@ -1,0 +1,38 @@
+.points {
+  display: grid;
+  gap: var(--templ-space-2);
+  margin: 0;
+  padding: 0 0 0 var(--templ-space-4);
+  line-height: var(--templ-line-body);
+}
+.points li::marker {
+  color: var(--templ-accent-text);
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--templ-space-3);
+  align-items: center;
+}
+.danger {
+  border-color: var(--templ-danger);
+}
+.progress {
+  font-variant-numeric: tabular-nums;
+}
+.checkbox {
+  display: flex;
+  gap: var(--templ-space-2);
+  align-items: flex-start;
+  line-height: var(--templ-line-body);
+}
+.checkbox input {
+  margin-top: 3px;
+}
+.dangerButton {
+  color: var(--templ-danger-text);
+  border-color: var(--templ-danger);
+}
+.dangerButton:hover:not(:disabled) {
+  background: var(--templ-danger-soft);
+}

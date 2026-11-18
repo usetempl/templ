@@ -1,0 +1,30 @@
+node_modules
+.pnpm-store/
+.DS_Store
+.wrangler
+coverage
+.vercel
+
+# Private live-check journals; the public verification receipts beside them
+# stay tracked. Preserve these files on disk, never publish them.
+/packages/evm/contracts-v4/deployments/**/*.json.fixtures.json
+
+# Package DE-10: local capacity harness summary; the priced record lives under deployments/4663/releases/.
+apps/workers/community/test/.capacity-profile.json
+
+# Docusaurus build output written by a local production build
+apps/blog/build-prod/
+apps/workers/docs/build-prod/
+__pycache__/
+
+# Local task output stays on disk and in Git history. Consumed evidence lives in audit/ and docs/.
+.codex-task/
+
+# Local build output
+.next/
+.open-next/
+.wrangler/
+dist/
+test-results/
+*.tsbuildinfo
+apps/web/next-env.d.ts

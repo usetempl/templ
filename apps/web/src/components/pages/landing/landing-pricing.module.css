@@ -1,0 +1,71 @@
+.plans {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 64px;
+  width: min(calc(100% - 2 * var(--lp-gutter)), var(--lp-width));
+  margin: auto;
+  padding: var(--lp-space) 0;
+  border-top: 1px solid var(--border);
+  scroll-margin-top: 88px;
+}
+.plans h2 {
+  font-size: 30px;
+  line-height: 1.2;
+  margin: 0 0 20px;
+}
+.plans h3 {
+  font-size: 24px;
+  margin: 0 0 16px;
+  color: var(--fg);
+}
+.plans p {
+  font-size: 16px;
+  line-height: 1.6;
+  margin: 16px 0;
+}
+.plans .price {
+  font-size: 44px;
+  font-weight: 600;
+  color: var(--fg);
+  margin: 0;
+}
+.price span {
+  font-size: 16px;
+  font-weight: 400;
+  color: var(--fg-2);
+}
+.plans a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--fg);
+  text-underline-offset: 4px;
+  font-size: 15px;
+}
+.install {
+  scroll-margin-top: 88px;
+}
+/* Copy install prompt: the site action shape as the neutral variant. */
+.contact {
+  composes: button from "../../ui/design-system.module.css";
+  min-height: var(--site-action-height);
+  margin: 8px 0;
+  padding: 0 var(--site-action-padding-inline);
+  gap: var(--site-action-gap);
+  border: var(--site-action-border-width) solid var(--templ-action-border);
+  border-radius: var(--site-action-radius);
+  font-size: var(--site-action-font-size);
+  font-weight: var(--site-action-weight);
+  line-height: var(--site-action-line);
+}
+.contact svg {
+  flex: none;
+  width: var(--site-action-icon);
+  height: var(--site-action-icon);
+}
+@media (max-width: 767px) {
+  .plans {
+    grid-template-columns: 1fr;
+    gap: 40px;
+  }
+}

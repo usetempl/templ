@@ -1,0 +1,48 @@
+# Static assets bypass Next.js headers on Cloudflare. Staging stays unindexed.
+/*
+  X-Robots-Tag: noindex, nofollow, nosnippet, noimageindex
+
+# Public module only. Ticket and identity responses remain private and no-store.
+/support-widget.js
+  Access-Control-Allow-Origin: *
+  Content-Type: text/javascript; charset=utf-8
+  Cache-Control: public, max-age=0, must-revalidate
+  Cross-Origin-Resource-Policy: cross-origin
+  X-Content-Type-Options: nosniff
+
+# Versioned widget builds never change once published.
+/support-widget/*
+  Access-Control-Allow-Origin: *
+  Content-Type: text/javascript; charset=utf-8
+  Cache-Control: public, max-age=31536000, immutable
+  Cross-Origin-Resource-Policy: cross-origin
+  X-Content-Type-Options: nosniff
+
+# Brand art: stamp poses, widget state art and share images. Customer pages
+# may load these as plain images, so they are cacheable cross-origin.
+/art/*
+  Cache-Control: public, max-age=604800
+  Cross-Origin-Resource-Policy: cross-origin
+  X-Content-Type-Options: nosniff
+
+# The widget's TypeScript types, for integrators to save next to their code.
+/support-widget.d.ts
+  Content-Type: text/plain; charset=utf-8
+  Cache-Control: public, max-age=0, must-revalidate
+  X-Content-Type-Options: nosniff
+
+# The inbox service worker (text-free push alerts). Browsers check it for
+# updates on every registration; it must never be cached long.
+/inbox-sw.js
+  Content-Type: text/javascript; charset=utf-8
+  Cache-Control: no-cache
+  X-Content-Type-Options: nosniff
+
+# Home screen icons for the installable inbox.
+/app-icon-*
+  Cache-Control: public, max-age=604800
+  X-Content-Type-Options: nosniff
+
+# Content-hashed framework JS, CSS, and fonts can stay cached across visits.
+/_next/static/*
+  Cache-Control: public, max-age=31536000, immutable

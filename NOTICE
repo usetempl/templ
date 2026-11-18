@@ -1,0 +1,20 @@
+Original Templ software source is provided under the MIT License in LICENSE,
+except where a file carries a different license or copyright notice.
+
+Third-party software, copied source, fonts and icons keep their own licenses
+and attribution requirements. Preserve those notices when redistributing.
+The root license does not relicense dependencies or historical vendor source.
+
+Templ names, logos and artwork, customer names and artwork, and other
+third-party materials are excluded from the root software license. No
+trademark permission is granted. A public source distribution must include
+only assets with separately established redistribution rights.
+
+Customer agreements and data, sales records, operational transcripts,
+production credentials, deployment records and signed release evidence are
+private operational material and are not part of the public source release.
+Their presence in this private checkout does not authorize publication.
+
+The original private Git history and retained evidence remain the provenance
+record. A new public snapshot must preserve actual contributor credit and
+applicable file-level notices without publishing private commit metadata.

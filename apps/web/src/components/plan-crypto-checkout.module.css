@@ -1,0 +1,27 @@
+/* Balance top-up checkout, network choice and receipts. */
+
+.primary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--templ-space-2);
+  min-height: 48px;
+  padding: var(--templ-space-3) var(--templ-space-4);
+  border-radius: var(--templ-radius-control);
+  font: inherit;
+  font-weight: var(--templ-weight-heading);
+  cursor: pointer;
+}
+.primary {
+  border: var(--templ-border-width) solid var(--templ-action-border);
+  background: var(--templ-accent);
+  color: var(--templ-on-accent);
+  box-shadow: none;
+}
+.primary:disabled {
+  background: var(--templ-raised);
+  color: var(--templ-text);
+  border-color: var(--templ-line);
+  box-shadow: none;
+  cursor: default;
+}

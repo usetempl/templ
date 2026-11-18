@@ -1,0 +1,39 @@
+.toolbar {
+  display: grid;
+  gap: var(--templ-space-3);
+  margin-top: var(--templ-space-4);
+}
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: var(--templ-space-2);
+}
+.filters > :first-child {
+  flex: 1 1 240px;
+}
+.filters > div {
+  flex: 1 1 160px;
+}
+.list {
+  list-style: none;
+  padding: 0;
+  margin: var(--templ-space-4) 0 0;
+}
+.source {
+  display: grid;
+  gap: var(--templ-space-1);
+  padding-block: var(--templ-space-4);
+  border-top: var(--templ-border-width) solid var(--templ-line);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 480px) {
+  .filters > * {
+    flex-basis: 100%;
+    width: 100%;
+  }
+  .source :global(.button) {
+    min-height: 44px;
+  }
+}

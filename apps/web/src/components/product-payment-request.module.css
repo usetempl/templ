@@ -1,0 +1,180 @@
+.request {
+  display: grid;
+  gap: var(--templ-space-4);
+  min-width: 0;
+}
+.status {
+  padding: var(--templ-space-3) var(--templ-space-4);
+  border: var(--templ-border-width) solid var(--templ-line);
+  border-radius: var(--templ-radius-control);
+  background: var(--templ-surface);
+  font-weight: var(--templ-weight-label);
+  line-height: var(--templ-line-body);
+}
+.status[data-verified="true"] {
+  border-color: var(--templ-success);
+  color: var(--templ-success-text);
+  background: var(--templ-success-soft);
+}
+.amount {
+  display: grid;
+  gap: var(--templ-space-1);
+  padding-block: var(--templ-space-2);
+}
+.amount span,
+.note {
+  color: var(--templ-muted);
+  font-size: var(--templ-text-small);
+  line-height: var(--templ-line-body);
+}
+.amount strong {
+  color: var(--templ-text);
+  font-size: clamp(1.75rem, 5vw, 2.25rem);
+  line-height: var(--templ-line-heading);
+  font-weight: var(--templ-weight-heading);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.values {
+  display: grid;
+  grid-template-columns: minmax(76px, 0.3fr) minmax(0, 1fr);
+  align-items: baseline;
+  gap: var(--templ-space-3) var(--templ-space-4);
+  min-width: 0;
+  margin: 0;
+}
+.values dt {
+  color: var(--templ-muted);
+  font-size: var(--templ-text-small);
+}
+.values dd {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--templ-space-2);
+  min-width: 0;
+  margin: 0;
+  color: var(--templ-text);
+  font-size: var(--templ-text-small);
+}
+.value {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-family: var(--templ-font-mono);
+  font-size: 0.8125rem;
+}
+.copy {
+  composes: button quiet small from global;
+  flex: none;
+  min-height: 32px;
+  padding: var(--templ-space-1) var(--templ-space-2);
+}
+.details {
+  padding-top: var(--templ-space-3);
+  border-top: var(--templ-border-width) solid var(--templ-line);
+}
+.details summary {
+  cursor: pointer;
+  color: var(--templ-muted);
+  font-size: var(--templ-text-small);
+}
+.details summary:focus-visible {
+  outline: var(--templ-focus-width) solid var(--templ-focus);
+  outline-offset: var(--templ-focus-offset);
+}
+.details[open] summary {
+  margin-bottom: var(--templ-space-4);
+}
+.details p + p {
+  margin-top: var(--templ-space-2);
+}
+.check {
+  composes: button secondary small from global;
+  justify-self: start;
+}
+.footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--templ-space-2) var(--templ-space-4);
+  color: var(--templ-muted);
+  font-size: var(--templ-text-small);
+}
+.progress {
+  display: grid;
+  gap: var(--templ-space-3);
+  padding: var(--templ-space-4);
+  border: var(--templ-border-width) solid var(--templ-line);
+  border-radius: var(--templ-radius-surface);
+  background: var(--templ-surface);
+}
+.explanation {
+  display: grid;
+  gap: var(--templ-space-2);
+  font-size: var(--templ-text-small);
+  line-height: var(--templ-line-body);
+}
+.stages {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--templ-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.stages li {
+  display: grid;
+  justify-items: center;
+  gap: var(--templ-space-2);
+  color: var(--templ-muted);
+  font-size: var(--templ-text-small);
+}
+.stages li > span {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: var(--templ-border-width) solid var(--templ-border-strong);
+  border-radius: 50%;
+  background: var(--templ-raised);
+  font-variant-numeric: tabular-nums;
+}
+.stages li[data-complete="true"] {
+  color: var(--templ-success-text);
+}
+.stages li[data-complete="true"] > span {
+  border-color: var(--templ-success);
+  background: var(--templ-success-soft);
+}
+.stages li[aria-current="step"] {
+  color: var(--templ-text);
+  font-weight: var(--templ-weight-label);
+}
+.stages li[aria-current="step"] > span {
+  border-color: var(--templ-accent);
+}
+.finality {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--templ-space-1) var(--templ-space-3);
+  margin: 0;
+  font-size: var(--templ-text-small);
+}
+.finality dt {
+  color: var(--templ-muted);
+}
+.finality dd {
+  margin: 0;
+  font-family: var(--templ-font-mono);
+  font-variant-numeric: tabular-nums;
+}
+@media (max-width: 440px) {
+  .values {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--templ-space-1);
+  }
+  .values dd {
+    margin-bottom: var(--templ-space-2);
+  }
+}

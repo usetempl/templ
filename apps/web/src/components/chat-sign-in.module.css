@@ -1,0 +1,214 @@
+.dialog {
+  width: min(420px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  margin: auto;
+  padding: var(--templ-space-5);
+  overflow: auto;
+  border: var(--templ-border-width) solid var(--templ-border-strong);
+  border-radius: var(--templ-radius-surface);
+  background: var(--templ-raised);
+  color: var(--templ-text);
+  box-shadow: var(--templ-shadow-lg);
+  font: inherit;
+}
+.dialog::backdrop {
+  background: var(--templ-overlay);
+}
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--templ-space-2);
+}
+.titleBlock {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--templ-space-3);
+}
+.mark {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  flex: none;
+  border: var(--templ-border-width) solid var(--templ-action-border);
+  border-radius: var(--templ-radius-surface);
+  background: var(--templ-accent-soft);
+  color: var(--templ-accent-text);
+}
+.header h2 {
+  margin: 0;
+  font-size: var(--templ-text-h3);
+  font-weight: var(--templ-weight-heading);
+  letter-spacing: var(--templ-tracking-heading);
+}
+.dialog .subtitle {
+  margin: var(--templ-space-1) 0 0;
+  color: var(--templ-muted);
+  font-size: var(--templ-text-small);
+  line-height: var(--templ-line-body);
+}
+.close {
+  composes: button quiet icon from global;
+  margin-right: calc(-1 * var(--templ-space-1));
+}
+.dialog p {
+  margin: var(--templ-space-1) 0 var(--templ-space-5);
+  color: var(--templ-muted);
+  font-size: var(--templ-text-small);
+  line-height: var(--templ-line-body);
+}
+
+.primary {
+  composes: button large from global;
+  width: 100%;
+}
+
+.dialog :is(a, button, input, select):focus-visible {
+  outline: var(--templ-focus-width) solid var(--templ-focus);
+  outline-offset: var(--templ-focus-offset);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .dialog[open] {
+    animation: arrive 150ms ease-out;
+  }
+  @keyframes arrive {
+    from {
+      transform: translateY(8px);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+}
+.secondary {
+  composes: button secondary large from global;
+  width: 100%;
+}
+
+.dialog .error {
+  color: var(--templ-danger-text);
+  margin: var(--templ-space-3) 0 0;
+}
+
+.dialog .policies {
+  display: flex;
+  justify-content: center;
+  gap: var(--templ-space-4);
+  margin: var(--templ-space-4) 0 0;
+  font-size: var(--templ-text-caption);
+  color: var(--templ-muted);
+}
+.policies a:hover {
+  color: var(--templ-accent-text);
+}
+.secondary {
+  justify-content: flex-start !important;
+  gap: var(--templ-space-2) !important;
+  padding-inline: var(--templ-space-2) !important;
+  font-weight: var(--templ-weight-heading) !important;
+}
+.wallets {
+  display: grid;
+  gap: var(--templ-space-2);
+  margin-top: var(--templ-space-4);
+}
+.walletOption {
+  composes: button secondary large from global;
+  width: 100%;
+  min-height: 64px;
+  justify-content: flex-start;
+  gap: var(--templ-space-3);
+  text-align: left;
+}
+.walletOption[aria-pressed="true"] {
+  border-color: var(--templ-action-border);
+  background: var(--templ-accent-soft);
+}
+.walletOption > svg {
+  flex: none;
+}
+.walletName {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  gap: var(--templ-space-1);
+  font-size: var(--templ-text-body);
+  font-weight: var(--templ-weight-heading);
+}
+.address {
+  overflow: hidden;
+  color: var(--templ-muted);
+  font-family: var(--templ-font-mono);
+  font-size: var(--templ-text-small);
+  font-weight: var(--templ-weight-body);
+  text-overflow: ellipsis;
+}
+.walletHint,
+.walletAction {
+  color: var(--templ-muted);
+  font-size: var(--templ-text-small);
+  font-weight: var(--templ-weight-body);
+}
+.walletAction {
+  flex: none;
+  white-space: nowrap;
+}
+.dialog .signInHint {
+  margin: var(--templ-space-4) 0 var(--templ-space-3);
+}
+
+.dialog .hint {
+  margin: var(--templ-space-2) 0 0;
+  color: var(--templ-text);
+  font-size: var(--templ-text-mono);
+  text-align: center;
+}
+.methodRetry {
+  display: grid;
+  gap: var(--templ-space-3);
+  margin-top: var(--templ-space-4);
+}
+
+.methods {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--templ-space-2);
+  margin-top: var(--templ-space-4);
+}
+.methods button {
+  justify-content: center !important;
+}
+.methods [aria-pressed="true"] {
+  border-color: var(--templ-action-border);
+  background: var(--templ-accent-soft);
+}
+.emailForm {
+  display: grid;
+  gap: var(--templ-space-3);
+  margin-top: var(--templ-space-4);
+}
+.emailForm label {
+  font-size: var(--templ-text-small);
+  font-weight: var(--templ-weight-label);
+}
+.emailInput {
+  composes: input from "./ui/design-system.module.css";
+  min-width: 0;
+}
+.emailForm p {
+  margin: 0;
+}
+
+.walletPicker {
+  display: grid;
+  gap: var(--templ-space-2);
+  margin-top: var(--templ-space-4);
+}
+.walletPicker label {
+  font-size: var(--templ-text-small);
+  font-weight: var(--templ-weight-label);
+}

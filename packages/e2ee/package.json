@@ -1,0 +1,38 @@
+{
+  "name": "@templ/e2ee",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./protocol": "./src/protocol.ts",
+    "./verify": "./src/verify.ts",
+    "./relay": "./src/relay.ts",
+    "./client": "./src/client.ts",
+    "./customer": "./src/customer.ts",
+    "./own-authority": "./src/own-support-authority.ts",
+    "./own-ai-protocol": "./src/own-ai-protocol.ts",
+    "./own-setup": "./src/own-setup.ts",
+    "./own-setup-snapshot": "./src/own-setup-snapshot.ts",
+    "./backup": "./src/customer-backup.ts",
+    "./device-store": "./src/device-store.ts",
+    "./transport": "./src/transport.ts",
+    "./view": "./src/customer-view.ts"
+  },
+  "scripts": {
+    "type-check": "tsc --noEmit",
+    "test": "vitest run --maxWorkers=2",
+    "lint": "eslint src"
+  },
+  "dependencies": {
+    "@hpke/core": "1.9.0",
+    "@templ/chat": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "typescript": "^5",
+    "vitest": "4.1.12"
+  },
+  "peerDependencies": {
+    "viem": "^2.55.0"
+  }
+}

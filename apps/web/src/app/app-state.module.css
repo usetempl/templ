@@ -1,0 +1,49 @@
+.surface {
+  position: relative;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: var(--templ-space-3);
+  min-height: min(100dvh, 720px);
+  padding: var(--templ-space-12) var(--templ-space-4);
+  overflow: hidden;
+  isolation: isolate;
+  text-align: center;
+  background: var(--templ-surface);
+}
+
+.surface h1 {
+  max-width: 14ch;
+  margin: var(--templ-space-4) 0 0;
+  color: var(--templ-text);
+  font-family: var(--templ-font-display);
+  font-size: var(--templ-text-display);
+  font-weight: var(--templ-weight-heading);
+  line-height: 1.02;
+  letter-spacing: var(--templ-tracking-heading);
+  text-wrap: balance;
+}
+
+.surface p {
+  max-width: 40ch;
+  margin: 0;
+  text-wrap: pretty;
+  color: var(--templ-muted);
+  line-height: var(--templ-line-body);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--templ-space-2);
+  margin-top: var(--templ-space-2);
+}
+
+.errorStamp {
+  width: clamp(104px, 26vw, 148px);
+}
+
+.lostStamp {
+  width: clamp(52px, 12vw, 68px);
+}

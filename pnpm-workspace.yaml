@@ -1,0 +1,181 @@
+packages:
+  - examples
+  - examples/*
+  - apps/*
+  - apps/workers/*
+  - packages/*
+  - packages/evm/*
+
+overrides:
+  # Reviewed RFC 9180 implementation, including its nonce mutex fix. Keep
+  # the complete crypto dependency pair exact and outside the quarantine.
+  "@hpke/core@1.9.0>@hpke/common": 1.10.1
+  "abitype>zod": 4.6.6
+  "@babel/core": 7.29.6
+  "@cloudflare/workers-types": 4.20260426.1
+  "@types/react": 19.2.18
+  "@types/react-dom": 19.2.4
+  # Same-major security patches for transitives whose parents still resolve
+  # vulnerable releases. Keep selectors narrow where a single parent owns the
+  # vulnerable edge; no cross-major substitutions belong here. Lint and build
+  # parsers stay patched too; every override stays inside the requesting
+  # parent's semver range unless the exception is documented below.
+  "@typescript-eslint/typescript-estree@8.54.0>minimatch": 9.0.9
+  "eslint@9.39.2>ajv": 6.15.0
+  "eslint@9.39.2>@humanfs/node": 0.16.8
+  "flat-cache@4.0.1>flatted": 3.4.2
+  "knip>smol-toml": 1.9.0
+  "knip>picomatch": 4.0.5
+  "js-yaml@>=4.0.0 <5.0.0": 4.3.2
+  "svgo@>=3.0.0 <4.0.0": 3.3.5
+  "hono@>=4.0.0 <5.0.0": 4.13.5
+  "joi@>=17.0.0 <18.0.0": 17.13.8
+  # Docusaurus uses update-notifier's unchanged ESM factory, config and check APIs.
+  # v7 replaces got/cacheable-request with ky and supports our Node 22 toolchain.
+  "@docusaurus/core@3.10.2>update-notifier": 7.3.1
+  # Docusaurus 3.10.2 still pulls serialize-javascript 6 through its webpack
+  # plugins. The security fixes only exist in v7; both consumers use the same
+  # CommonJS serialize(value) API and their current releases support v7.
+  "copy-webpack-plugin@11.0.0>serialize-javascript": 7.0.5
+  "css-minimizer-webpack-plugin@5.0.1>serialize-javascript": 7.0.5
+  "minimatch@3>brace-expansion": 1.1.21
+  "minimatch@8>brace-expansion": 2.1.7
+  "minimatch@9>brace-expansion": 2.1.7
+  "minimatch@10.2.5>brace-expansion": 5.0.12
+  "fast-uri@>=3.0.0 <4.0.0": 3.1.8
+  "nanoid@>=3.0.0 <4.0.0": 3.3.18
+  "postcss@>=8.0.0 <9.0.0": 8.5.26
+  "qs@>=6.0.0 <7.0.0": 6.16.0
+  "express@5.2.1>body-parser": 2.3.0
+  "next@16.4.5>sharp": 0.35.5
+  # Keep the existing hooks/compiler lint checks during the runtime security fix.
+  # These compatible lint versions precede the new diagnostics; adopt those separately.
+  "eslint-config-next@16.3.8>eslint-plugin-react-hooks": 7.0.1
+  "eslint-config-next@16.3.8>typescript-eslint": 8.54.0
+  "follow-redirects@1.16.0": 1.16.1
+  "launch-editor@2.14.1": 2.14.2
+  "image-size@2.0.2": 2.0.3
+  # Keep the adapter's build dependencies in their supported major versions.
+  # dotenvx removes the old proxy logger and its unfixed format parser.
+  "@opennextjs/cloudflare@1.20.12>@dotenvx/dotenvx": 2.38.2
+  "@node-minify/core@9.0.2>glob": 10.5.0
+  "vite@7.3.6": 7.3.7
+  # Miniflare's current range stops below the first fixed sharp release. The
+  # Worker dry run exercises its unchanged public image-loading API.
+  "miniflare>sharp": 0.35.5
+  "proxy-addr@>=2.0.0 <3.0.0": 2.0.8
+  "compression@>=1.0.0 <2.0.0": 1.8.2
+  "source-map-js@>=1.0.0 <2.0.0": 1.2.2
+  "postcss-selector-parser@>=7.0.0 <8.0.0": 7.1.6
+  "yaml@>=2.0.0 <3.0.0": 2.9.0
+  "shell-quote@>=1.0.0 <2.0.0": 1.11.0
+  "undici@>=6.0.0 <7.0.0": 6.29.1
+  "undici@>=7.0.0 <8.0.0": 7.30.1
+  websocket-driver: 0.7.5
+  "viem>ws": 8.21.3
+  # Miniflare pins an older ws patch for the local Worker simulator; retain
+  # its ws 8 API while fixing malformed WebSocket frame handling.
+  "miniflare@4.20260426.0>ws": 8.21.3
+  # OpenNext requires Wrangler 4.125 or newer. This release also
+  # replaces Wrangler's vulnerable esbuild 0.27 dependency.
+  wrangler: 4.125.0
+  # The local Worker runtime must reject the compromised certificate chains.
+  workerd: 1.20261022.1
+
+# pnpm refuses package versions published within 14 days.
+# Add reviewed exceptions to minimumReleaseAgeExclude.
+minimumReleaseAge: 20160
+minimumReleaseAgeExclude:
+  - "zod@4.6.6"
+  # Next 16.4.5 is the reviewed security patch. Its
+  # direct packages are exact-pinned and integrity-locked despite being newer
+  # than the global 14-day supply-chain quarantine.
+  - "next@16.4.5"
+  - "@next/env@16.4.5"
+  - "@next/third-parties@16.4.5"
+  - "@next/swc-darwin-arm64@16.4.5"
+  - "@next/swc-darwin-x64@16.4.5"
+  - "@next/swc-linux-arm64-gnu@16.4.5"
+  - "@next/swc-linux-arm64-musl@16.4.5"
+  - "@next/swc-linux-x64-gnu@16.4.5"
+  - "@next/swc-linux-x64-musl@16.4.5"
+  - "@next/swc-win32-arm64-msvc@16.4.5"
+  - "@next/swc-win32-x64-msvc@16.4.5"
+  # The adapter update supports the fixed Next 16.4 runtime and inlines its
+  # required preview manifest. Both packages are exact and integrity-locked.
+  - "@opennextjs/cloudflare@1.20.12"
+  - "@opennextjs/aws@4.1.11"
+  - "@dotenvx/dotenvx@2.38.2"
+  - "@dotenvx/primitives@3.3.1"
+  - "@dotenvx/providers@0.3.11"
+  - "@dotenvx/tooling@1.0.6"
+  # These Undici releases include the vendor's October TLS security fixes.
+  - "undici@6.29.1"
+  - "undici@7.30.1"
+  - "workerd@1.20261022.1"
+  - "@cloudflare/workerd-linux-64@1.20261022.1"
+  - "@cloudflare/workerd-darwin-64@1.20261022.1"
+  - "@cloudflare/workerd-windows-64@1.20261022.1"
+  - "@cloudflare/workerd-linux-arm64@1.20261022.1"
+  - "@cloudflare/workerd-darwin-arm64@1.20261022.1"
+  # Newly published advisory fixes below are exact-pinned by overrides and
+  # integrity-locked; allow those fixes through the same quarantine.
+  - "js-yaml"
+  - "svgo"
+  - "hono"
+  - "joi"
+  - "brace-expansion"
+  - "fast-uri"
+  - "qs"
+  - "sharp"
+  - "@img/*"
+  - "source-map-js"
+  - "shell-quote"
+  - "follow-redirects@1.16.1"
+  - "launch-editor@2.14.2"
+  - "vite@7.3.7"
+  - "vitest@4.1.12"
+  - "@vitest/expect@4.1.12"
+  - "@vitest/mocker@4.1.12"
+  - "@vitest/pretty-format@4.1.12"
+  - "@vitest/runner@4.1.12"
+  - "@vitest/snapshot@4.1.12"
+  - "@vitest/spy@4.1.12"
+  - "@vitest/utils@4.1.12"
+  - "image-size@2.0.3"
+
+patchedDependencies:
+  # Preserve the current APIs while applying the fixed upstream security operations.
+  stream-json@1.9.1: patches/stream-json@1.9.1.patch
+  # Define viem's own .call helpers without assigning through hardened browser intrinsics.
+  viem@2.55.0: patches/viem@2.55.0.patch
+  # The native addon has no maintained fix and is unnecessary here; retain
+  # the package's pure-JavaScript conversions only.
+  bigint-buffer@1.1.5: patches/bigint-buffer@1.1.5.patch
+
+# The scanner sees upstream versions, not the exact local patches and bounded
+# call sites above. Ignore only advisories whose vulnerable paths the release
+# dependency-backports test proves are absent or unreachable.
+auditConfig:
+  ignoreGhsas:
+    # These exact lockfile patches retain parent API compatibility. The backports
+    # test executes real worker selection, JSON prototypes and selector work bounds.
+    - GHSA-5gmw-xhrv-c9v3
+    - GHSA-85c8-ppgw-ccpr
+    - GHSA-mjw6-4jj6-33hc
+    - GHSA-rj75-hqrm-r3gf
+    # stream-json 1.9.1 has no JSONC entry point. The same test pins the installed
+    # package and Jayson call sites, so adding that parser fails the proof.
+    - GHSA-hqr4-qq8f-hg3x
+    # Native bigint-buffer is removed by our lockfile-pinned pure-JS patch.
+    - GHSA-3gc7-fjrx-p6mg
+    # Reachable consumers use neither stream-json's vulnerable filters nor
+    # uuid's affected caller-buffer APIs; dependency-backports.test.mjs proves
+    # those call sites and fails if the dependency graph changes.
+    - GHSA-528h-pc64-c93x
+    - GHSA-w5hq-g745-h8pq
+    # braces runs only in Knip, ESLint, Docusaurus build/dev tooling and the
+    # Solana example's React Native/Metro tooling. No patched release exists.
+    # dependency-backports pins every lockfile path and rejects runtime imports
+    # or bundle inputs across web, community, docs, blog, examples and widget.
+    - GHSA-vfj7-8cjw-p6xm

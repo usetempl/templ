@@ -1,0 +1,24 @@
+.form {
+  display: grid;
+  gap: var(--templ-space-4);
+  max-width: 540px;
+}
+.form label {
+  display: grid;
+  gap: var(--templ-space-2);
+}
+.form input,
+.form textarea {
+  padding: var(--templ-space-2) var(--templ-space-3);
+  border: var(--templ-border-width) solid var(--templ-border-strong);
+  border-radius: var(--templ-radius-control);
+  background: var(--templ-surface);
+  color: var(--templ-text);
+  font: inherit;
+}
+.form textarea {
+  min-height: 90px;
+}
+.form button {
+  justify-self: start;
+}

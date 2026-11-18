@@ -1,0 +1,277 @@
+.form,
+.receipt {
+  margin-top: var(--templ-space-8);
+  padding: clamp(var(--templ-space-5), 4vw, var(--templ-space-8));
+  border: var(--templ-border-width) solid var(--templ-border-strong);
+  border-radius: var(--templ-radius-surface);
+  background: var(--templ-raised);
+}
+.heading h2,
+.receipt h2 {
+  margin: 0 0 var(--templ-space-1);
+  font-size: var(--templ-text-h2);
+  letter-spacing: var(--templ-tracking-heading);
+  line-height: 1.25;
+}
+.heading p,
+.receipt p {
+  margin: 0;
+  color: var(--templ-muted);
+  font-size: var(--templ-text-small);
+  line-height: var(--templ-line-body);
+}
+.availability {
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  gap: var(--templ-space-2);
+  flex-wrap: wrap;
+  padding-block: var(--templ-space-2);
+  color: var(--templ-muted);
+  font-size: var(--templ-text-mono);
+}
+.availability:empty {
+  min-height: 24px;
+}
+.availability button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--templ-space-1);
+  min-height: 32px;
+  color: var(--templ-text);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+.form fieldset {
+  display: grid;
+  gap: var(--templ-space-5);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+.row {
+  display: grid;
+  grid-template-columns: 1fr 1.25fr;
+  gap: var(--templ-space-5);
+}
+.form label,
+.target {
+  display: block;
+  min-width: 0;
+  font-size: var(--templ-text-small);
+  font-weight: var(--templ-weight-label);
+}
+.optional {
+  color: var(--templ-muted);
+  font-weight: var(--templ-weight-body);
+}
+.form input,
+.form textarea,
+.form select {
+  width: 100%;
+  margin-top: var(--templ-space-2);
+  padding: var(--templ-space-3) var(--templ-space-3);
+  border: var(--templ-border-width) solid var(--templ-border-strong);
+  border-radius: var(--templ-radius-control);
+  background-color: var(--templ-bg);
+  color: var(--templ-text);
+  font-size: var(--templ-text-body);
+  font-weight: var(--templ-weight-body);
+  transition: border-color var(--templ-duration-fast);
+}
+.form select {
+  padding-right: var(--templ-space-10);
+}
+.form textarea {
+  display: block;
+  resize: vertical;
+  min-height: 138px;
+  line-height: var(--templ-line-body);
+}
+.form input::placeholder,
+.form textarea::placeholder {
+  color: var(--templ-muted);
+}
+.form input:focus,
+.form textarea:focus,
+.form select:focus {
+  outline: none;
+  border-color: var(--templ-focus);
+}
+.target > a {
+  display: flex;
+  align-items: center;
+  gap: var(--templ-space-2);
+  width: fit-content;
+  min-height: 48px;
+  margin-top: var(--templ-space-2);
+  color: var(--templ-text);
+  text-underline-offset: 4px;
+}
+.target small {
+  color: var(--templ-muted);
+  font-weight: var(--templ-weight-body);
+}
+.noteRow {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--templ-space-3);
+  margin-top: calc(-1 * var(--templ-space-2));
+  font-size: var(--templ-text-caption);
+  color: var(--templ-muted);
+}
+.noteRow p {
+  margin: 0;
+  max-width: 380px;
+  line-height: var(--templ-line-body);
+}
+.noteRow > span {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.actions {
+  display: flex;
+  align-items: center;
+  gap: var(--templ-space-5);
+  margin-top: var(--templ-space-6);
+}
+.actions p {
+  max-width: 260px;
+  color: var(--templ-muted);
+  font-size: var(--templ-text-caption);
+  line-height: var(--templ-line-body);
+  margin: 0;
+}
+.submit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--templ-space-2);
+  min-height: 48px;
+  min-width: 180px;
+  padding: var(--templ-space-3) var(--templ-space-4);
+  border: var(--templ-border-width) solid var(--templ-action-border);
+  border-radius: var(--templ-radius-surface);
+  background: var(--templ-accent);
+  color: var(--templ-on-accent);
+  font-weight: var(--templ-weight-heading);
+  font-size: var(--templ-text-body);
+  cursor: pointer;
+  transition:
+    transform var(--templ-duration-fast),
+    opacity var(--templ-duration-fast);
+}
+.submit:not(:disabled):active {
+  transform: translateY(1px);
+}
+.submit:disabled {
+  opacity: 1;
+  color: var(--templ-muted);
+  background: var(--templ-surface);
+  border-color: var(--templ-border-strong);
+  cursor: not-allowed;
+  transform: none;
+}
+.form svg,
+.receiptActions svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+.error {
+  margin: var(--templ-space-4) 0 0;
+  color: var(--templ-danger-text);
+  font-size: var(--templ-text-small);
+  line-height: var(--templ-line-body);
+}
+.receiptIcon {
+  width: 36px;
+  height: 36px;
+  margin-bottom: var(--templ-space-3);
+  color: var(--templ-muted);
+}
+.receipt > code {
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  margin-top: var(--templ-space-5);
+  padding: var(--templ-space-3) var(--templ-space-3);
+  border-radius: var(--templ-radius-data);
+  background: var(--templ-bg);
+  font-family: var(--templ-font-mono), monospace;
+  font-size: var(--templ-text-mono);
+  overflow-wrap: anywhere;
+}
+.receiptActions {
+  display: flex;
+  gap: var(--templ-space-3);
+  flex-wrap: wrap;
+  margin-top: var(--templ-space-4);
+}
+.receiptActions button {
+  min-height: 42px;
+  border: var(--templ-border-width) solid var(--templ-border-strong);
+  padding: var(--templ-space-2) var(--templ-space-3);
+  border-radius: var(--templ-radius-control);
+  color: var(--templ-text);
+  background: transparent;
+  cursor: pointer;
+  font-size: var(--templ-text-small);
+}
+.form button:focus-visible,
+.receipt button:focus-visible,
+.form a:focus-visible {
+  outline: var(--templ-focus-width) solid var(--templ-focus);
+  outline-offset: var(--templ-focus-offset);
+}
+@media (max-width: 600px) {
+  .row {
+    grid-template-columns: 1fr;
+  }
+  .actions {
+    align-items: stretch;
+    flex-direction: column;
+    gap: var(--templ-space-3);
+  }
+  .actions p {
+    max-width: none;
+  }
+  .form input,
+  .form select,
+  .form textarea {
+    font-size: var(--templ-text-body);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .form input,
+  .form select,
+  .form textarea,
+  .submit {
+    transition: none;
+  }
+}
+
+.notice {
+  margin: 0;
+  color: var(--templ-muted);
+  font-size: var(--templ-text-mono);
+  line-height: var(--templ-line-body);
+}
+.form .confirmation {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--templ-space-3);
+  font-weight: var(--templ-weight-body);
+  line-height: var(--templ-line-body);
+}
+.form .confirmation input {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  margin: 2px 0 0;
+  accent-color: var(--templ-accent);
+}

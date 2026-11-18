@@ -1,0 +1,275 @@
+/* Member name, badges and the inspection panel. Avatar frames in
+   the message rail keep the geometry from community-workspace.module.css;
+   this file only styles the inline row and the panel. */
+.identity {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--templ-space-1) var(--templ-space-1);
+  min-width: 0;
+  max-width: 100%;
+}
+.avatar {
+  display: grid;
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  overflow: hidden;
+  place-items: center;
+  border: var(--templ-border-width) solid var(--templ-line);
+  border-radius: var(--templ-radius-surface);
+  color: var(--templ-accent-text);
+  background: var(--templ-raised);
+}
+.avatar[data-size="md"] {
+  width: 40px;
+  height: 40px;
+}
+.avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.name {
+  min-height: var(--templ-control-compact);
+  min-width: 0;
+  max-width: 14rem;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  font-weight: var(--templ-weight-heading);
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.name:hover,
+.identity[data-open="true"] .name {
+  color: var(--templ-accent-text);
+}
+.badge {
+  display: inline-block;
+  max-width: 10rem;
+  padding: 1px var(--templ-space-1);
+  overflow: hidden;
+  border: var(--templ-border-width) solid var(--templ-line);
+  border-radius: var(--templ-radius-control);
+  color: var(--templ-text);
+  background: var(--templ-raised);
+  font-size: var(--templ-text-caption);
+  font-weight: var(--templ-weight-heading);
+  line-height: var(--templ-line-body);
+  letter-spacing: 0.02em;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+.badge[data-badge="manager"],
+.badge[data-badge="moderator"] {
+  border-color: var(--templ-line);
+  color: var(--templ-muted);
+  background: var(--templ-surface);
+}
+.badge[data-badge="holder"] {
+  border-color: var(--templ-warning-text);
+  color: var(--templ-text);
+  background: var(--templ-warning-text);
+}
+.badge[data-badge="bot"] {
+  border-color: var(--templ-line);
+  color: var(--templ-muted);
+  background: var(--templ-surface);
+}
+.badge[data-badge="agent"] {
+  border-style: dashed;
+  color: var(--templ-muted);
+  text-transform: none;
+  font-weight: var(--templ-weight-heading);
+}
+
+.inspection {
+  position: absolute;
+  z-index: var(--templ-z-dropdown);
+  top: calc(100% + var(--templ-space-2));
+  left: 0;
+  display: grid;
+  width: 320px;
+  max-width: min(320px, calc(100vw - 32px));
+  gap: var(--templ-space-3);
+  padding: var(--templ-space-3);
+  color: var(--templ-text);
+  background: var(--templ-raised);
+  border: var(--templ-border-width) solid var(--templ-border-strong);
+  border-radius: var(--templ-radius-surface);
+  box-shadow: var(--templ-shadow-lg);
+  font-size: var(--templ-text-mono);
+  font-weight: var(--templ-weight-body);
+  line-height: var(--templ-line-body);
+  text-align: left;
+  text-transform: none;
+  letter-spacing: normal;
+  white-space: normal;
+}
+.inspectionHeader {
+  display: flex;
+  align-items: center;
+  gap: var(--templ-space-3);
+}
+.inspectionAvatar {
+  display: grid;
+  flex: 0 0 auto;
+  width: 44px;
+  height: 44px;
+  overflow: hidden;
+  place-items: center;
+  border: 2px solid var(--templ-line);
+  border-radius: var(--templ-radius-surface);
+  color: var(--templ-accent-text);
+  background: var(--templ-raised);
+}
+.inspectionAvatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.inspectionTitle {
+  display: grid;
+  min-width: 0;
+  flex: 1;
+  gap: 2px;
+}
+.inspectionTitle strong {
+  overflow: hidden;
+  font-size: var(--templ-text-body);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.kind {
+  color: var(--templ-muted);
+  font-size: var(--templ-text-caption);
+}
+.close {
+  composes: button ghost compact from "./ui/design-system.module.css";
+  flex: 0 0 auto;
+  width: var(--templ-control-compact);
+  padding: 0;
+}
+.principalRow {
+  display: flex;
+  align-items: center;
+  gap: var(--templ-space-2);
+  min-width: 0;
+}
+.principal {
+  flex: 1;
+  min-width: 0;
+  padding: var(--templ-space-1) var(--templ-space-2);
+  overflow: hidden;
+  border-radius: var(--templ-radius-data);
+  background: var(--templ-bg);
+  color: var(--templ-text);
+  font-family: var(--templ-font-mono), monospace;
+  font-size: var(--templ-text-caption);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.copy {
+  composes: button secondary compact from "./ui/design-system.module.css";
+  flex: 0 0 auto;
+  gap: var(--templ-space-1);
+}
+.copy:hover {
+  color: var(--templ-accent-text);
+}
+.inspectionBadges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--templ-space-1) var(--templ-space-1);
+}
+.none {
+  color: var(--templ-muted);
+  font-size: var(--templ-text-caption);
+}
+.note {
+  margin: 0;
+  color: var(--templ-muted);
+  font-size: var(--templ-text-caption);
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--templ-space-2);
+}
+.actions:empty {
+  display: none;
+}
+.actions a,
+.actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--templ-space-1);
+  min-height: var(--templ-control-compact);
+  padding: var(--templ-space-1) var(--templ-space-3);
+  border: var(--templ-border-width) solid var(--templ-border-strong);
+  border-radius: var(--templ-radius-control);
+  color: var(--templ-text);
+  background: var(--templ-raised);
+  font: inherit;
+  font-size: var(--templ-text-small);
+  font-weight: var(--templ-weight-label);
+  text-decoration: none;
+  cursor: pointer;
+}
+.actions a:hover,
+.actions button:hover {
+  background: var(--templ-neutral-hover);
+}
+
+/* The staff form that opens a member's team thread from their
+   name; the message is the first line of that thread. */
+.teamForm {
+  display: grid;
+  gap: var(--templ-space-2);
+  margin-top: var(--templ-space-2);
+  padding-top: var(--templ-space-2);
+  border-top: var(--templ-border-width) solid var(--templ-line);
+}
+.teamForm label {
+  display: grid;
+  gap: var(--templ-space-1);
+  color: var(--templ-muted);
+  font-size: var(--templ-text-caption);
+}
+.teamForm textarea {
+  width: 100%;
+  min-height: 64px;
+  padding: var(--templ-space-2) var(--templ-space-2);
+  border: var(--templ-border-width) solid var(--templ-border-strong);
+  border-radius: var(--templ-radius-control);
+  color: var(--templ-text);
+  background: var(--templ-raised);
+  font: inherit;
+  font-size: var(--templ-text-mono);
+  resize: vertical;
+}
+.teamForm textarea:focus-visible {
+  outline: var(--templ-focus-width) solid var(--templ-focus);
+  outline-offset: 1px;
+}
+
+@media (pointer: coarse) {
+  .name,
+  .copy,
+  .actions a,
+  .actions button {
+    min-height: var(--templ-control-height);
+  }
+  .close {
+    width: var(--templ-control-height);
+  }
+}

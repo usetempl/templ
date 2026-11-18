@@ -1,0 +1,63 @@
+.card {
+  display: grid;
+  justify-items: center;
+  gap: var(--templ-space-3);
+  width: min(420px, 100%);
+  padding: var(--templ-space-6) var(--templ-space-5);
+  border: var(--templ-border-width) solid var(--templ-line);
+  border-radius: var(--templ-radius-surface);
+  background: var(--templ-raised);
+  box-shadow: var(--templ-elevation-0);
+  text-align: center;
+}
+.card h1 {
+  margin: 0;
+  color: var(--templ-text);
+  font-size: var(--templ-text-lead);
+  font-weight: var(--templ-weight-heading);
+  text-wrap: balance;
+}
+.card > p {
+  margin: 0;
+  color: var(--templ-muted);
+  font-size: var(--templ-text-body);
+  line-height: var(--templ-line-body);
+}
+.icon {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: var(--templ-radius-surface);
+  background: var(--templ-accent-soft);
+  color: var(--templ-accent-text);
+}
+.icon svg {
+  width: 24px;
+  height: 24px;
+}
+.links {
+  display: grid;
+  width: 100%;
+  margin-top: var(--templ-space-1);
+}
+.links :is(a, button):focus-visible,
+.here:focus-visible {
+  outline: var(--templ-focus-width) solid var(--templ-focus);
+  outline-offset: var(--templ-focus-offset);
+}
+.here {
+  min-height: 44px;
+  padding: var(--templ-space-2) var(--templ-space-3);
+  border: 0;
+  background: transparent;
+  color: var(--templ-muted);
+  font: inherit;
+  font-size: var(--templ-text-small);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.here:hover {
+  color: var(--templ-text);
+}

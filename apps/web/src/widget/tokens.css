@@ -1,0 +1,41 @@
+/* Widget colors. Neutral surfaces let the host's accent stand on its own. */
+:root,
+[data-theme="light"] {
+  --widget-bg: #f5f5f5;
+  --widget-surface: #ebebeb;
+  --widget-raised: #fcfcfc;
+  --widget-line: #cacaca;
+  --widget-border-strong: #808080;
+  --widget-text: #202020;
+  --widget-muted: #5c5c5c;
+  --widget-accent: #56ccf2;
+  --widget-accent-hover: #42bce6;
+  --widget-accent-active: #2aafd9;
+  --widget-accent-text: #176487;
+  --widget-accent-focus: #176487;
+  --widget-on-accent: #0b1220;
+  --widget-danger-text: #8c1e1a;
+  --widget-danger-soft: #ffe6e3;
+  --widget-shadow-color: 0 0 0;
+  --widget-shadow-lg: 0 24px 64px rgb(var(--widget-shadow-color) / 0.18);
+}
+
+[data-theme="dark"] {
+  --widget-bg: #161616;
+  --widget-surface: #242424;
+  --widget-raised: #303030;
+  --widget-line: #424242;
+  --widget-border-strong: #808080;
+  --widget-text: #f2f2f2;
+  --widget-muted: #b8b8b8;
+  --widget-accent: #56ccf2;
+  --widget-accent-hover: #70d6f6;
+  --widget-accent-active: #8bdff8;
+  --widget-accent-text: #56ccf2;
+  --widget-accent-focus: #56ccf2;
+  --widget-on-accent: #0b1220;
+  --widget-danger-text: #ffaba0;
+  --widget-danger-soft: #301d1b;
+  --widget-shadow-color: 0 0 0;
+  --widget-shadow-lg: 0 28px 80px rgb(var(--widget-shadow-color) / 0.42);
+}

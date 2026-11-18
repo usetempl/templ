@@ -1,0 +1,75 @@
+.story {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: center;
+  gap: 64px;
+  width: min(calc(100% - 2 * var(--lp-gutter)), var(--lp-width));
+  margin: auto;
+  padding: var(--lp-space) 0;
+}
+.copy {
+  max-width: 440px;
+  scroll-margin-top: 88px;
+}
+.copy h2 {
+  font-size: var(--templ-text-h2);
+  line-height: 1.12;
+  margin: 0 0 20px;
+}
+.copy p {
+  line-height: 1.6;
+  margin: 0;
+}
+.example {
+  min-width: 0;
+  padding: 28px;
+  border: 1px solid var(--border);
+  border-radius: var(--lp-radius);
+  background: var(--surface-1);
+}
+.label {
+  font-size: 13px;
+  color: var(--fg-2);
+  margin: 0 0 16px;
+}
+.example h3 {
+  font-size: 22px;
+  line-height: 1.3;
+  color: var(--fg);
+  margin: 0 0 24px;
+}
+.example dl {
+  margin: 0;
+  font-size: 14px;
+}
+.example dl div {
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  gap: 16px;
+  padding: 10px 0;
+}
+.example dt {
+  color: var(--fg-2);
+}
+.example dd {
+  margin: 0;
+  color: var(--fg);
+  overflow-wrap: anywhere;
+  font-family: var(--font-mono);
+}
+.answer {
+  margin: 22px 0 0;
+  border-left: 3px solid var(--lp-accent);
+  padding: 4px 0 4px 16px;
+  line-height: 1.6;
+  color: var(--fg);
+}
+@media (max-width: 767px) {
+  .story {
+    grid-template-columns: 1fr;
+    gap: 28px;
+  }
+  .example {
+    padding: 22px;
+  }
+}

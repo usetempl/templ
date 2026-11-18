@@ -1,0 +1,29 @@
+[
+  {
+    "workspace": "01a12717-6f5d-7b34-80df-fa343d3d0cb6",
+    "manager": "0x540dcd83a1a2c8a3845747a8b5ce9441d9e8a4c3",
+    "documentSha256": "ed256dd357a6a5440efd11607e8cf8d19a9e95124cc4130757ad3ba24233a0e6",
+    "termsSha256": "37aeee115905e56b52c1ba92937f6b259bf535381d4bccc0b81043acdd4d9e1d",
+    "agreementId": "BS-2026-101",
+    "revision": 1,
+    "endsAt": 1791830009694,
+    "debtLimitCents": 100,
+    "operator": "0x5498b97be0786c1de0166fd554fb55a091603e36",
+    "syntheticReceiptsOnly": true,
+    "allowedActions": [
+      "record",
+      "end",
+      "payment",
+      "credit",
+      "forgive"
+    ],
+    "founderWalletUsed": false,
+    "financialTransactionsAllowed": false,
+    "customerChargesAllowed": false,
+    "newRecurringPurchaseAllowed": false,
+    "startsAt": 1791657910388,
+    "priceVersion": "2026-10-09",
+    "founderApprovalPath": "packages/evm/contracts-v4/deployments/production/brain-storage-trial-20261010/founder-approval.json",
+    "founderApprovalSha256": "958b7ee2fe608db2725512a368fedc3b7b277013e9294ee3c19bc6471cc2c5a2"
+  }
+]

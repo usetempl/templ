@@ -1,0 +1,15 @@
+.page {
+  padding: clamp(24px, 5vw, 56px) 16px;
+}
+.panel {
+  max-width: 560px;
+  margin: 0 auto;
+}
+.stack {
+  display: grid;
+  gap: 18px;
+}
+.stack p {
+  margin: 0;
+  line-height: 1.5;
+}

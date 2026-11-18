@@ -1,0 +1,138 @@
+.search {
+  display: grid;
+  gap: var(--templ-space-2);
+  min-width: 0;
+}
+.form {
+  display: flex;
+  align-items: center;
+  gap: var(--templ-space-1);
+  min-width: 0;
+}
+.field {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: var(--templ-space-2);
+  min-width: 0;
+  min-height: var(--templ-control-height);
+  padding: 0 var(--templ-space-2);
+  border: var(--templ-border-width) solid var(--templ-border-strong);
+  border-radius: var(--templ-radius-control);
+  background: var(--templ-raised);
+  color: var(--templ-muted);
+  transition:
+    border-color var(--templ-duration-fast) ease,
+    box-shadow var(--templ-duration-fast) ease;
+}
+.field:focus-within {
+  border-color: var(--templ-focus);
+  box-shadow: none;
+}
+.field input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--templ-text);
+  font: inherit;
+  font-size: var(--templ-text-small);
+}
+.field input::placeholder {
+  color: var(--templ-muted);
+}
+.submit,
+.clear {
+  flex: none;
+  min-height: var(--templ-control-height);
+  border: var(--templ-border-width) solid var(--templ-border-strong);
+  border-radius: var(--templ-radius-control);
+  background: var(--templ-surface);
+  color: var(--templ-muted);
+  font: inherit;
+  font-size: var(--templ-text-mono);
+  font-weight: var(--templ-weight-label);
+  cursor: pointer;
+}
+.submit {
+  padding: 0 var(--templ-space-3);
+}
+.clear {
+  display: grid;
+  place-items: center;
+  min-width: var(--templ-control-height);
+}
+.submit:hover:not(:disabled),
+.clear:hover {
+  border-color: var(--templ-border-strong);
+  color: var(--templ-text);
+}
+.submit:disabled {
+  opacity: 1;
+  color: var(--templ-muted);
+  background: var(--templ-surface);
+  border-color: var(--templ-border-strong);
+  cursor: not-allowed;
+  transform: none;
+}
+.search > p {
+  margin: 0;
+  color: var(--templ-muted);
+  font-size: var(--templ-text-mono);
+  line-height: var(--templ-line-body);
+}
+.search > p[role="alert"] {
+  color: var(--templ-danger-text);
+}
+.search > button {
+  justify-self: start;
+  padding: var(--templ-space-1) var(--templ-space-2);
+  border: var(--templ-border-width) solid var(--templ-border-strong);
+  border-radius: var(--templ-radius-control);
+  background: transparent;
+  color: var(--templ-muted);
+  font: inherit;
+  font-size: var(--templ-text-caption);
+  cursor: pointer;
+}
+.hits {
+  display: grid;
+  gap: var(--templ-space-1);
+  max-height: 260px;
+  overflow-y: auto;
+  padding: var(--templ-space-1);
+  border: var(--templ-border-width) solid var(--templ-line);
+  border-radius: var(--templ-radius-control);
+  background: var(--templ-raised);
+}
+.hit {
+  padding: var(--templ-space-2) var(--templ-space-2);
+  border: 0;
+  border-radius: var(--templ-radius-control);
+  background: transparent;
+  color: var(--templ-muted);
+  font: inherit;
+  font-size: var(--templ-text-mono);
+  line-height: var(--templ-line-body);
+  text-align: left;
+  cursor: pointer;
+}
+.hit:hover {
+  background: var(--templ-neutral-active);
+  color: var(--templ-text);
+}
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.field:focus-within {
+  outline: var(--templ-focus-width) solid var(--templ-focus);
+  outline-offset: var(--templ-focus-offset);
+}
