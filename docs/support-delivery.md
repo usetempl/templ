@@ -31,7 +31,7 @@ See the [widget client](../apps/web/src/lib/support-widget-live.ts), [inbox](../
 
 ## Where AI joins
 
-The workspace grants its agent access. The case settings say what the agent can do. The agent can draft or reply when the settings allow it. AI off blocks the agent from reading the case. The team can reply at any time.
+The workspace grants its agent access. The case settings say what the agent can do. The agent can draft or reply when the settings allow it. AI off blocks the agent from reading the case. The team can reply while AI is off.
 
 ```mermaid
 ---
@@ -61,7 +61,7 @@ See the [agent client](../apps/web/public/agent-client.mjs), [AI case controls](
 | Chat mode | Who can read the text |
 | --- | --- |
 | Standard | The visitor, the authorized team, and the server operator. An enabled agent can read eligible cases. Its model provider receives the text the agent sends. |
-| Customer-managed encryption | Approved devices and key services that the workspace operates or designates. The workspace controls its keys and backups. The Standard agent setup below gives no encrypted case access. |
+| Customer-managed encryption | Approved devices and key services that the workspace operates or designates. The workspace keeps its keys and backups. Templ cannot recover messages if the workspace loses every copy of its keys. The Standard agent setup below gives no encrypted case access. |
 | Templ-operated encryption | On Templ's own support workspace, approved devices and Templ's key services. The approved AI recipient and its model provider can process text when the case permits it. |
 
 For encrypted cases, the sender encrypts before transmission. The relay sees delivery metadata. See the [encryption implementation](../packages/e2ee) and [hosted data policy](https://docs.usetempl.com/security).
