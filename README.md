@@ -8,6 +8,8 @@ flowchart TD
     inbox --> reply["Visitor reads the reply"]
 ```
 
+[How a message reaches the team, how retries work, and where AI joins](docs/support-delivery.md)
+
 ## What crypto teams can see
 
 - **Wallet status.** A workspace can accept guests or require a wallet. Wallet sign-in proves control. A wallet address supplied by the app is unverified.

@@ -1,0 +1,73 @@
+# How support messages travel
+
+A visitor sends a message from your app. The team reads it in its inbox and replies. The visitor opens the same conversation to read the reply.
+
+```mermaid
+---
+config:
+  theme: base
+  themeVariables:
+    background: "#FAFAF6"
+    primaryColor: "#F5F6EF"
+    primaryTextColor: "#171A14"
+    primaryBorderColor: "#171A14"
+    lineColor: "#171A14"
+    fontFamily: "Geist, system-ui, sans-serif"
+---
+flowchart TD
+    start["Visitor sends a message"] --> save["Support saves it"]
+    save --> inbox["Team sees it in the inbox"]
+    inbox --> reply["Team sends a reply"]
+    reply --> read["Visitor reads the reply"]
+    classDef message fill:#99FF00,stroke:#171A14,color:#171A14
+    class start,read message
+```
+
+The widget keeps the message ID with the pending send. The server checks access and saves the message before confirming it. If the response gets lost, retry with the same ID. The server returns the saved message so the conversation shows one copy. The visitor can reopen the conversation from a browser that still has access.
+
+A team or AI reply can also include the message it answers and its last seen revision. If the conversation changed, read it again before replying.
+
+See the [widget client](../apps/web/src/lib/support-widget-live.ts), [inbox](../apps/web/src/components/team-conversations.tsx), and [message storage and access checks](../apps/workers/community/src/team-conversations.ts). Run `pnpm test:support` after [installing the workspace](../README.md#try-a-complete-conversation) to test guest send, team reply, and resume with synthetic data.
+
+## Where AI joins
+
+The workspace grants its agent access. Case settings decide whether the agent can read, draft or reply. AI off blocks agent access to the case. The team can answer directly.
+
+```mermaid
+---
+config:
+  theme: base
+  themeVariables:
+    background: "#FAFAF6"
+    primaryColor: "#F5F6EF"
+    primaryTextColor: "#171A14"
+    primaryBorderColor: "#171A14"
+    lineColor: "#171A14"
+    fontFamily: "Geist, system-ui, sans-serif"
+---
+flowchart TD
+    intake["Saved case"] --> policy["Case access and AI mode"]
+    policy -->|AI off| team["Team inbox"]
+    policy -->|AI allowed| agent["Authorized agent"]
+    agent -->|Draft or handoff| team
+    agent -->|Reply allowed| history["Visitor's chat"]
+    team -->|Team sends| history
+    classDef message fill:#99FF00,stroke:#171A14,color:#171A14
+    class intake,history message
+```
+
+See the [agent client](../apps/web/public/agent-client.mjs), [AI case controls](../apps/workers/community/src/support-workflow.ts), and [managed agent](../apps/workers/community/src/managed-agent/runner.ts).
+
+| Chat mode | Who can read the text |
+| --- | --- |
+| Standard | The visitor, the authorized team, and the server operator. An enabled agent can read eligible cases. Its model provider receives the text the agent sends. |
+| Customer-managed encryption | Approved devices and key services that the workspace operates or designates. The workspace controls its keys and backups. The Standard agent setup below gives no encrypted case access. |
+| Templ-operated encryption | On Templ's own support workspace, approved devices and Templ's key services. The approved AI recipient and its model provider can process text when the case permits it. |
+
+For encrypted cases, the sender encrypts before transmission. The relay sees delivery metadata. See the [encryption implementation](../packages/e2ee) and [hosted data policy](https://docs.usetempl.com/security).
+
+## Connect AI
+
+**Templ-hosted.** Follow the [Templ AI setup guide](https://docs.usetempl.com/ai). Confirm that your workspace has access, add approved sources under **AI → Sources**, and grant the managed account the **AI support** role when prompted. Start with **AI drafts only**. Send a question answered by one of your sources and review its draft in the inbox.
+
+**Your own agent.** Follow the [JavaScript setup](https://docs.usetempl.com/developers/support-agent) with a service wallet and the AI support role. Check `agents.sdkVerified` and `support.conversationsVerified` in [app status](https://usetempl.com/api/status). Verify the client's hash before importing it. Connect your model on your own server, then test in Standard chat with drafts before enabling replies. The [Agent API](https://docs.usetempl.com/developers/agent-api) lists the case, draft, and reply calls.
