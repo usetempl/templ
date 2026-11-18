@@ -23,15 +23,15 @@ flowchart TD
     class start,read message
 ```
 
-The widget keeps the message ID with the pending send. The server checks access and saves the message before confirming it. If the response gets lost, retry with the same ID. The server returns the saved message so the conversation shows one copy. The visitor can reopen the conversation from a browser that still has access.
+The widget keeps the message ID until the server confirms the send. The server checks access and saves the message. When you retry, the widget uses the same ID. The server returns the saved message. The conversation shows one copy. The visitor can reopen the conversation in a browser that still has access.
 
-A team or AI reply can also include the message it answers and its last seen revision. If the conversation changed, read it again before replying.
+A team or AI reply can name the message it answers and its revision. If the conversation changes, read it again before replying.
 
 See the [widget client](../apps/web/src/lib/support-widget-live.ts), [inbox](../apps/web/src/components/team-conversations.tsx), and [message storage and access checks](../apps/workers/community/src/team-conversations.ts). Run `pnpm test:support` after [installing the workspace](../README.md#try-a-complete-conversation) to test guest send, team reply, and resume with synthetic data.
 
 ## Where AI joins
 
-The workspace grants its agent access. Case settings decide whether the agent can read, draft or reply. AI off blocks agent access to the case. The team can answer directly.
+The workspace grants its agent access. The case settings say what the agent can do. The agent can draft or reply when the settings allow it. AI off blocks the agent from reading the case. The team can reply at any time.
 
 ```mermaid
 ---
