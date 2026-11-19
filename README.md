@@ -39,14 +39,16 @@ pnpm install --frozen-lockfile --ignore-scripts
 pnpm test:support
 ```
 
-The check starts a local Workerd instance with test credentials. It verifies that a guest can send a message, receive a team reply, and reopen the conversation.
+The check runs the support worker locally in Workerd with temporary test accounts. It sends a guest message, saves one authorized team reply, and opens the same chat to read it. No production account or credentials are needed.
 
 ## Run it yourself or ask Templ to host it
 
 **Self-host.** The [MIT license](LICENSE) covers Templ's code. You supply the runtime, storage, secrets, and domains. For customer-managed encryption, you also operate the key services. This source includes the [web app](apps/web), [support worker](apps/workers/community), and encryption code.
 
-Run `pnpm build` to build the web app. Set `NEXT_PUBLIC_TEMPL_SITE_ORIGIN` and `NEXT_PUBLIC_TEMPL_API_ORIGIN` to your own site and API origins. The public build starts with hosted features off.
+Run `pnpm build` to build the web app. For your deployment, set `NEXT_PUBLIC_TEMPL_SITE_ORIGIN` to your web origin and `NEXT_PUBLIC_TEMPL_API_ORIGIN` to your support worker. Set these values at build time. Your deployment also needs the worker's storage bindings and its own secrets. The public build starts with hosted features off. Use the local conversation check above to try delivery before provisioning a server.
 
-**Managed.** Templ can run the service for you. [Talk to us](https://usetempl.com/) about hosting, integration, or support. [Hosted setup guide](https://docs.usetempl.com/install)
+**Templ Cloud.** Templ runs your chat, inbox, and message storage. Your team controls how it replies and which knowledge sources its AI can use. [Talk to us](https://usetempl.com/) about hosting, integration, or support. [Hosted setup guide](https://docs.usetempl.com/install)
+
+[Connect your own knowledge sources and AI](docs/support-delivery.md#connect-ai)
 
 [Source revision](SOURCE.json) · [Third-party notices](NOTICE)
