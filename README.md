@@ -50,7 +50,7 @@ The check runs the support worker locally in Workerd with temporary test account
 
 Run `pnpm build` to build the web app. For your deployment, set `NEXT_PUBLIC_TEMPL_SITE_ORIGIN` to your web origin and `NEXT_PUBLIC_TEMPL_API_ORIGIN` to your support worker. Set these values at build time. Your deployment also needs the worker's storage bindings and its own secrets. The public build starts with hosted features off. Use the local conversation check above to try delivery before provisioning a server.
 
-**Templ Cloud.** Templ runs your chat, inbox, and message storage. Your team controls how it replies and which knowledge sources its AI can use. [Talk to us](https://usetempl.com/) about hosting, integration, or support. [Hosted setup guide](https://docs.usetempl.com/install)
+**Templ Hosted.** Templ runs your chat, inbox and message storage. Your team controls how it replies and which knowledge sources its AI can use. [Create a workspace](https://usetempl.com/create?next=plan) to test the integration with 10 free tickets. [Compare Starter and Plus](https://docs.usetempl.com/pricing#planned-usage-pricing). [Hosted setup guide](https://docs.usetempl.com/install)
 
 [Connect your own knowledge sources and AI](docs/support-delivery.md#connect-ai)
 
