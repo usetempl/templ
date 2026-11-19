@@ -1,32 +1,35 @@
 # Templ
 
-A visitor opens Help in your app and sends a question. Your team replies from its inbox. The visitor reads the reply in the same chat.
+A swap fails in your app. The visitor opens Help, asks where the funds are, and ticks the transaction hash to share it. Your team reads the question and the hash in its inbox and replies. The visitor reads the reply in the same chat.
 
-```mermaid
-flowchart TD
-    visitor["Visitor sends a question"] --> inbox["Team replies in its inbox"]
-    inbox --> reply["Visitor reads the reply"]
-```
+Templ is that support desk. It has a chat widget, a team inbox, and a worker that checks access and stores messages. The widget gives each message an ID. A retry sends the same ID, and the conversation keeps one copy.
+
+![One Standard case on a workspace that accepts guests. The message and the details the visitor chose pass the worker's access check. The team and a permitted AI agent read them, and the visitor reads the reply.](docs/support-case.svg)
 
 [How a message reaches the team, how retries work, and where AI joins](docs/support-delivery.md)
 
-## What crypto teams can see
+## What the visitor shares
 
-- **Wallet status.** A workspace can accept guests or require a wallet. Wallet sign-in proves control. A wallet address supplied by the app is unverified.
-- **Transaction details.** Visitors can choose to share a transaction hash, chain, and app or browser details. Your team can use those details to check what happened.
-- **Reply email.** Visitors can add an email when the workspace offers reply notices. Guest support needs only a message.
+- **Message.** A workspace can accept guests, ask for a wallet address, or require wallet sign-in. Guest support needs only a message.
+- **Wallet proof.** The visitor signs a sign-in message to prove control of the wallet. The team sees that wallet as verified.
+- **Reported address.** Your app can report the connected address without a signature. The visitor ticks a box to share it. A workspace that asks for an address shows it before Send. The team sees it as not verified.
+- **Transaction and app details.** The visitor can share up to five transaction hashes, the network, and details your app supplies, such as the action and error. The widget sends only the rows the visitor ticks.
+
+Reply notices are a separate opt-in. The visitor can add an email when the workspace offers them.
 
 [Widget setup and wallet options](https://docs.usetempl.com/developers/widget)
 
 ## Who can read messages
 
-| Mode | Who can read the message text |
+| Chat mode | Who can read the message text |
 | --- | --- |
-| Standard | The visitor and team members with access to the case. The server that runs the app can also read the text. |
-| Customer-managed encryption | Approved participant devices and the workspace's own validation and recovery services. The workspace controls its keys and backups. |
-| Templ-operated encryption | Approved participant devices and Templ's validation and recovery services on Templ's own support workspace. An approved AI recipient can read messages that the case policy permits. |
+| Standard | The visitor and team members with access to the case. The operator of the server can also read the text. |
+| Customer-managed encryption | Approved participant devices and the workspace's own validation and recovery services. The workspace controls its keys and backups. Under the default customer-managed custody, Templ-hosted AI and Templ operators cannot read the message text. |
+| Templ-operated encryption | Approved participant devices and Templ's validation and recovery services. This mode runs only on Templ's own support workspace. |
 
-With encryption, the sender's client encrypts messages before it sends them. The relay still sees case and delivery metadata. In Standard mode, an AI integration can process eligible case content when the workspace enables it.
+The two encrypted modes differ in who holds the keys. In both, the sender's client encrypts each message before it sends it. The relay stores ciphertext and still sees case and delivery metadata. The agent setup for Standard cases gives no access to encrypted cases. With Templ-operated encryption, an approved AI recipient can read messages when the case policy permits it.
+
+A Standard case has an AI mode. In **AI answers**, an agent with workspace access can reply. In **AI drafts only**, the agent drafts or hands off, and a person sends the reply. **AI off** blocks the agent from the case. A reply from a person moves a case in AI answers to AI drafts only. The agent's model provider receives the text the agent sends.
 
 [Encryption code](packages/e2ee) · [Hosted security and data](https://docs.usetempl.com/security)
 

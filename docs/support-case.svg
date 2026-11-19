@@ -1,0 +1,81 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="360" height="714" viewBox="0 0 360 714" role="img" aria-labelledby="title desc" font-family="Geist, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" font-size="13" fill="#171A14">
+  <title id="title">One Standard support case on a workspace that accepts guests</title>
+  <desc id="desc">The visitor sends a message and can add a transaction hash, app details, and either a wallet address the app reports or a wallet sign-in. The reported address is not verified. The sign-in is verified. The support worker checks access and saves each message once, and the server operator can read the text. Team members with case access read the case and reply. An AI agent needs a workspace grant. In answers mode it can reply, in drafts mode the team sends, and in off mode it cannot read. The visitor reads the reply in the same chat. Reply notices are a separate opt-in.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M0 0 8 4 0 8z" fill="#8A9082"/>
+    </marker>
+  </defs>
+  <rect width="360" height="714" rx="12" fill="#FAFAF6"/>
+  <text x="12" y="28" font-size="14" font-weight="600">One Standard case</text>
+  <text x="12" y="46" fill="#5C6356">A workspace that accepts guests</text>
+
+  <!-- Visitor -->
+  <rect x="12" y="58" width="336" height="208" rx="10" fill="#FFFFFF" stroke="#D9DCD1"/>
+  <text x="24" y="82" font-size="12.5" font-weight="600" letter-spacing="0.5" fill="#5C6356">VISITOR</text>
+  <rect x="24" y="92" width="264" height="34" rx="10" fill="#99FF00"/>
+  <text x="36" y="114">My swap failed. Where are my funds?</text>
+  <text x="24" y="150" fill="#5C6356">Optional additions</text>
+  <g stroke="#171A14" stroke-width="1.2">
+    <rect x="24" y="161" width="14" height="14" rx="3" fill="#99FF00"/>
+    <rect x="24" y="187" width="14" height="14" rx="3" fill="#99FF00"/>
+    <rect x="24" y="213" width="14" height="14" rx="3" fill="#99FF00"/>
+    <rect x="24" y="239" width="14" height="14" rx="3" fill="#FFFFFF"/>
+    <path d="M27 168l3 3 5-6M27 194l3 3 5-6M27 220l3 3 5-6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <text x="46" y="173">Transaction hash and network</text>
+  <text x="46" y="199">App details, such as action and error</text>
+  <text x="46" y="225">Wallet the app reports</text>
+  <rect x="248" y="211" width="88" height="20" rx="10" fill="#FFFFFF" stroke="#8A9082"/>
+  <text x="292" y="225" font-size="12.5" text-anchor="middle">Not verified</text>
+  <text x="46" y="251">Wallet sign-in</text>
+  <rect x="270" y="237" width="66" height="20" rx="10" fill="#99FF00"/>
+  <text x="303" y="251" font-size="12.5" text-anchor="middle">Verified</text>
+
+  <path d="M180 266V294" fill="none" stroke="#8A9082" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="190" y="285" fill="#5C6356">Send</text>
+
+  <!-- Support worker -->
+  <rect x="12" y="296" width="336" height="80" rx="10" fill="#FFFFFF" stroke="#D9DCD1"/>
+  <text x="24" y="320" font-size="12.5" font-weight="600" letter-spacing="0.5" fill="#5C6356">SUPPORT WORKER</text>
+  <text x="24" y="342">Checks access. Saves each message once.</text>
+  <text x="24" y="362">The server operator can read the text.</text>
+
+  <path d="M180 376V393H267V410" fill="none" stroke="#8A9082" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <path d="M180 393H93V410" fill="none" stroke="#8A9082" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- Team inbox -->
+  <rect x="12" y="412" width="162" height="142" rx="10" fill="#FFFFFF" stroke="#D9DCD1"/>
+  <text x="24" y="436" font-size="12.5" font-weight="600" letter-spacing="0.5" fill="#5C6356">TEAM INBOX</text>
+  <text x="24" y="458">Members with case</text>
+  <text x="24" y="476">access read it and</text>
+  <text x="24" y="494">reply.</text>
+
+  <!-- AI agent -->
+  <rect x="186" y="412" width="162" height="142" rx="10" fill="#FFFFFF" stroke="#D9DCD1"/>
+  <text x="198" y="436" font-size="12.5" font-weight="600" letter-spacing="0.5" fill="#5C6356">AI AGENT</text>
+  <text x="198" y="458">Needs a workspace</text>
+  <text x="198" y="476">grant.</text>
+  <path d="M198 487H336" stroke="#D9DCD1"/>
+  <g font-size="12.5">
+    <text x="198" y="506" font-weight="600">answers</text>
+    <text x="256" y="506">can reply</text>
+    <text x="198" y="524" font-weight="600">drafts</text>
+    <text x="256" y="524">team sends</text>
+    <text x="198" y="542" font-weight="600">off</text>
+    <text x="256" y="542">cannot read</text>
+  </g>
+
+  <path d="M93 554V582H267V554M180 582V598" fill="none" stroke="#8A9082" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="101" y="573" font-size="12.5" fill="#5C6356">team reply</text>
+  <text x="259" y="573" font-size="12.5" fill="#5C6356" text-anchor="end">answers only</text>
+
+  <!-- Reply -->
+  <rect x="12" y="600" width="336" height="44" rx="10" fill="#99FF00"/>
+  <text x="180" y="627" font-weight="600" text-anchor="middle">Visitor reads the reply in the same chat</text>
+
+  <!-- Separate from the case -->
+  <rect x="12.5" y="656.5" width="335" height="46" rx="10" fill="none" stroke="#8A9082" stroke-dasharray="4 4"/>
+  <text x="24" y="676" font-size="12.5" fill="#5C6356">Reply notices are a separate opt-in. The visitor</text>
+  <text x="24" y="693" font-size="12.5" fill="#5C6356">adds an email when the workspace offers them.</text>
+</svg>
