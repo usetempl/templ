@@ -87,8 +87,8 @@ export default async function TrustPage() {
             history, notes, screenshots, search and exports.
           </p>
           <p>
-            Templ’s servers process Standard chat messages. In a customer-
-            controlled encrypted chat, approved endpoints use the workspace’s
+            Templ’s servers process Standard chat messages. In a
+            customer-controlled encrypted chat, approved endpoints use the workspace’s
             keys to read messages. The customer controls its recovery keys and
             backups. For Templ’s own encrypted support, Templ operates the team
             and recovery service. An authorized AI endpoint can share permitted
