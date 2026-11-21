@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { CONVERSATION_STYLE } from "@/lib/support-widget-chat-first";
+import { CONVERSATION_STYLE } from "@/lib/support-widget-chat-style";
 import type {
   SupportDemoOptions,
   SupportWidgetAppearance,
@@ -110,7 +110,7 @@ export function SupportWidgetDemo({
           style.textContent =
             (scenario === "conversation"
               ? CONVERSATION_STYLE +
-                ".panel[data-demo=conversation]{height:100%;min-height:0;border:0;box-shadow:none;border-radius:0}.panel[data-demo=conversation] .chat-options{display:none}.panel[data-demo=conversation] .demo-label{display:none}"
+                ".panel[data-demo=conversation]{height:100%;min-height:0;border:0;box-shadow:none;border-radius:0}.panel[data-demo=conversation] :is(.chat-options,.demo-label){display:none}.panel[data-demo=conversation] .message{animation:none}"
               : "") +
             ".avatar.logo{background:transparent;border-radius:0}.avatar.logo img{object-fit:contain}" +
             (scenario === "failed-transaction"

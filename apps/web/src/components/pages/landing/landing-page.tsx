@@ -12,7 +12,7 @@ import styles from "./landing-page.module.css";
 export const CLOSE_TITLE = "Give your users a place to talk.";
 export function LandingPage() {
   return (
-    <div className={styles.page}>
+    <div className={styles.page} data-theme="light">
       {LANDING_PREVIEW && (
         <p className={styles.preview} role="note">
           {LANDING_PREVIEW_BANNER}
@@ -27,13 +27,12 @@ export function LandingPage() {
                 Support that respects your privacy
               </h1>
               <p className={styles.subline}>
-                Help inside your app. Your users choose what to share.
+                Add support chat to your app. Reply from one inbox. Run it
+                yourself or let Templ host it.
               </p>
-              <LandingActions id="hero-chat" />
+              <LandingActions id="hero-chat" secondary="source" />
             </div>
-            <div className={styles.heroFrame}>
-              <LandingHeroFlow />
-            </div>
+            <LandingHeroFlow />
           </div>
         </section>
         <LandingStory />

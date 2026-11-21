@@ -3,7 +3,8 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import type { ChatRoomId } from "@templ/chat/index";
 import { topUpBonusCents } from "@templ/chat/resolution-pricing";
-import { PRODUCT_STANDARD_PRICES, PRODUCT_TOP_UP } from "@templ/chat/plans";
+import { PRODUCT_STARTER_PRICES, PRODUCT_STANDARD_PRICES, PRODUCT_TOP_UP } from "@templ/chat/plans";
+import type { MonthlySupportPlan } from "@templ/chat/standard-plan";
 import {
   PRODUCT_CHECKOUT_OPTIONS,
   getProductPaymentAsset,
@@ -105,10 +106,17 @@ function Checkout({
       : null,
   );
   const expectedPeriod = standard?.period?.id ?? null;
+  const [monthlyPlan, setMonthlyPlan] = useState<MonthlySupportPlan>(() =>
+    standard?.starterAvailable &&
+    (!expectedPeriod || standard.period?.usage?.priceVersion === PRODUCT_STARTER_PRICES.publishedOn)
+      ? "starter"
+      : "standard",
+  );
+  const monthlyPrices = monthlyPlan === "starter" ? PRODUCT_STARTER_PRICES : PRODUCT_STANDARD_PRICES;
   const [dollars, setDollars] = useState(() =>
     String(
       (standardPurpose === "period"
-        ? PRODUCT_STANDARD_PRICES.workspaceMonthlyUsdCents
+        ? monthlyPrices.workspaceMonthlyUsdCents
         : standardPurpose === "credit"
           ? Math.min(
               standard?.dueCents ||
@@ -123,7 +131,7 @@ function Checkout({
     : 0;
   const usdCents =
     standardPurpose === "period"
-      ? PRODUCT_STANDARD_PRICES.workspaceMonthlyUsdCents
+      ? monthlyPrices.workspaceMonthlyUsdCents
       : standardPurpose === "credit"
         ? manualCents > 0 && manualCents <= PRODUCT_TOP_UP.maxUsdCents
           ? manualCents
@@ -158,7 +166,7 @@ function Checkout({
   const [revision, setRevision] = useState(0);
   const [, setJournalRevision] = useState(0);
   const running = useRef(false);
-  const selection = `${room}:${auth.session?.principalId}:${chainId}:${symbol}:${payer}:${standardPurpose}:${expectedPeriod}:${dollars}:${communitySessionRevision()}`;
+  const selection = `${room}:${auth.session?.principalId}:${chainId}:${symbol}:${payer}:${standardPurpose}:${monthlyPlan}:${expectedPeriod}:${dollars}:${communitySessionRevision()}`;
   const current = useRef(selection);
   current.current = selection;
   const mounted = useRef(true);
@@ -584,7 +592,7 @@ function Checkout({
                   setDollars(
                     String(
                       (purpose === "period"
-                        ? PRODUCT_STANDARD_PRICES.workspaceMonthlyUsdCents
+                        ? monthlyPrices.workspaceMonthlyUsdCents
                         : PRODUCT_STANDARD_PRICES.includedAiCreditUsdCents) /
                         100,
                     ),
@@ -603,10 +611,33 @@ function Checkout({
             </p>
           )}
           {standardPurpose === "period" ? (
-            <p>
-              Pay {formatUsd(PRODUCT_STANDARD_PRICES.workspaceMonthlyUsdCents)}{" "}
-              USDC for one month of workspace access.
-            </p>
+            <>
+              {standard?.starterAvailable && (
+                <label>
+                  Templ Hosted plan
+                  <select
+                    value={monthlyPlan}
+                    disabled={locked}
+                    onChange={(event) =>
+                      setMonthlyPlan(event.target.value === "starter" ? "starter" : "standard")
+                    }
+                  >
+                    <option value="starter">Starter {formatUsd(PRODUCT_STARTER_PRICES.workspaceMonthlyUsdCents)}/month</option>
+                    <option value="standard">Plus {formatUsd(PRODUCT_STANDARD_PRICES.workspaceMonthlyUsdCents)}/month</option>
+                  </select>
+                </label>
+              )}
+              <p>
+                Pay {formatUsd(monthlyPrices.workspaceMonthlyUsdCents)} USDC for one month.
+                Includes all seats and {monthlyPrices.includedAnsweredCasesPerMonth} answered cases.
+                Extra cases cost {formatUsd(monthlyPrices.additionalAnsweredCaseUsdCents)} each.
+              </p>
+              <p className={styles.note}>
+                {monthlyPlan === "starter"
+                  ? "Add prepaid credit and set a limit to use Templ AI. You can also use your own AI."
+                  : `Includes ${formatUsd(monthlyPrices.includedAiCreditUsdCents)} in monthly Templ AI credit.`}
+              </p>
+            </>
           ) : (
             <fieldset className={styles.topUp} disabled={locked}>
               <legend>
@@ -796,6 +827,9 @@ function Checkout({
                                 ? ("standard-period" as const)
                                 : ("standard-credit" as const),
                             expectedPeriod,
+                            ...(standardPurpose === "period" && standard?.starterAvailable
+                              ? { monthlyPlan }
+                              : {}),
                             confirmed: true as const,
                           }
                         : {}),
@@ -816,8 +850,9 @@ function Checkout({
                     (standardPurpose !== null &&
                       (result.intent.settlement !== "standard-prepaid" ||
                         result.intent.standard?.purpose !== standardPurpose ||
-                        result.intent.standard.expectedPeriod !==
-                          expectedPeriod))
+                        result.intent.standard.expectedPeriod !== expectedPeriod ||
+                        (standardPurpose === "period" &&
+                          result.intent.standard.priceVersion !== monthlyPrices.publishedOn)))
                   )
                     throw new Error(
                       "The payment selection changed. Review it again.",

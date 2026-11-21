@@ -4,7 +4,7 @@ import { IconExternalLink, IconShieldLock } from "@tabler/icons-react";
 import { customerSupportUrl } from "@/lib/customer-support-url";
 import styles from "./customer-encrypted-support.module.css";
 
-/** A navigation boundary, never a plaintext frame bridge or a key client. */
+/** The isolated client owns message history, device keys and replies. */
 export function CustomerEncryptedSupport({
   origin,
   workspace,
@@ -12,6 +12,8 @@ export function CustomerEncryptedSupport({
   caseSeq,
   name,
   custody = "customer",
+  inline = false,
+  account,
 }: {
   origin: string;
   workspace: string;
@@ -19,20 +21,38 @@ export function CustomerEncryptedSupport({
   caseSeq?: number;
   name: string;
   custody?: "customer" | "templ-own-support";
+  inline?: boolean;
+  account?: string;
 }) {
   const href = customerSupportUrl(origin, workspace, conversation, caseSeq, custody);
+  if (href && inline && custody === "templ-own-support" && conversation && caseSeq && account) {
+    const source = new URL(href);
+    source.pathname = "/inbox-case";
+    const route = new URLSearchParams(source.hash.slice(1));
+    route.set("principal", account);
+    source.hash = route.toString();
+    return (
+      <iframe
+        className={styles.caseFrame}
+        title="Encrypted case conversation"
+        src={source.href}
+        referrerPolicy="no-referrer"
+        sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox"
+        allow="camera 'none'; microphone 'none'; geolocation 'none'; payment 'none'"
+      />
+    );
+  }
   return (
     <section className={styles.panel} aria-labelledby="encrypted-support-title">
       <IconShieldLock size={24} aria-hidden="true" />
       <h2 id="encrypted-support-title">Encrypted support</h2>
       <p>
-        {custody === "templ-own-support" ? "Templ" : name} keeps the keys for this chat. Write and read messages on its
-        secure support page.
+        Read and reply on {custody === "templ-own-support" ? "Templ’s" : `${name}’s`} secure support page.
       </p>
       <p className={styles.detail}>
         {custody === "customer"
-          ? "Templ cannot read or recover these messages. Recovery is handled by the team."
-          : "Templ's support team and security and recovery service can read this chat. Templ AI can read messages shared with it."}
+          ? "Your workspace manages its keys and backups. Templ cannot read or recover these messages."
+          : "Templ’s support workspace manages device approval and recovery. Templ AI can read messages when enabled."}
       </p>
       {href ? (
         <a

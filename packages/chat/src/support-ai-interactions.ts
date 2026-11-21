@@ -1,5 +1,10 @@
 /** Shared, deterministic checks for the optional hosted answer workflow. */
 export const AI_INTERACTION_POLICY = "bounded-v1" as const;
+export const HOSTED_SOCIAL_REPLIES = Object.freeze({
+  thanks: "You're welcome.",
+  smallTalk: "I'm here to help. What can I help you with?",
+  offTopic: "I can help with questions about this app. What would you like to know?",
+});
 export type AiInteraction = {
   policy: typeof AI_INTERACTION_POLICY;
   kind: "answer" | "clarify" | "faq";

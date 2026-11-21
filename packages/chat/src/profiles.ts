@@ -42,8 +42,8 @@ const hidden =
   /[\u0000-\u001f\u007f-\u009f\u200b-\u200f\u202a-\u202e\u2066-\u2069\ufeff]/u;
 // A zero-width joiner between two pictographs (after an optional variation
 // selector or skin tone) is part of an emoji sequence, not a hidden character.
-// eslint-disable-next-line no-misleading-character-class
 const emojiJoiner =
+  // eslint-disable-next-line no-misleading-character-class -- Match one variation selector or skin tone.
   /(\p{Extended_Pictographic}[\ufe0e\ufe0f\u{1f3fb}-\u{1f3ff}]?)\u200d(?=\p{Extended_Pictographic})/gu;
 /** True when `text` carries control, zero-width, bidi override or byte-order
  * characters. Joiners inside emoji sequences such as 🏳️‍🌈 or 👨‍👩‍👧 pass;

@@ -13,7 +13,6 @@ import { fileURLToPath, URL } from "node:url";
 import { FEATURE_LIMITS } from "../../../packages/chat/src/feature-limits.ts";
 import { PRODUCT_RESOLUTION_RULES } from "../../../packages/chat/src/plans.ts";
 import { generateWidgetColors } from "./generate-widget-colors.mjs";
-import { retainReleaseWidgets } from "./widget-publication.mjs";
 import {
   WIDGET_BUDGET,
   WIDGET_CHUNK_BUDGET,
@@ -155,6 +154,8 @@ export const card = (widget) => contextCard(widget, rules);`,
   // Talk to a person, the wait and handoff lines, the Verify wallet card,
   // "Did this solve it?" and Solved), and the Sign in again card.
   conversation: 'export { chatFirstControls } from "./support-widget-chat-first";',
+  "conversation-style": 'export { CONVERSATION_STYLE } from "./support-widget-chat-style";',
+  conversations: 'export { conversationDrawer, memberConversations, memberConversationsPath } from "./support-widget-conversations";',
   welcome: 'export { welcome } from "./support-widget-welcome";',
   art: 'export { art, mount, bindWidgetBranding } from "./support-widget-art";',
   extras: 'export { extras } from "./support-widget";',
@@ -201,7 +202,11 @@ export const solana = (wallet) =>
     live: { __TEMPL_WIDGET_TURNSTILE__: "turnstile", __TEMPL_WIDGET_ENCRYPTED__: "encrypted" },
     ops: { __TEMPL_WIDGET_CHECK__: "check" },
     consent: { __TEMPL_WIDGET_OPS__: "ops" },
-    welcome: { __TEMPL_WIDGET_CONVERSATION__: "conversation" },
+    welcome: {
+      __TEMPL_WIDGET_CONVERSATION__: "conversation",
+      __TEMPL_WIDGET_CONVERSATION_STYLE__: "conversation-style",
+      __TEMPL_WIDGET_CONVERSATIONS__: "conversations",
+    },
   }[name];
   const text = await bundle(
     contents,
@@ -351,15 +356,6 @@ if (process.argv.includes("--check")) {
       "Rebuild support-widget.js: the manifest names another build.",
     );
 } else {
-  const release = JSON.parse(
-    readFileSync(path("../../../v4-release-production.json"), "utf8"),
-  );
-  manifest = retainReleaseWidgets(
-    manifest,
-    release,
-    (record) => readFileSync(path(`../../../${record}`)),
-    (record) => existsSync(path(`../../../${record}`)),
-  );
   const today = new Date().toISOString().slice(0, 10);
   const remove = [];
   if (process.argv.includes("--prune")) {

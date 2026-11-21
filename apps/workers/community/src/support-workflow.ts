@@ -158,6 +158,7 @@ import type {
 import { queueStaffPush } from "./staff-push";
 import { staffPushHold } from "./staff-push-hold";
 import { personRequest } from "@templ/chat/person-intent";
+import { readSupportProfiles } from "./support-contact-profiles";
 
 type Storage = DurableObjectTransaction;
 const SETTINGS = "support-settings-v1";
@@ -402,6 +403,7 @@ export async function staffPreviewReason(
 export type TeamSummaryInput = {
   record: TeamConversationRecord;
   aiDefault: SupportAiMode;
+  assistantPaused?: boolean;
   agent: AgentState;
   now: number;
   /** Listed test accounts: their requests carry the test flag. */
@@ -415,10 +417,16 @@ export async function teamSummaryInput(
   storage: Pick<Storage, "get">,
   context: ConversationContext,
 ): Promise<Omit<TeamSummaryInput, "record">> {
-  const settings = await supportSettings(storage);
+  const [settings, profiles] = await Promise.all([
+    supportSettings(storage), readSupportProfiles(storage),
+  ]);
+  const assistantPaused = profiles?.assistantEnabled === false;
   return {
     aiDefault: readAiDefault(settings),
-    agent: await agentState(context),
+    assistantPaused,
+    agent: assistantPaused
+      ? { registered: false, active: false, seenAt: null }
+      : await agentState(context),
     now: context.now,
     testAccounts: settings.testAccounts,
     canary: context.canary ?? null,
@@ -509,7 +517,7 @@ function teamTurn(
     awaitingSince: since,
     handoffReason: team.record.handoff?.reason ?? null,
     notSolved: data.notSolved === true,
-    aiMode: effectiveAiMode(team.record.ai, data, team.aiDefault).mode,
+    aiMode: team.assistantPaused ? "off" : effectiveAiMode(team.record.ai, data, team.aiDefault).mode,
     agentDraftAt: data.lastAgentNoteAt ?? null,
     agent: team.agent,
     now: team.now,
@@ -523,16 +531,16 @@ function teamTurn(
   };
 }
 export async function readSupportSummary(
-  storage: Storage,
+  storage: Pick<Storage, "get">,
   record: TeamConversationRecord,
   actor: ChatPrincipalId,
   team: Omit<TeamSummaryInput, "record"> | null = null,
 ) {
-  return supportSummary(
-    await supportRecord(storage, record),
-    (await storage.get<number>(`support-seen-v1:${record.id}:${actor}`)) ?? 0,
-    team ? { ...team, record } : null,
-  );
+  const [data, seen] = await Promise.all([
+    supportRecord(storage, record),
+    storage.get<number>(`support-seen-v1:${record.id}:${actor}`),
+  ]);
+  return supportSummary(data, seen ?? 0, team ? { ...team, record } : null);
 }
 /** The case facts behind an open request's next step: shared
  * transactions, the newest check of each and a due follow-up. Lists read
@@ -1289,12 +1297,17 @@ export async function readAiState(
   effective: EffectiveAiMode;
 }> {
   const current = data ?? (await supportRecord(storage, record));
-  const aiDefault = readAiDefault(await supportSettings(storage));
+  const [settings, profiles] = await Promise.all([
+    supportSettings(storage), readSupportProfiles(storage),
+  ]);
+  const aiDefault = readAiDefault(settings);
   const control = await readOwnAiControl(storage, record, current.caseSeq ?? 0);
   return {
     data: current,
     aiDefault,
-    effective: effectiveAiMode(control ?? record.ai, current, aiDefault),
+    effective: profiles?.assistantEnabled === false
+      ? { mode: "off", set: true, control: null }
+      : effectiveAiMode(control ?? record.ai, current, aiDefault),
   };
 }
 /** Refuses a registered bot's act the request's AI mode forbids, before
@@ -1574,6 +1587,8 @@ export async function supportRoomRoute(
     }
     return json({
       settings: { ...settings, aiDefault: readAiDefault(settings) },
+      supportProfiles: await readSupportProfiles(storage),
+      responderConfigured: (context.registeredBots?.length ?? 0) > 0,
       canManage,
       canEditSettings: canManageWorkspace(context.viewer, context.isBot),
     });

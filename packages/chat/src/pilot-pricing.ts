@@ -75,6 +75,7 @@ export function isPilotOrderFormTerms(
     terms.title === terms.title.trim() &&
     terms.title.length > 0 &&
     terms.title.length <= 80 &&
+    // eslint-disable-next-line no-control-regex -- Reject control characters in the order title.
     !/[\u0000-\u001f\u007f\u00b7]/.test(terms.title) &&
     Number.isSafeInteger(terms.durationDays) &&
     Number(terms.durationDays) > 0 &&

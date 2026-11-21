@@ -62,7 +62,7 @@
   --templ-motion-slide-in-out: var(--templ-ease-standard);
   --templ-motion-jelly: var(--templ-ease-standard);
   --templ-motion-boink: var(--templ-ease-exit);
-  --templ-font-sans: var(--font-sans), Arial, sans-serif;
+  --templ-font-sans: var(--font-sans, "Geist"), Arial, sans-serif;
   --templ-font-mono: var(--font-mono), ui-monospace, monospace;
   font-family: var(--templ-font-sans);
   font-synthesis: none;
@@ -84,6 +84,12 @@
   --site-action-weight: var(--templ-weight-label);
   --site-action-line: 1.25;
   --site-action-icon: 18px;
+  --site-chat-edge: max(20px, env(safe-area-inset-right), env(safe-area-inset-bottom));
+}
+@media (max-width: 480px) {
+  :root {
+    --site-chat-edge: max(16px, env(safe-area-inset-right), env(safe-area-inset-bottom));
+  }
 }
 
 * {

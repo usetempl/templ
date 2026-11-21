@@ -2,6 +2,7 @@ import type { ChatPrincipalId } from "./principal";
 import type { StandardAiRate } from "./standard-usage";
 
 export type StandardPaymentMode = "prepaid" | "debt" | "custom";
+export type MonthlySupportPlan = "starter" | "standard";
 export type StandardPrepaidPeriod = StandardAiRate & {
   readinessPolicy: "grounded_v1";
   id: string;
@@ -21,6 +22,7 @@ export type StandardPrepaidPeriod = StandardAiRate & {
 };
 export type StandardPrepaidView = {
   mode: StandardPaymentMode;
+  sponsored?: true;
   revision: number;
   cashAvailableUsdNanos: string;
   cashReservedUsdNanos: string;
@@ -77,6 +79,8 @@ export type StandardPlanView = {
   paidCents: number;
   dueCents: number;
   continuesOnDebt?: boolean;
+  starterAvailable?: true;
+  starterAiLimitCents?: number;
   prepaid?: StandardPrepaidView;
 };
 

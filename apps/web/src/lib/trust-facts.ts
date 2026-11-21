@@ -99,9 +99,10 @@ const duration = (ms: number) =>
       ? plural(ms / HOUR, "hour")
       : plural(minutes(ms), "minute");
 
-export type ProviderStatus = "live" | "configured-off" | "not-used" | "planned";
+export type ProviderStatus = "live" | "by-order" | "configured-off" | "not-used" | "planned";
 export const PROVIDER_STATUS_LABELS: Record<ProviderStatus, string> = {
   live: "Live",
+  "by-order": "By workspace order",
   "configured-off": "Configured, off",
   "not-used": "Not used",
   planned: "Planned",
@@ -110,7 +111,7 @@ export const PROVIDER_STATUS_LABELS: Record<ProviderStatus, string> = {
 export function anthropicStatus(release: {
   managedAgentVerified?: boolean;
 }): ProviderStatus {
-  return release.managedAgentVerified === true ? "live" : "configured-off";
+  return release.managedAgentVerified === true ? "by-order" : "configured-off";
 }
 /** OpenAI availability follows the verified Templ support gate. */
 export function openaiStatus(release: {
@@ -151,8 +152,8 @@ export function providers(
       id: "cloudflare",
       name: "Cloudflare",
       purpose:
-        "Runs the site, the support software, its databases, private screenshot storage and logs.",
-      data: "Everything Templ stores, plus network details such as IP addresses.",
+        "Runs the site, support software, databases, private file storage and logs. Its AI Gateway routes enabled hosted model requests.",
+      data: "Stored service data and network details. For requests through AI Gateway, permitted model inputs, outputs and usage metadata.",
       status: "live",
     },
     {
@@ -174,7 +175,7 @@ export function providers(
     {
       id: "anthropic",
       name: "Anthropic",
-      purpose: "Runs enabled Templ-managed AI for customer workspaces.",
+      purpose: "Generates answers or drafts for an existing workspace when its order specifies Anthropic and managed AI is enabled.",
       data: "Relevant case messages, selected context and knowledge for enabled AI. Improvement copies never go to Anthropic.",
       status: anthropicStatus(RELEASE),
     },
@@ -182,7 +183,7 @@ export function providers(
       id: "openai",
       name: "OpenAI",
       purpose:
-        "Runs enabled AI for Templ's own support workspace, Templ Demo and free pilot workspaces whose managers turn on AI. Paid Customer workspaces do not use this setup.",
+        "Runs Templ’s own support AI. The new prepaid Templ AI route uses OpenAI when the workspace enables it and meets its service requirements. Existing workspaces follow their applicable orders.",
       data: "Selected case messages, checked transaction facts and approved knowledge. Improvement copies never go to OpenAI.",
       status: openaiStatus(RELEASE),
     },

@@ -6,9 +6,10 @@ export type TeamSession = {principalId: string; address: `0x${string}`; expiresA
 type Request = <T>(path: string, body?: object) => Promise<T>;
 const addressOf = (accounts: unknown) => Array.isArray(accounts) && typeof accounts[0] === "string" && /^0x[a-fA-F0-9]{40}$/.test(accounts[0])
   ? accounts[0] as `0x${string}` : null;
-function checkedSession(value: TeamSession, address: string) {
+export function checkedTeamSession(value: TeamSession, address?: string) {
   if (!value || typeof value.principalId !== "string" || !value.principalId || value.principalId.length > 256 ||
-      typeof value.address !== "string" || !/^0x[a-fA-F0-9]{40}$/.test(value.address) || value.address.toLowerCase() !== address.toLowerCase() ||
+      typeof value.address !== "string" || !/^0x[a-fA-F0-9]{40}$/.test(value.address) ||
+      (address !== undefined && value.address.toLowerCase() !== address.toLowerCase()) ||
       !Number.isSafeInteger(value.expiresAt) || value.expiresAt <= Date.now())
     throw new Error("Your team sign-in could not be verified. Sign in again.");
   return value;
@@ -20,11 +21,11 @@ export async function signInTeam(provider: SupportWalletProvider, request: Reque
   const selected = await readAddress();
   if (selected) {
     let existing: TeamSession | null;
-    try {existing = await request<TeamSession>("/native/team/auth/session"); checkedSession(existing, existing?.address);}
+    try {existing = checkedTeamSession(await request<TeamSession>("/native/team/auth/session"));}
     catch (error) {if ((error as {status?: number})?.status !== 401) throw error; existing = null;}
     checkIntent();
     if (existing && typeof existing.address === "string" && existing.address.toLowerCase() === selected.toLowerCase()) {
-      checkedSession(existing, selected);
+      checkedTeamSession(existing, selected);
       if ((await readAddress())?.toLowerCase() !== selected.toLowerCase()) throw new Error("Your wallet changed. Sign in again.");
       return existing;
     }
@@ -42,7 +43,7 @@ export async function signInTeam(provider: SupportWalletProvider, request: Reque
     throw new Error("The wallet sign-in message could not be verified.");
   const signature = await provider.request({method: "personal_sign", params: [stringToHex(challenge.message), address]}); checkIntent();
   if (typeof signature !== "string") throw new Error("Wallet sign-in was cancelled.");
-  const session = checkedSession(await request<TeamSession>("/native/team/auth/verify", {message: challenge.message, signature}), address); checkIntent();
+  const session = checkedTeamSession(await request<TeamSession>("/native/team/auth/verify", {message: challenge.message, signature}), address); checkIntent();
   if ((await readAddress())?.toLowerCase() !== address.toLowerCase()) throw new Error("Your wallet changed. Sign in again.");
   return session;
 }

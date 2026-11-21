@@ -80,10 +80,12 @@ import {
   dropEarlyWorkspaceRead,
   loadWorkspaceView,
   prefetchWorkspaceSetup,
+  startEarlyAllCases,
   startEarlyWorkspaceRead,
   takeEarlyWorkspaceRead,
   workspaceViews,
   type WorkspaceView,
+  type EarlyCasePage,
 } from "./workspace-reads";
 import styles from "./workspace.module.css";
 import { useWorkspaceHistory } from "./workspace-history";
@@ -207,7 +209,7 @@ const TABS: WorkspaceTab[] = [
 ];
 const TITLES: Record<WorkspaceTab, string> = {
   home: "Home",
-  inbox: "Inbox",
+  inbox: "Cases",
   quality: "Reports",
   knowledge: "AI",
   "follow-ups": "Follow-ups",
@@ -220,6 +222,7 @@ const TITLES: Record<WorkspaceTab, string> = {
 
 export type WorkspaceContext = {
   id: string;
+  supportUrl?: string;
   room: ChatRoomId;
   workspace: NativeRoom;
   state: ChatState;
@@ -251,10 +254,12 @@ function readConversation(): string | null {
   return value && /^tc-[0-9a-f]{32}$/.test(value) ? value : null;
 }
 
-export function SupportWorkspacePage({ id }: { id: string }) {
+type WorkspaceEntry = { id: string; supportUrl?: string };
+
+export function SupportWorkspacePage({ id, supportUrl }: WorkspaceEntry) {
   return (
     <InvitationEntry key={id} room={`room:${id}`}>
-      <Workspace key={id} id={id} />
+      <Workspace key={id} id={id} supportUrl={supportUrl} />
     </InvitationEntry>
   );
 }
@@ -264,6 +269,7 @@ type Loaded = {
   /** The account the view was read for. */
   account?: ChatPrincipalId;
   view?: WorkspaceView;
+  firstCasePage?: EarlyCasePage;
   error?: string;
   missing?: boolean;
   /** The workspace is set to be deleted. */
@@ -274,7 +280,7 @@ type Loaded = {
 const accessEnded = (status: number | undefined) =>
   status === 401 || status === 403 || status === 404 || status === 410;
 
-function Workspace({ id }: { id: string }) {
+function Workspace({ id, supportUrl }: WorkspaceEntry) {
   const auth = useChatAuth();
   const account = auth.session?.principalId;
   const directory = useCommunityDirectory();
@@ -323,6 +329,11 @@ function Workspace({ id }: { id: string }) {
     if (auth.restoring) return;
     const controller = new AbortController();
     const started = takeEarlyWorkspaceRead(id);
+    const initialTab = readTab();
+    const firstCasePage = (!initialTab || initialTab === "inbox") &&
+      !workspaceViews.get(account, id)
+      ? startEarlyAllCases(room, account, controller.signal)
+      : undefined;
     void (async () => {
       try {
         const next = await loadWorkspaceView(
@@ -340,7 +351,7 @@ function Workspace({ id }: { id: string }) {
             next.status,
           );
         }
-        setLoaded({ scope, account, view: next });
+        setLoaded({ scope, account, view: next, firstCasePage });
       } catch (reason) {
         if (controller.signal.aborted) return;
         const status = (reason as { status?: number }).status;
@@ -671,6 +682,7 @@ function Workspace({ id }: { id: string }) {
     );
 
   const context: WorkspaceContext = {
+    supportUrl,
     id,
     room,
     workspace,
@@ -707,6 +719,7 @@ function Workspace({ id }: { id: string }) {
       image: workspace.image,
       href: nativeRoomHref({ id }),
     });
+  const settingsView = visible !== "inbox" && visible !== "knowledge";
   const rail = (
     <>
       <WorkspaceSwitcher
@@ -716,94 +729,100 @@ function Workspace({ id }: { id: string }) {
       />
       <RailNavGroup label="Support">
         <RailNavItem
-          icon={IconHome}
-          label="Home"
-          active={visible === "home"}
-          onClick={() => go("home")}
-        />
-        <RailNavItem
           icon={IconInbox}
-          label="Inbox"
+          label="Cases"
           active={visible === "inbox"}
           onClick={() => go("inbox")}
           badge={count ?? undefined}
         />
-        {team && state?.features?.quality === true && (
+        {team && (admin || hasSupportKnowledge(state?.features)) && (
           <RailNavItem
-            icon={IconChartBar}
-            label="Reports"
-            active={visible === "quality"}
-            onClick={() => go("quality")}
+            icon={IconBook}
+            label="AI"
+            active={visible === "knowledge"}
+            onClick={() => go("knowledge")}
           />
         )}
-        {/* Open follow-ups by owner and age. */}
-        {team && followUpsAllowed(state?.features) && (
+        {team && (
           <RailNavItem
-            icon={IconSubtask}
-            label="Follow-ups"
-            active={visible === "follow-ups"}
-            onClick={() => go("follow-ups")}
+            icon={IconSettings}
+            label="Settings"
+            active={settingsView}
+            onClick={() => go("settings")}
           />
         )}
       </RailNavGroup>
-      <InboxAlertsToggle />
-      <PushAlertsToggle
-        room={room}
-        enabled={state?.features?.installableInbox === true}
-      />
-      {(team || billing) && (
-        <RailNavGroup label="Workspace">
-          {admin && (
-            <RailNavItem
-              icon={IconCode}
-              label="Widget"
-              active={visible === "widget"}
-              onClick={() => go("widget")}
-            />
-          )}
-          {team && (admin || hasSupportKnowledge(state?.features)) && (
-            <RailNavItem
-              icon={IconBook}
-              label="AI"
-              active={visible === "knowledge"}
-              onClick={() => go("knowledge")}
-            />
-          )}
-          {admin && (
-            <>
+      {settingsView && (
+        <>
+          <RailNavGroup label="Workspace settings">
+            {admin && (
               <RailNavItem
-                icon={IconUsersGroup}
-                label="Team"
-                active={visible === "team"}
-                onClick={() => go("team")}
+                icon={IconLock}
+                label="Chat encryption"
+                onClick={() => go("settings", null, "case-encryption")}
               />
-              {manager && (
+            )}
+            <RailNavItem
+              icon={IconHome}
+              label="Home"
+              active={visible === "home"}
+              onClick={() => go("home")}
+            />
+            {team && state?.features?.quality === true && (
+              <RailNavItem
+                icon={IconChartBar}
+                label="Reports"
+                active={visible === "quality"}
+                onClick={() => go("quality")}
+              />
+            )}
+            {team && followUpsAllowed(state?.features) && (
+              <RailNavItem
+                icon={IconSubtask}
+                label="Follow-ups"
+                active={visible === "follow-ups"}
+                onClick={() => go("follow-ups")}
+              />
+            )}
+            {admin && (
+              <>
                 <RailNavItem
-                  icon={IconHistory}
-                  label="Activity"
-                  active={visible === "activity"}
-                  onClick={() => go("activity")}
+                  icon={IconCode}
+                  label="Widget"
+                  active={visible === "widget"}
+                  onClick={() => go("widget")}
                 />
-              )}
-            </>
-          )}
-          {team && (
-            <RailNavItem
-              icon={IconSettings}
-              label="Settings"
-              active={visible === "settings"}
-              onClick={() => go("settings")}
-            />
-          )}
-          {billing && (
-            <RailNavItem
-              icon={IconCreditCard}
-              label="Plan & usage"
-              active={visible === "plan"}
-              onClick={() => go("plan")}
-            />
-          )}
-        </RailNavGroup>
+                <RailNavItem
+                  icon={IconUsersGroup}
+                  label="Team"
+                  active={visible === "team"}
+                  onClick={() => go("team")}
+                />
+              </>
+            )}
+            {manager && (
+              <RailNavItem
+                icon={IconHistory}
+                label="Activity"
+                active={visible === "activity"}
+                onClick={() => go("activity")}
+              />
+            )}
+            {billing && (
+              <RailNavItem
+                icon={IconCreditCard}
+                label="Plan & usage"
+                active={visible === "plan"}
+                onClick={() => go("plan")}
+              />
+            )}
+          </RailNavGroup>
+          <InboxAlertsToggle />
+          <PushAlertsToggle
+            room={room}
+            enabled={state?.features?.installableInbox === true}
+          />
+        </>
       )}
     </>
   );
@@ -818,7 +837,7 @@ function Workspace({ id }: { id: string }) {
       <Fragment key={accessScope}>
         {visible === "home" && <WorkspaceHome context={context} />}
         {visible === "inbox" && (
-          <WorkspaceInbox context={context} conversation={conversation} />
+          <WorkspaceInbox context={context} conversation={conversation} firstCasePage={current?.firstCasePage} />
         )}
         {visible === "quality" && <WorkspaceReports context={context} />}
         {visible === "knowledge" && <WorkspaceAi context={context} />}
@@ -886,13 +905,8 @@ function WorkspaceFrameLoading({
           />
           <RailNavGroup label="Support">
             <RailNavItem
-              icon={IconHome}
-              label="Home"
-              onClick={() => onGo("home")}
-            />
-            <RailNavItem
               icon={IconInbox}
-              label="Inbox"
+              label="Cases"
               onClick={() => onGo("inbox")}
             />
           </RailNavGroup>

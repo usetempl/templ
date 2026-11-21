@@ -3,6 +3,7 @@ import { BUILD_RELEASE, SITE } from "@/lib/config";
 import {
   PRODUCT_LIMITS,
   PRODUCT_STANDARD_PRICES as PRICES,
+  PRODUCT_STARTER_PRICES as STARTER,
 } from "@templ/chat/plans";
 import type { publicReleaseStatus } from "@/lib/public-release";
 type Status = ReturnType<typeof publicReleaseStatus>;
@@ -39,7 +40,7 @@ Each test ticket allows ${PRODUCT_LIMITS.freeTeamRepliesPerTicket} team replies.
 Retries, deleting replies and reopening do not reset this allowance.
 After the free allowance, pay for workspace access to continue.
 Do not create more workspaces to bypass the free limit.
-Open Plan and choose Pay $${PRICES.workspaceMonthlyUsdCents / 100} USDC when you are ready for live support.
+Open Plan & usage. Select Start paid month and choose an available plan.
 Use an available checkout network. Templ verifies payment before your month starts.
 A pending transfer does not activate access. Ask Templ in chat if payment is unavailable.
 [Read pricing.](${SITE.docs}/pricing)
@@ -47,7 +48,8 @@ Transaction checks appear only when enabled. Feature status appears below.
 
 ## Start
 
-Copy the install prompt from ${SITE.docs}/install into your AI coding tool.
+Choose a widget, a standalone support page, or both in Settings → Widget. To share a link, open Guest support, select Host a support page on Templ and Save guest support, then use Copy support link. The page accepts guests. The public link grants no access to another visitor’s cases. Both entries reach the same workspace inbox.
+For the widget, copy the install prompt from ${SITE.docs}/install into your AI coding tool.
 ${
   release.support.connectVerified
     ? "Open the link it gives you. Sign in with your wallet and confirm your app.\nCreate a workspace there or choose one you manage. The tool saves the workspace ID and adds support."
@@ -76,9 +78,9 @@ Templ never asks for a private key or recovery phrase.
 Read ${SITE.origin}/availability and ${SITE.origin}/api/status for the current release facts.
 Early features apply to selected workspaces. They do not change public availability or grant access.
 
-## Standard pricing
+## Templ Hosted pricing
 
-Templ costs $${PRICES.workspaceMonthlyUsdCents / 100}/month per workspace.
+Templ Hosted Starter for new workspaces costs $${STARTER.workspaceMonthlyUsdCents / 100}/month for ${STARTER.includedAnsweredCasesPerMonth} answered cases. Each extra case costs $${(STARTER.additionalAnsweredCaseUsdCents / 100).toFixed(2)}. Starter uses prepaid Templ AI with a monthly limit. Plus costs $${PRICES.workspaceMonthlyUsdCents / 100}/month per workspace.
 It includes ${PRICES.includedAnsweredCasesPerMonth} answered cases and $${PRICES.includedAiCreditUsdCents / 100} in retail AI credit each month.
 Each additional answered case costs $${(PRICES.additionalAnsweredCaseUsdCents / 100).toFixed(2)}.
 A case counts once after its first answer reaches the user.
@@ -131,7 +133,7 @@ ${contact}
 
 Users can ask without signing in when the manager allows guests.
 No email or name is needed. Users pick what to share.
-Only your team and the AI agents you add can open a case.
+Templ servers process Standard messages. Authorized staff can read them, and enabled, authorized AI can send permitted content to its model provider. In customer-controlled encrypted chat, approved endpoints use the workspace’s keys. The customer controls recovery. Templ operates its own encrypted support key service. With AI off, agents cannot read or work on a case.
 Users read their own cases. Your team needs current access to read or answer a case.
 Internal notes stay with the team. Templ checks access on every read, reply, export and search.
 Chat cannot sign or send transactions. Wallet sign-in proves control of an address at that time.
@@ -142,9 +144,9 @@ Read ${SITE.origin}/privacy, ${SITE.origin}/terms, ${SITE.origin}/dpa and ${SITE
 
 ## Docs
 
-- [Chief setup guide](${SITE.origin}/chief): Install Chief, connect Dot and other devices, and add Telegram. Full instructions are available in HTML without JavaScript.
+- Set up Chief in an existing Codex or Claude conversation and connect Dot or another device. [Read the guide](${SITE.origin}/chief) or [get the Markdown](${SITE.origin}/chief.md).
 - [How Templ works for crypto app support](${SITE.docs}/): Cases reach your team with wallet details and transaction checks.
-- [Install Templ with one prompt](${SITE.docs}/install): Add the widget with one prompt.
+- Choose an embedded widget, a standalone chat link, or both. [Set up Templ guest support](${SITE.docs}/install).
 - [Fix widget install problems](${SITE.docs}/install/troubleshooting): Check why the widget does not load or questions do not arrive.
 - [Set up your Templ workspace](${SITE.docs}/setup): Choose who can ask and add your team.
 - [Team roles and access](${SITE.docs}/team): See who can read, answer, export and bill.

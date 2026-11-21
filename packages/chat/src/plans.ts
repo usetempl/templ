@@ -58,6 +58,17 @@ export const PRODUCT_STANDARD_PRICES = {
   guidedOnboardingWorkdays: 5,
   customWorkHourlyUsdCents: 25_000,
 } as const;
+// The Starter version is captured on every new Starter payment and paid period.
+export const PRODUCT_STARTER_PRICES = {
+  publishedOn: "2026-11-19",
+  workspaceMonthlyUsdCents: 2_900,
+  includedAnsweredCasesPerMonth: 100,
+  additionalAnsweredCaseUsdCents: 20,
+  includedAiCreditUsdCents: 0,
+  aiRateBasisPoints: 13_000,
+  // Same token rates. Older workers refuse Starter AI because they cannot enforce its limit.
+  aiRateCardVersion: "2026-11-19",
+} as const;
 /** Captured offer used by existing accepted periods and pending payment intents. */
 export const PRODUCT_STANDARD_RECORDED_PRICES = {
   publishedOn: "2026-10-16",

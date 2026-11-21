@@ -33,7 +33,7 @@ button,input,textarea{font:inherit;color:inherit;accent-color:var(--a)}button{cu
 .message.typing{box-shadow:inset 3px 0 var(--a)}\
 .message.own{align-self:flex-end;border-radius:var(--rb);background:var(--s);box-shadow:inset 0 0 0 1px var(--b2)}\
 .message small{display:block;color:var(--m);font-size:13px;font-weight:650}\
-.message time{display:block}.message time,.state{margin-top:3px;color:var(--f);font-size:13px}.message.own time{text-align:right}.message a{color:var(--at);text-decoration:underline}\
+.message time{display:block}.message time,.state{margin-top:3px;color:var(--f);font-size:13px}.message.own time{text-align:right}.own[data-client-id] time::after{content:" Sent"}.message a{color:var(--at);text-decoration:underline}\
 .state{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:2px 10px}.state.failed{color:var(--d)}.state button,.system button{font-weight:650;text-decoration:underline}\
 @keyframes rise{from{opacity:0;transform:translateY(6px)}}\
 @keyframes blink{50%{opacity:.25}}.message.own small{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}\

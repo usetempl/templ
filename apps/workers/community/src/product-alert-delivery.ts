@@ -1,7 +1,7 @@
 /** Sends the billing alerts product-alerts.ts queued: an email to each
  * billing manager, and a `capacity` event with the code only to the team
  * channels that asked for it. Runs in the room alarm. */
-import { customerBillingManagedByTempl } from "./customer-debt-access";
+import { billingManagedForWorkspace } from "./customer-debt-access";
 import { alertsEnabled, emitAlert, type AlertEnv } from "./alert-outbox";
 import { billingAlertEmail } from "./product-alert-email";
 import { queueFinanceEmail } from "./product-finance-email";
@@ -29,7 +29,7 @@ export async function deliverBalanceAlerts(
   if (!rows.size) return null;
   const native = await storage.get<{ room?: { id?: string } }>("native-room");
   const batchFull = rows.size === 20;
-  if (customerBillingManagedByTempl(native?.room?.id ?? "")) {
+  if (await billingManagedForWorkspace(storage, native?.room?.id ?? "")) {
     for (const [key, facts] of rows) {
       if (facts.alert === "suspended") continue;
       await storage.delete(key);

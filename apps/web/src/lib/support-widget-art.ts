@@ -179,7 +179,7 @@ export function mount(root: ShadowRoot) {
   const style = document.createElement("style");
   style.nonce = root.querySelector("style")?.nonce ?? "";
   style.textContent =
-    ".stamp-state{display:block;object-fit:contain;margin:0 auto 12px}.stamp-offline{filter:grayscale(1)}.stamp-signed{animation:stamp-signed 1s ease-out}@keyframes stamp-signed{from{opacity:.4}to{opacity:1}}@media(prefers-reduced-motion:reduce){.stamp-signed{animation:none}}";
+    ".stamp-talk{display:grid;float:left;margin-right:10px}.stamp-talk img{grid-area:1/1;object-fit:contain;animation:stamp-talk .44s steps(1,end) infinite}.stamp-talk img+img{animation-delay:-.22s}.typing:has(.stamp-talk img) .dots{display:none}@keyframes stamp-talk{0%,49%{visibility:visible}50%,100%{visibility:hidden}}@media(prefers-reduced-motion:reduce){.stamp-talk img{animation:none}.stamp-talk img+img{display:none}}.stamp-state{display:block;object-fit:contain;margin:0 auto 12px}.stamp-offline{filter:grayscale(1)}.stamp-signed{animation:stamp-signed 1s ease-out}@keyframes stamp-signed{from{opacity:.4}to{opacity:1}}@media(prefers-reduced-motion:reduce){.stamp-signed{animation:none}}";
   root.append(style);
   const slot = document.createElement("div");
   slot.setAttribute("aria-hidden", "true");

@@ -30,10 +30,6 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": resolve(__dirname, "src"),
-      "@docusaurus/useDocusaurusContext": resolve(
-        __dirname,
-        "../workers/docs/node_modules/@docusaurus/core/lib/client/exports/useDocusaurusContext.js",
-      ),
       // Match Next's server-component test environment without removing the
       // production import guard from server-only modules.
       "server-only": resolve(

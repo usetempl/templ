@@ -1,5 +1,6 @@
 import type { ChatPrincipalId } from "@templ/chat/principal";
 import { normalizeChatPrincipal } from "@templ/chat/principal";
+import { PRODUCT_STARTER_PRICES, PRODUCT_TOP_UP } from "@templ/chat/plans";
 import type {
   StandardPaymentMode,
   StandardPrepaidPeriod,
@@ -15,6 +16,8 @@ type Reader = { get<T = unknown>(key: string): Promise<T | undefined> };
 type Storage = Reader & { put(key: string, value: unknown): Promise<unknown> };
 export const PREPAID_ACCOUNT_KEY = "product-prepaid-account-v1";
 export const PREPAID_PERIOD_PREFIX = "product-prepaid-period-v1:";
+const STARTER_AI_LIMIT = "product-starter-ai-limit-v1";
+const SPONSORED_SUPPORT = "product-sponsored-support-v1";
 const CREDIT = "product-prepaid-credit-v1:";
 const DEBIT = "product-prepaid-debit-v1:";
 const ATTEMPT = "product-prepaid-attempt-v1:";
@@ -27,6 +30,12 @@ const natural = (value: unknown): value is number =>
   Number.isSafeInteger(value) && Number(value) >= 0;
 const mode = (value: unknown): value is StandardPaymentMode =>
   ["prepaid", "debt", "custom"].includes(String(value));
+/** The operator's arrangement is separate from cash, outstanding debt and usage. */
+export async function sponsoredSupport(storage: Reader): Promise<boolean> {
+  const saved = await storage.get<boolean>(SPONSORED_SUPPORT);
+  if (saved !== undefined && typeof saved !== "boolean") throw fail();
+  return saved === true;
+}
 function amount(value: unknown): bigint {
   if (typeof value !== "string" || !NANO.test(value))
     throw new HttpError(400, "Choose a valid prepaid amount.");
@@ -37,6 +46,33 @@ function sum(...values: bigint[]) {
   if (value < 0n || value > MAX) throw fail();
   return value.toString();
 }
+export async function readStarterAiLimit(storage: Reader): Promise<number> {
+  const cents = (await storage.get<number>(STARTER_AI_LIMIT)) ?? 0;
+  if (!natural(cents) || cents > PRODUCT_TOP_UP.maxUsdCents) throw fail();
+  return cents;
+}
+
+export async function setStarterAiLimit(
+  storage: Storage,
+  cents: unknown,
+  expectedCents: unknown,
+) {
+  if (typeof cents !== "number" || !natural(cents) || cents > PRODUCT_TOP_UP.maxUsdCents)
+    throw new HttpError(400, "Enter a valid monthly AI limit.");
+  if (expectedCents !== await readStarterAiLimit(storage))
+    throw new HttpError(409, "Reload the plan before changing the AI limit.");
+  await storage.put(STARTER_AI_LIMIT, cents);
+  return cents;
+}
+
+/** The reserved cost also counts against the limit until a request settles. */
+export async function starterAiRemaining(storage: Reader, period: StandardPrepaidPeriod) {
+  if (period.priceVersion !== PRODUCT_STARTER_PRICES.publishedOn) return undefined;
+  const limit = BigInt(await readStarterAiLimit(storage)) * 10_000_000n;
+  const remaining = limit - amount(period.aiUsageUsdNanos) - amount(period.aiReservedUsdNanos);
+  return remaining > 0n ? remaining : 0n;
+}
+
 type Account = {
   schemaVersion: 1;
   mode: StandardPaymentMode;
@@ -82,7 +118,7 @@ async function save(storage: Storage, account: Account) {
 export async function setPrepaidMode(
   storage: Storage,
   input: {
-    mode: StandardPaymentMode;
+    mode: StandardPaymentMode | "sponsored";
     expectedRevision: number;
     operator: ChatPrincipalId;
     reason: string;
@@ -90,7 +126,7 @@ export async function setPrepaidMode(
   },
 ) {
   if (
-    !mode(input.mode) ||
+    !(input.mode === "sponsored" || mode(input.mode)) ||
     !natural(input.expectedRevision) ||
     !natural(input.at) ||
     normalizeChatPrincipal(input.operator) !== input.operator ||
@@ -105,7 +141,11 @@ export async function setPrepaidMode(
       409,
       "Read the current prepaid balance before changing its mode.",
     );
-  if (input.mode !== account.mode) {
+  const wasSponsored = await sponsoredSupport(storage);
+  const sponsored = input.mode === "sponsored";
+  // Keep the account readable by the existing release during a handover.
+  const paymentMode = input.mode === "sponsored" ? "custom" : input.mode;
+  if (paymentMode !== account.mode || wasSponsored !== sponsored) {
     const plan = await storage.get<{ currentPeriod: string | null }>(
       "product-standard-plan-v1",
     );
@@ -136,8 +176,9 @@ export async function setPrepaidMode(
         "Wait for the recorded AI requests to settle before changing this arrangement.",
       );
   }
-  account.mode = input.mode;
+  account.mode = paymentMode;
   await save(storage, account);
+  if (sponsored !== wasSponsored) await storage.put(SPONSORED_SUPPORT, sponsored);
   await storage.put(`product-prepaid-mode-v1:${account.revision}`, {
     ...input,
     revision: account.revision,
@@ -492,8 +533,11 @@ export async function reserveAi(
       undefined,
       "prepaid-period-required",
     );
-  const maximum = amount(input.maxRetailUsdNanos),
-    available = amount(period.includedAiAvailableUsdNanos);
+  const maximum = amount(input.maxRetailUsdNanos);
+  const remaining = await starterAiRemaining(storage, period);
+  if (remaining !== undefined && maximum > remaining)
+    throw new HttpError(402, "This AI request exceeds your monthly limit.", undefined, "prepaid-ai-limit");
+  const available = amount(period.includedAiAvailableUsdNanos);
   const included = available < maximum ? available : maximum,
     cash = maximum - included;
   rebalanceAi(account, period, maximum, 0n);

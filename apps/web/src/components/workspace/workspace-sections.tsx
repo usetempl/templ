@@ -15,7 +15,7 @@ export function useWorkspaceSectionFocus(ids: string[]) {
         const section = document.getElementById(id);
         const control = section?.querySelector<HTMLElement>(
           "input:not(:disabled), textarea:not(:disabled), select:not(:disabled), button:not(:disabled), a[href], summary",
-        );
+        ) ?? section?.querySelector<HTMLElement>("[data-section-focus]");
         if (!control) return false;
         if (section instanceof HTMLDetailsElement) section.open = true;
         section?.scrollIntoView?.({ block: "start" });

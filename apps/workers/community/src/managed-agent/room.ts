@@ -85,6 +85,7 @@ import {
 import { readCaseEvidence, readCaseFrame } from "../support-evidence-store";
 import { knowledgeCall, type KnowledgeEnv } from "../support-knowledge-client";
 import { readAiState, supportRecord } from "../support-workflow";
+import { lastAssistantPause, readSupportProfiles } from "../support-contact-profiles";
 import { encryptedCaseExists } from "../support-encryption";
 import { threadFacts } from "../support-diagnosis-route";
 import type {
@@ -154,8 +155,11 @@ export async function readManagedSettings(
   storage: Pick<Storage, "get">,
 ): Promise<StoredSettings> {
   const stored = await storage.get<StoredSettings>(MANAGED_SETTINGS_KEY);
-  if (stored && stored.v === 1 && typeof stored.enabled === "boolean")
+  if (stored && stored.v === 1 && typeof stored.enabled === "boolean") {
+    if (stored.enabled && (await readSupportProfiles(storage))?.assistantEnabled === false)
+      return { ...stored, enabled: false };
     return stored;
+  }
   return { v: 1, enabled: false, updatedAt: null, updatedBy: null };
 }
 
@@ -1203,9 +1207,10 @@ export async function managedJobsAlarm(
     return null;
   }
   const jobs: ManagedJob[] = [];
+  const pausedAt = await lastAssistantPause(storage);
   for (const raw of listed.values()) {
     const job = checkedJob(raw);
-    if (!job) continue;
+    if (!job || job.at <= pausedAt) continue;
     if (job.thread === null && job.member) {
       const thread = await storage.get<string>(
         `${MEMBER_THREAD_PREFIX}${job.member}`,

@@ -12,6 +12,7 @@ import type {
   ProductPaymentReceipt,
 } from "@templ/chat/product-payment";
 import type { ChatRoomId } from "@templ/chat/index";
+import type { MonthlySupportPlan } from "@templ/chat/standard-plan";
 import type { ChatPrincipalId } from "@templ/chat/principal";
 import { COMMUNITY_API, communityFetch, roomPath } from "./community-client";
 import { chatMutation } from "./chat-api";
@@ -36,6 +37,7 @@ export function prepareProductPayment(
     usdCents: number;
     payer: string;
     purpose?: "standard-period" | "standard-credit";
+    monthlyPlan?: MonthlySupportPlan;
     expectedPeriod?: string | null;
     confirmed?: true;
   },
@@ -47,6 +49,16 @@ export function prepareProductPayment(
     input,
     assertCurrent,
   );
+}
+export function saveStarterAiLimit(
+  account: ChatPrincipalId | undefined,
+  room: ChatRoomId,
+  input: { cents: number; expectedCents: number; expectedPeriod: string },
+): Promise<{ cents: number }> {
+  return chatMutation(account, roomPath(room, "product/starter-ai-limit"), {
+    ...input,
+    confirmed: true,
+  });
 }
 /** A verified receipt credits once; a transaction that doesn't match its
  * request goes to Templ's review instead. */

@@ -97,7 +97,7 @@ export type BillingAction =
   | { action: "tracking-reset" }
   | {
       action: "standard-payment-mode";
-      mode: "prepaid" | "debt" | "custom";
+      mode: "prepaid" | "debt" | "custom" | "sponsored";
       expectedRevision: number;
     }
   | {

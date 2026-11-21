@@ -11,6 +11,7 @@ import type {
   SupportFailureCapture,
   SupportNetwork,
   SupportTransaction,
+  VisitorSupportProfiles,
 } from "@templ/chat/support";
 import type { SupportLeadInput } from "@templ/chat/support-lead";
 import { SUPPORT_WIDGET_API_VERSION } from "@templ/chat/support-app-context";
@@ -34,10 +35,12 @@ declare const __TEMPL_WIDGET_BUILD__: string | undefined;
 const WIDGET_BUILD =
   typeof __TEMPL_WIDGET_BUILD__ == "string" ? __TEMPL_WIDGET_BUILD__ : "dev";
 const SIGN_IN_AGAIN = "Sign in again to keep your case.";
+const WALLET_CHANGED = "Your wallet changed. Sign in again.";
+const LOAD_FAILED = "Chat didn’t load. Reload the page.";
 const UNAVAILABLE = "Support is unavailable. Try again.";
 /** "No, I still need help" when the team can't take the request back. */
 const NOT_TAKING =
-  "This team can’t take new cases right now. To reopen your case, send a message here later.";
+  "This team can’t take new cases right now. Try again later.";
 const BAD_HASH = "This doesn't look like a transaction ID.";
 
 /** An EIP-1193 provider. The widget calls only eth_accounts, eth_chainId,
@@ -77,6 +80,8 @@ export type SupportWidgetOptions = {
   workspace: string;
   /** Chat-first controls require the workspace's server feature snapshot. Off by default. */
   chatFirst?: boolean;
+  /** Show the responsive conversation and menu drawers inside this chat. */
+  conversationDrawers?: boolean;
   /** The frame transports a guest link and the parent page path as untrusted input. */
   guestLink?: string;
   guestPath?: string;
@@ -94,12 +99,17 @@ export type SupportWidgetOptions = {
   context?: SupportContextInput;
   /** Mount the real chat across a page container. */
   container?: HTMLElement;
+  /** Close a site-owned panel around an inline widget. */
+  onClose?(): void;
   styleNonce?: string;
   persistDrafts?: boolean;
   /** Shows the floating launcher by default. Set false for your own support button. */
   showLauncher?: boolean;
   /** Match the widget to your app. Defaults to the app's theme and font. */
   appearance?: SupportWidgetAppearance;
+  /** Dedicated hosted pages can keep a consistent skin. */
+  fixedAppearance?: boolean;
+  decorateOwnMenu?(host: TailHost, actions: HTMLElement): () => void;
   /** The frame adapter receives public display settings only. */
   appearanceChanged?(value: SupportWidgetAppearance): void;
   /** Up to four common questions, shown as buttons before a visitor's first
@@ -149,6 +159,8 @@ export type SupportWidgetAppearance = {
  * a wallet, which proves nothing, and "anonymous" otherwise. */
 type AccessLevel = "anonymous" | "connected" | "signed";
 type WidgetSession = {
+  /** Single-use route check from the first guest admission, kept in memory. */
+  standardOpening?: number;
   credential?: string;
   token: string;
   principalId: string;
@@ -330,7 +342,7 @@ export function createSupportClient(
   } = {},
 ) {
   if (!UUID.test(options.workspace))
-    throw new Error("Use a Templ workspace ID.");
+    throw new Error("Invalid workspace ID.");
   if (options.wallet && options.provider) throw new TypeError(BAD_WALLET);
   let wallet = checkedWallet(
     options.wallet ?? (options.provider && { evm: options.provider }),
@@ -344,7 +356,7 @@ export function createSupportClient(
     api.search ||
     api.hash
   )
-    throw new Error("Use an HTTPS support API origin.");
+    throw new Error("Use an HTTPS API URL.");
   // The service accepts HTTPS websites and gated development websites.
   // Each session stays bound to the website where it started.
   const origin = runtime.origin ?? window.location.origin;
@@ -403,7 +415,7 @@ export function createSupportClient(
   let kit: [SupportWallet, Promise<WalletKit>] | undefined;
   const walletKit = () => {
     if (!wallet)
-      return Promise.reject(new Error("Connect a wallet on this website."));
+      return Promise.reject(new Error("Connect a wallet."));
     if (kit?.[0] !== wallet) {
       const loading = loadKit(wallet, runtime.load);
       kit = [wallet, loading];
@@ -520,19 +532,22 @@ export function createSupportClient(
             !["encryptedRecord", "validationReceipt", "reservation"].includes(
               key,
             ),
-        )) &&
-      (await client.status(true)).encryption
-    )
-      throw Object.assign(new Error("Open secure chat."), {
-        reason: "encrypted-route",
-      });
+        ))
+    ) {
+      const checked = authenticated?.standardOpening ?? -1;
+      if (authenticated) authenticated.standardOpening = -1;
+      if (checked < performance.now() && (await client.status(true)).encryption)
+        throw Object.assign(new Error("Open secure chat."), {
+          reason: "encrypted-route",
+        });
+    }
     if (bound) await assertWallet(bound, version);
     if (
       version !== generation ||
       destroyed ||
       (authenticated && authenticated.principalId !== session?.principalId)
     )
-      throw new Error("Your wallet changed. Sign in again.");
+      throw new Error(WALLET_CHANGED);
     const controller = new AbortController();
     requests.add(controller);
     const timeout = setTimeout(() => controller.abort(), 20_000);
@@ -576,7 +591,7 @@ export function createSupportClient(
       if (bound) await assertWallet(bound, version);
       checkedResponse = true;
       if (version !== generation || destroyed)
-        throw new Error("Your wallet changed. Sign in again.");
+        throw new Error(WALLET_CHANGED);
       if (!response.ok || !data) {
         if (response.status === 401 && authenticated) {
           if (authenticated.level === "signed") endSession();
@@ -633,7 +648,7 @@ export function createSupportClient(
       selected = await read();
     } catch {
       if (session === expected && version === generation) walletChanged();
-      throw new Error("Couldn’t check your wallet. Sign in again.");
+      throw new Error(SIGN_IN_AGAIN);
     }
     if (
       destroyed ||
@@ -642,7 +657,7 @@ export function createSupportClient(
       !same(selected, expected)
     ) {
       if (session === expected && version === generation) walletChanged();
-      throw new Error("Your wallet changed. Sign in again.");
+      throw new Error(WALLET_CHANGED);
     }
   }
   const client = {
@@ -662,6 +677,8 @@ export function createSupportClient(
     async policy() {
       const policy = await call<{
         minimumLevel: "anyone" | "connected" | "signed";
+        aiReplyExpected?: boolean;
+        supportProfiles?: VisitorSupportProfiles;
         solanaSignIn?: boolean;
         walletFallback?: boolean;
         askPerson?: boolean;
@@ -677,6 +694,7 @@ export function createSupportClient(
         screenshots?: boolean;
         diagnostics?: boolean;
         chatFirst?: boolean;
+        newConversation?: boolean;
         templLeadCapture?: boolean;
         prompts?: string[];
         replyHours?: number;
@@ -750,6 +768,7 @@ export function createSupportClient(
             Omit<WidgetSession, "address" | "chainId"> & {
               credential: string;
               wallet?: { address: string; chainId?: number };
+              standardOpening?: true;
             }
           >(
             "/auth/guest",
@@ -778,7 +797,7 @@ export function createSupportClient(
           started = await start();
         }
         if (version !== generation || destroyed)
-          throw new Error("Your wallet changed. Sign in again.");
+          throw new Error(WALLET_CHANGED);
         // A wallet sign-in that finished meanwhile keeps its session.
         if (session?.level === "signed") return;
         guestCredential = started.credential;
@@ -792,6 +811,8 @@ export function createSupportClient(
           address: started.wallet?.address ?? claim?.address ?? "",
           chainId: started.wallet?.chainId ?? claim?.chainId,
         };
+        if (started.standardOpening === true)
+          session.standardOpening = performance.now() + 1000;
         // A resumed credential keeps the thread stored beside it.
         if (started.credential === stored?.credential && stored.thread)
           remember(stored.thread);
@@ -1047,10 +1068,11 @@ export type WidgetMessages = {
   /** Guest ids that held this thread before the member proved a wallet,
    * whether a person was asked to answer, "Did this solve it?", who
    * resolved it and the team's follow-up line. */
-  conversation?: { diagnosisRunning?: boolean } & Partial<
+  conversation?: { diagnosisRunning?: boolean; aiQueued?: true } & Partial<
     Pick<
       TeamConversation,
       | "id"
+      | "aiReplyExpected"
       | "revision"
       | "formerMembers"
       | "state"
@@ -1096,6 +1118,8 @@ export type WidgetClient = {
   signOut(): Promise<unknown>;
   policy?(): Promise<{
     minimumLevel: string;
+    aiReplyExpected?: boolean;
+    supportProfiles?: VisitorSupportProfiles;
     walletFallback?: boolean;
     askPerson?: boolean;
     replyEmail?: boolean;
@@ -1105,6 +1129,7 @@ export type WidgetClient = {
     screenshots?: boolean;
     diagnostics?: boolean;
     chatFirst?: boolean;
+    newConversation?: boolean;
     templLeadCapture?: boolean;
     prompts?: string[];
     replyHours?: number;
@@ -1350,7 +1375,7 @@ function icon(name: keyof typeof ICONS) {
 }
 /** Layout and colors show while the full style chunk loads. */
 const widgetStyle = () =>
-  `:host{all:initial;${WIDGET_DARK_BASE};font-family:inherit;font-size:14px;line-height:1.5}:host([data-theme=light]){${WIDGET_LIGHT_BASE}}@media(prefers-color-scheme:light){:host([data-theme=auto]){${WIDGET_LIGHT_BASE}}}[hidden]{display:none!important}*{box-sizing:border-box}svg{width:18px;height:18px;flex:none}.panel{position:fixed;right:20px;bottom:100px;display:flex;flex-direction:column;width:min(392px,calc(100vw - 32px));height:min(480px,calc(100dvh - 124px));overflow:hidden;border-radius:var(--rp,16px);background:var(--bg);color:var(--t)}.head{display:flex;align-items:center;gap:12px;flex:none}.avatar{width:40px;height:40px;flex:none;overflow:hidden}.avatar img{width:100%;height:100%}.body{flex:1;min-height:0;overflow:auto}.form{flex:none;min-height:0;overflow:hidden;overscroll-behavior:none}@media(max-width:480px){.panel{inset:auto 8px 8px;width:auto;height:calc(100dvh - 16px)}}`;
+  `:host{all:initial;${WIDGET_DARK_BASE};font:inherit}:host([data-theme=light]){${WIDGET_LIGHT_BASE}}@media(prefers-color-scheme:light){:host([data-theme=auto]){${WIDGET_LIGHT_BASE}}}[hidden]{display:none!important}svg{width:18px;height:18px;flex:none}.launcher{position:fixed;right:20px;bottom:20px}.panel{position:fixed;inset:auto 20px 100px auto;display:flex;flex-flow:column;width:min(392px,100vw - 32px);height:min(480px,100dvh - 124px);overflow:hidden;border-radius:var(--rp,16px);background:var(--bg);color:var(--t)}.head{display:flex}.body{flex:1;min-height:0;overflow:auto}@media(max-width:480px){.panel{inset:auto 8px 8px;width:auto;height:calc(100dvh - 16px)}}`;
 declare const __TEMPL_WIDGET_APPEARANCE__: string | undefined;
 const loadAppearance = (): Promise<
   typeof import("./support-widget-appearance")
@@ -1486,11 +1511,13 @@ export type TailHost = {
   leadState?(busy: boolean, handoff: boolean): void;
   /** A confirmed member send may offer an optional email follow-up. */
   messageSent?: boolean;
+  /** Threads whose visitor send started a wait in this widget. */
+  replyWaits?: Set<string>;
   leadStyles?: string;
   /** The single action row and its optional email action. */
   emailButton?: HTMLButtonElement;
   thread?(): string | null;
-  newCase?(): void;
+  newCase?(parallel?: true): void;
   showCase?(id: string): Promise<void>;
   replyNotices?: boolean;
   notify?: () => Promise<void>;
@@ -1517,6 +1544,8 @@ export type TailHost = {
   held?: { by: string; id: number; thread: string | null } | null;
   /** The workspace's policy answer, once read. */
   policy?: {
+    aiReplyExpected?: boolean;
+    supportProfiles?: VisitorSupportProfiles;
     minimumLevel?: string;
     walletFallback?: boolean;
     askPerson?: boolean;
@@ -1525,6 +1554,7 @@ export type TailHost = {
     screenshots?: boolean;
     diagnostics?: boolean;
     chatFirst?: boolean;
+    newConversation?: boolean;
     templLeadCapture?: boolean;
     prompts?: string[];
     replyHours?: number;
@@ -1548,14 +1578,27 @@ export type TailHost = {
 };
 /** The typing dots and the lines under the newest message. */
 const TAIL_STYLE =
-  ".dots{display:flex;gap:4px;padding:6px 0 3px}.dots i{width:6px;height:6px;border-radius:9px;background:var(--m);animation:blink 1.2s infinite}.dots i:nth-child(2){animation-delay:.2s}.dots i:nth-child(3){animation-delay:.4s}.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}.nudge{padding:10px 12px;border:1px solid var(--b);border-radius:var(--rb,14px);background:var(--s)}.stamp-talk{display:grid;float:left;margin-right:10px}.stamp-talk img{grid-area:1/1;object-fit:contain;animation:stamp-talk .44s steps(1,end) infinite}.stamp-talk img+img{animation-delay:-.22s}.typing:has(.stamp-talk img) .dots{display:none}@keyframes stamp-talk{0%,49%{visibility:visible}50%,100%{visibility:hidden}}@media(prefers-reduced-motion:reduce){.dots i,.stamp-talk img{animation:none}.stamp-talk img+img{display:none}}";
+  ".dots{display:flex;gap:4px;padding:6px 0 3px}.dots i{width:6px;height:6px;border-radius:9px;background:var(--m);animation:blink 1.2s infinite}.dots i:nth-child(2){animation-delay:.2s}.dots i:nth-child(3){animation-delay:.4s}.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}.nudge{padding:10px 12px;border:1px solid var(--b);border-radius:var(--rb,14px);background:var(--s)}@media(prefers-reduced-motion:reduce){.dots i{animation:none}}";
+function typingLine(el: TailHost["el"], part: string): [string, unknown[], (node: HTMLElement) => void] {
+  // The same key and signature keep the animation running when the first send gets its thread ID.
+  return ["~" + part, [], (node) => {
+    node.dataset.state = part;
+    node.className = "message typing tail";
+    const label = part === "typing agent" ? "AI assistant"
+      : part === "checking" ? "Checking the transaction" : "Team is typing…";
+    const dots = el("span", undefined, "dots");
+    dots.setAttribute("aria-hidden", "true");
+    dots.append(el("i"), el("i"), el("i"));
+    node.append(el("small", label), dots);
+  }];
+}
+
 /** What each line under the newest message says. */
 const TAIL_LINES: Record<string, string> = {
   received: "Received.",
-  slow: "The AI agent is still working on it.",
-  wait: "The team has your message. They’ll reply here.",
+  wait: "Your message is saved. The team can reply here.",
   member: "You asked for a person. Someone from the team will reply here.",
-  agent: "The AI agent handed your case to the team. They’ll reply here.",
+  agent: "AI passed this to the team.",
   person: "Your case is with the team. They’ll reply here.",
   dot: "You can close this chat or come back later. While this page is open, the chat button shows a dot when they reply.",
   verify:
@@ -1711,6 +1754,7 @@ const loadWelcome = (): Promise<typeof import("./support-widget-welcome")> =>
     : import("./support-widget-welcome");
 /** Everything the widget loads on first use besides the context card. */
 export const extras = {
+  ready: () => loadWelcome().then(({ welcome }) => welcome.ready(), () => {}),
   async guest(host: TailHost) {
     if (
       (host.options.guestLink ?? location.hash ?? "").startsWith(
@@ -1776,8 +1820,8 @@ export const extras = {
     );
   },
   /** What the member sees under the newest message, so they always know
-   * who acts next: Received right after a send, the AI agent typing (with
-   * Talk to a person), a slow line after a minute, the team's wait line,
+   * who acts next: one assistant bubble across sending and writing, a
+   * receipt for team-only sends, the team's wait line,
    * the handoff line for whoever asked for a person, a guest's dot line,
    * the team's request to verify and "Did this solve it?". Returns one
    * entry per line, each with its key, what it depends on and what builds
@@ -1794,7 +1838,7 @@ export const extras = {
     thread: string | null,
     verify: boolean,
     fresh: boolean,
-    pending: unknown,
+    pending: "sending" | "failed" | number | undefined,
     waiting: boolean,
   ): [string, unknown[], (node: HTMLElement) => void][] {
     const { el, client, own } = host;
@@ -1802,8 +1846,10 @@ export const extras = {
       host.styled = true;
       host.style.textContent += TAIL_STYLE;
     }
-    const last = messages.at(-1)!,
-      id = Number(last.id),
+    const last = thread ? messages.at(-1) : undefined;
+    const expected = ((thread ? info?.aiReplyExpected : undefined) ?? host.policy?.aiReplyExpected) === true;
+    if (!last) return pending === "sending" && expected ? [typingLine(el, "typing agent")] : [];
+    const id = Number(last.id),
       mine = own(last.author),
       age = Date.now() - Date.parse(last.createdAt ?? ""),
       level = client.session?.level,
@@ -1838,6 +1884,10 @@ export const extras = {
           )
         ? kept
         : null);
+    if (thread) {
+      if (!mine || held || resolved || !expected) host.replyWaits?.delete(thread);
+      else if (fresh) (host.replyWaits ??= new Set()).add(thread);
+    }
     const parts: string[] = [];
     if (resolved) {
       // Member closure status.
@@ -1848,26 +1898,18 @@ export const extras = {
         parts.push(asked.answer ? "thanks" : "ask");
       else if (info?.resolvedBy?.kind == "member") parts.push("closed");
     }
-    // An unsent message's own state line says what is happening, so
-    // Received never sits under a newer message that is still sending.
-    else if (fresh && !pending && !info?.diagnosisRunning)
+    else if (!held && typing !== "team" && !info?.encryption && info?.aiReplyExpected !== false && (
+      pending ? pending === "sending" && expected :
+      mine && (typing === "agent" || (expected && (fresh || host.replyWaits?.has(thread!) || age < 300_000)))
+    )) parts.push("typing agent");
+    else if (fresh && !pending && !held && !info?.diagnosisRunning)
       parts.push("received");
     else if (!pending) {
       const by = held?.by;
       if (info?.diagnosisRunning) parts.push("checking");
-      else if (typing && !(by && typing == "agent"))
-        parts.push("typing " + typing);
+      else if (typing === "team") parts.push("typing team");
       if (by) parts.push(by);
-      else {
-        if (
-          !info?.diagnosisRunning &&
-          typing == "agent" &&
-          mine &&
-          age > 60_000
-        )
-          parts.push("slow");
-        if (!info?.diagnosisRunning && !typing && mine) parts.push("wait");
-      }
+      else if (!info?.diagnosisRunning && !typing && mine) parts.push("wait");
       // A closed widget keeps checking only while the page is open, the
       // member waits and the launcher shows. A signed member's session
       // ends after an hour, so only guests are told.
@@ -1891,7 +1933,7 @@ export const extras = {
     // The member waits on the team: the wait and reply email lines show.
     const waits =
       !typing &&
-      (parts.includes("wait") || (!!held?.by && parts.includes(held.by)));
+      (parts.includes("wait") || !!held?.by);
     // Only while the team's reply is the newest message and no handoff is
     // open: a team reply that has waited a day asks "Did this solve it?"
     // once; otherwise Solved stays one tap away, beside Talk to a person
@@ -1931,7 +1973,8 @@ export const extras = {
       });
     host.talk = talk;
     const lines = parts.map(
-      (part): [string, unknown[], (node: HTMLElement) => void] => [
+      (part): [string, unknown[], (node: HTMLElement) => void] =>
+        part === "checking" || part.startsWith("typing ") ? typingLine(el, part) : [
         "~" + part,
         // Talk to a person keeps the newest message it was drawn under; the
         // verify card shows the wallet step while it runs.
@@ -1947,23 +1990,7 @@ export const extras = {
         ],
         (node) => {
           node.dataset.state = part;
-          if (part == "checking" || part.startsWith("typing")) {
-            const dots = el("span", undefined, "dots");
-            dots.setAttribute("aria-hidden", "true");
-            dots.append(el("i"), el("i"), el("i"));
-            node.className = "message typing tail";
-            node.append(
-              el(
-                "small",
-                part == "checking"
-                  ? "Checking the transaction"
-                  : part == "typing agent"
-                    ? "AI is working on your reply…"
-                    : "Team is typing…",
-              ),
-              dots,
-            );
-          } else if (part == "ask" || part == "thanks" || part == "stale")
+          if (part == "ask" || part == "thanks" || part == "stale")
             askedCard(
               host,
               node,
@@ -1983,7 +2010,7 @@ export const extras = {
                 ? host.notice!.line
                 : host.options.chatFirst &&
                     host.policy?.chatFirst &&
-                    ["member", "agent", "person", "dot"].includes(part)
+                    ["member", "person", "dot"].includes(part)
                   ? part === "dot"
                     ? "The chat button shows replies while this page is open."
                     : "The team will reply here. Keep writing in this chat."
@@ -2659,6 +2686,8 @@ function renderSupportWidget(
   client: WidgetClient,
   demo?: DemoSetup,
 ) {
+  const chunkFailed = (step: string, route = "widget") =>
+    console.warn("TEMPL_SUPPORT_FAILURE", { route, step, cause: "chunk-load" });
   const demoContainer = demo?.container;
   const host = document.createElement("div");
   host.setAttribute("data-templ-support", "");
@@ -2671,43 +2700,28 @@ function renderSupportWidget(
     | undefined;
   void loadAppearance().then(
     (module) => {
-      if (active)
-        boundAppearance = module.bindWidgetAppearance(
-          host,
-          appearance,
-          undefined,
-        );
+      if (active) boundAppearance = module.bindWidgetAppearance(host, appearance);
     },
-    () =>
-      console.warn("TEMPL_SUPPORT_FAILURE", {
-        route: "widget",
-        step: "widget-appearance",
-        cause: "chunk-load",
-      }),
+    () => chunkFailed("widget-appearance"),
   );
   const root = host.attachShadow({ mode: "open" });
   const style = document.createElement("style");
-  if (options.styleNonce) style.nonce = options.styleNonce;
-  style.textContent = widgetStyle() + (demo?.style ?? "");
   const fullStyle = document.createElement("style");
-  if (options.styleNonce) fullStyle.nonce = options.styleNonce;
-  // Avoid an unstyled paint. A stalled chunk still reveals the fallback.
-  fullStyle.textContent =
-    ":host{animation:load 1s step-end!important}@keyframes load{from{opacity:0}}";
-  void loadStyle().then(
+  const nonce = options.styleNonce;
+  if (nonce) {
+    style.nonce = nonce;
+    fullStyle.nonce = nonce;
+  }
+  style.textContent = widgetStyle() + (demo?.style ?? "");
+  const styleReady = loadStyle().then(
     (module) => {
       if (!active) return;
       fullStyle.textContent = module.widgetStyle();
     },
     () => {
       if (active) {
-        fullStyle.textContent = "";
-        console.warn("TEMPL_SUPPORT_FAILURE", {
-          route: "widget",
-          step: "widget-load",
-          cause: "chunk-load",
-        });
-        showError(new Error("Support could not load. Reload this page."));
+        chunkFailed("widget-load");
+        showError(new Error(LOAD_FAILED));
       }
     },
   );
@@ -2725,7 +2739,7 @@ function renderSupportWidget(
   const launcher = el("button", undefined, "launcher");
   launcher.type = "button";
   launcher.append(icon("chat"), document.createTextNode(label));
-  launcher.hidden = options.showLauncher === false;
+  launcher.hidden = !!options.container || options.showLauncher === false;
   launcher.setAttribute("aria-expanded", "false");
   const panel = el("section", undefined, "panel");
   panel.hidden = true;
@@ -2746,7 +2760,7 @@ function renderSupportWidget(
   close.type = "button";
   close.setAttribute("aria-label", "Close");
   close.append(icon("close"));
-  close.hidden = !!demoContainer;
+  close.hidden = !!demoContainer || !!options.container && !options.onClose;
   header.append(close);
   const body = el("div", undefined, "body");
   // The welcome block's words come with the extras; its button shows at once.
@@ -2762,7 +2776,7 @@ function renderSupportWidget(
   const starter = el("div", undefined, "starter");
   starter.hidden = true;
   // A returning guest sees this until the widget finds their conversation.
-  const loading = el("p", "Loading your case…", "starter loading-case");
+  const loading = el("p", "Opening chat…", "starter loading-case");
   loading.hidden = true;
   const older = el("button", "Earlier messages", "older");
   older.type = "button";
@@ -2870,9 +2884,6 @@ function renderSupportWidget(
   };
   paintBranding();
   (demoContainer ?? options.container ?? document.body).append(host);
-  if (options.container) {
-    launcher.hidden = close.hidden = true;
-  }
   // The page's latest context; a later setContext replaces every row.
   let hostContext = options.context,
     captureRevision = 0,
@@ -2952,7 +2963,7 @@ function renderSupportWidget(
     sequence = 0,
     sessionRevision = 0,
     // "sending", "failed", or the seconds left before an automatic retry.
-    sendState: string | number = "failed";
+    sendState: "sending" | "failed" | number = "failed";
   type PendingMessage = {
     id: string;
     text: string;
@@ -2980,6 +2991,7 @@ function renderSupportWidget(
     Number.parseInt(id.slice(0, 8) + id.slice(9, 13), 16);
   let draftPrincipal: string | undefined;
   let refreshing: Promise<void> | undefined;
+  let switchingCase = false;
   const draftKey = (principal: string) =>
     `templ:support-draft:v1:${window.location.origin}:${options.workspace}:${principal}`;
   const own = (author: string) =>
@@ -3000,10 +3012,10 @@ function renderSupportWidget(
     launcher,
     emailButton,
     thread: () => conversation,
-    newCase: () =>
+    newCase: (parallel) =>
       void openNewCase?.(
         tailHost,
-        () => !pending && active && info?.state === "resolved" && conversation,
+        () => !pending && active && (parallel || info?.state === "resolved") && conversation,
         (current) => {
           newCaseFrom = current;
           sequence++;
@@ -3015,25 +3027,30 @@ function renderSupportWidget(
         },
       ),
     showCase: async (id) => {
-      if (pending || !active) return;
+      const ready = () => active && !(pending || draft.value.trim() || tx.value);
+      if (switchingCase || !ready()) return;
+      switchingCase = true;
       const epoch = ++sequence;
-      const page = await client.messages(id, undefined, true, true);
-      if (!active || epoch !== sequence) return;
-      if (page.conversation?.id !== id) throw new Error(UNAVAILABLE);
-      if (newCaseFrom && id === conversation) {
+      try {
+        const page = await client.messages(id, undefined, true, true);
+        if (epoch !== sequence || !ready()) return;
+        if (page.conversation?.id !== id) throw new Error(UNAVAILABLE);
         newCaseFrom = undefined;
-        render();
-      } else {
-        returnTo =
-          id === returnTo ? undefined : (returnTo ?? conversation ?? undefined);
-        newCaseFrom = undefined;
-        conversation = id;
-        earlier = latest = [];
-        before = null;
-        authors = joined = {};
+        if (id !== conversation) {
+          returnTo =
+            id === returnTo ? undefined : (returnTo ?? conversation ?? undefined);
+          conversation = id;
+          earlier = latest = [];
+          before = null;
+          authors = joined = {};
+        }
         display(page);
+        saveDraft();
+        schedule();
+        draft.focus();
+      } finally {
+        switchingCase = false;
       }
-      draft.focus();
     },
     client,
     own,
@@ -3067,7 +3084,7 @@ function renderSupportWidget(
     const hidden =
       form.hidden || !!demoContainer || messages.childElementCount > 0;
     starter.hidden = hidden || restoring;
-    if (more && !demoContainer)
+    if (more && (!demoContainer || options.chatFirst))
       more.firstOpen(
         tailHost,
         tools,
@@ -3081,10 +3098,10 @@ function renderSupportWidget(
       emailButton.disabled =
         !emailAllowed || !conversation || busy || !!pending;
       emailButton.title = !emailAllowed
-        ? "Email notices are unavailable in this workspace."
+        ? "Email notices unavailable"
         : !conversation
           ? "Send a message first."
-          : "Get email notices for this case.";
+          : "Get email notices";
     }
     loading.hidden = hidden || !restoring;
     showQuestions();
@@ -3155,6 +3172,7 @@ function renderSupportWidget(
     const value = {
       text: draft.value,
       transactionHash: tx.value,
+      newCaseFrom,
       pending,
       savedAt: Date.now(),
     };
@@ -3176,7 +3194,7 @@ function renderSupportWidget(
     const failed = () => {
       if (active && revision === draftRevision && epoch === sessionRevision)
         draftNotice.textContent =
-          "Draft stays open here. This browser could not save it.";
+          "Couldn’t save your draft on this device.";
     };
     if (draftStore) store(draftStore);
     else void withDraftStore().then(store, failed);
@@ -3202,6 +3220,7 @@ function renderSupportWidget(
       // Whatever the visitor typed in this tab wins over a saved draft.
       if (!draft.value) {
         draft.value = value.text;
+        newCaseFrom = value.newCaseFrom;
         if (value.transactionHash !== undefined)
           tx.value = value.transactionHash;
         if (cards) cards.typed();
@@ -3226,7 +3245,6 @@ function renderSupportWidget(
     void withConsent().catch(showError);
   };
   draft.addEventListener("input", () => {
-    if (draft.value.trim()) warm();
     saveDraft();
     showPending();
     fitDraft();
@@ -3412,27 +3430,14 @@ function renderSupportWidget(
           );
         node.append(state);
       });
-    if (returnTo && !newCaseFrom)
-      add("~return-case", [returnTo, !!pending, busy], (node) => {
-        node.className = "system tail";
-        const back = button(
-          "Back to current case",
-          () => void run(() => tailHost.showCase!(returnTo!)),
-        );
-        back.disabled = busy || !!pending;
-        node.append(back);
-      });
-    if (newCaseFrom)
-      add("~new-case", [newCaseFrom, !!pending, busy], (node) => {
-        node.className = "system tail";
-        node.append(el("p", "New case"));
-        const back = button(
-          "Back to chat",
-          () => void run(() => tailHost.showCase!(newCaseFrom!)),
-        );
-        back.disabled = busy || !!pending;
-        node.append(back);
-      });
+    const returnCase = newCaseFrom ?? returnTo;
+    if (returnCase && consent) {
+      const drafting = !!newCaseFrom;
+      const disabled = busy || !!pending;
+      add("~return-case", [returnCase, drafting, disabled], (node) =>
+        consent!.caseReturn(node, returnCase, drafting, disabled),
+      );
+    }
     const joins = newCaseFrom ? [] : (consent?.join(joined, timeFormat) ?? []);
     (newCaseFrom ? [] : [...earlier, ...latest]).forEach((message, index) => {
       while (joins[0] && (message.createdAt ?? "") >= joins[0][1][0])
@@ -3440,27 +3445,30 @@ function renderSupportWidget(
       const mine = own(message.author);
       // A read that already holds a reply still waiting on its context.
       if (attempt && confirms(message, attempt)) return unsent();
+      const assistant = authors?.[message.author]?.badges?.includes("bot");
       const who = mine
         ? "You"
-        : authors?.[message.author]?.badges?.includes("bot")
+        : assistant
           ? "AI agent"
-          : message.teamName
-            ? message.teamName
-            : options.label || "Team";
+          : message.teamName || options.label || "Team";
       // The visitor's own send keeps its node from pending to confirmed.
       add(
         mine && message.clientId
           ? `c${message.clientId}`
           : `#${message.id ?? `@${index}`}`,
         [message.text, message.createdAt, who, consent?.linksReady],
-        (node) => bubble(node, message, who, mine),
+        (node) => {
+          bubble(node, message, who, mine);
+          node.toggleAttribute("data-assistant", !mine && !!assistant);
+        },
       );
     });
     for (const line of joins) add(...line);
     unsent();
     // What happens next, under the newest message. Derived from the thread,
     // never stored or counted as messages; it comes with the extras.
-    if (latest.length && !newCaseFrom && !demoContainer) {
+    const shownThread = newCaseFrom ? null : conversation;
+    if (!demoContainer && (attempt || shownThread)) {
       if (more)
         for (const line of more.tail(
           tailHost,
@@ -3468,10 +3476,10 @@ function renderSupportWidget(
           typing,
           info,
           authors,
-          conversation,
+          shownThread,
           verifyRequested,
           fresh,
-          attempt,
+          attempt ? sendState : undefined,
           waiting,
         ))
           add(...line);
@@ -3604,7 +3612,7 @@ function renderSupportWidget(
                 );
               tailHost.policy = policy;
               attachToggle.hidden = tx.hidden && !policy.diagnostics;
-              if (policy.appearance) {
+              if (policy.appearance && !options.fixedAppearance) {
                 appearance = { ...options.appearance, ...policy.appearance };
                 boundAppearance?.set({
                   theme: "auto",
@@ -3630,13 +3638,9 @@ function renderSupportWidget(
                   },
                   () => {
                     loadingLead = undefined;
-                    console.warn("TEMPL_SUPPORT_FAILURE", {
-                      route: "landing",
-                      step: "lead",
-                      cause: "chunk-load",
-                    });
+                    chunkFailed("lead", "landing");
                     showError(
-                      new Error("Contact could not load. Reload this page."),
+                      new Error(LOAD_FAILED),
                     );
                   },
                 );
@@ -3679,7 +3683,7 @@ function renderSupportWidget(
       if (stale()) return;
       conversation = thread = status.mine;
       if (!status.available || (!status.canAsk && !thread)) {
-        throw new Error("This team cannot accept a new case right now.");
+        throw new Error(NOT_TAKING);
       }
     }
     if (!thread) {
@@ -3714,7 +3718,7 @@ function renderSupportWidget(
   /** A read after a write starts at once; an older read still in flight is
    * then dropped when it lands, results and errors alike. */
   function refresh(afterWrite = false): Promise<void> {
-    if (busy && !afterWrite) return Promise.resolve();
+    if (switchingCase || (busy && !afterWrite)) return Promise.resolve();
     if (refreshing && !afterWrite) return refreshing;
     const mine = ++sequence;
     const stale = () => mine !== sequence || !active;
@@ -3722,7 +3726,8 @@ function renderSupportWidget(
       .catch((reason) => {
         if (stale()) return;
         restoring = false;
-        setStarter();
+        typing = null;
+        render();
         throw reason;
       })
       .finally(() => {
@@ -4088,13 +4093,18 @@ function renderSupportWidget(
       queueMessage(text, wallet);
     };
     if (demoContainer) sendMessage();
-    else
+    else {
+      // Give feedback while the consent code or current policy loads. The
+      // review still decides whether the draft may enter the send queue.
+      send.setAttribute("aria-busy", "true");
       void Promise.all([
         withConsent(),
         minimumLevel === undefined && refreshing,
       ])
         .then(() => consent!.send(text, sendMessage))
-        .catch(showError);
+        .catch(showError)
+        .finally(showPending);
+    }
   }
   form.addEventListener("submit", (event) => {
     event.preventDefault();
@@ -4130,31 +4140,27 @@ function renderSupportWidget(
   let openingTrigger: HTMLElement | null = null;
   const open = (focus = true) => {
     const focused = root.activeElement ?? document.activeElement;
-    if (
-      panel.hidden ||
-      (focused instanceof HTMLElement && !panel.contains(focused))
-    ) {
-      openingTrigger =
-        focused instanceof HTMLElement && focused !== document.body
-          ? focused
-          : null;
-    }
+    const element = focused instanceof HTMLElement ? focused : null;
+    if (panel.hidden || (element && !panel.contains(element)))
+      openingTrigger = element === document.body ? null : element;
     panel.hidden = false;
     void withConsent().catch(showError);
-    // What shows after a send, and the welcome's words, load with the open.
-    withExtras();
     launcher.setAttribute("aria-expanded", "true");
     unread = false;
     delete launcher.dataset.unread;
     launcher.removeAttribute("aria-label");
     notify(0);
     if (focus) (form.hidden ? signIn : draft).focus();
-    void refresh().catch(showError);
     schedule();
+    // The landing keeps its loading view until history and the initial
+    // conversation layout have settled. Other hosts can ignore the promise.
+    return Promise.all([styleReady, withExtras(), refresh().catch(showError)])
+      .then(() => more?.ready());
   };
   const shut = () => {
-    if (demoContainer || options.container) return;
+    if (demoContainer || (options.container && !options.onClose)) return;
     panel.hidden = true;
+    options.onClose?.();
     launcher.setAttribute("aria-expanded", "false");
     // Reads continue slowly while the visitor waits on the team.
     schedule();
@@ -4199,9 +4205,9 @@ function renderSupportWidget(
         body,
         async (text, current) => {
           if (busy || pending)
-            throw new Error("Wait for your message to send.");
+            throw new Error("Message is still sending.");
           if (form.hidden)
-            throw new Error("Verify your wallet before sending.");
+            throw new Error("Verify your wallet first.");
           await withConsent();
           if (!active || !current()) return;
           await consent!.review(text, (wallet) => {

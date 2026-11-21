@@ -5,6 +5,10 @@ import { copy as t } from "@/lib/copy";
 export async function generateMetadata(): Promise<Metadata> {
   return { title: t("shell.create.title") };
 }
-export default function CreatePage() {
-  return <NativeChatCreate />;
+export default async function CreatePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ next?: string }>;
+}) {
+  return <NativeChatCreate showPlanAfterCreate={(await searchParams).next === "plan"} />;
 }

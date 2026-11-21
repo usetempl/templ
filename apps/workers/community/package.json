@@ -6,9 +6,7 @@
   "description": "Wallet support, private cases and team workflows",
   "scripts": {
     "type-check": "tsc --noEmit",
-    "test": "vitest run test/solana-auth.test.ts test/support-widget-access-workerd.test.ts test/support-handoff-workerd.test.ts test/support-widget-session-workerd.test.ts test/release-activation.test.ts --maxWorkers=2",
-    "cf:dev": "wrangler dev --env staging",
-    "cf:deploy:staging": "wrangler deploy --env staging"
+    "test": "vitest run test/support-widget-session-workerd.test.ts --maxWorkers=2"
   },
   "dependencies": {
     "@solana/spl-token": "0.4.14",

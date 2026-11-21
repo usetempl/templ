@@ -216,6 +216,7 @@ import {
   uploadMedia,
 } from "./media";
 import { profileMediaHash } from "@templ/chat/profiles";
+import { isSupportContactRole } from "./support-contact-profiles";
 import {
   address,
   config,
@@ -3897,6 +3898,16 @@ async function route(
       );
       const body = await readJson(request);
       requireExpectedPrincipal(body, session);
+      const contact = body.contactRole;
+      if (contact !== undefined && !isSupportContactRole(contact))
+        throw new HttpError(400, "Choose the founder or the AI assistant.");
+      const currentProfiles = context.record.supportProfiles;
+      if (isSupportContactRole(contact)) {
+        if (!(await nativeWorkspaceAdmin(scopedNative as Env, context, session)))
+          throw new HttpError(403, "Only workspace admins can edit support profiles.");
+        if (body.profileRevision !== (currentProfiles?.revision ?? 0))
+          throw new HttpError(409, "The support profiles changed. Reload before saving.");
+      }
       if (!sessionPrincipals(session).includes(context.record.room.manager))
         requireWorkspaceAdminAuth(session, false, true);
       await requireSafetyAccess(
@@ -3918,9 +3929,13 @@ async function route(
         !(await mediaOwnedBy(env, session.principalId, requestedImageId))
       )
         throw new HttpError(400, "Upload a workspace image first.");
-      const previousImageId = context.record.room.image
+      const mediaReference = isSupportContactRole(contact) ? `room:${id}:${contact}` : `room:${id}`;
+      const previousImage = isSupportContactRole(contact)
+        ? currentProfiles?.[contact].image
+        : context.record.room.image;
+      const previousImageId = previousImage
         ? profileMediaHash(
-            context.record.room.image,
+            previousImage,
             siteOrigins(env).communityOrigin,
           )
         : null;
@@ -3929,7 +3944,7 @@ async function route(
           ? await setMediaReference(
               env,
               session.principalId,
-              `room:${id}`,
+              mediaReference,
               requestedImageId,
             )
           : null;
@@ -3944,14 +3959,14 @@ async function route(
           releasedPrevious = await releaseMediaReference(
             env,
             previousImageId,
-            `room:${id}`,
+            mediaReference,
           );
       } catch (error) {
         if (referenceChange)
           await restoreMediaReference(
             env,
             session.principalId,
-            `room:${id}`,
+            mediaReference,
             requestedImageId!,
             referenceChange.previous,
             referenceChange.revision,
@@ -3965,7 +3980,7 @@ async function route(
                 restoreMediaReference(
                   env,
                   session.principalId,
-                  `room:${id}`,
+                  mediaReference,
                   requestedImageId!,
                   referenceChange.previous,
                   referenceChange.revision,
@@ -3977,7 +3992,7 @@ async function route(
                 restoreMediaReference(
                   env,
                   releasedPrevious.owner,
-                  `room:${id}`,
+                  mediaReference,
                   null,
                   releasedPrevious.previous,
                   releasedPrevious.revision,
@@ -3994,6 +4009,10 @@ async function route(
           internalPost("/private/native/profile", {
             principalId: session.principalId,
             servicePrincipals: sessionPrincipals(session),
+            ...(isSupportContactRole(contact) ? {
+              contactRole: contact, profileRevision: body.profileRevision,
+              assistantEnabled: body.assistantEnabled,
+            } : {}),
             ...(body.name !== undefined ? { name: body.name } : {}),
             ...(body.image !== undefined ? { image: body.image } : {}),
           }),
@@ -4006,6 +4025,7 @@ async function route(
         await restoreProvisionalReferences();
         return result;
       }
+      if (isSupportContactRole(contact)) return result;
       const updated = await result.json<NativeRoomRecord>();
       await indexNative(env, updated);
       return json(publicNativeRoom(updated.room));

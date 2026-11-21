@@ -1,19 +1,32 @@
 import type { SupportWidgetOptions, TailHost } from "./support-widget";
+import * as peopleView from "./support-widget-people";
 import {
   SUPPORT_IDENTITY_LABELS,
   identityOf,
 } from "@templ/chat/support-identity";
 declare const __TEMPL_WIDGET_CONVERSATION__: string | undefined;
+declare const __TEMPL_WIDGET_CONVERSATION_STYLE__: string | undefined;
+declare const __TEMPL_WIDGET_CONVERSATIONS__: string | undefined;
 let conversation: typeof import("./support-widget-chat-first") | undefined;
+let conversationStyle: string | undefined;
+let conversations: typeof import("./support-widget-conversations") | undefined;
 let conversationLoad: Promise<void> | undefined;
 let conversationFailed = false;
 const loadConversation = () => typeof __TEMPL_WIDGET_CONVERSATION__ === "string"
   ? import(/* webpackIgnore: true */ /* turbopackIgnore: true */ new globalThis.URL(__TEMPL_WIDGET_CONVERSATION__, import.meta.url).href)
   : import("./support-widget-chat-first");
+const loadConversationStyle = () => typeof __TEMPL_WIDGET_CONVERSATION_STYLE__ === "string"
+  ? import(/* webpackIgnore: true */ /* turbopackIgnore: true */ new globalThis.URL(__TEMPL_WIDGET_CONVERSATION_STYLE__, import.meta.url).href)
+  : import("./support-widget-chat-style");
+const loadConversations = () => typeof __TEMPL_WIDGET_CONVERSATIONS__ === "string"
+  ? import(/* webpackIgnore: true */ /* turbopackIgnore: true */ new globalThis.URL(__TEMPL_WIDGET_CONVERSATIONS__, import.meta.url).href)
+  : import("./support-widget-conversations");
+const decoratedMenus = new WeakMap<TailHost, () => void>();
 const WELCOME_STYLE =
   ".welcome h2{margin:0;font-size:23px;font-weight:720;line-height:1.2}.lede{color:var(--m)}.trust{display:grid;gap:10px;margin:0;padding:14px;list-style:none;border:1px solid var(--b);border-radius:16px;background:var(--s)}.trust li{display:flex;gap:10px;font-size:13px;line-height:1.45}.trust span{color:var(--m)}.tick{display:grid;place-items:center;width:20px;height:20px;flex:none;border-radius:7px;background:var(--s2);color:var(--t)}.tick svg{width:13px;height:13px;stroke-width:3}";
 /** @public Entry exported by the immutable widget chunk. */
 export const welcome = {
+  ready: () => conversationLoad,
   starter(node: HTMLElement, intro: SupportWidgetOptions["intro"]) {
     const title =
       typeof intro?.title === "string" && intro.title.trim()
@@ -121,10 +134,40 @@ export const welcome = {
       ? "Waiting for the team"
       : "Talk to a person";
     if (host.options.chatFirst === true && host.policy?.chatFirst === true && !conversation && !conversationFailed) {
-      conversationLoad ??= loadConversation().then(module => {conversation = module;}, () => {conversationFailed = true;});
+      conversationLoad ??= Promise.all([loadConversation(), loadConversationStyle(), loadConversations()])
+        .then(([module, style, list]) => {
+          conversation = module;
+          conversationStyle = style.CONVERSATION_STYLE;
+          conversations = list;
+        }, () => {conversationFailed = true;});
       void conversationLoad.then(() => host.render()); return;
     }
-    if (conversation?.chatFirstControls(host, parent, handedOff || !!host.held?.by, busy)) return;
+    if (conversation?.chatFirstControls(host, parent, peopleView, handedOff, busy, conversationStyle, conversations)) {
+      if (host.options.decorateOwnMenu && host.policy?.templLeadCapture &&
+        host.options.container && location.origin === "https://usetempl.com") {
+        const update = decoratedMenus.get(host) ?? host.options.decorateOwnMenu(host, parent);
+        decoratedMenus.set(host, update);
+        update();
+      }
+      return;
+    }
+    const head = parent.closest(".panel")?.querySelector(".head");
+    const contacts = peopleView.workspaceContacts(host);
+    let people = head?.querySelector<HTMLDetailsElement>(".support-contacts");
+    if (contacts && head) {
+      if (!people) {
+        people = host.el("details", undefined, "support-contacts");
+        people.append(host.el("summary", "Team"), host.el("div"));
+        head.append(people);
+        people.addEventListener("toggle", () => { if (people?.open) peopleView.refreshContacts(host); });
+        host.style.textContent += ".support-contacts{position:relative;font-size:13px}.support-contacts summary{cursor:pointer}.support-contacts>div{position:absolute;right:0;top:100%;z-index:5;width:210px;padding:10px;background:var(--bg);border:1px solid var(--b);border-radius:10px}.support-contacts>div>div{display:flex;align-items:center;gap:8px;padding:5px}.support-contacts i{display:grid;place-items:center;width:30px;height:30px}.support-contacts img{width:100%;height:100%;border-radius:50%;object-fit:cover}.support-contacts small{display:block;color:var(--m)}";
+      }
+      const labels = JSON.stringify(contacts);
+      if (people.dataset.contacts !== labels) {
+        peopleView.renderPeople(host, people.querySelector("div")!, undefined, contacts);
+        people.dataset.contacts = labels;
+      }
+    } else people?.remove();
     for (const [i, button] of [
       ...parent.querySelectorAll<HTMLButtonElement>("button"),
     ].entries()) {

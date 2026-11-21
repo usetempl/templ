@@ -3,13 +3,14 @@
 import { useEffect, useRef, useState } from "react";
 import { IconCopy } from "@tabler/icons-react";
 import { SITE_FUNNEL_PATHS } from "@templ/chat/funnel";
-import { TemplSupportButton } from "@/components/templ-support";
+import { TemplSupportLink } from "@/components/templ-support";
 import { trackEvent } from "@/lib/analytics";
 import { startInstallPrompt } from "@/lib/support-integration-prompt";
 import { SITE } from "@/lib/site-environment";
 import styles from "./landing-install.module.css";
 
 export const CONTACT_LABEL = "Try the chat";
+export const TEMPL_SOURCE_URL = "https://github.com/usetempl/templ";
 
 export function InstallPromptButton({ className }: { className?: string }) {
   const [status, setStatus] = useState<
@@ -89,10 +90,12 @@ export function LandingActions({
   id = "install",
   tone = "page",
   showContact = true,
+  secondary = "install",
 }: {
   id?: string;
   tone?: "page" | "band";
   showContact?: boolean;
+  secondary?: "install" | "source";
 }) {
   return (
     <div
@@ -101,17 +104,15 @@ export function LandingActions({
     >
       <div className={styles.pair}>
         {showContact && (
-          <TemplSupportButton
-            className={styles.cta}
-            label={CONTACT_LABEL}
-            icon={false}
-            conversion="talk_to_us_clicked"
-          >
+          <TemplSupportLink className={styles.cta}>
             {CONTACT_LABEL}
-          </TemplSupportButton>
+          </TemplSupportLink>
         )}
-        <a className={styles.secondary} href="#install">
-          Install in your app
+        <a
+          className={styles.secondary}
+          href={secondary === "source" ? TEMPL_SOURCE_URL : "#install"}
+        >
+          {secondary === "source" ? "View source" : "Install in your app"}
         </a>
       </div>
     </div>

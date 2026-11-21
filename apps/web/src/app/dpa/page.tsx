@@ -18,6 +18,7 @@ export default async function DpaPage() {
       title="Data Processing Addendum"
       description="The data duties of Templ and your support team."
       active="dpa"
+      updated="20 November 2026"
     >
       <p>
         {
@@ -838,7 +839,7 @@ export default async function DpaPage() {
               <td>{"Cloudflare"}</td>
               <td>
                 {
-                  "Hosts sites, API compute, databases, private files and logs. It receives stored Customer data and request metadata, including IP information. Turnstile visitor checks apply only where enabled."
+                  "Hosts sites, API compute, databases, private files and logs. It receives stored Customer data and request metadata, including IP information. Turnstile visitor checks apply only where enabled. For requests routed through its AI Gateway, Cloudflare processes permitted model inputs, outputs and usage metadata."
                 }
               </td>
             </tr>
@@ -878,7 +879,15 @@ export default async function DpaPage() {
               <td>{"Anthropic"}</td>
               <td>
                 {
-                  "Generates answers and drafts from permitted case input and knowledge. Applies only to an ordered, enabled Templ-managed service. Templ's own support is separate controller processing."
+                  "Generates answers or drafts from permitted case input and approved knowledge when an existing Customer order specifies Anthropic and managed AI is enabled."
+                }
+              </td>
+            </tr>
+            <tr>
+              <td>{"OpenAI"}</td>
+              <td>
+                {
+                  "Generates answers or drafts from permitted case input and approved knowledge for enabled Templ-managed AI, including the new prepaid service where applicable. Templ’s own support is separate controller processing."
                 }
               </td>
             </tr>
@@ -900,6 +909,11 @@ export default async function DpaPage() {
             </tr>
           </tbody>
         </table>
+        <p>
+          {
+            "Existing Customer orders continue to govern their provider and service. Before adding or replacing a Subprocessor for a Customer, Templ must give prior written notice through the agreed channel and allow a reasonable opportunity to object under section 10. Listing a provider here does not give that notice."
+          }
+        </p>
         <p>
           {
             "Public blockchain facts can still be Personal Data. Payment RPC reads verify direct stablecoin transfers on enabled networks. Templ never gives an RPC provider custody of user wallets."

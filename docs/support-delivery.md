@@ -1,6 +1,6 @@
 # How support messages travel
 
-A visitor sends a message from your app. The team reads it in its inbox and replies. The visitor opens the same conversation to read the reply.
+A visitor opens the widget inside your app or follows your workspace’s standalone support link. The team reads the message and replies in the same workspace inbox. The visitor can reopen the original conversation to read the reply. [Choose an entry point](../README.md#give-visitors-a-way-to-reach-you)
 
 ```mermaid
 ---

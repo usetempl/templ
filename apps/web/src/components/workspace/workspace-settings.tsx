@@ -11,6 +11,7 @@ import { IconPlus, IconTrash } from "@tabler/icons-react";
 import {
   type SupportSavedReply,
   type SupportSettings,
+  type WorkspaceSupportProfiles,
 } from "@templ/chat/support";
 import { chatMutation } from "@/lib/chat-api";
 import { communityFetch, roomPath } from "@/lib/community-client";
@@ -37,10 +38,16 @@ import { UnsavedChanges } from "./unsaved-changes";
 import { WorkspaceSections } from "./workspace-sections";
 import { CategoryRule } from "./category-rule";
 import { WorkspaceIcon } from "./workspace-icon";
+import { WorkspaceEncryptionSettings } from "./workspace-encryption-settings";
+import { SupportProfiles } from "./support-profiles";
+
+import { PersonalSettings } from "@/components/personal-settings";
 
 type Loaded = {
   key: string;
   settings?: SupportSettings;
+  supportProfiles?: WorkspaceSupportProfiles;
+  responderConfigured?: boolean;
   canEdit?: boolean;
   error?: string;
 };
@@ -68,6 +75,7 @@ export function WorkspaceSettings({ context }: { context: WorkspaceContext }) {
             key={`${context.room}:${context.account}`}
             context={context}
           />
+          <PersonalSettings />
           <WorkspaceManagement context={context} />
           {context.state?.viewer?.permissions.includes("manageSupport") && (
             <TeamSavedReplies
@@ -141,6 +149,8 @@ function WorkspaceConfiguration({ context }: { context: WorkspaceContext }) {
     void communityFetch<{
       settings: SupportSettings;
       canEditSettings: boolean;
+      supportProfiles?: WorkspaceSupportProfiles;
+      responderConfigured?: boolean;
     }>(
       roomPath(room, "conversations/settings"),
       undefined,
@@ -152,6 +162,8 @@ function WorkspaceConfiguration({ context }: { context: WorkspaceContext }) {
             key,
             settings: data.settings,
             canEdit: data.canEditSettings,
+            supportProfiles: data.supportProfiles,
+            responderConfigured: data.responderConfigured,
           });
       },
       () => {
@@ -173,6 +185,8 @@ function WorkspaceConfiguration({ context }: { context: WorkspaceContext }) {
       />
       <WorkspaceSections
         items={[
+          { id: "case-encryption", label: "Chat encryption" },
+          { id: "support-profiles", label: "Support profiles" },
           { id: "workspace-general", label: "Workspace" },
           { id: "case-settings", label: "Case handling" },
           ...(prioritiesEnabled
@@ -180,12 +194,14 @@ function WorkspaceConfiguration({ context }: { context: WorkspaceContext }) {
             : []),
           { id: "saved-replies", label: "Saved replies" },
           { id: "alerts", label: "Alerts" },
+          { id: "appearance-help", label: "Appearance and help" },
           ...(context.manager
             ? [{ id: "workspace-manager", label: "Ownership" }]
             : []),
         ]}
       />
       <div className={layout.sections}>
+        <WorkspaceEncryptionSettings key={`${room}:${account}`} context={context} />
         <div id="workspace-general" className={layout.sections}>
           <TeamDisplayName
             key={`team-name:${room}:${account}`}
@@ -219,6 +235,8 @@ function WorkspaceConfiguration({ context }: { context: WorkspaceContext }) {
           </div>
         ) : (
           <>
+            {current.canEdit && <SupportProfiles key={key + ":profiles"} context={context}
+              initial={current.supportProfiles} connected={current.responderConfigured === true} />}
             <SupportSettingsForm
               key={key}
               context={context}
@@ -257,6 +275,7 @@ function WorkspaceConfiguration({ context }: { context: WorkspaceContext }) {
             />
           </>
         )}
+        <PersonalSettings />
       </div>
     </div>
   );

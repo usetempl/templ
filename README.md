@@ -2,11 +2,21 @@
 
 A swap fails in your app. The visitor opens Help, asks where the funds are, and ticks the transaction hash to share it. Your team reads the question and the hash in its inbox and replies. The visitor reads the reply in the same chat.
 
-Templ is that support desk. It has a chat widget, a team inbox, and a worker that checks access and stores messages. The widget gives each message an ID. A retry sends the same ID, and the conversation keeps one copy.
+Templ gives your team one inbox for conversations from an embedded widget, a standalone support page, or both. A visitor can start from a link even when your app is down.
 
 ![One Standard case on a workspace that accepts guests. The message and the details the visitor chose pass the worker's access check. The team and a permitted AI agent read them, and the visitor reads the reply.](docs/support-case.svg)
 
 [How a message reaches the team, how retries work, and where AI joins](docs/support-delivery.md)
+
+## Give visitors a way to reach you
+
+| Choose | Set it up |
+| --- | --- |
+| **Standalone chat** | In your workspace, open **Widget → Guest support**. When available, turn on **Host a support page on Templ** and select **Save guest support**. Select **Open your support page** and copy the address. Use that address for a Support link in your footer, docs or status page. |
+| **Embedded widget** | Open **Widget** and copy the install prompt for your workspace, or follow the manual guide. Connect the widget to a Help button on your HTTPS site. Your app can offer the visitor a choice of relevant details to share. |
+| **Both** | Enable the support page and install the widget for the same workspace. Both reach the same team inbox. A visitor who follows the standalone link can describe the problem there. App context is available through the integration on the page where the problem happened. |
+
+Try each entry point you plan to offer in a test workspace. Send a question, reply from the inbox, and reopen the original chat to read the reply. Use a private test destination for any staff alerts. [Hosted setup](https://docs.usetempl.com/install/) · [Manual widget guide](https://docs.usetempl.com/developers/widget/) · [Setup troubleshooting](https://docs.usetempl.com/install/troubleshooting/)
 
 ## What the visitor shares
 
@@ -23,7 +33,7 @@ Reply notices are a separate opt-in. The visitor can add an email when the works
 
 | Chat mode | Who can read the message text |
 | --- | --- |
-| Standard | The visitor and team members with access to the case. The operator of the server can also read the text. |
+| Standard | The visitor, team members with case access and the server operator. If case policy allows AI, the authorized agent and the model provider it uses can process the input sent to them. |
 | Customer-managed encryption | Approved participant devices and the workspace's own validation and recovery services. The workspace controls its keys and backups. Under the default customer-managed custody, Templ-hosted AI and Templ operators cannot read the message text. |
 | Templ-operated encryption | Approved participant devices and Templ's validation and recovery services. This mode runs only on Templ's own support workspace. |
 
@@ -42,13 +52,13 @@ pnpm install --frozen-lockfile --ignore-scripts
 pnpm test:support
 ```
 
-The check runs the support worker locally in Workerd with temporary test accounts. It sends a guest message, saves one authorized team reply, and opens the same chat to read it. No production account or credentials are needed.
+The check runs the support worker locally in Workerd with temporary test accounts. It sends a guest message, saves one authorized team reply, and reopens the chat to read both messages.
 
 ## Run it yourself or ask Templ to host it
 
 **Self-host.** The [MIT license](LICENSE) covers Templ's code. You supply the runtime, storage, secrets, and domains. For customer-managed encryption, you also operate the key services. This source includes the [web app](apps/web), [support worker](apps/workers/community), and encryption code.
 
-Run `pnpm build` to build the web app. For your deployment, set `NEXT_PUBLIC_TEMPL_SITE_ORIGIN` to your web origin and `NEXT_PUBLIC_TEMPL_API_ORIGIN` to your support worker. Set these values at build time. Your deployment also needs the worker's storage bindings and its own secrets. The public build starts with hosted features off. Use the local conversation check above to try delivery before provisioning a server.
+Run `pnpm build` to build the web app. For your deployment, set `NEXT_PUBLIC_TEMPL_SITE_ORIGIN` to your web origin and `NEXT_PUBLIC_TEMPL_API_ORIGIN` to your support worker. Set these values at build time. Your deployment also needs the worker's storage bindings and its own secrets. The public build starts with hosted features off. [Configure web origins, worker storage and chat access](docs/self-host.md)
 
 **Templ Hosted.** Templ runs your chat, inbox and message storage. Start with 10 free test tickets. Both monthly plans cover all seats. A case counts once when the visitor gets its first substantive answer.
 
@@ -59,7 +69,7 @@ Run `pnpm build` to build the web app. For your deployment, set `NEXT_PUBLIC_TEM
 | Each additional case | $0.20 | $0.19 |
 | Templ AI credit included | $0 | $20 |
 
-New workspaces can choose either plan. Bring your own AI provider or prepay for Templ AI. On Starter, set a monthly limit before using Templ AI. [Create a hosted workspace](https://usetempl.com/create?next=plan) · [Pricing details](https://docs.usetempl.com/pricing#planned-usage-pricing) · [Hosted setup guide](https://docs.usetempl.com/install)
+New workspaces can choose either plan. Open **Plan & usage → Start paid month** to see the networks and stablecoins available for your workspace. Templ activates the month after it verifies the payment. Bring your own AI provider or prepay for Templ AI. On Starter, set a monthly limit before using Templ AI. [Create a hosted workspace](https://usetempl.com/create?next=plan) · [Pricing](https://docs.usetempl.com/pricing/) · [Stablecoin payments](https://docs.usetempl.com/pricing/stablecoin-payments/)
 
 [Connect your own knowledge sources and AI](docs/support-delivery.md#connect-ai)
 

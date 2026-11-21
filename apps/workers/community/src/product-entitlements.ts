@@ -3,6 +3,7 @@ import {
   standardPlanView,
 } from "./product-standard-plan";
 import type { StandardPlanView } from "@templ/chat/standard-plan";
+import { sponsoredSupport } from "./product-prepaid";
 import { activeUsageAgreement, usageView } from "./product-usage-billing";
 import type { ProductUsageView } from "@templ/chat/usage-billing";
 import { featureOn, type WorkspaceFlagEnv } from "./workspace-flags";
@@ -142,10 +143,12 @@ export type ProductPrices = {
   table: ResolutionPriceTable;
 };
 const STANDARD_PLAN = Symbol("standard-workspace-plan");
+const SPONSORED = Symbol("operator-sponsored-support");
 const MANUAL_MODE = Symbol("manual-billing-mode");
 const USAGE_MODE = Symbol("usage-billing-mode");
 const USAGE_STATUS = Symbol("usage-billing-status");
 export type ProductState = {
+  [SPONSORED]?: true;
   [STANDARD_PLAN]?: StandardPlanView;
   [MANUAL_MODE]?: boolean;
   [USAGE_MODE]?: boolean;
@@ -360,6 +363,7 @@ export async function readProductState(
   if (!object(stored) || stored.schema !== 5) throw fail();
   const state = checkedState(stored);
   const current = { ...state, asOf: Math.max(nowMs, state.asOf) };
+  if (await sponsoredSupport(storage)) Object.defineProperty(current, SPONSORED, { value: true });
   if (current.freeStart.status === "reserved") {
     const reservation = await storage.get<FreeStartReservation>(
       FREE_START_RESERVATION_KEY,
@@ -397,15 +401,30 @@ export async function readProductState(
 export const standardPlanForState = (state: ProductState) =>
   state[STANDARD_PLAN];
 
+/** Applies to self-serve accounts created with the hosted offers. The first
+ * delivered answer still commits its debit and deduplication in one transaction. */
+export function canFundNextCase(standard?: StandardPlanView) {
+  if (!standard?.starterAvailable || standard.status !== "paid") return true;
+  const usage = standard.period?.usage;
+  if (!usage || usage.answeredCases < usage.includedAnsweredCases) return true;
+  const available = BigInt(standard.prepaid?.cashAvailableUsdNanos ?? "0");
+  return available >= BigInt(usage.additionalAnsweredCaseCents) * 10_000_000n;
+}
+
 /** Creates the record for a new workspace, once. */
 export async function initializeProducts(
   storage: ProductStorage,
-  input: { creator: ChatPrincipalId; room: string; nowMs: number },
+  input: {
+    creator: ChatPrincipalId;
+    room: string;
+    nowMs: number;
+    starterAvailable?: true;
+  },
 ) {
   if (await storage.get<unknown>(PRODUCT_STATE_KEY)) return;
   await storage.put(PRODUCT_STATE_KEY, newProductState(input));
   if (input.nowMs >= Date.parse(PRODUCT_STANDARD_ACCESS_STARTED_ON))
-    await initializeStandardPlan(storage);
+    await initializeStandardPlan(storage, input.starterAvailable);
 }
 
 /** Whether a never-funded workspace is paused for its balance: it reached
@@ -436,6 +455,7 @@ export function balancePaused(
 /** How Support runs now (see ProductMode). */
 export function productMode(state: ProductState): ProductMode {
   if (state.suspended) return "suspended";
+  if (state[SPONSORED]) return "exempt";
   if (state.exemptUntil !== null && state.asOf < state.exemptUntil)
     return "exempt";
   if (state[STANDARD_PLAN])
@@ -480,6 +500,7 @@ export async function readProductSupport(
     canAdmit:
       productSupport(mode).canAdmit &&
       state[USAGE_STATUS] === "active" &&
+      (mode === "exempt" || canFundNextCase(state[STANDARD_PLAN])) &&
       (mode === "exempt" ||
         !state[STANDARD_PLAN] ||
         state[STANDARD_PLAN].status === "paid" ||
@@ -548,6 +569,8 @@ export async function admitMemberRequest(
   if (input.newRequest && (mode === "paused" || mode === "suspended"))
     throw new AdmissionRefusal(mode);
   const standard = state[STANDARD_PLAN];
+  if ((input.newCase ?? input.newRequest) && mode !== "exempt" && !canFundNextCase(standard))
+    throw new AdmissionRefusal("credit-limit");
   if (
     (input.newCase ?? input.newRequest) &&
     mode !== "exempt" &&

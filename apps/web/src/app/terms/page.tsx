@@ -5,6 +5,7 @@ import {
   PRODUCT_FREE_NEGATIVE_LIMIT_CENTS,
   PRODUCT_FREE_START,
   PRODUCT_LIMITS,
+  PRODUCT_STARTER_PRICES,
   PRODUCT_STANDARD_PRICES,
   PRODUCT_RESOLUTION_PRICE,
   PRODUCT_RESOLUTION_RULES,
@@ -63,7 +64,7 @@ export default async function TermsPage() {
           consent to optional data use.
         </p>
       </PolicySection>
-      <PolicySection title="Current standard plan">
+      <PolicySection title="Templ Hosted plans">
         <p>
           This section applies to standard plans approved from October 16, 2026.
           It replaces conflicting commercial rules below. Existing approved
@@ -77,7 +78,17 @@ export default async function TermsPage() {
           Do not create more workspaces or accounts to bypass the free limit.
         </p>
         <p>
-          Templ costs{" "}
+          Starter for new workspaces costs{" "}
+          {formatUsdCents(PRODUCT_STARTER_PRICES.workspaceMonthlyUsdCents)}
+          /month per workspace and includes all team members and{" "}
+          {PRODUCT_STARTER_PRICES.includedAnsweredCasesPerMonth} answered cases.
+          Each extra answered case costs{" "}
+          {formatUsdCents(PRODUCT_STARTER_PRICES.additionalAnsweredCaseUsdCents)}.
+          Templ AI is optional and billed separately from prepaid credit.
+          Your workspace sets a monthly limit for Templ AI.
+        </p>
+        <p>
+          Plus costs{" "}
           {formatUsdCents(PRODUCT_STANDARD_PRICES.workspaceMonthlyUsdCents)}
           /month per workspace, including{" "}
           {PRODUCT_STANDARD_PRICES.includedAnsweredCasesPerMonth} answered cases

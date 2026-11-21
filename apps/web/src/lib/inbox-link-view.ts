@@ -3,6 +3,7 @@ import type { TeamConversationFilter } from "@templ/chat/index";
 /** Inbox views a link may open, for example an alert's
  * `?team=1&view=needs-you`. `wallet-handoff.ts` forwards the same list. */
 export const LINKED_INBOX_VIEWS = [
+  "all",
   "needs-you",
   "ai-handling",
   "needs-reply",

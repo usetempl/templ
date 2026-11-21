@@ -6,3 +6,7 @@ export function supportPageWorkspace(value: unknown): string | null {
     ? value
     : null;
 }
+
+export function hostedSupportUrl(origin: string, workspace: string): string {
+  return new URL(`/help/${encodeURIComponent(workspace)}`, origin).href;
+}

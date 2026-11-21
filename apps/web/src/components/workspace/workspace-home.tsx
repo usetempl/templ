@@ -1,6 +1,5 @@
 "use client";
 
-import { useRelease } from "@/lib/release-context";
 import { hasSupportKnowledge } from "@templ/chat/workspace-flags";
 
 import { useEffect, useState } from "react";
@@ -26,8 +25,6 @@ import {
 import { formatUsd } from "@/lib/product-format";
 import { SITE } from "@/lib/release-public";
 import { PRODUCT_LIMITS } from "@templ/chat/plans";
-import { installPrompt } from "@/lib/support-integration-prompt";
-import { useActionToast } from "@/components/action-toast";
 import { trackEvent } from "@/lib/analytics";
 import { CommunityApiError } from "@/lib/community-client";
 import { copy as t } from "@/lib/copy";
@@ -100,11 +97,8 @@ export function WorkspaceHome({
   context: WorkspaceContext;
   installCheck?: boolean;
 }) {
-  const RELEASE = useRelease();
 
   const { room, workspace, manager, billing, go, revision, account } = context;
-  const { show, toast } = useActionToast();
-  const [copying, setCopying] = useState(false);
   const lead =
     context.state?.viewer?.permissions?.includes("manageSupport") === true;
   const priorityFeed = context.state?.features?.priorityFeed === true;
@@ -191,23 +185,14 @@ export function WorkspaceHome({
       | "setup_priorities_clicked";
     optional?: boolean;
   }[] = [
-    installCheck
-      ? {
-          done: current?.installChecked,
-          title: "Install the widget",
-          body: "Paste the install prompt into your AI coding tool. Then check the install.",
-          action: "Copy install prompt",
-          tab: "widget",
-          event: "setup_snippet_clicked",
-        }
-      : {
-          done: current?.hasRequests,
-          title: "Install the widget",
-          body: "Paste the install prompt into your AI coding tool. Then open the widget and ask a question.",
-          action: "Copy install prompt",
-          tab: "widget",
-          event: "setup_snippet_clicked",
-        },
+    {
+      done: current?.hostedPage || (installCheck ? current?.installChecked : current?.hasRequests),
+      title: "Choose where people ask for help",
+      body: "Embed the widget in your app, share a standalone chat link, or use both. Cases reach this inbox.",
+      action: "Set up support",
+      tab: "widget",
+      event: "setup_snippet_clicked",
+    },
     ...(priorityFeed
       ? [
           {
@@ -232,30 +217,6 @@ export function WorkspaceHome({
       optional: true,
     },
   ];
-  async function copyInstallPrompt() {
-    setCopying(true);
-    try {
-      await navigator.clipboard.writeText(
-        installPrompt({
-          release: RELEASE,
-          workspaceId: context.id,
-          workspaceFeatures: context.state?.features,
-          workspaceOptions: { loopback: current?.widgetLoopback },
-        }),
-      );
-      trackEvent("workspace_prompt_copied");
-      show(
-        "Copied. Paste it into your AI coding tool. Your workspace ID is already in it.",
-      );
-    } catch {
-      console.warn("TEMPL_INSTALL_PROMPT_COPY_FAILED", {
-        cause: "clipboard-unavailable",
-      });
-      go("widget");
-    } finally {
-      setCopying(false);
-    }
-  }
   const required = steps.filter((step) => !step.optional);
   const completed = required.filter((step) => step.done).length;
   const ready = completed === required.length;
@@ -307,7 +268,6 @@ export function WorkspaceHome({
 
   return (
     <div className={styles.page}>
-      {toast}
       <div className={styles.stack}>
         <section className={styles.welcome} aria-labelledby="home-title">
           <TemplMark className={styles.welcomeStamp} decorative />
@@ -321,13 +281,11 @@ export function WorkspaceHome({
             </p>
           ) : unfinished ? (
             <p>
-              Finish these steps and your users can reach your team from inside
-              your app.
+              Choose how visitors reach your team.
             </p>
           ) : !manager || ready ? (
             <p>
-              Your users reach this team from the widget in your app. New cases
-              land in the inbox.
+              Visitors reach your team through the support entry points you set up. New cases appear in the inbox.
             </p>
           ) : !current ? (
             <Skeleton width="60%" height={20} />
@@ -499,21 +457,12 @@ export function WorkspaceHome({
                       <button
                         type="button"
                         className={`button small ${step.done ? "quiet" : index === currentStep ? "" : "secondary"}`}
-                        disabled={
-                          copying || (!step.done && index !== currentStep)
-                        }
+                        disabled={!step.done && index !== currentStep}
                         onClick={() => {
                           if (!step.done) trackEvent(step.event);
-                          if (
-                            !step.done &&
-                            step.event === "setup_snippet_clicked"
-                          ) {
-                            void copyInstallPrompt();
-                          } else {
-                            if (step.event === "setup_priorities_clicked")
-                              go(step.tab, null, "priority-settings");
-                            else go(step.tab);
-                          }
+                          if (step.event === "setup_priorities_clicked")
+                            go(step.tab, null, "priority-settings");
+                          else go(step.tab);
                         }}
                       >
                         {step.done ? "Review" : step.action}

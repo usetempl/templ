@@ -57,6 +57,8 @@ export const WIDGET_CHUNKS = Object.freeze([
   "consent",
   // Sign-in, first-open controls and identity text.
   "conversation",
+  "conversation-style",
+  "conversations",
   "welcome",
   // Optional guest reply notices and one-use thread resume links.
   "guest",

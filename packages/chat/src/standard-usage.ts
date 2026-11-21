@@ -10,6 +10,10 @@ export type StandardAiTokenUsage = {
 };
 
 const TOKEN_LIMIT = 1_000_000_000_000;
+export type StandardAiModel = "gpt-6.1-sol" | "gpt-6.2-sol";
+export function isStandardAiModel(value: unknown): value is StandardAiModel {
+  return value === PRODUCT_STANDARD_AI_RATES.model || value === "gpt-6.2-sol";
+}
 const MAX_NANOS = 10n ** 30n - 1n;
 const PER_MILLION = 1_000_000n;
 const NANOS_PER_CENT = BigInt(PRODUCT_STANDARD_AI_RATES.usdNanosPerCent);
@@ -95,7 +99,7 @@ export function standardAiUsageUsdNanos(
 ): string | null {
   const fraction = rateFraction(rate);
   if (
-    model !== PRODUCT_STANDARD_AI_RATES.model ||
+    !isStandardAiModel(model) ||
     !usage ||
     !tokenCount(usage.inputTokens) ||
     !tokenCount(usage.cachedInputTokens) ||

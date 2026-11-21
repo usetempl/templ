@@ -45,8 +45,10 @@ export async function mountCustomerSupport(
       headerActions: HTMLElement;
       sendIcon?: () => SVGElement;
       deliveryIcon?: (state: "sending" | "sent") => SVGElement;
-      /** Decorative icon for the opening, history and sending line. */
+      /** Decorative icon for opening and history. */
       activityIcon?: () => SVGElement;
+      /** Decorative motion for the first send, driven by the active phase. */
+      sendMotion?: () => SVGElement;
       composerOptions: HTMLElement;
       /** Own's contextual panel keeps optional fields out of the opening chat. */
       sharingHost?: HTMLElement;
@@ -73,8 +75,13 @@ export async function mountCustomerSupport(
     initialHistoryPageSize?: number;
     /** Reapprove this device before a read when its certificate lacks this margin. */
     minimumHistoryValidityMs?: number;
+    /** Local key generation may start before authenticating a new device. */
+    preparedKeys?: Promise<EndpointKeys | undefined>;
     /** Called after an authorized read observes retained encrypted content. */
     onRetainedCase?: () => void;
+    /** Only the timestamp of the latest successfully read public reply. */
+    onHistoryRead?: (conversation: string, lastReplyAt: number) => void;
+    onHistoryError?: (error: unknown) => void;
     /** A function reads optional browser facts only when the picker opens. */
     details?: SharedDetail[] | (() => SharedDetail[]);
     /** Runs prepare/enrollment only after Send for a new case. Customer
@@ -108,8 +115,6 @@ export async function mountCustomerSupport(
       options.account,
       options.draftId,
     );
-  const keys = await (async () => store.saveKeys((await store.keys()) ?? (await createEndpointKeys())))()
-    .catch(error => {store.close(); throw error;});
   if (options.signal?.aborted || options.sessionRevision() !== revision) {store.close(); return () => {};}
   let alive = true,
     busy = true,
@@ -128,6 +133,23 @@ export async function mountCustomerSupport(
   let restoredSendId: string | undefined;
   let timer: ReturnType<typeof setInterval> | undefined = undefined;
   let connection: Awaited<ReturnType<typeof options.connect>> | null = null;
+  let devicePreparation: Promise<EndpointKeys> | undefined;
+  const prepareDevice = () => {
+    devicePreparation ??= (async () => {
+      const keys = await store.keys() ?? await options.preparedKeys ?? await createEndpointKeys();
+      if (!current()) throw new DOMException("Chat changed", "AbortError");
+      return store.saveKeys(keys);
+    })().catch(error => {devicePreparation = undefined; throw error;});
+    return devicePreparation;
+  };
+  // Prepare local keys in parallel with the saved composer. Native enrollment
+  // for a new case still requires Send and checks the current authorization.
+  void prepareDevice().catch(() => {});
+  const connect = async (openingId?: string, pending?: EncryptedOutboxEntry) => {
+    const keys = await prepareDevice();
+    if (!current()) throw new DOMException("Chat changed", "AbortError");
+    return options.connect(keys, openingId, pending);
+  };
   let readFlight: Promise<void> | null = null;
   let clearReadSnapshot: (() => void) | null = null;
   const make = <K extends keyof HTMLElementTagNameMap>(
@@ -162,6 +184,10 @@ export async function mountCustomerSupport(
   // Compact chats keep progress, outcomes and delivery actions in one region
   // above the composer. The header bar shows opening until a real state settles.
   const chatState = make("div"), openingBar = make("span"), activityLine = make("div");
+  const activityArt = make("div"), activityCopy = make("div");
+  const activityText = make("span");
+  const activityIcon = compact?.activityIcon?.();
+  const sendMotion = compact?.sendMotion?.();
   const firstSendEstimate = make("span", "Your first encrypted send can take about a minute.");
   firstSendEstimate.className = styles.firstSendEstimate!;
   firstSendEstimate.hidden = true;
@@ -174,7 +200,12 @@ export async function mountCustomerSupport(
     header.replaceChildren(logo, compact.headerActions, openingBar);
     chatState.className = styles.chatState;
     chatState.setAttribute("role", "region"); chatState.setAttribute("aria-label", "Chat status");
-    activityLine.className = styles.activity; activityLine.setAttribute("role", "status"); activityLine.hidden = true;
+    activityLine.className = styles.activity;
+    activityLine.hidden = true;
+    activityCopy.className = styles.activityCopy;
+    activityText.setAttribute("role", "status");
+    activityCopy.append(activityText, firstSendEstimate);
+    activityLine.append(activityArt, activityCopy);
   }
   if (profile.custody === "customer") header.append(make("p",
     "Your workspace manages its key backups. If all approved keys and backups are lost, Templ cannot restore this chat."));
@@ -385,7 +416,7 @@ export async function mountCustomerSupport(
     actions.replaceChildren(update);
     if (compact.sharingHost) compact.sharingHost.append(offered);
     form.replaceChildren(compact.composerOptions, compact.sharingHost ? selectedDetails : offered, composeRow, noteLabel, actions);
-    chatState.append(activityLine, firstSendEstimate, progress, status, check, retry);
+    chatState.append(activityLine, progress, status, check, retry);
     form.before(chatState);
 
     if (compact.noticeArea) messages.after(compact.noticeArea);
@@ -414,7 +445,7 @@ export async function mountCustomerSupport(
     // A background retry of history that never loaded keeps the failure visible.
     const view = shown.length || outgoing ? "history" : settling || (historyLoading && !historyBlocked) ? "opening"
       : historyBlocked && (!readFlight || !historyLoaded) ? "failed" : "empty";
-    const loading = busy || reconnecting || historyLoading;
+    const loading = activity !== "send" && (busy || reconnecting || historyLoading);
     // Each line names only the work that is running now.
     const label = activity === "send" ? sendLabels[sendPhase]
       : activity === "check" ? "Checking delivery"
@@ -428,11 +459,18 @@ export async function mountCustomerSupport(
     if (scene) {scene.hidden = view !== "opening"; messages.hidden = view === "opening";}
     if (activityLine.dataset.label !== label) {
       activityLine.dataset.label = label;
-      // A new node restarts the padlock's short motion for each new state.
-      activityLine.replaceChildren(...(label ? [...(compact.activityIcon ? [compact.activityIcon()] : []), make("span", `${label}…`)] : []));
+      activityText.textContent = label ? `${label}…` : "";
     }
     activityLine.hidden = !label;
-    firstSendEstimate.hidden = activity !== "send" || !firstSendInFlight;
+    const firstSend = activity === "send" && firstSendInFlight;
+    firstSendEstimate.hidden = !firstSend;
+    activityLine.toggleAttribute("data-first-send", firstSend);
+    if (sendMotion && firstSend) {
+      sendMotion.dataset.phase = sendPhase;
+      if (activityArt.firstChild !== sendMotion) activityArt.replaceChildren(sendMotion);
+    } else if (activityArt.firstChild !== activityIcon) {
+      activityArt.replaceChildren(...(activityIcon ? [activityIcon] : []));
+    }
     if (view === "empty" && compact.welcome && !query.value) {if (!welcome.isConnected) messages.append(welcome);}
     else welcome.remove();
   };
@@ -577,7 +615,7 @@ export async function mountCustomerSupport(
             const entry = previousPending ? await store.get(previousPending.id) : undefined;
             if (!current() || connection !== previous || pending !== previousPending) return;
             if (previousPending && !entry) throw new EncryptionProtocolError("encryption-integrity");
-            const refreshed = await options.connect(keys, undefined, entry);
+            const refreshed = await connect(undefined, entry);
             if (!current() || connection !== previous || pending !== previousPending) return;
             if (JSON.stringify(refreshed.transport.case) !== JSON.stringify(previous.transport.case) ||
                 !Number.isSafeInteger(refreshed.transport.certificateExpiresAt) ||
@@ -634,6 +672,10 @@ export async function mountCustomerSupport(
         }
         if (!current() || selected !== connection) return;
         historyComplete = true; historyLoaded = true; historyBlocked = false;
+        if (options.onHistoryRead) {
+          const replies = shown.filter(row => row.audience === "conversation" && row.kind === "team-message");
+          options.onHistoryRead(selected.transport.case.conversation, Math.max(0, ...replies.map(row => row.at)));
+        }
         retry.hidden = true;
         progress.textContent = "";
         if (status.textContent === "Messages could not refresh. Check your access and try again.") status.textContent = "";
@@ -644,6 +686,7 @@ export async function mountCustomerSupport(
           draw();
           progress.textContent = "History could not load. Check your access and try again.";
           if (compact && !options.team) retry.hidden = false;
+          options.onHistoryError?.(error);
         }
         throw error;
       } finally {
@@ -788,7 +831,7 @@ export async function mountCustomerSupport(
       if (!connection) {
         sendPhase = "setup";
         syncView();
-        connection = await options.connect(keys, !options.existing ? sendId : undefined);
+        connection = await connect(!options.existing ? sendId : undefined);
       }
       if (!current()) return;
       outboxId = connection.opening ?? sendId;
@@ -884,7 +927,7 @@ export async function mountCustomerSupport(
       const refreshed = deliveryIcon && connection?.transport === unresolved.transport &&
         unresolved.transport.certificateExpiresAt > Date.now()
         ? connection
-        : await options.connect(keys, undefined, entry);
+        : await connect(undefined, entry);
       if (!current()) return;
       connection = refreshed;
       unresolved.transport = refreshed.transport;
@@ -956,7 +999,7 @@ export async function mountCustomerSupport(
   async function restoreConnection(unsettled: Awaited<ReturnType<typeof store.pending>>) {
     if (options.existing && current()) {
       if (!status.textContent) status.textContent = quiet("Connecting securely…");
-      connection = await options.connect(keys);
+      connection = await connect();
       if (!current()) return;
       await read();
       if (!current()) return;
@@ -964,7 +1007,7 @@ export async function mountCustomerSupport(
     if (unsettled.length) {
       const entry = unsettled.find(row => !connection || row.record.scope.conversation === connection.transport.case.conversation);
       if (entry) {
-        connection = await options.connect(keys, undefined, entry);
+        connection = await connect(undefined, entry);
         if (current()) {
           note.checked = options.team === true && entry.record.scope.audience === "team";
           pending = {id: entry.record.id, transport: connection.transport};

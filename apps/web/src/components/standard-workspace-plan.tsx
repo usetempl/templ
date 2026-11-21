@@ -1,9 +1,13 @@
 "use client";
 
+import { useState, type FormEvent } from "react";
 import { formatStandardAiRate } from "@templ/chat/standard-usage";
 
 import type { StandardPlanView } from "@templ/chat/standard-plan";
-import { PRODUCT_STANDARD_PRICES, PRODUCT_LIMITS } from "@templ/chat/plans";
+import { PRODUCT_STARTER_PRICES, PRODUCT_STANDARD_PRICES, PRODUCT_LIMITS, PRODUCT_TOP_UP } from "@templ/chat/plans";
+import { useChatAuth } from "@/lib/chat-auth";
+import { normalizeChatRoomId } from "@/lib/chat-room-id";
+import { saveStarterAiLimit } from "@/lib/product-client";
 import { formatDay, formatUsd } from "@/lib/product-format";
 import { WorkspaceAccessPlan } from "./workspace-access-plan";
 import { TalkToTempl } from "./talk-to-templ";
@@ -12,6 +16,7 @@ import styles from "./standard-workspace-plan.module.css";
 
 export function StandardWorkspacePlan({
   plan,
+  workspace,
   onPay,
   canPay = false,
 }: {
@@ -24,6 +29,10 @@ export function StandardWorkspacePlan({
   const paid = plan.status === "paid";
   const period = plan.period;
   const usage = paid ? period?.usage : undefined;
+  const startingPrice = plan.starterAvailable && (
+    !period || period.usage?.priceVersion === PRODUCT_STARTER_PRICES.publishedOn
+  ) ? PRODUCT_STARTER_PRICES : PRODUCT_STANDARD_PRICES;
+  const starterActive = plan.starterAiLimitCents !== undefined;
   const included = period?.includedAiResolutions ?? plan.includedAiResolutions;
   const aiPrice =
     period?.additionalAiResolutionCents ?? plan.additionalAiResolutionCents;
@@ -76,10 +85,13 @@ export function StandardWorkspacePlan({
     >
       <div className={styles.overview}>
         <p className={styles.price}>
+          {starterActive && <span>Starter</span>}
+          {paid && usage?.priceVersion === PRODUCT_STANDARD_PRICES.publishedOn && <span>Plus</span>}
+          {!paid && !agreedBilling && plan.starterAvailable && !period ? <span>From</span> : null}
           {formatUsd(
             period && (paid || agreedBilling)
               ? period.workspaceMonthlyCents
-              : PRODUCT_STANDARD_PRICES.workspaceMonthlyUsdCents,
+              : startingPrice.workspaceMonthlyUsdCents,
           )}
           <span>/month per workspace</span>
         </p>
@@ -197,31 +209,36 @@ export function StandardWorkspacePlan({
           {!customAgreement && (
             <div className={styles.group}>
               <h3>Included each month</h3>
+              {plan.starterAvailable && (
+                <p className={styles.note}>
+                  Choose Starter or Plus when you pay for a month. Both include all seats.
+                </p>
+              )}
               <div className={styles.stats}>
                 <Stat
                   label="Answered cases"
                   value={String(
-                    PRODUCT_STANDARD_PRICES.includedAnsweredCasesPerMonth,
+                    startingPrice.includedAnsweredCasesPerMonth,
                   )}
                 />
                 <Stat
                   label="AI credit"
                   value={formatUsd(
-                    PRODUCT_STANDARD_PRICES.includedAiCreditUsdCents,
+                    startingPrice.includedAiCreditUsdCents,
                   )}
                 />
               </div>
               <p className={styles.note}>
                 Extra answered cases cost{" "}
                 {formatUsd(
-                  PRODUCT_STANDARD_PRICES.additionalAnsweredCaseUsdCents,
+                  startingPrice.additionalAnsweredCaseUsdCents,
                 )}{" "}
                 each.
               </p>
               <p className={styles.note}>
-                AI use costs {formatStandardAiRate(PRODUCT_STANDARD_PRICES)}×
-                GPT-6.1 Sol’s standard API rates. This includes the use covered
-                by your credit.
+                {startingPrice === PRODUCT_STARTER_PRICES
+                  ? "Starter includes no Templ AI credit. Add prepaid USDC and set a monthly limit to use Templ AI."
+                  : `AI use costs ${formatStandardAiRate(startingPrice)}× GPT-6.1 Sol’s standard API rates.`}
               </p>
             </div>
           )}
@@ -263,6 +280,14 @@ export function StandardWorkspacePlan({
           )}
         </>
       )}
+      {period && workspace && plan.starterAiLimitCents !== undefined && (
+        <StarterAiLimit
+          key={`${workspace}:${period.id}:${plan.starterAiLimitCents}`}
+          workspace={workspace}
+          period={period.id}
+          initialCents={plan.starterAiLimitCents}
+        />
+      )}
       {prepaid && (
         <div className={styles.group}>
           <h3>Available funds</h3>
@@ -281,7 +306,9 @@ export function StandardWorkspacePlan({
           <p className={styles.note}>
             {agreedBilling
               ? "USDC pays recorded charges first. The rest stays as credit. Your agreed rates and credit terms stay unchanged."
-              : currentPrepaid
+              : starterActive
+                ? "Extra answered cases and Templ AI use prepaid USDC. Your AI limit applies only to Templ AI."
+                : currentPrepaid
                 ? "AI work uses included credit first, then prepaid USDC. AI pauses when funds cannot cover the next request."
                 : paid
                   ? "Added USDC stays in your prepaid balance. It does not change this month’s recorded billing terms."
@@ -334,5 +361,64 @@ export function StandardWorkspacePlan({
         </p>
       )}
     </Card>
+  );
+}
+
+function StarterAiLimit({ workspace, period, initialCents }: {
+  workspace: string;
+  period: string;
+  initialCents: number;
+}) {
+  const auth = useChatAuth();
+  const [saved, setSaved] = useState(initialCents);
+  const [dollars, setDollars] = useState(String(initialCents / 100));
+  const [status, setStatus] = useState("");
+  const [busy, setBusy] = useState(false);
+  const cents = /^\d{1,5}(?:\.\d{1,2})?$/.test(dollars.trim())
+    ? Math.round(Number(dollars) * 100)
+    : null;
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (busy || cents === null || cents > PRODUCT_TOP_UP.maxUsdCents) return;
+    setBusy(true);
+    setStatus("");
+    try {
+      const result = await saveStarterAiLimit(
+        auth.session?.principalId,
+        normalizeChatRoomId(workspace),
+        { cents, expectedCents: saved, expectedPeriod: period },
+      );
+      setSaved(result.cents);
+      setStatus("AI limit saved.");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Could not save the AI limit.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <form className={styles.group} onSubmit={(event) => void submit(event)}>
+      <h3>Templ AI spending limit</h3>
+      <label>
+        Monthly limit in US dollars
+        <input
+          type="number"
+          value={dollars}
+          min={0}
+          max={PRODUCT_TOP_UP.maxUsdCents / 100}
+          step="0.01"
+          onChange={(event) => setDollars(event.target.value)}
+        />
+      </label>
+      <p className={styles.note}>Set $0 to stop new Templ AI requests. Requests already running can finish.</p>
+      <div className={styles.actions}>
+        <button type="submit" className="button" disabled={busy || cents === null || cents === saved || cents > PRODUCT_TOP_UP.maxUsdCents}>
+          Save AI limit
+        </button>
+        <p role="status">{status}</p>
+      </div>
+    </form>
   );
 }

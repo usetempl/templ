@@ -1,5 +1,6 @@
-import { customerBillingManagedByTempl } from "./customer-debt-access";
+import { billingManagedForWorkspace } from "./customer-debt-access";
 import { standardPlanRecords, standardPlanView } from "./product-standard-plan";
+import { setStarterAiLimit } from "./product-prepaid";
 import {
   releaseIdentity,
   nativeReleaseSourceHeaders,
@@ -62,7 +63,7 @@ type RouteStorage = ProductStorage &
     "get" | "list" | "delete" | "getAlarm" | "setAlarm"
   >;
 const PATH =
-  /^\/product(?:\/(standard|usage|runtime|receipts|budget|statement|activity|card\/(?:setup|portal|method)|finance-email(?:\/verify)?|charges(?:\/([0-9a-f]{16})\/dispute)?|crypto\/(?:prepare|receipt|requests|check|transaction)))?$/;
+  /^\/product(?:\/(standard|starter-ai-limit|usage|runtime|receipts|budget|statement|activity|card\/(?:setup|portal|method)|finance-email(?:\/verify)?|charges(?:\/([0-9a-f]{16})\/dispute)?|crypto\/(?:prepare|receipt|requests|check|transaction)))?$/;
 const MONTH = /^\d{6}$/;
 
 /** `/product*` in a workspace's room: the plan view for everyone who
@@ -142,8 +143,8 @@ export async function productRoute(
   if (!canManage)
     throw new HttpError(403, "Billing access is required to manage this plan.");
   const section = match[1];
-  if (customerBillingManagedByTempl(input.room) && [
-    "standard", "usage", "receipts", "charges", "budget", "statement",
+  if (await billingManagedForWorkspace(storage, input.room) && [
+    "standard", "starter-ai-limit", "usage", "receipts", "charges", "budget", "statement",
     "finance-email", "crypto/requests", "crypto/prepare", "card/checkout",
   ].includes(section ?? ""))
     throw new HttpError(403, "Billing is handled by Templ.");
@@ -219,6 +220,14 @@ export async function productRoute(
       200,
       nativeReleaseSourceHeaders(input.env),
     );
+  if (section === "starter-ai-limit" && input.method === "POST") {
+    requirePrivilegedHeaders(input.headers, input.body.confirmed, input.nowMs);
+    const plan = standardPlanForState(await readProductState(storage, input.nowMs, input.env));
+    if (plan?.starterAiLimitCents === undefined || plan.period?.id !== input.body.expectedPeriod)
+      throw new HttpError(409, "Reload your active Starter plan before changing its AI limit.");
+    const cents = await setStarterAiLimit(storage, input.body.cents, input.body.expectedCents);
+    return json({ cents });
+  }
   if (section === "usage" && input.method === "GET")
     return json(
       await usageRows(storage, {

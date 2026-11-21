@@ -1,4 +1,6 @@
-import type { TailHost } from "./support-widget";
+import type { TeamConversationList } from "@templ/chat/index";
+import type { memberConversations } from "./support-widget-conversations";
+import type { TailHost, createSupportClient } from "./support-widget";
 type Controls = {
   disclosure: HTMLDetailsElement;
   people: HTMLDetailsElement;
@@ -6,19 +8,30 @@ type Controls = {
   note: HTMLElement;
   title?: HTMLElement;
   subtitle?: HTMLElement;
+  roster: HTMLElement;
+  avatars: HTMLElement;
+  shareDetails?: HTMLButtonElement;
+  identity?: string;
   placeholder: string;
   action?: string;
+  conversations?: ReturnType<typeof memberConversations>;
+  history?: HTMLDetailsElement;
+  newConversation?: HTMLButtonElement;
 };
 const controls = new WeakMap<TailHost, Controls>();
-export const CONVERSATION_STYLE =
-  ".chat-people{flex:1;min-width:0}.chat-people>summary{display:flex;flex-direction:column;justify-content:center;min-height:44px;cursor:pointer;list-style:none}.chat-people>summary::-webkit-details-marker,.chat-options>summary::-webkit-details-marker{display:none}.chat-people>summary>span{color:var(--m);font-size:12px;line-height:1.4}.chat-options>summary{display:grid;place-items:center;cursor:pointer;list-style:none;width:36px;height:44px;border-radius:50%;font-size:25px;color:var(--m)}.chat-options>summary:hover,.chat-options[open]>summary{background:var(--s2);color:var(--t)}.chat-menu,.chat-people-menu{position:absolute;right:8px;top:calc(100% - 2px);width:264px;max-width:calc(100% - 16px);max-height:calc(100dvh - 90px);overflow:auto;z-index:5;padding:8px;background:var(--bg);border:1px solid var(--b2);border-radius:12px;box-shadow:0 8px 24px var(--shc);display:grid;gap:4px}.chat-menu .tools{display:grid;gap:0}.chat-menu .tools button,.chat-menu>button,.chat-people-menu>button{display:block;width:100%;min-height:44px;margin:0;padding:10px 12px;text-align:left;border-radius:8px;font-size:14px;font-weight:400}.chat-menu button:hover:not(:disabled),.chat-people-menu button:hover{background:var(--s2)}.chat-menu .options-note{font-size:12px;color:var(--m);padding:8px 12px}.chat-menu .return-chat,.chat-people-menu .return-chat{border-top:1px solid var(--b);font-weight:500}.chat-feedback{padding:6px 12px;font-size:12px;color:var(--m);background:var(--s)}.chat-roster{display:grid;padding:4px 8px}.chat-roster div{display:flex;align-items:center;gap:12px;min-height:52px}.chat-roster i{font-style:normal;display:grid;place-items:center;flex:0 0 36px;height:36px;border-radius:50%;background:var(--s2);font-size:12px}.chat-roster b,.chat-roster small{display:block;font-size:14px;font-weight:500}.chat-roster small{font-size:12px;color:var(--m);font-weight:400}.chat-people-menu>.sub{padding:8px 12px;white-space:normal;font-size:12px}.conversation-chat .head{position:relative;background:var(--bg);gap:8px;padding:8px 12px}.conversation-chat .titles strong{font-size:15px;font-weight:600}.conversation-chat .avatar{width:36px;height:36px;border-radius:50%}.conversation-chat .avatar.logo{border-radius:0;background:transparent}.conversation-chat .body{background:var(--s);padding:10px 12px 16px}.conversation-chat .body>.safety,.conversation-chat .starter,.conversation-chat .suggestions,.conversation-chat .tail[data-state=hatch]{display:none}.conversation-chat .messages{gap:10px}.conversation-chat .message{padding:8px 11px 5px;border-radius:14px 14px 14px 4px;background:var(--bg);box-shadow:0 1px 1px var(--shc);font-size:14px;font-weight:400;line-height:1.45;letter-spacing:normal}.conversation-chat .message.own{border-radius:14px 14px 4px 14px;background:var(--s2);box-shadow:none}.conversation-chat .message.own[data-grouped=true]{margin-top:-7px;border-top-right-radius:5px}.conversation-chat .message time{font-size:10px;line-height:1.2;margin-top:3px}.conversation-chat .composer{background:var(--s);border:0;border-radius:24px}.conversation-chat .form{padding:6px 10px 10px}.conversation-chat .send{border-radius:50%}.conversation-chat .chat-empty{text-align:center;color:var(--m);font-size:12px;padding:40px 0 20px}.chat-day{align-self:center;margin:6px auto 14px;padding:3px 10px;border-radius:20px;background:var(--b);color:var(--t);font-size:11px;font-weight:500}";
-
+const calendarDay = new Intl.DateTimeFormat("en-GB", {
+  day: "numeric",
+  month: "long",
+});
 /** Presentation only. Existing authenticated handlers stay on their buttons. */
 export function chatFirstControls(
   host: TailHost,
   tools: HTMLElement,
-  handedOff: boolean,
+  peopleView: typeof import("./support-widget-people"),
+  _handedOff: boolean,
   busy: boolean,
+  style = "",
+  listModule?: typeof import("./support-widget-conversations"),
 ) {
   const enabled =
     host.options.chatFirst === true && host.policy?.chatFirst === true;
@@ -26,14 +39,21 @@ export function chatFirstControls(
   if (!enabled) {
     if (state?.disclosure.isConnected) {
       const panel = state.disclosure.closest(".panel");
-      panel?.classList.remove("conversation-chat");
-      for (const node of panel?.querySelectorAll(".chat-empty,.chat-day") ?? [])
+      panel?.classList.remove("conversation-chat", "conversation-drawers");
+      for (const node of panel?.querySelectorAll(".chat-empty,.chat-day,.delivery-status") ?? [])
         node.remove();
       if (state.title) {
         state.people.before(state.title);
         if (state.subtitle) state.title.append(state.subtitle);
       }
       state.disclosure.before(tools);
+      state.newConversation?.remove();
+      state.history?.remove();
+      if (state.shareDetails) {
+        state.shareDetails.textContent = "+";
+        state.shareDetails.setAttribute("aria-label", "Add details");
+        host.draft.before(state.shareDetails);
+      }
       state.disclosure.remove();
       state.people.remove();
       state.feedback.remove();
@@ -42,46 +62,45 @@ export function chatFirstControls(
     return false;
   }
   if (!state) {
-    host.style.textContent += CONVERSATION_STYLE;
+    host.style.textContent += style;
     const disclosure = host.el("details", undefined, "chat-options"),
-      more = host.el("summary", "⋮");
+      more = host.el("summary", "Menu");
     more.setAttribute("aria-label", "Chat options");
     const menu = host.el("div", undefined, "chat-menu");
     menu.setAttribute("role", "group");
     menu.setAttribute("aria-label", "Conversation options");
     const people = host.el("details", undefined, "chat-people"),
       summary = host.el("summary");
+    const panel = tools.closest(".panel");
+    const drafting = () => !!panel?.querySelector(".return-case p");
+    const drawer = host.options.conversationDrawers && listModule?.conversationDrawer(host, () => {
+      if (!host.policy?.newConversation || drafting() || host.draft.value.trim()) return;
+      close();
+      if (host.thread?.()) host.newCase?.(true);
+    });
+    const history = drawer ? drawer.history : undefined;
     summary.setAttribute("aria-label", "Conversation participants");
     const roster = host.el("div", undefined, "chat-roster"),
       peopleMenu = host.el("div", undefined, "chat-people-menu");
+    const avatars = host.el("span", undefined, "chat-avatars");
+    avatars.setAttribute("aria-hidden", "true");
     peopleMenu.setAttribute("aria-label", "Participants");
-    for (const [name, role, initial] of [
-      ["You", "Your messages", "Y"],
-      ["AI", "AI assistant", "AI"],
-      ["Founder", "Human support", "F"],
-    ]) {
-      const row = host.el("div"),
-        label = host.el("span");
-      label.append(host.el("b", name), host.el("small", role));
-      row.append(host.el("i", initial), label);
-      roster.append(row);
-    }
     const note = host.el("p", undefined, "options-note"),
       feedback = host.el("p", undefined, "chat-feedback");
     feedback.setAttribute("role", "status");
     feedback.hidden = true;
     const close = () => {
       disclosure.open = people.open = false;
+      if (history) history.open = false;
       host.draft.focus();
     };
-    for (const [details, body] of [
-      [disclosure, menu],
-      [people, peopleMenu],
-    ] as const) {
-      const back = host.el("button", "Back to chat", "return-chat");
-      back.type = "button";
-      back.addEventListener("click", close);
-      body.append(back);
+    for (const details of [disclosure, people, ...(history ? [history] : [])]) {
+      if (!drawer) {
+        const back = host.el("button", "Back to chat", "return-chat");
+        back.type = "button";
+        back.addEventListener("click", close);
+        (details === disclosure ? menu : peopleMenu).append(back);
+      }
       details.addEventListener("keydown", (event) => {
         if (event.key === "Escape") {
           event.preventDefault();
@@ -90,20 +109,49 @@ export function chatFirstControls(
         }
       });
       details.addEventListener("toggle", () => {
-        if (details.open)
-          (details === people ? disclosure : people).open = false;
+        if (!details.open) return;
+        if (details === people && host.policy?.supportProfiles) peopleView.refreshContacts(host);
+        for (const other of [disclosure, people, history])
+          if (other && other !== details) other.open = false;
       });
     }
     peopleMenu.prepend(roster);
     menu.prepend(note);
     disclosure.append(more, menu);
     people.append(summary, peopleMenu);
+    const selected = () => drawer && drafting() ? null : host.thread?.();
+    const client = host.client as Partial<ReturnType<typeof createSupportClient>>;
+    const threadList = listModule && client.adopt && host.showCase && panel instanceof HTMLElement
+      ? listModule.memberConversations({
+          workspace: host.options.workspace,
+          menu: history ?? disclosure,
+          trigger: drawer ? drawer.trigger : more,
+          actions: tools,
+          ...(history ? { drawer: { drafting } } : {}),
+          principal: () => host.client.session?.principalId,
+          selected,
+          active: () => panel.isConnected && !panel.hidden && !document.hidden,
+          load: cursor => client.adopt!()[1]<TeamConversationList>(listModule.memberConversationsPath(cursor)),
+          open: async row => {
+            if (host.draft.value.trim()) return false;
+            await host.showCase!(row.id);
+            return selected() === row.id;
+          },
+          focusChat: () => host.draft.focus(),
+        })
+      : undefined;
     state = {
       disclosure,
       people,
       feedback,
       note,
+      roster,
+      avatars,
+      history: threadList ? history : undefined,
+      newConversation: drawer ? drawer.button : undefined,
+      shareDetails: host.draft.closest(".composer")?.querySelector<HTMLButtonElement>("button[aria-controls]") ?? undefined,
       placeholder: host.draft.placeholder,
+      conversations: threadList,
     };
     controls.set(host, state);
     tools.addEventListener(
@@ -112,9 +160,9 @@ export function chatFirstControls(
         if (host.options.chatFirst !== true || host.policy?.chatFirst !== true)
           return;
         const button = (event.target as HTMLElement).closest("button");
-        if (!button || button.disabled) return;
-        state!.action =
-          button === host.firstPerson
+        if (!button || button.disabled || button.hasAttribute("data-conversation-list")) return;
+        state!.action = button === state!.shareDetails ? undefined
+          : button === host.firstPerson
             ? "Requesting the team…"
             : button === host.emailButton
               ? "Opening email options…"
@@ -123,13 +171,15 @@ export function chatFirstControls(
       },
       true,
     );
-    const panel = tools.closest(".panel");
     panel?.addEventListener("pointerdown", (event) => {
       if (
         !disclosure.contains(event.target as Node) &&
-        !people.contains(event.target as Node)
-      )
+        !people.contains(event.target as Node) &&
+        !history?.contains(event.target as Node)
+      ) {
         disclosure.open = people.open = false;
+        if (history) history.open = false;
+      }
     });
   }
   if (!state.disclosure.isConnected) {
@@ -140,46 +190,96 @@ export function chatFirstControls(
     state.subtitle = title?.querySelector<HTMLElement>(".sub") ?? undefined;
     if (state.subtitle)
       state.people.querySelector(".chat-people-menu")!.append(state.subtitle);
-    summary.replaceChildren(
-      title ?? host.el("strong", host.options.label ?? "Support"),
-      host.el("span", "You, AI, Founder"),
-    );
+    summary.replaceChildren(state.avatars);
+    if (!host.options.conversationDrawers)
+      summary.append(title ?? host.el("strong", host.options.label ?? "Support"));
     tools.before(state.people, state.disclosure);
     state.disclosure.querySelector(".chat-menu")!.prepend(tools);
+    if (state.history) state.people.before(state.history);
+    else if (state.conversations)
+      tools.after(state.conversations.list);
+    if (state.shareDetails) tools.prepend(state.shareDetails);
+    if (state.newConversation) tools.prepend(state.newConversation);
     header.after(state.feedback);
     const panel = header.closest(".panel");
     panel?.classList.add("conversation-chat");
-    panel
-      ?.querySelector(".body")
-      ?.prepend(host.el("div", "Start a conversation", "chat-empty"));
+    if (host.options.conversationDrawers) panel?.classList.add("conversation-drawers");
+    const intro = host.options.intro;
+    const titleText = typeof intro?.title === "string" ? intro.title.trim().slice(0, 80) : "";
+    const welcome = host.el("div", titleText ? undefined : "How can we help?", "chat-empty");
+    if (titleText) {
+      welcome.append(host.el("strong", titleText));
+      if (typeof intro?.text === "string" && intro.text.trim())
+        welcome.append(host.el("p", intro.text.trim().slice(0, 200)));
+    }
+    panel?.querySelector(".body")?.prepend(welcome);
   }
-  const panel = state.disclosure.closest(".panel"),
+  const panel = state.disclosure.closest<HTMLElement>(".panel"),
     empty = panel?.querySelector<HTMLElement>(".chat-empty");
   if (empty) empty.hidden = !!panel?.querySelector(".message:not(.tail)");
+  if (state.newConversation) {
+    state.newConversation.hidden = host.policy?.newConversation !== true;
+    state.newConversation.disabled = busy || !!host.draft.value.trim() || !!panel?.querySelector(".return-case p");
+  }
+  void state.conversations?.refresh();
   host.draft.placeholder = "Message";
   state.disclosure.hidden = host.draft.closest("form")?.hidden ?? false;
+  const level = host.client.session?.level;
+  const templSupport = host.options.workspace === "01a0fe6b-fccc-7633-b0e8-bcb29c000ebb";
+  if (templSupport && !host.options.decorateOwnMenu && !state.disclosure.querySelector("a")) {
+    const history = host.el("a", "Encrypted history");
+    history.href = "https://secure-support.usetempl.com/#encrypted-history";
+    history.target = "_blank"; history.rel = "noopener noreferrer";
+    state.disclosure.querySelector(".chat-menu")?.append(history);
+  }
+  const assistant = templSupport || Boolean(panel?.querySelector(".message[data-assistant]"));
+  const team = host.options.label ?? "Support";
+  const contacts = peopleView.workspaceContacts(host);
+  const identity = JSON.stringify([level, assistant, team, contacts]);
+  if (state.identity !== identity) {
+    state.identity = identity;
+    const example = templSupport || panel?.dataset.demo === "conversation";
+    const visitor = level === "signed" ? "Verified wallet"
+      : level === "connected" ? "Connected wallet" : "Anonymous User";
+    const people: [string, string, string, (string | null)?][] = [
+      ["You", visitor, "Y"],
+    ];
+    if (contacts) people.push(...contacts);
+    else {
+      people.push(example ? ["Founder", "Marco Worms", "F"] : ["Team", team, "T"]);
+      if (assistant) people.push([example ? "Templ AI" : "AI assistant", "Support assistant", "AI"]);
+    }
+    peopleView.renderPeople(host, state.roster, state.avatars, people);
+  }
   for (const button of tools.querySelectorAll("button")) {
+    if (button.hasAttribute("data-conversation-list")) continue;
+    if (button === host.firstPerson) {
+      button.hidden = true;
+      continue;
+    }
     const text =
-      button === host.firstPerson
-        ? handedOff
-          ? "Team requested"
-          : "Ask the team"
+      button === state.shareDetails
+        ? "Share details"
         : button === host.emailButton
-          ? "Email replies"
+          ? "Notify me when answered"
           : host.client.session?.level === "signed"
             ? "Sign out"
             : "Verify wallet";
-    button.replaceChildren(document.createTextNode(text));
+    const label = document.createTextNode(text);
+    if (state.history) {
+      const icon = host.icon(button === state.shareDetails || button === host.emailButton ? "chat" : "wallet");
+      button.replaceChildren(icon, label);
+    } else button.replaceChildren(label);
     button.setAttribute("aria-label", text);
     button.removeAttribute("title");
   }
-  const level = host.client.session?.level;
   state.note.textContent =
     level === "signed"
       ? "Wallet ownership verified."
       : level === "connected"
         ? "Wallet connected. Ownership not verified."
-        : "You can chat without verifying a wallet.";
+        : templSupport && host.options.decorateOwnMenu ? "" : "You can chat without verifying a wallet.";
+  state.note.hidden = !state.note.textContent;
   if (!busy) {
     const error = panel?.querySelector<HTMLElement>(".error");
     if (
@@ -200,31 +300,42 @@ export function chatFirstControls(
     body && body.scrollHeight - body.scrollTop - body.clientHeight < 72;
   for (const node of log?.querySelectorAll(".chat-day") ?? []) node.remove();
   let previous = "",
-    own = false;
-  for (const row of log?.querySelectorAll<HTMLElement>(".message") ?? []) {
+    own = false,
+    lastReplyAt = 0;
+  for (const row of log?.querySelectorAll<HTMLElement>(".message:not(.tail)") ?? []) {
     const time = row.querySelector("time"),
       date = new Date(time?.dateTime ?? "");
+    if (row.matches(".own[data-client-id]") && !row.querySelector(".delivery-status")) {
+      const pending = row.querySelector(".state");
+      if (pending && !pending.classList.contains("failed")) {
+        const clock = host.el("span", undefined, "delivery-status delivery-clock");
+        clock.setAttribute("aria-hidden", "true");
+        pending.prepend(clock);
+      } else if (time && !pending) {
+        const tick = host.el("span", "✓", "delivery-status");
+        tick.setAttribute("role", "img"); tick.setAttribute("aria-label", "Sent");
+        time.append(tick);
+      }
+    }
     if (!Number.isFinite(date.getTime())) continue;
     const day = date.toDateString(),
       member = row.classList.contains("own");
+    if (!member)
+      lastReplyAt = Math.max(lastReplyAt, date.getTime());
     row.dataset.grouped = String(own && member && previous === day);
     own = member;
     if (previous !== day)
       row.before(
         host.el(
           "div",
-          day === new Date().toDateString()
-            ? "Today"
-            : date.toLocaleDateString(undefined, {
-                month: "long",
-                day: "numeric",
-                year: "numeric",
-              }),
+          calendarDay.format(date),
           "chat-day",
         ),
       );
     previous = day;
   }
+  const shown = host.thread?.();
+  if (shown) state.conversations?.read(shown, lastReplyAt);
   if (nearEnd) body.scrollTop = body.scrollHeight;
   return true;
 }

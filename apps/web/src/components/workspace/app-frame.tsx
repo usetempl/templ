@@ -10,8 +10,8 @@ import {
   IconChevronDown,
   IconChevronUp,
   IconCopy,
-  IconHelpCircle,
   IconKey,
+  IconSettings,
   IconLayoutGrid,
   IconLogout,
   IconMenu2,
@@ -27,8 +27,6 @@ import { isChatSignInCanceled } from "@/lib/chat-auth-cancellation";
 import { memberLabel, useMemberProfiles } from "@/lib/member-profiles";
 import { useWallet, walletError } from "@/lib/wallet";
 import { TemplLogo } from "@/components/brand/templ-mark";
-import { AppThemeChoice } from "@/components/app-theme";
-import { TemplSupportButton } from "@/components/templ-support";
 import { PROFILE_SETTINGS_EVENT } from "@/components/profile-settings-event";
 import { Identicon } from "@/components/ui/identicon";
 import { WorkspaceFollowButton } from "./workspace-follow";
@@ -356,6 +354,9 @@ export function AccountMenu({
             )}{" "}
             {copied ? "Account ID copied" : "Copy account ID"}
           </button>
+          <Link href="/settings" role="menuitem" className={styles.menuItem}>
+            <IconSettings aria-hidden="true" /> Settings
+          </Link>
           <Link
             href="/settings/account"
             role="menuitem"
@@ -521,15 +522,6 @@ export function AppFrame({
           {rail}
         </div>
         <div className={styles.railFoot}>
-          <AppThemeChoice />
-          <TemplSupportButton
-            className={styles.navItem}
-            label="Help and feedback"
-            icon={false}
-          >
-            <IconHelpCircle aria-hidden="true" />
-            <span className={styles.navText}>Help and feedback</span>
-          </TemplSupportButton>
           <AccountMenu workspace={workspace} />
         </div>
       </aside>

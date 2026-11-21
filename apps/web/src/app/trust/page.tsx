@@ -31,7 +31,7 @@ export default async function TrustPage() {
       title="Trust"
       description="What Templ never does, who can read a case, who gets your data and how long it stays."
       active="trust"
-      updated="10 November 2026"
+      updated="20 November 2026"
     >
       <PolicySection title="What Templ never does" id="never">
         <p>Support messages cannot move funds or ask your wallet to sign.</p>
@@ -87,13 +87,13 @@ export default async function TrustPage() {
             history, notes, screenshots, search and exports.
           </p>
           <p>
-            Access checks apply to every case. Ordinary customer cases are not
-            end-to-end encrypted. On Templ’s encrypted support page, messages are
-            encrypted before they reach the message API and storage. Templ’s
-            support team and its security and recovery service can read them.
-            When AI is enabled, Templ’s AI and its model provider can read the
-            chat. The page identifies that protection before you send; older
-            cases keep their original format.
+            Templ’s servers process Standard chat messages. In a customer-
+            controlled encrypted chat, approved endpoints use the workspace’s
+            keys to read messages. The customer controls its recovery keys and
+            backups. For Templ’s own encrypted support, Templ operates the team
+            and recovery service. An authorized AI endpoint can share permitted
+            content with its model provider. With AI off, agents cannot read or
+            work on the case. Earlier messages keep their original protection.
           </p>
         </div>
       </PolicySection>
@@ -120,7 +120,7 @@ export default async function TrustPage() {
       <PolicySection title="Service providers" id="providers">
         <p>These providers receive only the data listed for their work.</p>
         <p>
-          The status shows what runs today.{" "}
+          A service can be live for one workspace while another uses a different provider or has AI off.{" "}
           <Link href="/availability">Feature availability</Link> lists every
           feature and whether it&apos;s on.
         </p>

@@ -30,8 +30,8 @@
 .launcher {
   composes: button primary from "./ui/design-system.module.css";
   position: fixed;
-  right: 20px;
-  bottom: 36px;
+  right: var(--site-chat-edge);
+  bottom: var(--site-chat-edge);
   z-index: 2147483000;
   gap: var(--site-action-gap);
   min-height: var(--site-action-height);
@@ -52,13 +52,59 @@
   outline: var(--templ-focus-width) solid var(--templ-focus);
   outline-offset: var(--templ-focus-offset);
 }
-@media (max-width: 480px) {
-  .launcher {
-    right: 16px;
-    bottom: max(16px, env(safe-area-inset-bottom));
-  }
+.chatContent,
+.chatContent > div {
+  width: 100%;
+  height: 100%;
 }
-
+.chatContent[inert] {
+  visibility: hidden;
+  opacity: 0;
+}
+:global(html:not([data-templ-open-support])) .startupPanel[data-startup]:not(:target) {
+  display: none;
+}
+.opening {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  background: #fafbf9;
+  color: #242728;
+}
+.opening header {
+  display: flex;
+  min-height: 64px;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid #d7dcd8;
+  font-size: 15px;
+}
+.opening header strong {
+  flex: 1;
+}
+.opening header :is(button, a) {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: var(--site-corner-radius);
+  background: transparent;
+  color: inherit;
+  font-size: 24px;
+  text-decoration: none;
+  cursor: pointer;
+}
+.openingStatus {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  font-size: 15px;
+}
 .spinner {
   width: 24px;
   height: 24px;

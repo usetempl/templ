@@ -1,6 +1,6 @@
 import { appAnswerAllowed, appAnswerAlarm, reportAppAnswerFailure } from "./app-ai-replies";
 import { ENCRYPTION_ACCESS_REVISION, revokeEncryptionPrincipal, revokeEncryptionRole } from "./support-encryption-access";
-import { ENCRYPTION_DELETION_REVISION, requireOwnWidgetWallet } from "./support-encryption";
+import { ENCRYPTION_DELETION_REVISION, ownNewChatMode, requireOwnWidgetWallet } from "./support-encryption";
 import { OWN_SUPPORT_ENDPOINT } from "@templ/e2ee/protocol";
 import { advanceOwnAuthority, revokeOwnDevice, OWN_AUTHORITY_CHECKPOINT } from "./own-encryption-control";
 import { hostedPrepaidPrincipal, reservePrepaidAi, settlePrepaidAi } from "./product-prepaid-ai";
@@ -1161,6 +1161,15 @@ export class ChannelRoom {
           }),
         });
       }
+      if (url.pathname === "/private/support/own-new-chat-mode" && request.method === "POST") {
+        return this.state.storage.transaction(async local => {
+          const storage = await supportStorage(local, env, this.state.id?.toString() ?? "");
+          const native = await storage.get<NativeRoomRecord>("native-room");
+          if (!native || native.room.id !== OWN_SUPPORT_ENDPOINT.workspace || native.room.id !== (env as Env).TEMPL_SUPPORT_WORKSPACE)
+            throw new HttpError(404, "Workspace not found.");
+          return json({ mode: await ownNewChatMode(storage, (env as Env).OWN_SUPPORT_ENCRYPTION_ROOT) });
+        });
+      }
       if (url.pathname === "/private/support/own-encrypted-wallet-auth" && request.method === "POST") {
         const input = await readJson(request);
         if (Object.keys(input).length !== 1 || typeof input.origin !== "string")
@@ -1360,7 +1369,9 @@ export class ChannelRoom {
         );
       if (nativeControl && request.method === "POST") {
         const body =
-          nativeControl[1] === "read" ? {} : await readJson(request, 24_000);
+          nativeControl[1] === "read"
+            ? { visitorReplyPolicy: request.headers.get("X-Widget-Reply-Policy") === "1" }
+            : await readJson(request, 24_000);
         const op = nativeControl[1];
         let committed: ChatEvent[] = [];
         const response = await this.state.storage.transaction(

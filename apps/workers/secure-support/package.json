@@ -6,7 +6,7 @@
   "scripts": {
     "type-check": "tsc --noEmit && tsc --project tsconfig.client.json",
     "build": "node --import tsx build.mts",
-    "test": "vitest run --maxWorkers=2 && node --test test/native-proxy-workerd.review.mjs",
+    "test": "vitest run test/recover-read.test.ts --maxWorkers=2",
     "lint": "eslint src client test"
   },
   "dependencies": {

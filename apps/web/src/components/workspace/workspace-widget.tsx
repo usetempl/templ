@@ -283,14 +283,14 @@ const support = mountSupportWidget({
     <div className={styles.page}>
       <PageHeader
         eyebrow="Widget"
-        title="Add support to your app"
-        description="Copy the install prompt and paste it into your AI coding tool."
+        title="Set up visitor chat"
+        description="Embed chat in your app, share a standalone support page, or use both with this workspace."
         actions={
           <a
             className="button secondary"
-            href={`${SITE.docs}/developers/widget`}
+            href={`${SITE.docs}/install`}
           >
-            <IconBook aria-hidden="true" /> Widget guide
+            <IconBook aria-hidden="true" /> Setup guide
           </a>
         }
       />
@@ -302,18 +302,17 @@ const support = mountSupportWidget({
           </Callout>
         )}
 
+        <WidgetJourneySettings context={context} />
+
         <Card
-          title={
-            <span className={styles.stepHead}>
-              <span className={styles.stepNumber}>1</span> Copy install prompt
-            </span>
-          }
+          title="Embedded widget"
           description="Paste this into your AI coding tool. Your workspace ID is already in it. The tool adds and tests the widget."
         >
           <IntegrationPrompt
             prompt={installPrompt({
               release: RELEASE,
               workspaceId: id,
+              supportUrl: context.supportUrl,
               workspaceFeatures: context.state?.features,
               workspaceOptions: { loopback },
             })}
@@ -520,7 +519,6 @@ const support = mountSupportWidget({
 
         <WidgetSessionSettings context={context} />
 
-        <WidgetJourneySettings context={context} />
         <WidgetIntroSettings context={context} />
         <WidgetSafetyLine context={context} />
 

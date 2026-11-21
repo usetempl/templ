@@ -325,7 +325,16 @@ export async function prepareProductPayment(
       plan.period.endsAt > input.nowMs
     )
       throw new HttpError(409, "This monthly period has not ended.");
-    standard = standardPrepaidTerms(standardPurpose, plan.period?.id ?? null);
+    const selectedPlan = input.body.monthlyPlan;
+    if (selectedPlan !== undefined && selectedPlan !== "starter" && selectedPlan !== "standard")
+      throw new HttpError(400, "Choose Starter or Plus.");
+    if (selectedPlan !== undefined && standardPurpose !== "period")
+      throw new HttpError(400, "Select a plan for a monthly payment.");
+    if (selectedPlan === "starter" && !plan.starterAvailable)
+      throw new HttpError(409, "Starter is available for new workspaces.");
+    standard = standardPrepaidTerms(standardPurpose, plan.period?.id ?? null, selectedPlan);
+  } else if (input.body.monthlyPlan !== undefined) {
+    throw new HttpError(400, "Select a plan for a monthly payment.");
   }
   const usageAgreement = await usagePaymentAgreement(
     storage,

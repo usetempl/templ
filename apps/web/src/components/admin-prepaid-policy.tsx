@@ -21,9 +21,8 @@ export function AdminPrepaidPolicy({
   onChanged(message: string): void;
 }) {
   const current = plan.prepaid;
-  const [mode, setMode] = useState<StandardPaymentMode>(
-    current?.mode ?? "prepaid",
-  );
+  const savedMode = current?.sponsored ? "sponsored" : current?.mode ?? "prepaid";
+  const [mode, setMode] = useState<StandardPaymentMode | "sponsored">(savedMode);
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -34,7 +33,7 @@ export function AdminPrepaidPolicy({
     if (
       running.current ||
       !current ||
-      mode === current.mode ||
+      mode === savedMode ||
       reason.trim().length < 3
     )
       return;
@@ -70,7 +69,7 @@ export function AdminPrepaidPolicy({
         <h3>Billing arrangement</h3>
       </div>
       <p>
-        New customers pay upfront. Allow debt only under agreed customer terms.
+        Self-serve workspaces pay upfront. Choose Templ covers costs for a workspace Templ provisions to run without customer charges. Usage still appears in the cost ledger.
       </p>
       <div className={styles.formFields}>
         <label>
@@ -79,10 +78,11 @@ export function AdminPrepaidPolicy({
             value={mode}
             disabled={busy}
             onChange={(event) =>
-              setMode(event.target.value as StandardPaymentMode)
+              setMode(event.target.value as StandardPaymentMode | "sponsored")
             }
           >
             <option value="prepaid">Pay upfront</option>
+            <option value="sponsored">Templ covers costs</option>
             <option value="debt">Allow debt</option>
             <option value="custom">Custom agreement</option>
           </select>
@@ -101,7 +101,7 @@ export function AdminPrepaidPolicy({
       <div className={styles.actions}>
         <button
           className={styles.primary}
-          disabled={busy || mode === current.mode || reason.trim().length < 3}
+          disabled={busy || mode === savedMode || reason.trim().length < 3}
         >
           {busy ? "Saving…" : "Save arrangement"}
         </button>

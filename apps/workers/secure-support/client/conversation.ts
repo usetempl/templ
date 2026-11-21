@@ -1,5 +1,4 @@
 /** Conversation chrome only. Authentication and action handlers stay with the client. */
-import {domIcon} from "./icons";
 import styles from "./page.module.css";
 /** Presentation data from the caller. Role titles stay fixed; details describe this configuration. */
 export type ConversationParticipant = {name: "You" | "Templ AI" | "Founder"; detail: string; initial: string};
@@ -9,16 +8,21 @@ export function conversationTools(close: HTMLButtonElement, draft: () => HTMLEle
   const el = <K extends keyof HTMLElementTagNameMap>(tag: K, text?: string) => {const node = document.createElement(tag); if (text) node.textContent = text; return node;};
   const root = el("div"), people = el("details"), title = el("summary"), roster = el("div");
   root.className = styles.chatTools!; people.className = styles.participants!; roster.className = styles.participantMenu!;
-  const name = el("strong", presentation.title), protection = el("small", "Encrypted"); name.append(protection);
-  title.append(name, el("span", presentation.participants.map(person => person.name).join(", "))); title.setAttribute("aria-label", "Conversation participants");
+  const name = el("strong", presentation.title), protection = el("small", "Encrypted"), identityLabel = el("span");
+  const avatars = el("span");
+  avatars.className = styles.participantAvatars!;
+  avatars.setAttribute("aria-hidden", "true");
+  identityLabel.append(name, protection);
+  title.append(avatars, identityLabel); title.setAttribute("aria-label", "Conversation participants");
   roster.setAttribute("aria-label", "Participants"); roster.append(el("strong", "Participants"));
   for (const {name, detail, initial} of presentation.participants) {
     const row = el("div"), avatar = el("span", initial), identity = el("span");
     avatar.className = styles.participantAvatar!; identity.append(el("b", name), el("small", detail)); row.append(avatar, identity); roster.append(row);
+    avatars.append(el("span", initial));
   }
   if (presentation.note) {const note = el("p", presentation.note); note.className = styles.participantNote!; roster.append(note);}
-  const options = el("details"), more = el("summary"), menu = el("div"), actions = el("div");
-  options.className = styles.conversationOptions!; more.append(domIcon("more")); more.setAttribute("aria-label", "Chat options");
+  const options = el("details"), more = el("summary", "Menu"), menu = el("div"), actions = el("div");
+  options.className = styles.conversationOptions!; more.setAttribute("aria-label", "Chat options");
   menu.className = styles.participantMenu!; actions.className = styles.participantActions!;
   menu.append(actions);
   const privacy = el("a", "Privacy"); privacy.href = "https://usetempl.com/privacy"; privacy.target = "_blank"; privacy.rel = "noopener noreferrer"; menu.append(privacy);
@@ -30,8 +34,11 @@ export function conversationTools(close: HTMLButtonElement, draft: () => HTMLEle
     details.addEventListener("toggle", () => {if (details.open) (details === people ? options : people).open = false;});
     body.append(back);
   }
-  actions.addEventListener("click", event => {if ((event.target as HTMLElement).closest("button")) options.open = false;});
+  actions.addEventListener("click", event => {
+    const action = (event.target as HTMLElement).closest("button");
+    if (action && !action.hasAttribute("data-conversation-list")) options.open = false;
+  });
   document.addEventListener("pointerdown", event => {if (!root.contains(event.target as Node)) {people.open = options.open = false;}}, {signal});
   people.append(title, roster); options.append(more, menu); root.append(people, options, close);
-  return {root, actions};
+  return {root, actions, menu: options, menuTrigger: more};
 }

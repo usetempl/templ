@@ -13,11 +13,15 @@ import {
 import { IconHelpCircle } from "@tabler/icons-react";
 import { TemplMark } from "./brand/templ-mark";
 import { SITE } from "@/lib/release-public";
+import { supportPageWallet } from "@/lib/support-page-wallet";
+import { widgetSignInNetworks } from "@/lib/support-availability";
+import { addOwnChatMenu } from "@/lib/templ-support-menu";
 import { OPERATOR } from "@/lib/operator";
 import { trackEvent } from "@/lib/analytics";
 import {
   templSupportWorkspace,
   templSupportRecheckDelay,
+  loadTemplSupportWidget,
 } from "@/lib/templ-support";
 import {
   mountOwnSupportWidget,
@@ -26,11 +30,12 @@ import {
 import type { SupportContextInput } from "@templ/chat/support";
 import type { SupportForm } from "@/lib/support-widget-form";
 import styles from "./templ-support.module.css";
+import panelStyles from "@/lib/own-support-widget.module.css";
 
 /** What Templ's own chat says before a visitor's first message. */
 export const TEMPL_SUPPORT_INTRO = {
-  title: "Ask Templ",
-  text: "Ask about Templ. Our AI or team replies.",
+  title: "Templ support",
+  text: "Send a message to the Templ team. Templ AI may read it and reply.",
 };
 /** What a support button opens: Templ's usual chat, or the chat with a data
  * question ready to send, from Trust or account settings. */
@@ -75,8 +80,48 @@ export function templSupportMailto(topic: TemplSupportTopic) {
 /** A visitor pointed at or focused a support button. The session starts
  * fetching the widget module so the click opens it at once. */
 const PREPARE_EVENT = "templ:prepare-support";
+const OPEN_EVENT = "templ:open-support";
+const SUPPORT_HASH = "#support";
 const prepareTemplSupport = () =>
   window.dispatchEvent(new Event(PREPARE_EVENT));
+
+/** The landing can open support before its client code runs. */
+export function TemplSupportLink({
+  className,
+  children,
+}: {
+  className: string;
+  children: ReactNode;
+}) {
+  return (
+    <a
+      className={className}
+      href={SUPPORT_HASH}
+      onPointerEnter={prepareTemplSupport}
+      onPointerDown={prepareTemplSupport}
+      onFocus={prepareTemplSupport}
+      onClick={(event) => {
+        if (
+          event.button !== 0 || event.altKey || event.ctrlKey ||
+          event.metaKey || event.shiftKey || window.location.hash === SUPPORT_HASH
+        )
+          return;
+        const unhandled = window.dispatchEvent(
+          new CustomEvent(OPEN_EVENT, {
+            cancelable: true,
+            detail: { trigger: event.currentTarget },
+          }),
+        );
+        if (!unhandled) {
+          event.preventDefault();
+          trackEvent("talk_to_us_clicked");
+        }
+      }}
+    >
+      {children}
+    </a>
+  );
+}
 
 export function TemplSupportButton({
   className,
@@ -116,7 +161,7 @@ export function TemplSupportButton({
       onFocus={prepareTemplSupport}
       onClick={(event) =>
         window.dispatchEvent(
-          new CustomEvent("templ:open-support", {
+          new CustomEvent(OPEN_EVENT, {
             detail: {
               trigger: returnFocusRef?.current ?? event.currentTarget,
               ...(topic ? { topic } : {}),
@@ -146,38 +191,6 @@ export function useTemplSupportAvailable() {
   );
 }
 
-export function TemplSupport({
-  showLauncher = false,
-}: {
-  showLauncher?: boolean;
-}) {
-  useEffect(() => {
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    const openFromLink = () => {
-      if (window.location.hash !== "#support") return;
-      clearTimeout(timer);
-      // Let the support listener attach before opening a linked request.
-      timer = setTimeout(() => {
-        if (window.location.hash !== "#support") return;
-        window.history.replaceState(
-          window.history.state,
-          "",
-          window.location.pathname + window.location.search,
-        );
-        trackEvent("talk_to_us_clicked");
-        window.dispatchEvent(new CustomEvent("templ:open-support"));
-      }, 0);
-    };
-    window.addEventListener("hashchange", openFromLink);
-    openFromLink();
-    return () => {
-      clearTimeout(timer);
-      window.removeEventListener("hashchange", openFromLink);
-    };
-  }, []);
-  return <SupportSession showLauncher={showLauncher} />;
-}
-
 type SupportOpenRequest = {
   trigger?: HTMLElement;
   context?: SupportContextInput;
@@ -185,7 +198,7 @@ type SupportOpenRequest = {
   form?: SupportForm;
 };
 
-function SupportSession({ showLauncher }: { showLauncher: boolean }) {
+export function TemplSupport({ showLauncher = false }: { showLauncher?: boolean }) {
   const RELEASE = useRelease();
   const {
     supportWidgetVerified,
@@ -195,13 +208,42 @@ function SupportSession({ showLauncher }: { showLauncher: boolean }) {
   const ownVerified = RELEASE.templSupport?.verified,
     ownWorkspace = RELEASE.templSupport?.workspaceId,
     ownExpiry = RELEASE.templSupport?.expiresAt;
+  const supportsSolana = RELEASE.supportWidgetSolanaVerified;
   const available = useTemplSupportAvailable();
   const [status, setStatus] = useState<"error" | null>(null);
-  const [open, setOpen] = useState(false);
+  const [view, setView] = useState<"settings" | "conversation" | "ready" | "encrypted" | null>(null);
+  const [listening, setListening] = useState(false);
+  const startup = !listening && view === null;
+  const opening = view === "settings" || view === "conversation";
+  const openedFromHash = useRef(false);
   const [topic, setTopic] = useState<TemplSupportTopic>();
   const retryRequest = useRef<SupportOpenRequest | undefined>(undefined);
+  const standardPanel = useRef<HTMLElement>(null);
+  const standardContent = useRef<HTMLDivElement>(null);
+  const cancelOpening = useRef<(() => void) | undefined>(undefined);
+  useEffect(() => {
+    if (opening) standardPanel.current?.focus({ preventScroll: true });
+  }, [opening]);
+  useEffect(() => {
+    if ((!view && !status) || !openedFromHash.current) return;
+    openedFromHash.current = false;
+    if (window.location.hash === SUPPORT_HASH)
+      window.history.replaceState(
+        null,
+        "",
+        window.location.pathname + window.location.search,
+      );
+  }, [status, view]);
   useEffect(() => {
     let widget: ReturnType<typeof mountOwnSupportWidget> | undefined;
+    let standard: ReturnType<Awaited<ReturnType<typeof loadTemplSupportWidget>>["mountSupportWidget"]> | undefined;
+    let openRevision = 0;
+    const policyMaxAge = 3_000;
+    let policyRead: {
+      url: string;
+      at: number;
+      result: Promise<{ response: Response; mode: "standard" | "encrypted" } | undefined>;
+    } | undefined;
     let expiryTimer: ReturnType<typeof setTimeout> | undefined;
     const workspace = () =>
       templSupportWorkspace(
@@ -218,7 +260,50 @@ function SupportSession({ showLauncher }: { showLauncher: boolean }) {
         window.location.origin,
         SITE.origin,
       );
-    const open = (event: Event) => {
+    const currentPolicy = (id: string) => {
+      const url = `${SITE.community}/widget/${id}/auth/policy`;
+      if (!policyRead || policyRead.url !== url || Date.now() - policyRead.at > policyMaxAge) {
+        const read = {
+          url,
+          at: Date.now(),
+          result: fetch(url, {
+            cache: "no-store",
+            credentials: "omit",
+            signal: AbortSignal.timeout(8_000),
+          }).then(async response => {
+            if (!response.ok) return;
+            const { chatMode } = (await response.clone().json()) as { chatMode?: unknown };
+            if (chatMode === "standard" || chatMode === "encrypted")
+              return { response, mode: chatMode } as const;
+          }).catch(() => undefined),
+        };
+        policyRead = read;
+        void read.result.then(result => {
+          if (!result && policyRead === read) policyRead = undefined;
+        });
+      }
+      return policyRead;
+    };
+    const prepare = () => {
+      const id = workspace();
+      if (id) {
+        currentPolicy(id);
+        void loadTemplSupportWidget().catch(() => {});
+      }
+    };
+    const hidePanel = () => setView(null);
+    const restoreFocus = () => requestAnimationFrame(() => {
+      if (retryRequest.current?.trigger?.isConnected) retryRequest.current.trigger.focus();
+    });
+    cancelOpening.current = () => {
+      openRevision++;
+      standard?.close();
+      hidePanel();
+      restoreFocus();
+    };
+    const open = async (event: Event) => {
+      event.preventDefault();
+      const revision = ++openRevision;
       const detail = (event as CustomEvent<SupportOpenRequest>).detail;
       const requested = supportTopic(detail?.topic);
       retryRequest.current = detail;
@@ -227,13 +312,17 @@ function SupportSession({ showLauncher }: { showLauncher: boolean }) {
       if (!workspaceId) {
         widget?.destroy();
         widget = undefined;
-        setOpen(false);
+        standard?.destroy();
+        standard = undefined;
+        hidePanel();
         if (requested) window.location.assign(templSupportMailto(requested));
         else setStatus("error");
         return;
       }
+      const container = standardContent.current;
+      setView("settings");
+      setStatus(null);
       try {
-        widget ??= mountOwnSupportWidget({ workspace: workspaceId, onClose: () => setOpen(false) });
         // Only a fixed navigation intent crosses origins. Wallets, offered
         // page context and prefilled form values remain on the parent page.
         const intent: OwnWidgetIntent =
@@ -247,53 +336,153 @@ function SupportSession({ showLauncher }: { showLauncher: boolean }) {
                   ? "app-services"
                   : "app-approval"
                 : "support");
-        widget.open(
-          intent,
-          detail?.trigger instanceof HTMLElement ? detail.trigger : undefined,
-        );
-        setOpen(true);
-        setStatus(null);
+        const trigger = detail?.trigger instanceof HTMLElement ? detail.trigger : undefined;
+        const read = intent === "support" ? currentPolicy(workspaceId) : undefined;
+        if (read) void loadTemplSupportWidget().catch(() => {});
+        const policy = await read?.result;
+        if (revision !== openRevision || !workspace()) return;
+        if (read && !policy) throw new Error("Chat settings could not load.");
+        if (policy?.mode === "standard" && read) {
+          if (!container) throw new Error("Chat could not open.");
+          widget?.close();
+          setView("conversation");
+          const widgetClient = await loadTemplSupportWidget();
+          if (revision !== openRevision || !workspace()) return;
+          const networks = widgetSignInNetworks({ supportWidgetSolanaVerified: supportsSolana });
+          const network = networks.find(value => supportPageWallet(value, false)) ?? networks[0];
+          standard ??= widgetClient.mountSupportWidget({
+            workspace: workspaceId, apiUrl: SITE.community, label: "Templ",
+            container, chatFirst: true, conversationDrawers: true, showLauncher: false,
+            appearance: { theme: "light", radius: "soft", logo: "/art/brand/templ-square.svg", accent: "#99FF00" },
+            intro: TEMPL_SUPPORT_INTRO, transactionField: false,
+            ...(location.pathname === "/" ? { wallet: supportPageWallet(network), decorateOwnMenu: addOwnChatMenu } : {}),
+            onClose: () => {
+              hidePanel();
+              restoreFocus();
+            },
+          }, {
+            // The widget needs the same public policy to show its composer.
+            // Reuse it only during this open. Session and send checks still
+            // go to the server, and later policy reads get a fresh response.
+            fetch: (input, init) => input === read.url &&
+              init?.method === "GET" && init.credentials === "omit" &&
+              !init.signal?.aborted && !new Headers(init.headers).has("Authorization") &&
+              Date.now() - read.at <= policyMaxAge
+                ? Promise.resolve(policy.response.clone())
+                : fetch(input, init),
+          });
+          standard.setContext(detail?.context);
+          await standard.open(false);
+          if (revision !== openRevision || !workspace()) return;
+          setView("ready");
+        } else {
+          standard?.close();
+          widget ??= mountOwnSupportWidget({ workspace: workspaceId, onClose: hidePanel });
+          widget.open(intent, trigger);
+          setView("encrypted");
+        }
       } catch {
+        if (revision !== openRevision) return;
+        standard?.destroy();
+        standard = undefined;
         widget?.destroy();
         widget = undefined;
-        setOpen(false);
+        hidePanel();
         setStatus("error");
       }
     };
     const checkCoverage = () => {
       if (!workspace()) {
+        openRevision++;
         widget?.destroy();
         widget = undefined;
-        setOpen(false);
+        standard?.destroy();
+        standard = undefined;
+        hidePanel();
       }
       expiryTimer = setTimeout(
         checkCoverage,
         templSupportRecheckDelay(ownExpiry ?? null),
       );
     };
+    const openFromHash = () => {
+      const root = document.documentElement;
+      if (openedFromHash.current || (
+        window.location.hash !== SUPPORT_HASH && !root.hasAttribute("data-templ-open-support")
+      )) return;
+      root.removeAttribute("data-templ-open-support");
+      openedFromHash.current = true;
+      trackEvent("talk_to_us_clicked");
+      void open(new CustomEvent(OPEN_EVENT));
+    };
     checkCoverage();
-    window.addEventListener("templ:open-support", open);
+    window.addEventListener(PREPARE_EVENT, prepare);
+    window.addEventListener(OPEN_EVENT, open);
     window.addEventListener("templ:open-feedback", open);
+    window.addEventListener("hashchange", openFromHash);
+    openFromHash();
+    window.dispatchEvent(new Event("templ:support-listening"));
+    setListening(true);
     return () => {
       clearTimeout(expiryTimer);
+      cancelOpening.current = undefined;
+      openedFromHash.current = false;
+      openRevision++;
       widget?.destroy();
-      window.removeEventListener("templ:open-support", open);
+      standard?.destroy();
+      window.removeEventListener(PREPARE_EVENT, prepare);
+      window.removeEventListener(OPEN_EVENT, open);
       window.removeEventListener("templ:open-feedback", open);
+      window.removeEventListener("hashchange", openFromHash);
     };
   }, [
     supportWidgetVerified,
     conversationsVerified,
     supportWorkflowVerified,
+    supportsSolana,
     ownVerified,
     ownWorkspace,
     ownExpiry,
   ]);
   return (
     <>
+      <section
+        id="support"
+        className={`${panelStyles.panel} ${styles.startupPanel}`}
+        ref={standardPanel}
+        role="dialog"
+        aria-label="Templ support"
+        tabIndex={-1}
+        onKeyDown={(event) => {
+          if (opening && event.key === "Escape") cancelOpening.current?.();
+        }}
+        data-templ-own-support=""
+        data-startup={startup ? "" : undefined}
+        hidden={(!startup && !view) || view === "encrypted"}
+      >
+        {(startup || opening) && (
+          <div className={styles.opening}>
+            <header>
+              <TemplMark decorative className={styles.launcherMark} />
+              <strong>Templ support</strong>
+              {startup ? (
+                <a href="#main-content" aria-label="Close support">×</a>
+              ) : (
+                <button type="button" aria-label="Close support" onClick={() => cancelOpening.current?.()}>×</button>
+              )}
+            </header>
+            <div className={styles.openingStatus} role="status">
+              <span className={styles.spinner} aria-hidden="true" />
+              {startup ? "Opening chat…" : view === "settings" ? "Checking chat settings…" : "Loading conversation…"}
+            </div>
+          </div>
+        )}
+        <div ref={standardContent} className={styles.chatContent} inert={startup || opening} />
+      </section>
       {showLauncher && available && (
         <TemplSupportButton
           className={styles.launcher}
-          hidden={open}
+          hidden={view !== null}
           label="Talk to us"
           icon={false}
           conversion="talk_to_us_clicked"

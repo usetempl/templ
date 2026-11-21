@@ -260,7 +260,7 @@ export async function proxyNative(
       : target.pathname.endsWith("/outcome")
         ? ["id"]
         : target.pathname === "/conversations"
-          ? ["filter", "cursor"]
+          ? ["filter", "cursor", ...(channel === "member" ? ["view"] : [])]
           : [];
   if (
     queryKeys.some((key) => !allowedQueries.includes(key)) ||
@@ -269,6 +269,7 @@ export async function proxyNative(
     refuse();
   if (target.pathname === "/conversations" && (
     (target.searchParams.has("filter") && !["open", "resolved", "all", "archived"].includes(target.searchParams.get("filter")!)) ||
+    (target.searchParams.has("view") && target.searchParams.get("view") !== "member") ||
     (target.searchParams.has("cursor") && !/^tc-[a-f0-9]{32}$/.test(target.searchParams.get("cursor")!))
   )) refuse();
   const headers = nativeHeaders(request, channel);

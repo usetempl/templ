@@ -146,12 +146,12 @@ export default async function AvailabilityPage() {
       >
         <h2 id="availability-checkout">Payments per network</h2>
         <p>
-          Support costs{" "}
+          The Templ Hosted Plus plan costs{" "}
           {formatUsd(PRODUCT_STANDARD_PRICES.workspaceMonthlyUsdCents)} per
           month. Each month includes{" "}
           {PRODUCT_STANDARD_PRICES.includedAnsweredCasesPerMonth} answered cases
           and {formatUsd(PRODUCT_STANDARD_PRICES.includedAiCreditUsdCents)} in
-          AI credit. Choose a verified payment network in Plan &amp; usage. Each
+          AI credit. New workspaces can choose Starter. Select a verified payment network in Plan &amp; usage. Each
           payment starts one month; renewal needs another payment.{" "}
           <a href={`${SITE.docs}/pricing`}>Read pricing</a>.
         </p>

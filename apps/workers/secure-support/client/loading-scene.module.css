@@ -66,3 +66,47 @@
   .halo { opacity: .3; transform: scale(1.35); }
   .haloLater { opacity: 0; }
 }
+
+/* A packet stays in motion until the active send operation finishes. */
+.sendMotion { display: block; width: 4rem; height: 1.5rem; }
+.sendMotion path, .sendMotion rect {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1;
+  stroke-linecap: round;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.sendMotion .sendTrack { stroke: var(--own-muted); stroke-dasharray: 1 3; opacity: .65; }
+.sendMotion .sendPacket, .sendMotion .sendOut { fill: #99ff00; }
+.sendMotion .sendLock { fill: var(--own-bg); transition: fill .2s; }
+.sendScan, .sendOut { opacity: 0; }
+.sendPacket { --packet-delay: 0s; --packet-distance: 24px; }
+.sendPacket:nth-child(3) { --packet-delay: -.6s; --packet-distance: 16px; }
+.sendPacket:nth-child(4) { --packet-delay: -1.2s; --packet-distance: 8px; }
+.sendMotion:is([data-phase="draft"], [data-phase="setup"], [data-phase="keys"], [data-phase="encrypting"]) .sendShackle { transform: translateY(-2px); }
+.sendMotion:is([data-phase="draft"], [data-phase="setup"]) .sendShackle { animation: send-lift 1.6s ease-in-out infinite alternate; }
+.sendMotion:is([data-phase="draft"], [data-phase="setup"], [data-phase="keys"]) .sendPacket { animation: send-queue 1.8s ease-in-out var(--packet-delay) infinite; }
+.sendMotion[data-phase="keys"] .sendPacket { animation-duration: 1.2s; }
+.sendMotion[data-phase="encrypting"] .sendPacket { animation: send-enter 1.8s ease-in-out var(--packet-delay) infinite; }
+.sendMotion:is([data-phase="encrypting"], [data-phase="checking"], [data-phase="sending"]) .sendLock { fill: #99ff00; stroke: #20251e; }
+.sendMotion:is([data-phase="checking"], [data-phase="sending"]) .sendPacket { opacity: 0; }
+.sendMotion[data-phase="checking"] .sendScan { opacity: 1; stroke: #20251e; animation: send-scan 1.2s ease-in-out infinite alternate; }
+.sendMotion[data-phase="sending"] .sendOut { opacity: 1; animation: send-release 1.6s ease-in-out infinite; }
+@keyframes send-lift { to { transform: translateY(0); } }
+@keyframes send-queue { 50% { opacity: .38; transform: translateY(-1px); } }
+@keyframes send-enter {
+  0% { opacity: 0; transform: translateX(0); }
+  15%, 80% { opacity: 1; }
+  100% { opacity: 0; transform: translateX(var(--packet-distance)); }
+}
+@keyframes send-scan { to { transform: translateY(5px); } }
+@keyframes send-release {
+  0% { opacity: 0; transform: translateX(0); }
+  20%, 80% { opacity: 1; }
+  100% { opacity: 0; transform: translateX(16px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sendMotion :is(.sendShackle, .sendPacket, .sendScan, .sendOut) { animation: none !important; }
+  .sendMotion .sendLock { transition: none; }
+}

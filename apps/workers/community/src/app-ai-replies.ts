@@ -8,6 +8,7 @@ import type {
   TeamConversationRecord,
 } from "./team-conversations";
 import { readAiState } from "./support-workflow";
+import { lastAssistantPause, readSupportProfiles } from "./support-contact-profiles";
 import { featureOn } from "./workspace-flags";
 import { wakeRoomAt } from "./room-alarm";
 import { currentStaffRoleIds, templStaffAccount } from "./templ-staff";
@@ -23,6 +24,7 @@ type Storage = DurableObjectTransaction;
 export const APP_AI_WORKSPACE = "";
 export const APP_AI_PREFIX = "support-app-answer-v1:";
 const OUTBOX = "support-app-answer-outbox-v1:";
+const JOB_LIFETIME_MS = 10 * 60_000;
 type Job = AppAnswerRequest & {
   actor: ChatPrincipalId;
   agent: ChatPrincipalId;
@@ -55,7 +57,8 @@ export async function appAiEnabled(
   return (
     room === `room:${APP_AI_WORKSPACE}` &&
     Boolean(env.NATIVE_TELEGRAM_BRIDGE?.queueAppAnswer) &&
-    (await featureOn(env, storage, "appAiReplies"))
+    (await featureOn(env, storage, "appAiReplies")) &&
+    (await readSupportProfiles(storage))?.assistantEnabled !== false
   );
 }
 
@@ -150,7 +153,7 @@ export async function enqueueAppAnswer(
     agent: context.registeredBots[0],
     attempts: 0,
     dueAt,
-    expiresAt: context.now + 10 * 60_000,
+    expiresAt: context.now + JOB_LIFETIME_MS,
     status: "queued",
   } satisfies Job);
   await storage.put(OUTBOX + record.id, { dueAt });
@@ -187,6 +190,7 @@ export async function appAnswerAllowed(
     job.jobId !== input.jobId ||
     !active(job) ||
     job.expiresAt <= now ||
+    job.expiresAt - JOB_LIFETIME_MS <= await lastAssistantPause(storage) ||
     !record ||
     record.room !== `room:${input.workspaceId}` ||
     record.revision !== job.revision ||

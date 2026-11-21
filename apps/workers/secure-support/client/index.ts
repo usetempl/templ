@@ -4,17 +4,19 @@ import { encryptedRecordDigest, sha256, verifyEncryptionProfile } from "@templ/e
 import { OWN_SUPPORT_READ_WINDOW_MS, ownEnrollmentBytes, ownWalletApprovalText, type OwnEnrollmentChallenge } from "@templ/e2ee/own-authority";
 import { mountCustomerSupport } from "@templ/e2ee/view";
 import { openCustomerDeviceStore } from "@templ/e2ee/device-store";
+import { createEndpointKeys, type EndpointKeys } from "@templ/e2ee/client";
 import { connectCustomerCase } from "@templ/e2ee/transport";
 import { createSupportClient, type SupportWalletProvider } from "../../../web/src/lib/support-widget";
 import { diagnostics } from "../../../web/src/lib/support-widget-diagnostics";
 import { APP_LABELS, appValue } from "../../../web/src/lib/support-widget-app";
 import { SUPPORT_DIAGNOSTIC_FIELDS, type SupportAppContextInput, type SupportAppContext } from "@templ/chat/support-app-context";
 import type { TeamConversationList } from "@templ/chat/index";
+import {memberConversations, memberConversationsPath} from "../../../web/src/lib/support-widget-conversations";
 import { requestDeviceApproval, showDeviceApproval } from "./device-approval";
 import {showEncryptionSetup} from "./setup";
-import {signInTeam, type TeamSession} from "./team-session";
+import {checkedTeamSession, signInTeam, type TeamSession} from "./team-session";
 import {watchTeamWallet, type WalletSelection} from "./wallet-watch";
-type TeamConnection = TeamSession & {walletSelection: WalletSelection};
+type TeamConnection = TeamSession & {walletSelection?: WalletSelection};
 import styles from "./page.module.css";
 import {conversationTools} from "./conversation";
 import {createOwnRecoveryCache} from "./recovery-cache";
@@ -23,7 +25,7 @@ import {connectWidgetFrame, widgetNavigation} from "./widget-frame";
 import {ownIntake} from "./intake";
 import {ownContactChoice} from "./contact";
 import {labelIcon, domIcon} from "./icons";
-import {openingScene} from "./loading-scene";
+import {openingScene, sendMotion} from "./loading-scene";
 import {forgetMemberWallet, memberDeviceAccount, memberWalletIntent, prepareMemberWallet, rememberMemberCase, verifyMemberWallet} from "./member-wallet";
 
 declare const __OWN_ROOT_KEY__: string;
@@ -34,6 +36,7 @@ const panel = document.querySelector<HTMLElement>("#account")!;
 let revision = 1, dispose: (() => void) | undefined;
 let pageLifetime = new AbortController();
 const widget = widgetNavigation(new URL(location.href));
+const inbox = location.pathname === "/inbox-case" && window.parent !== window;
 let frameHost: Awaited<ReturnType<typeof connectWidgetFrame>> | undefined;
 if (widget) document.documentElement.dataset.theme = widget.theme;
 const node = <K extends keyof HTMLElementTagNameMap>(tag: K, text?: string) => {
@@ -214,9 +217,11 @@ async function approveWallet(challenge: OwnEnrollmentChallenge, expected: `0x${s
   });
 }
 async function openChat(profile: OwnSupportEncryptionProfile, channel: Channel, principal: string,
-  ref?: E2eeCase, team?: TeamConnection, offerDiagnostics = false, offerNotices = false) {
+  ref?: E2eeCase, team?: TeamConnection, offerDiagnostics = false, offerNotices = false,
+  preparedKeys?: Promise<EndpointKeys | undefined>, selectedFromList = false) {
   reset();
   if (widget && channel !== "member") throw new Error("Open team support in its own tab.");
+  if (inbox && (channel !== "team" || !ref || !team)) throw new Error("Choose an encrypted case from the workspace inbox.");
   document.body.classList.add(styles.chatPage!);
   panel.className = styles.chatStatus;
   openingGap();
@@ -226,6 +231,7 @@ async function openChat(profile: OwnSupportEncryptionProfile, channel: Channel, 
   const close = button(widget ? "×" : channel === "team" ? "Sign out" : "Back", async () => {
     if (frameHost) {frameHost.close(); return;}
     if (channel === "team") await json("/native/team/auth/logout", {});
+    if (inbox) {inboxAccess({status: 401}); return;}
     reset(); entry(profile);
   });
   if (widget) labelIcon(close, "close", "Close support");
@@ -233,20 +239,26 @@ async function openChat(profile: OwnSupportEncryptionProfile, channel: Channel, 
   const you = channel === "team" ? "Templ team" : guest.session?.level === "signed" ? "Verified wallet" : "Anonymous User";
   const conversation = conversationTools(close, () => main.querySelector("textarea"), pageLifetime.signal, {title: "Templ", participants: [
     {name: "You", detail: you, initial: "Y"}, {name: "Templ AI", detail: "AI assistant", initial: "AI"}, {name: "Founder", detail: "Marco Worms", initial: "F"}],
-    note: "Messages are end-to-end encrypted for you and Templ’s support team. Templ AI can read them when enabled."});
+    note: channel === "team"
+      ? "Templ’s support workspace manages device approval and recovery. Templ AI can read messages when enabled."
+      : "Messages are end-to-end encrypted for you and Templ’s support team. Templ AI can read them when enabled."});
   const headerActions = conversation.actions;
   panel.append(conversation.root);
   const current = revision;
-  if (team) {
-    const provider = wallet();
-    const changed = () => {if (current !== revision) return; reset(); entry(profile); showError(new Error("Your wallet changed. Sign in again to open the intended chat."));};
-    const watching = watchTeamWallet(provider, pageLifetime.signal, changed, team.walletSelection);
-    await watching.confirm(team.address, () => {if (current !== revision) throw new DOMException("Navigation changed", "AbortError");});
+  const teamWallet = team && (inbox ? (window as Window & {ethereum?: SupportWalletProvider}).ethereum : wallet());
+  if (teamWallet) {
+    const changed = () => {
+      if (current !== revision) return;
+      if (inbox) {inboxAccess({status: 401}); return;}
+      reset(); entry(profile); showError(new Error("Your wallet changed. Sign in again to open the intended chat."));
+    };
+    const watching = watchTeamWallet(teamWallet, pageLifetime.signal, changed, team!.walletSelection);
+    await watching.confirm(team!.address, () => {if (current !== revision) throw new DOMException("Navigation changed", "AbortError");});
   }
   const mapped = channel === "member" ? memberDeviceAccount(profile, principal, ref) : undefined;
   const account = mapped?.account ?? await sha256(new TextEncoder().encode(`templ:own-client:v1:${channel}:${principal}`));
   if (current !== revision) return;
-  const id = mapped?.draftId ?? draftId(account, channel === "team" ? ref : undefined);
+  const id = mapped?.draftId ?? draftId(account, channel === "team" || selectedFromList ? ref : undefined);
   const device = await openCustomerDeviceStore(profile, account, id);
   if (current !== revision) {device.close(); return;}
   const request = channel === "member" ? guest.adopt()[1] : <T>(path: string, body?: object) =>
@@ -267,6 +279,37 @@ async function openChat(profile: OwnSupportEncryptionProfile, channel: Channel, 
   let provisionalOpening: {id: string; scope: E2eeCase} | undefined;
   let prepareDraft: ((text: string, append?: boolean) => Promise<boolean>) | undefined;
   let runIdentity: ((transition: () => Promise<void>) => Promise<boolean>) | undefined;
+  const retain = (selected: E2eeCase) => {
+    if (current !== revision) return;
+    if (channel === "member") rememberMemberCase(profile, principal, selected, account, id);
+    const hash = new URLSearchParams({
+      workspace: selected.workspace, conversation: selected.conversation, case: String(selected.caseSeq),
+    });
+    if (location.hash !== `#${hash}`)
+      history.replaceState(null, "", `${location.pathname}${location.search}#${hash}`);
+  };
+  const list = channel === "member" ? memberConversations({
+    workspace: profile.workspace,
+    menu: conversation.menu,
+    trigger: conversation.menuTrigger,
+    actions: headerActions,
+    principal: () => guest.session?.principalId,
+    selected: () => ref?.conversation,
+    active: () => current === revision && !document.hidden,
+    load: async cursor => {
+      const result = await request<TeamConversationList>(memberConversationsPath(cursor));
+      return {...result, conversations: result.conversations.filter(row => row.encryption?.custody === "templ-own-support")};
+    },
+    open: async row => {
+      if (row.id === ref?.conversation) return true;
+      if (!row.encryption) return false;
+      const selected = caseOf({environment: profile.environment, workspace: profile.workspace,
+        conversation: row.id, caseSeq: row.encryption.caseSeq});
+      return await runIdentity?.(() => openChat(profile, channel, principal, selected, undefined,
+        offerDiagnostics, offerNotices, undefined, true)) ?? false;
+    },
+    focusChat: () => main.querySelector("textarea")?.focus(),
+  }) : undefined;
   let separate: HTMLButtonElement | undefined;
   const notices = node("section"); notices.className = styles.notices; notices.hidden = true;
   notices.setAttribute("role", "region"); notices.setAttribute("aria-label", "Follow-up options");
@@ -350,7 +393,7 @@ async function openChat(profile: OwnSupportEncryptionProfile, channel: Channel, 
   let cleanup: () => void;
   try {cleanup = await mountCustomerSupport(main, {
     profile, pinnedRoot: __OWN_ROOT_KEY__, account, draftId: id, teamName: "Templ", team: channel === "team",
-    ownPresentation: {headerActions: conversation.root, composerOptions, sendIcon: () => domIcon("send"), activityIcon: () => domIcon("lock"), openingScene, initialText: openingText(widget?.intent), noticeArea: channel === "member" ? notices : undefined, hideHistoryTools: Boolean(widget),
+    ownPresentation: {headerActions: conversation.root, composerOptions, sendIcon: () => domIcon("send"), activityIcon: () => domIcon("lock"), openingScene, sendMotion, initialText: openingText(widget?.intent), noticeArea: channel === "member" ? notices : undefined, hideHistoryTools: Boolean(widget),
       deliveryIcon: state => domIcon(state === "sending" ? "clock" : "check"),
       welcome: channel === "member" ? {title: "Welcome to Templ", body: "Get help with Templ or adding support to your app."}
         : {title: "No messages yet", body: "Messages in this case appear here."},
@@ -364,6 +407,7 @@ async function openChat(profile: OwnSupportEncryptionProfile, channel: Channel, 
         if (provisionalOpening?.id === id && JSON.stringify(provisionalOpening.scope) === JSON.stringify(scope))
           provisionalOpening = undefined;
         contact?.accepted(scope, id);
+        if (channel === "member") retain(scope);
       },
       onUnsent: id => {
         // The attempt has no saved envelope, or its saved opening was
@@ -376,17 +420,21 @@ async function openChat(profile: OwnSupportEncryptionProfile, channel: Channel, 
       },
       onComposeUnlocked: () => {share.disabled = false; notify.disabled = false; if (answered) answered.disabled = false; verify.disabled = guest.session?.level === "signed"; if (separate) separate.disabled = false;},
       // Local choices open with the draft; the view keeps them locked during a send or unconfirmed outcome.
-      onComposerReady: prepare => {prepareDraft = prepare; intake?.ready(prepare); share.disabled = false; if (separate) separate.disabled = false;},
+      onComposerReady: prepare => {
+        prepareDraft = prepare; intake?.ready(prepare); share.disabled = false; if (separate) separate.disabled = false;
+        void list?.refresh();
+      },
       onIdentityReady: run => {runIdentity = run;},
       detailChoices: offerDiagnostics && channel === "member" ? SUPPORT_DIAGNOSTIC_FIELDS.map(field => ({field, label: APP_LABELS[field]})) : undefined},
     get existing() {return Boolean(ref) && !provisionalOpening;},
-    sessionRevision: () => revision, signal: pageLifetime.signal, initialHistoryPageSize: 4, minimumHistoryValidityMs: OWN_SUPPORT_READ_WINDOW_MS,
+    sessionRevision: () => revision, signal: pageLifetime.signal, initialHistoryPageSize: 4, minimumHistoryValidityMs: OWN_SUPPORT_READ_WINDOW_MS, preparedKeys,
+    onHistoryRead: (conversationId, at) => { list?.read(conversationId, at); void list?.refresh(); },
+    onHistoryError: inbox ? error => {
+      const access = error as {status?: number; reason?: string};
+      if (access.status === 401 || access.status === 403) inboxAccess(error);
+    } : undefined,
     onRetainedCase: () => {
-      if (ref && current === revision) {
-        if (channel === "member") rememberMemberCase(profile, principal, ref, account, id);
-        const hash = new URLSearchParams({workspace: ref.workspace, conversation: ref.conversation, case: String(ref.caseSeq)});
-        history.replaceState(null, "", `${location.pathname}${location.search}#${hash}`);
-      }
+      if (ref) retain(ref);
       // Staff keep the back-office AI controls. Members simply keep talking in the chat.
       if (channel === "team" && ref && !controlsShown && current === revision) {
         controlsShown = true;
@@ -411,6 +459,7 @@ async function openChat(profile: OwnSupportEncryptionProfile, channel: Channel, 
           try {return await callKeys<EndpointCertificate>("enroll", value.case, {challenge: challenge.id, possession});}
           catch (error) {
             if (current !== revision || (error as {reason?: string}).reason !== "device-approval-required") throw error;
+            if (inbox) throw error;
             const approval = team ? {walletApproval: await approveWallet(challenge, team.address)} :
               {deviceApproval: await requestDeviceApproval(panel, challenge, pageLifetime.signal)};
             if (current !== revision) throw new Error("Your sign-in changed.");
@@ -433,17 +482,50 @@ async function openChat(profile: OwnSupportEncryptionProfile, channel: Channel, 
   });} catch (error) {
     recoveryCache.close(); device.close(); contact?.close();
     if (current === revision) {
+      if (inbox) { inboxAccess(error); return; }
       showError(error);
       if (!widget) panel.prepend(close);
       panel.append(button("Try again", async () => {
         if (current !== revision || pageLifetime.signal.aborted) return;
-        await openChat(profile, channel, principal, ref, team, offerDiagnostics, offerNotices);
+        await openChat(profile, channel, principal, ref, team, offerDiagnostics, offerNotices, undefined, selectedFromList);
       }));
     }
     return;
   }
   if (current !== revision) {cleanup(); recoveryCache.close(); device.close(); contact?.close(); return;}
   dispose = () => {cleanup(); recoveryCache.close(); device.close(); contact?.close();};
+}
+
+function inboxAccess(error: unknown) {
+  reset();
+  document.body.classList.add(styles.inboxPage!);
+  const access = error as {status?: number; reason?: string};
+  const approve = access.reason === "device-approval-required";
+  const signIn = access.status === 401;
+  const message = node("p", approve ? "Approve this device with your team wallet to read this case."
+    : signIn ? "Sign in on Templ’s secure support page with the account you use in this inbox."
+    : "This device could not open the case. Check your workspace access and device approval.");
+  message.setAttribute("role", "status");
+  const link = node("a", approve ? "Approve device" : signIn ? "Team sign in" : "Check device access");
+  link.href = `${origin}/${location.hash}`;
+  link.target = "_blank"; link.rel = "noopener noreferrer";
+  panel.replaceChildren(node("h1", "Encrypted case"), message, link, button("Reload case", async () => location.reload()));
+}
+
+async function inboxCase(profile: OwnSupportEncryptionProfile) {
+  document.body.classList.add(styles.inboxPage!, styles.chatPage!);
+  panel.className = styles.chatStatus;
+  openingGap();
+  const ref = route();
+  const routeParams = new URLSearchParams(location.hash.slice(1));
+  const expected = routeParams.get("principal");
+  const keys = [...routeParams.keys()];
+  if (!ref || !expected || expected.length > 256 || keys.length !== 4 || new Set(keys).size !== 4)
+    throw new Error("Choose an encrypted case from the workspace inbox.");
+  const session = checkedTeamSession(await json<TeamSession>("/native/team/auth/session"));
+  if (session.principalId !== expected)
+    throw Object.assign(new Error("Sign in with your inbox account."), {status: 401});
+  await openChat(profile, "team", session.principalId, ref, session);
 }
 /** Staff AI controls for one case. Member views show none of this state. */
 async function caseControls(ref: E2eeCase, principal: string, current: number, tools: HTMLElement) {
@@ -528,12 +610,17 @@ function startEntry(profile: OwnSupportEncryptionProfile) {
   });
   return () => {if (current !== revision) throw new DOMException("Navigation changed", "AbortError");};
 }
-async function member(profile: OwnSupportEncryptionProfile) {
+async function member(profile: OwnSupportEncryptionProfile, historyOnly = false) {
   const walletIntent = memberWalletIntent(profile);
   if (walletIntent && guest.session?.level !== "signed") {showMemberWallet(profile); return;}
   const checkIntent = startEntry(profile);
+  // Generating local keys needs no enrollment, reservation or server write.
+  // The view uses these only if this authenticated device has no stored keys.
+  const preparedKeys = createEndpointKeys().catch(() => undefined);
   const current = <T>(request: Promise<T>) => request.catch(error => {checkIntent(); throw error;});
-  const policy = await current(guest.policy()) as Awaited<ReturnType<typeof guest.policy>> & {guestCheck?: string};
+  const policy = await current(guest.policy()) as Awaited<ReturnType<typeof guest.policy>> & {
+    guestCheck?: string; chatMode?: "encrypted" | "standard";
+  };
   checkIntent();
   if (policy.minimumLevel !== "anyone") throw new Error("Guest support is unavailable. Try again later.");
   const link = /^#templ-guest=([0-9a-f-]+)\.(tc-[0-9a-f]{32})\.([0-9a-f]{64})$/.exec(location.hash);
@@ -550,6 +637,19 @@ async function member(profile: OwnSupportEncryptionProfile) {
     const existing = await current(guest.guest(true));
     checkIntent();
     if (!existing) {
+      if (historyOnly) {
+        replaceHistoryUnavailable();
+        return;
+      }
+      if (!route() && policy.chatMode === "standard") {
+        reset();
+        const open = node("a", "Open standard chat");
+        open.href = "https://usetempl.com/#support";
+        if (widget) {open.target = "_blank"; open.rel = "noopener noreferrer";}
+        panel.replaceChildren(node("h1", "Templ support"),
+          node("p", "New chats use standard support."), open);
+        return;
+      }
       const check = policy.guestCheck === "turnstile" ? await current(personCheck()) : undefined;
       checkIntent();
       await current(guest.guest(false, false, check));
@@ -561,16 +661,23 @@ async function member(profile: OwnSupportEncryptionProfile) {
   const existing = route();
   // An explicit retained case is authoritative even when it is resolved or
   // archived. The encrypted transport verifies its descriptor and access.
-  if (existing) return openChat(profile, "member", session.principalId, existing, undefined, policy.diagnostics === true, policy.replyEmail === true);
-  const list = await current(guest.adopt()[1]<TeamConversationList>(restoredThread ? "/conversations?filter=all" : "/conversations"));
+  if (existing) return openChat(profile, "member", session.principalId, existing, undefined, policy.diagnostics === true, policy.replyEmail === true, preparedKeys);
+  const list = await current(guest.adopt()[1]<TeamConversationList>("/conversations?filter=all"));
   checkIntent();
   const selected = list.conversations.find(item => item.encryption?.custody === "templ-own-support" && (!restoredThread || item.id === restoredThread));
   if (restoredThread && !selected) throw new Error("This link has no encrypted case available. Open the original support page for an older chat.");
+  if (historyOnly && !selected) {replaceHistoryUnavailable(); return;}
   await openChat(profile, "member", session.principalId, selected?.encryption ? {
     ...caseOf({environment: profile.environment, workspace: profile.workspace, conversation: selected.id, caseSeq: selected.encryption.caseSeq}),
-  } : undefined, undefined, policy.diagnostics === true, policy.replyEmail === true);
+  } : undefined, undefined, policy.diagnostics === true, policy.replyEmail === true, preparedKeys);
 }
-async function team(profile: OwnSupportEncryptionProfile) {
+function replaceHistoryUnavailable() {
+  reset();
+  const home = node("a", "Back to Templ"); home.href = "https://usetempl.com/#support";
+  panel.replaceChildren(node("h1", "Encrypted history"),
+    node("p", "This browser has no encrypted chat available. Open the chat on your original device."), home);
+}
+async function team(profile: OwnSupportEncryptionProfile, setup = false) {
   if (widget) throw new Error("Open team support in its own tab.");
   const checkIntent = startEntry(profile), current = revision;
   const provider = wallet();
@@ -581,6 +688,12 @@ async function team(profile: OwnSupportEncryptionProfile) {
   const walletSelection = await watching.confirm(signedIn.address, checkIntent);
   const session: TeamConnection = {...signedIn, walletSelection};
   checkIntent();
+  if (setup) {
+    panel.className = styles.account;
+    await showEncryptionSetup({panel, profile, principal: session.principalId, signal: pageLifetime.signal, request: json,
+      back: () => {reset(); entry(profile);}});
+    return;
+  }
   const selected = route();
   if (selected) return openChat(profile, "team", session.principalId, selected, session);
   const list = await json<TeamConversationList>("/native/team/conversations?filter=all");
@@ -717,6 +830,12 @@ async function showFragment(profile: OwnSupportEncryptionProfile) {
   }
   const approval = /^#approve=([A-Za-z0-9_-]{1,8192})$/.exec(location.hash);
   if (location.hash === "#verify-wallet") {showMemberWallet(profile); return;}
+  if (location.hash === "#encrypted-history") {await member(profile, true); return;}
+  if (location.hash === "#encryption-setup") {
+    reset();
+    panel.replaceChildren(node("h1", "Encryption setup"), button("Team sign in", () => team(profile, true)));
+    return;
+  }
   reset(); route(); entry(profile);
   if (approval) {
     // Remove public device metadata from the address after reading it.
@@ -740,11 +859,12 @@ void (async () => {
     }
     frameHost.ready();
     window.addEventListener("keydown", event => {if (event.key === "Escape") frameHost?.close();});
-  } else if (window.parent !== window) throw new Error("Open this support page in its own tab.");
+  } else if (!inbox && window.parent !== window) throw new Error("Open this support page in its own tab.");
   const response = await fetch("/profile", {cache: "no-store", credentials: "omit"});
   if (!response.ok) throw new Error("Encrypted support is unavailable. Try again later.");
   const profile = await verifyEncryptionProfile(await response.json(), __OWN_ROOT_KEY__);
   if (profile.custody !== "templ-own-support") throw new Error("The support profile could not be verified.");
+  if (inbox) {await inboxCase(profile); return;}
   window.addEventListener("storage", event => {
     if (event.key === `templ:own-wallet-intent:v1:${profile.workspace}:${profile.rootKey}`) {
       try {if (memberWalletIntent(profile)) showMemberWallet(profile); else {reset(); entry(profile);}}
@@ -753,7 +873,7 @@ void (async () => {
   });
   window.addEventListener("hashchange", () => {void showFragment(profile).catch(showError);});
   await showFragment(profile);
-})().catch(showError);
+})().catch(error => {if (inbox) inboxAccess(error); else showError(error);});
 
 function openingText(intent?: string) {
   // Fixed navigation intents never carry parent-page data into a chat.

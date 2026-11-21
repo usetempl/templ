@@ -7,6 +7,8 @@ import {
 import type { SupportSelectedWallet } from "./support-widget";
 import type { SupportContextInput } from "@templ/chat/support";
 
+const thread = /^tc-[0-9a-f]{32}$/;
+
 function unsafe(value: unknown): boolean {
   return typeof value === "string"
     ? hasRecoveryPhraseShape(value) ||
@@ -56,7 +58,6 @@ export function pending(input: unknown) {
     sent?: unknown;
     serverId?: unknown;
   };
-  const thread = /^tc-[0-9a-f]{32}$/;
   if (
     /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(
       value.id,
@@ -88,6 +89,7 @@ export function save(
   value: {
     text: string;
     pending?: unknown;
+    newCaseFrom?: string;
     savedAt?: number;
     transactionHash?: string;
   },
@@ -116,5 +118,7 @@ export function read(key: string) {
     value.transactionHash.length > 300
   )
     delete value.transactionHash;
+  if (typeof value.newCaseFrom !== "string" || !thread.test(value.newCaseFrom))
+    delete value.newCaseFrom;
   return value;
 }

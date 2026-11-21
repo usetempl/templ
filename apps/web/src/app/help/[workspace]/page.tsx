@@ -1,14 +1,18 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { readHostedSupport } from "@/lib/hosted-support";
 import { supportPageWorkspace } from "@/lib/support-page-config";
 import { TemplMark } from "@/components/brand/templ-mark";
-import { HostedSupportChat } from "./help-client";
+import { HostedSupportChat, HostedSupportFrame } from "./help-client";
 import styles from "./help.module.css";
 export const metadata: Metadata = {
   title: "Support",
   robots: { index: false, follow: false },
+};
+export const viewport: Viewport = {
+  viewportFit: "contain",
+  interactiveWidget: "resizes-content",
 };
 export default async function HostedSupportPage({
   params,
@@ -33,7 +37,7 @@ export default async function HostedSupportPage({
   if (!support || support.workspace !== workspace) notFound();
   const nonce = (await headers()).get("x-nonce") ?? undefined;
   return (
-    <div className={styles.page}>
+    <HostedSupportFrame>
       <header className={styles.header}>
         <TemplMark className={styles.stamp} decorative />
         <h1>Support for {support.name}</h1>
@@ -58,6 +62,6 @@ export default async function HostedSupportPage({
         frameRequired={support.frameRequired}
         nonce={nonce}
       />
-    </div>
+    </HostedSupportFrame>
   );
 }

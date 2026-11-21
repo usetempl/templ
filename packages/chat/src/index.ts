@@ -203,6 +203,10 @@ export type ChatNativeSubscription = {
  * member-to-member conversation exists. Public metadata never lists it. */
 export type TeamConversationState = "open" | "resolved";
 export type TeamConversation = {
+  /** Widget member view. The current request permits automatic answers. */
+  aiReplyExpected?: boolean;
+  /** The active agent can pick up this case but has no typing mark yet. */
+  aiQueued?: true;
   /** Actual latest case format. Plaintext and keys stay at this customer origin. */
   encryption?: { mode: "encrypted"; custody: "customer" | "templ-own-support"; caseSeq: number; clientOrigin: string };
   /** User reads: an enabled transaction check is queued or running. */
@@ -236,6 +240,8 @@ export type TeamConversation = {
   staffMessagesStopped: boolean;
   revision: number;
   lastMessageAt: string | null;
+  /** Latest public team or AI reply, on the member's own conversation list. */
+  lastReplyAt?: string;
   /** Internal workflow metadata. Omitted entirely from the fixed member's view;
    * a claim never changes any staff or member read/reply permission. */
   assignment?: {

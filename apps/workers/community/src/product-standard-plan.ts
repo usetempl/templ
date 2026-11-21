@@ -1,5 +1,6 @@
 import {
   PRODUCT_LIMITS,
+  PRODUCT_STARTER_PRICES,
   PRODUCT_STANDARD_PRICES,
   PRODUCT_STANDARD_QUALIFICATION_PRICES,
   PRODUCT_STANDARD_AI_RATES,
@@ -10,6 +11,7 @@ import {
   type ChatPrincipalId,
 } from "@templ/chat/principal";
 import type {
+  MonthlySupportPlan,
   StandardPlanPeriod,
   StandardPlanView,
   StandardPlanReference,
@@ -30,6 +32,8 @@ import {
   readPrepaidPeriod,
   debitPrepaid,
   openPrepaidPeriod,
+  readStarterAiLimit,
+  sponsoredSupport,
 } from "./product-prepaid";
 import type { SupportCase } from "@templ/chat/support";
 import { HttpError } from "./common";
@@ -53,6 +57,7 @@ type Writer = Reader & { put(key: string, value: unknown): Promise<unknown> };
 const CASH_DEBT_REFERENCE = "standard-debt:";
 const CASH_DEBT_DEBIT = "product-prepaid-debit-v1:" + CASH_DEBT_REFERENCE;
 export const STANDARD_PLAN_KEY = "product-standard-plan-v1";
+const STARTER_AVAILABLE = "product-starter-available-v1";
 export const STANDARD_PERIOD_PREFIX = "product-standard-period-v1:";
 export const STANDARD_CASE_PREFIX = "product-standard-case-v1:";
 export const STANDARD_DUE_PREFIX = "product-standard-due-v1:";
@@ -402,15 +407,19 @@ export async function standardCoveredAt(
     (period.revokedAt === null || openedAt < period.revokedAt)
   );
 }
-export async function initializeStandardPlan(storage: Writer) {
-  if ((await storage.get(STANDARD_PLAN_KEY)) === undefined)
-    await storage.put(STANDARD_PLAN_KEY, {
-      schema: 1,
-      tickets: 0,
-      currentPeriod: null,
-      chargedCents: 0,
-      paidCents: 0,
-    });
+export async function initializeStandardPlan(
+  storage: Writer,
+  starterAvailable?: true,
+) {
+  if ((await storage.get(STANDARD_PLAN_KEY)) !== undefined) return;
+  await storage.put(STANDARD_PLAN_KEY, {
+    schema: 1,
+    tickets: 0,
+    currentPeriod: null,
+    chargedCents: 0,
+    paidCents: 0,
+  });
+  if (starterAvailable) await storage.put(STARTER_AVAILABLE, true);
 }
 export async function standardPlanView(
   storage: Reader,
@@ -448,8 +457,15 @@ export async function standardPlanView(
     paidCents,
     dueCents: chargedCents - paidCents,
     ...(continuesOnDebt ? { continuesOnDebt: true } : {}),
+    ...(account.mode === "prepaid" && (await storage.get(STARTER_AVAILABLE)) === true
+      ? { starterAvailable: true as const }
+      : {}),
+    ...(paid && period.usage?.priceVersion === PRODUCT_STARTER_PRICES.publishedOn
+      ? { starterAiLimitCents: await readStarterAiLimit(storage) }
+      : {}),
     prepaid: {
       ...account,
+      ...(await sponsoredSupport(storage) ? { sponsored: true as const } : {}),
       period: period ? await readPrepaidPeriod(storage, period.id) : null,
     },
   };
@@ -464,7 +480,7 @@ export async function continueCustomerDebtAccess(
   const native = await storage.get<{ room?: { id?: string } }>("native-room");
   const workspace = native?.room?.id;
   const approval = workspace ? customerDebtApproval(workspace) : null;
-  if (!approval || !workspace || now < Date.parse(approval.approvedOn))
+  if (!approval || !workspace || now < Date.parse(approval.approvedOn) || await sponsoredSupport(storage))
     return null;
   const product = await storage.get<{ room: string; suspended: unknown }>(
     "product-entitlements-v1",
@@ -737,19 +753,21 @@ export async function grantStandardPeriod(
 export function standardPrepaidTerms(
   purpose: "period" | "credit",
   expectedPeriod: string | null,
+  plan: MonthlySupportPlan = "standard",
 ): StandardPaymentTerms {
+  const prices = plan === "starter" ? PRODUCT_STARTER_PRICES : PRODUCT_STANDARD_PRICES;
   return {
     purpose,
     expectedPeriod,
-    priceVersion: PRODUCT_STANDARD_PRICES.publishedOn,
-    workspaceMonthlyCents: PRODUCT_STANDARD_PRICES.workspaceMonthlyUsdCents,
-    includedAnsweredCases:
-      PRODUCT_STANDARD_PRICES.includedAnsweredCasesPerMonth,
-    additionalAnsweredCaseCents:
-      PRODUCT_STANDARD_PRICES.additionalAnsweredCaseUsdCents,
-    includedAiCreditCents: PRODUCT_STANDARD_PRICES.includedAiCreditUsdCents,
-    ...captureStandardAiRate(PRODUCT_STANDARD_PRICES),
-    aiRateCardVersion: PRODUCT_STANDARD_AI_RATES.version,
+    priceVersion: prices.publishedOn,
+    workspaceMonthlyCents: prices.workspaceMonthlyUsdCents,
+    includedAnsweredCases: prices.includedAnsweredCasesPerMonth,
+    additionalAnsweredCaseCents: prices.additionalAnsweredCaseUsdCents,
+    includedAiCreditCents: prices.includedAiCreditUsdCents,
+    ...captureStandardAiRate(prices),
+    aiRateCardVersion: plan === "starter"
+      ? PRODUCT_STARTER_PRICES.aiRateCardVersion
+      : PRODUCT_STANDARD_AI_RATES.version,
   };
 }
 /** A verified payment funds this operation. It never impersonates a human operator. */
@@ -944,7 +962,7 @@ async function syncPrepaidStandardPeriod(
 
 /** The accepted answer and its charge must commit in this same Room transaction. */
 export async function recordPrepaidAnsweredCase(
-  storage: Writer,
+  storage: Writer & Pick<Storage, "list">,
   input: { case: SupportCase; at: number },
 ) {
   const c = input.case;
@@ -959,6 +977,7 @@ export async function recordPrepaidAnsweredCase(
     !Array.isArray(c.excluded)
   )
     throw fail();
+  if (await sponsoredSupport(storage)) return { counted: false, chargedCents: 0 };
   const plan = await readPlan(storage);
   if (plan.currentPeriod === null) return { counted: false, chargedCents: 0 };
   const period = await readPeriod(storage, plan.currentPeriod);
@@ -968,10 +987,14 @@ export async function recordPrepaidAnsweredCase(
     period.revokedAt !== null ||
     input.at < period.startsAt ||
     input.at >= period.endsAt ||
-    c.openedAt < period.startsAt ||
     c.source !== "live" ||
     c.billingExclusion !== null ||
     c.excluded.length
+  )
+    return { counted: false, chargedCents: 0 };
+  if (
+    c.openedAt < period.startsAt &&
+    ((await storage.get(STARTER_AVAILABLE)) !== true || !(await standardCoveredAt(storage, c.openedAt)))
   )
     return { counted: false, chargedCents: 0 };
   const reference = [

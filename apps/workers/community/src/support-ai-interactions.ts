@@ -1,7 +1,9 @@
 import type { ChatMessage } from "@templ/chat/index";
 import type { SupportAiProvenance } from "@templ/chat/support-drafts";
 import type { KnowledgeContextPage } from "@templ/chat/knowledge";
-import { isBoundedClarification, normalizeFaqQuestion } from "@templ/chat/support-ai-interactions";
+import { HOSTED_SOCIAL_REPLIES, isBoundedClarification, normalizeFaqQuestion } from "@templ/chat/support-ai-interactions";
+import { OWN_SUPPORT_ENDPOINT } from "@templ/e2ee/protocol";
+import { hostedPrepaidPrincipal } from "./product-prepaid-ai";
 import { HttpError } from "./common";
 import { featureOn, supportKnowledgeOn } from "./workspace-flags";
 import { knowledgeCall, type KnowledgeEnv } from "./support-knowledge-client";
@@ -13,6 +15,14 @@ import type { ConversationContext, TeamConversationRecord } from "./team-convers
 import type { SupportRecord } from "./support-workflow";
 
 const refused = () => new HttpError(409, "The AI answer context changed. A person can review the case.", undefined, "ai-interaction-changed");
+const socialTexts = new Set<string>(Object.values(HOSTED_SOCIAL_REPLIES));
+function isSocialReply(context: ConversationContext, record: TeamConversationRecord, author: unknown, text?: string) {
+  if (text === "Hi! How can we help?") return true;
+  if (!text || !socialTexts.has(text) || !context.isBot || context.appOrigin !== "https://usetempl.com" || record.room !== context.room) return false;
+  if (record.room !== `room:${OWN_SUPPORT_ENDPOINT.workspace}`) return false;
+  const principal = hostedPrepaidPrincipal(record.room.slice(5));
+  return principal !== null && author === principal && context.registeredBots?.includes(principal) === true;
+}
 /** A new workflow can never turn a stale, revoked or cross-workspace read into a reply. */
 export async function assertAiInteractionReply(storage: DurableObjectTransaction, input: {
   context: ConversationContext; record: TeamConversationRecord; data: SupportRecord;
@@ -22,7 +32,7 @@ export async function assertAiInteractionReply(storage: DurableObjectTransaction
   const interaction = provenance?.interaction;
   const enabled = await featureOn(context.mediaEnv, storage, "aiInteractionImprovements");
   // Existing native managed replies have their own receipt and one-question enforcement.
-  if (enabled && provenance?.reason === "clarifying-question" && text !== "Hi! How can we help?" && !provenance.grounding && interaction?.kind !== "clarify")
+  if (enabled && provenance?.reason === "clarifying-question" && !isSocialReply(context, record, context.viewer.principalId, text) && !provenance.grounding && interaction?.kind !== "clarify")
     throw refused();
   if (!interaction) return;
   if (!enabled || !supportKnowledgeOn(context.mediaEnv) || input.caseSeq < 1) throw refused();
@@ -35,7 +45,7 @@ export async function assertAiInteractionReply(storage: DurableObjectTransaction
     for (const [key, row] of rows) {
       if (row.case !== input.caseSeq || row.ai?.reason !== "clarifying-question") continue;
       const message = await storage.get<ChatMessage>(messageKey(record.id, Number(key.split(":").at(-1))));
-      if (message?.text !== "Hi! How can we help?")
+      if (!isSocialReply(context, record, message?.author, message?.text))
         throw new HttpError(409, "The AI already asked a question. A person needs to answer next.", undefined, "clarify-used");
     }
   }

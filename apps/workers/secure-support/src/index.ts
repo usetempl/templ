@@ -118,14 +118,18 @@ export function secureSupportWorker(fetcher: typeof fetch = fetch) {
           return json(await profile(env));
         if (
           request.method === "GET" &&
-          ["/", "/widget", "/client.js", "/client.css", "/geist.woff2", "/geist-mono.woff2", "/templ-wordmark.svg", "/templ-square.svg", "/asset-manifest.json"].includes(url.pathname)
+          ["/", "/widget", "/inbox-case", "/client.js", "/client.css", "/geist.woff2", "/geist-mono.woff2", "/templ-wordmark.svg", "/templ-square.svg", "/asset-manifest.json"].includes(url.pathname)
         ) {
-          const asset = await env.ASSETS.fetch(url.pathname === "/widget" ? new Request(new URL("/", url), request) : request);
+          const framed = url.pathname === "/widget" || url.pathname === "/inbox-case";
+          const asset = await env.ASSETS.fetch(framed ? new Request(new URL("/", url), request) : request);
           const headers = new Headers(asset.headers);
           for (const [key, value] of Object.entries(security))
             headers.set(key, value);
-          if (url.pathname === "/widget" && asset.status === 200) {
-            headers.set("Content-Security-Policy", security["Content-Security-Policy"].replace("frame-ancestors 'none'", "frame-ancestors https://usetempl.com https://docs.usetempl.com https://blog.usetempl.com"));
+          if (framed && asset.status === 200) {
+            const parents = url.pathname === "/inbox-case"
+              ? "https://usetempl.com"
+              : "https://usetempl.com https://docs.usetempl.com https://blog.usetempl.com";
+            headers.set("Content-Security-Policy", security["Content-Security-Policy"].replace("frame-ancestors 'none'", `frame-ancestors ${parents}`));
             headers.delete("X-Frame-Options");
           }
           return new Response(asset.body, { status: asset.status, headers });

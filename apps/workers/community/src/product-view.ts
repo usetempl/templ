@@ -1,4 +1,4 @@
-import { customerBillingManagedByTempl } from "./customer-debt-access";
+import { billingManagedForWorkspace } from "./customer-debt-access";
 import {
   usageView,
   USAGE_ACCESS_KEY,
@@ -26,6 +26,7 @@ import { billingSoonCount, monthView, recentDebits } from "./product-charges";
 import {
   availableCents,
   balancePaused,
+  canFundNextCase,
   productMode,
   productOptions,
   productSupport,
@@ -105,7 +106,7 @@ export async function readProductAccess(
       : undefined;
   return {
     ...(await readStripeView(storage, nowMs)),
-    ...(customerBillingManagedByTempl(state.room) ? { billingManagedByTempl: true as const } : {}),
+    ...(await billingManagedForWorkspace(storage, state.room) ? { billingManagedByTempl: true as const } : {}),
     ...(usage ? { usageBilling: usage } : {}),
     ...(standard && mode !== "exempt" ? { standardPlan: standard } : {}),
     ...(earlierStandard?.period && mode !== "exempt" ? { standardPlanDebtCents: earlierStandard.dueCents } : {}),
@@ -116,6 +117,7 @@ export async function readProductAccess(
       canAdmit:
         productSupport(mode).canAdmit &&
         usage?.status !== "credit-limit" &&
+        (mode === "exempt" || canFundNextCase(standard)) &&
         (mode === "exempt" ||
           !standard ||
           standard.status === "paid" ||

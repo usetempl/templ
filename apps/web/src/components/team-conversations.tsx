@@ -65,7 +65,8 @@ import {
   communitySessionRevision,
 } from "@/lib/community-auth";
 import { pacedSupportRequest } from "@/lib/support-request-pacing";
-import { readSupport } from "@/lib/support-read";
+import { readCaseList, readSupport } from "@/lib/support-read";
+import type { EarlyCasePage } from "./workspace/workspace-reads";
 import { isChatSignInCanceled } from "@/lib/chat-auth-cancellation";
 import {
   newChatMessageId,
@@ -245,6 +246,7 @@ type BodyProps = {
   revision: number;
   /** A conversation to open at once (staff opening one they just started). */
   initialConversation?: string | null;
+  firstCasePage?: EarlyCasePage;
 };
 /** Reads current access, then renders the workspace queue or member thread. */
 function TeamConversationsBody(props: BodyProps) {
@@ -269,6 +271,7 @@ function ScopedTeamConversationsBody({
   visibility,
   revision,
   initialConversation = null,
+  firstCasePage,
 }: BodyProps) {
   const auth = useChatAuth();
   const account = auth.session?.principalId;
@@ -468,6 +471,7 @@ function ScopedTeamConversationsBody({
             selected={selected}
             nudge={queueNudge}
             pendingCases={pendingCases}
+            firstCasePage={firstCasePage}
           />
           <div className={styles.splitMain}>
             {selected ? (
@@ -494,11 +498,8 @@ function ScopedTeamConversationsBody({
                 <span aria-hidden="true">
                   <IconMessages size={26} />
                 </span>
-                <h2>Pick a case</h2>
-                <p>
-                  Open a case from the list to read it, reply and see the user’s
-                  wallet details.
-                </p>
+                <h2>Open a case</h2>
+                <p>Select a case to read the conversation and reply.</p>
               </div>
             )}
           </div>
@@ -549,6 +550,7 @@ function TeamQueue({
   selected = null,
   nudge = 0,
   pendingCases,
+  firstCasePage,
 }: {
   priorityEnabled?: boolean;
   draftsEnabled: boolean;
@@ -565,6 +567,7 @@ function TeamQueue({
    * once. */
   nudge?: number;
   pendingCases?: Record<string, TeamConversation>;
+  firstCasePage?: EarlyCasePage;
 }) {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const account = useChatAuth().session?.principalId;
@@ -626,7 +629,7 @@ function TeamQueue({
     query: string;
     rows?: TeamConversation[];
     nextCursor?: string | null;
-    pending?: "refresh" | "more";
+    pending?: "refresh" | "more" | "retry";
     error?: string;
     priorityFeed?: PriorityFeed;
   }>();
@@ -655,12 +658,12 @@ function TeamQueue({
   );
   useEffect(() => {
     const controller = new AbortController();
-    let pageCount = cache.queue(query)?.pages ?? 1;
+    let visiblePage = cache.queue(query);
     let pending = false;
     let again = false;
     let lastRead = 0;
     const read = async (more = false) => {
-      if (pending || controller.signal.aborted) return;
+      if (pending || controller.signal.aborted || (more && !visiblePage?.nextCursor)) return;
       pending = true;
       setLoaded((previous) => ({
         ...(previous?.query === query
@@ -691,16 +694,28 @@ function TeamQueue({
         }
         // Re-read the visible pages together: a resolved or newly opened
         // conversation can move across page boundaries between refreshes.
-        const rows = new Map<string, TeamConversation>();
-        const cursors = new Set<string>();
-        let cursor: string | null = null;
-        let pages = 0;
+        // More cases can use the last page's cursor and leave visible rows in place.
+        const previous = more ? visiblePage : undefined;
+        const rows = new Map(previous?.rows.map((row) => [row.id, row]));
+        let cursor = previous?.nextCursor ?? null;
+        const cursors = new Set(cursor ? [cursor] : []);
+        let pages = previous?.pages ?? 0;
+        const pageLimit = (visiblePage?.pages ?? 1) + (more ? 1 : 0);
         do {
-          const page = await readSupport(
-            (signal) =>
-              listConversations(room, filter, cursor, signal, filters),
-            controller.signal,
-          );
+          const load = (signal: AbortSignal) => {
+            const early = pages === 0 && firstCasePage?.query === query
+              ? firstCasePage.take()
+              : undefined;
+            return early ?? listConversations(room, filter, cursor, signal, filters);
+          };
+          const page = pages === 0 || filter === "all"
+            ? await readCaseList(load, controller.signal, () =>
+                setLoaded((previous) => previous?.query === query
+                  ? { ...previous, pending: "retry" }
+                  : previous),
+                filter === "all",
+              )
+            : await readSupport(load, controller.signal);
           if (controller.signal.aborted) return;
           for (const row of page.conversations) rows.set(row.id, row);
           cursor = page.nextCursor;
@@ -708,9 +723,9 @@ function TeamQueue({
             throw new Error(t("room.team.errorGeneric"));
           if (cursor) cursors.add(cursor);
           pages += 1;
-        } while (cursor && pages < pageCount + (more ? 1 : 0));
-        pageCount = pages;
+        } while (cursor && pages < pageLimit);
         const page = { rows: [...rows.values()], nextCursor: cursor, pages };
+        visiblePage = page;
         cache.rememberQueue(query, page);
         setLoaded({ query, ...page });
         lastRead = Date.now();
@@ -731,6 +746,7 @@ function TeamQueue({
           return;
         }
         if (!controller.signal.aborted && accessEnded(reason)) {
+          visiblePage = undefined;
           cache.clear();
           discardWorkspaceConversationOutbox(room, account);
           clearSupportWorkspaceState(room, account);
@@ -771,7 +787,7 @@ function TeamQueue({
       if (timer !== null) window.clearInterval(timer);
       window.removeEventListener("focus", focused);
     };
-  }, [room, account, filter, revision, query, filters, cache, prioritiesShown]);
+  }, [room, account, filter, revision, query, filters, cache, prioritiesShown, firstCasePage]);
   const activeFilters = Object.values(filters).filter(Boolean).length;
   const filterForm = (
     <form
@@ -882,7 +898,7 @@ function TeamQueue({
   return (
     <div className={styles.queue}>
       <div className={styles.queueHead}>
-        <h1>Inbox</h1>
+        <h1>{t("room.team.list")}</h1>
         <div className={styles.queueHeadActions}>
           <button
             type="button"
@@ -961,6 +977,9 @@ function TeamQueue({
         }
       />
 
+      {current?.pending === "retry" && (
+        <p role="status">Reconnecting to cases…</p>
+      )}
       {error && (
         <p className={styles.error} role="alert">
           {error}{" "}
@@ -972,6 +991,9 @@ function TeamQueue({
             {t("room.team.refresh")}
           </button>
         </p>
+      )}
+      {current?.pending === "retry" && (
+        <p className={styles.note} role="status">Trying the case list again…</p>
       )}
       <div
         className={styles.listScroll}
@@ -2847,14 +2869,17 @@ function ConversationView({
             SUPPORT_IDENTITY_LABELS[caseIdentity])}
       </span>
       <span>{inboxOwner(conversation.assignment, account, labelFor)}</span>
+      {!conversation.encryption && <span>Standard</span>}
     </span>
   );
   const secure = conversation?.encryption ?? (!conversationId && !conversation ? status.encryption : undefined);
   if (secure && !revoked) return (
     <div className={styles.threadMain}>
       {onBack && <button type="button" className={styles.back} onClick={onBack}>{t("room.team.allConversations")}</button>}
-      <CustomerEncryptedSupport origin={secure.clientOrigin} workspace={String(room).replace(/^room:/, "")} conversation={conversation?.id}
-        caseSeq={conversation?.encryption?.caseSeq} name={communityName} custody={secure.custody} />
+      <CustomerEncryptedSupport key={`${room}:${account}:${conversation?.id}:${conversation?.encryption?.caseSeq}`}
+        origin={secure.clientOrigin} workspace={String(room).replace(/^room:/, "")} conversation={conversation?.id}
+        caseSeq={conversation?.encryption?.caseSeq} name={communityName} custody={secure.custody}
+        inline={teamView} account={account} />
     </div>
   );
   const thread = (

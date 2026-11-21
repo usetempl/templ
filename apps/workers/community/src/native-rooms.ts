@@ -35,9 +35,13 @@ import {
 } from "@templ/chat/onboarding";
 import { accentColor } from "./room-appearance";
 import { profileMediaHash } from "@templ/chat/profiles";
+import type { WorkspaceSupportProfiles } from "@templ/chat/support";
+import { isSupportContactRole, readSupportProfiles, saveSupportProfile } from "./support-contact-profiles";
 import { servicePrincipals, actsAs } from "./service-principals";
 import { NATIVE_ROOM_PILOT_LIMIT } from "./native-room-limits";
-import { aiPrincipals, requireHumanManager } from "./bots";
+import { aiPrincipals, botsFromSettings, requireHumanManager } from "./bots";
+import { readAiDefault } from "./support-ai-mode";
+import { supportSettings } from "./support-workflow";
 import { workspaceFeatureSnapshot } from "./workspace-feature-values";
 
 export const WORKSPACE_FEATURES_HEADER = "X-Templ-Workspace-Features";
@@ -92,6 +96,9 @@ export type NativeCreation = {
 export type NativeRoomRecord = NativeCreation & {
   revision: number;
   trialCreator?: `0x${string}`;
+  supportProfiles?: WorkspaceSupportProfiles;
+  supportResponderConfigured?: boolean;
+  aiReplyExpected?: boolean;
 };
 export const NATIVE_ROOM_SCHEMA_ERROR = "Workspace metadata is unavailable.";
 /** The creator uses a wallet session to grant a trial operator its marker. */
@@ -556,6 +563,7 @@ export function nativeRoomStub(
 async function readNativeRoom(
   env: { ROOMS: DurableObjectNamespace },
   id: string,
+  visitorReplyPolicy = false,
 ): Promise<{
   room: DurableObjectStub;
   record: NativeRoomRecord;
@@ -568,7 +576,7 @@ async function readNativeRoom(
     room.fetch(
       new Request("https://internal/private/native/read", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: visitorReplyPolicy ? { "X-Widget-Reply-Policy": "1" } : {},
       }),
     ),
   );
@@ -605,12 +613,14 @@ export function prefetchNativeRoom(
 export function nativeRecord(
   env: { ROOMS: DurableObjectNamespace },
   id: string,
+  visitorReplyPolicy = false,
 ): Promise<{
   room: DurableObjectStub;
   record: NativeRoomRecord;
   features?: WorkspaceFeatures;
 }> {
   const key = nativeRoomId(id);
+  if (visitorReplyPolicy) return readNativeRoom(env, key, true);
   const prefetch = requestPrefetch(env);
   const early = prefetch.native;
   if (early && early.id === key) {
@@ -688,6 +698,7 @@ export async function nativeControlRequest(
       creator: value.room.creator,
       room: `room:${value.room.id}`,
       nowMs: Date.parse(value.room.createdAt),
+      starterAvailable: true,
     });
     const onboarding = body.onboarding as
       | { journey?: unknown; traffic?: unknown }
@@ -718,11 +729,22 @@ export async function nativeControlRequest(
   requireHumanManager(agents, existing.room.manager);
   // This runs before every public room route. A workspace set to be
   // deleted carries its deletion state, and the worker refuses the route.
-  if (op === "read")
+  if (op === "read") {
+    const supportProfiles = await readSupportProfiles(storage);
     return json({
       ...recordView(existing),
+      ...(body.visitorReplyPolicy === true ? {
+        aiReplyExpected: supportProfiles?.assistantEnabled !== false &&
+          botsFromSettings(settings).length > 0 &&
+          readAiDefault(await supportSettings(storage)) === "answers",
+      } : {}),
+      ...(supportProfiles ? {
+        supportProfiles,
+        supportResponderConfigured: botsFromSettings(settings).length > 0,
+      } : {}),
       ...(await deletionReadField(storage)),
     });
+  }
   const actor = principal(body.principalId);
   const aliases = servicePrincipals(actor, body.servicePrincipals);
   if (aliases.some((id) => agents.includes(id)))
@@ -813,6 +835,12 @@ export async function nativeControlRequest(
         403,
         "Only workspace admins can change the name or icon.",
       );
+    if (body.contactRole !== undefined) {
+      if (!isSupportContactRole(body.contactRole))
+        throw invalid("Choose the founder or the AI assistant.");
+      const supportProfiles = await saveSupportProfile(storage, body.contactRole, body, communityOrigin);
+      return json({ supportProfiles });
+    }
     const name =
       body.name === undefined ? existing.room.name : nativeName(body.name);
     let image = existing.room.image;

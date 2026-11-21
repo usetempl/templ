@@ -1,4 +1,4 @@
-import { customerBillingManagedByTempl } from "./customer-debt-access";
+import { billingManagedForWorkspace } from "./customer-debt-access";
 import { featureOn, type WorkspaceFlagEnv } from "./workspace-flags";
 /** The alert-event outbox: one emit call per event, one queue per
  * destination, and a room alarm consumer that leases, renders, sends, logs
@@ -293,7 +293,7 @@ export async function emitAlert(
   try {
     const native = await storage.get<{ room?: { id?: string } }>("native-room");
     if (input.type === "capacity" && input.capacity?.alert !== "suspended" &&
-        customerBillingManagedByTempl(native?.room?.id ?? "")) return { queued: 0, overflowed: 0 };
+        await billingManagedForWorkspace(storage, native?.room?.id ?? "")) return { queued: 0, overflowed: 0 };
     const index = await readDestinationIndex(storage);
     const targets = index.filter(
       (entry) =>
@@ -492,7 +492,7 @@ async function lease(storage: Tx, env: AlertEnv, dest: string, now: number,
     await storage.delete(`${OVERFLOW_PREFIX}${dest}`);
     overflow = null;
   }
-  const internalBilling = customerBillingManagedByTempl(native?.room?.id ?? "");
+  const internalBilling = await billingManagedForWorkspace(storage, native?.room?.id ?? "");
   const due: Leased["due"] = [];
   let next: number | null = null;
   const limit = chatKind(row.kind) ? CHAT_ROWS_PER_POST : WEBHOOK_ROWS_PER_RUN;

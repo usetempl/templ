@@ -97,7 +97,7 @@ const EMPTY_BUDGET = (): ServiceMediaBudget => ({
   supportObjects: 0,
 });
 const MEDIA_REFERENCE =
-  /^(?:profile|room:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/;
+  /^(?:profile|room:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?::(?:founder|assistant))?)$/;
 const SUPPORT_ROOM =
   /^room:([0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/;
 const SUPPORT_CONVERSATION = /^tc-[0-9a-f]{32}$/;

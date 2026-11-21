@@ -105,6 +105,7 @@ export function parseSupportLeadInput(value: unknown): SupportLeadInput {
     typeof input.appUrl !== "string" ||
     !input.appUrl.length ||
     input.appUrl.length > SUPPORT_LEAD_LIMITS.appUrl ||
+    // eslint-disable-next-line no-control-regex -- Reject controls before the URL parser strips them.
     /[\u0000-\u0020\u007f]/.test(input.appUrl)
   )
     fail("Enter your app's http or https URL.");

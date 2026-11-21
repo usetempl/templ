@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { PersonalSettings } from "@/components/personal-settings";
 import styles from "@/components/linked-wallets.module.css";
 import { copy as t } from "@/lib/copy";
 
@@ -13,6 +14,7 @@ export default async function SettingsPage() {
   return (
     <div className={styles.page}>
       <h1>{t("shell.settings.title")}</h1>
+      <PersonalSettings />
       <ul className={styles.list}>
         <li className={styles.row}>
           <Link href="/settings/account">

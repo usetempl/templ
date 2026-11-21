@@ -1,4 +1,4 @@
-import { customerBillingManagedByTempl } from "./customer-debt-access";
+import { billingManagedForWorkspace } from "./customer-debt-access";
 import { queueRoomResources } from "./workspace-resource-observations";
 import { featureOn } from "./workspace-flags";
 import { releaseActivationReadUnknown } from "./release-activation";
@@ -416,7 +416,7 @@ export async function supportNotificationAuthorized(
   if (pref?.enabled !== true && !job.facts?.orderFormNotice && !job.facts?.orderFormStaffRemoval) return false;
   const native = await storage.get<NativeRoomRecord>("native-room");
   if (!native) return false;
-  if (customerBillingManagedByTempl(native.room.id) && (
+  if (await billingManagedForWorkspace(storage, native.room.id) && (
     job.facts?.month ||
     (job.facts?.balance && job.facts.balance.alert !== "suspended") ||
     (job.facts?.alert?.type === "capacity" && job.facts.alert.capacity?.alert !== "suspended")

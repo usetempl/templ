@@ -8,7 +8,8 @@ import {
 } from "@/lib/community-client";
 import { trackEvent } from "@/lib/analytics";
 import { chatMutation } from "@/lib/chat-api";
-import { Card, Spinner, ui } from "@/components/ui/ui";
+import { SITE } from "@/lib/site-environment";
+import { Card, CopyInline, Spinner, ui } from "@/components/ui/ui";
 import type { WorkspaceContext } from "./support-workspace";
 import styles from "./workspace.module.css";
 import { UnsavedChanges } from "./unsaved-changes";
@@ -44,6 +45,7 @@ export function WidgetJourneySettings({
   context: WorkspaceContext;
 }) {
   const { room, account } = context;
+  const supportUrl = context.supportUrl ?? `${SITE.origin}/help/${context.id}`;
   const scope = `${room}:${account ?? "signed-out"}`;
   const current = useRef(scope);
   const [settings, setSettings] = useState<Settings>();
@@ -57,6 +59,9 @@ export function WidgetJourneySettings({
     const controller = new AbortController();
     setError("");
     current.current = scope;
+    setSettings(undefined);
+    setDraft({});
+    setHostedAvailable(false);
     void communityFetch<ReadSettings>(
       roomPath(room, "widget"),
       undefined,
@@ -168,11 +173,13 @@ export function WidgetJourneySettings({
               Host a support page on Templ
             </label>
             <p className={styles.small}>
-              People can ask there if your app is down. Guests can use this page
-              without a wallet.
+              Save to get a guest chat link for your official site or Help menu. Visitors can use this page without a wallet, even if your embedded widget requires one.
             </p>
             {hostedAvailable && settings.hostedPage && (
-              <a href={`/help/${context.id}`}>Open your support page</a>
+              <div className={styles.stack}>
+                <CopyInline value={supportUrl} label="Copy support link" />
+                <a href={supportUrl}>Open your support page</a>
+              </div>
             )}
           </div>
         )}

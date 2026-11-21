@@ -2,7 +2,7 @@
  * past UTC month's resolved cases and charges from charge metadata, and
  * its cases from the case ledger. Counts, amounts and times only. It goes
  * once per month, from the room alarm, early in the next month. */
-import { customerBillingManagedByTempl } from "./customer-debt-access";
+import { billingManagedForWorkspace } from "./customer-debt-access";
 import {
   PRODUCT_CHARGE_CLOSERS,
   type ProductChargeCloser,
@@ -65,7 +65,7 @@ export async function queueMonthReport(
   now: number,
 ): Promise<number | null> {
   const nativeRoom = await storage.get<{ room?: { id?: string } }>("native-room");
-  if (customerBillingManagedByTempl(nativeRoom?.room?.id ?? "")) return null;
+  if (await billingManagedForWorkspace(storage, nativeRoom?.room?.id ?? "")) return null;
   if (!(await storage.get(PRODUCT_STATE_KEY))) return null;
   const current = resolutionMonth(now);
   const next = monthRange(current)!.to;

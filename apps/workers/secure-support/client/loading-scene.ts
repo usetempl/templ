@@ -66,3 +66,19 @@ export function openingScene() {
   root.append(draw(scene));
   return root;
 }
+
+/** The first-send illustration follows the phase announced beside it. */
+export function sendMotion() {
+  const packets: Shape[] = [2, 10, 18].map((x) => [
+    "rect", {class: c("sendPacket"), x: String(x), y: "10.5", width: "6", height: "6", rx: "2"},
+  ]);
+  return draw(["svg", {viewBox: "0 0 64 24", class: c("sendMotion"),
+    "aria-hidden": "true", focusable: "false"}, [
+    ["path", {class: c("sendTrack"), d: "M2 13.5H62"}],
+    ...packets,
+    ["path", {class: c("sendShackle"), d: "M29 9V6.5a3 3 0 0 1 6 0V9"}],
+    ["rect", {class: c("sendLock"), x: "26", y: "9", width: "12", height: "9", rx: "2.5"}],
+    ["path", {class: c("sendScan"), d: "M28.5 11H35.5"}],
+    ["rect", {class: c("sendOut"), x: "40", y: "10.5", width: "6", height: "6", rx: "2"}],
+  ]]) as SVGSVGElement;
+}

@@ -33,7 +33,7 @@ import { requireWorkspaceAdminHeaders } from "./privileged-auth";
 import type { ProductCaseBilling } from "@templ/chat/product-catalog";
 import { readMessage } from "./message-store";
 import { readQuality, qualityKey } from "./support-quality";
-import { customerBillingManagedByTempl } from "./customer-debt-access";
+import { billingManagedForWorkspace } from "./customer-debt-access";
 import { resolutionMonth } from "@templ/chat/resolution-pricing";
 import { readChargeMonth } from "./product-charges";
 import { caseBilling } from "./product-charges";
@@ -617,7 +617,7 @@ export async function pilotRoute(
     );
   const settings = await readPilotSettings(storage);
   const key = await metricsKey(storage);
-  const canReadCharges = !context.isBot && !customerBillingManagedByTempl(context.room) &&
+  const canReadCharges = !context.isBot && !(await billingManagedForWorkspace(storage, context.room)) &&
     (viewer.isManager || viewer.permissions.map(String).includes("manageBilling"));
   const chargeMonths = new Map<string, Promise<number | null>>();
   const customerChargeAverage = (openedAt: number) => {

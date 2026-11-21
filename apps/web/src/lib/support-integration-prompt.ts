@@ -9,13 +9,14 @@ import { PRODUCT_LIMITS } from "@templ/chat/plans";
 /** The short entry prompt delegates current setup details to the hosted guide. */
 export function startInstallPrompt(hosts: InstallHosts = SITE): string {
   return `Read ${hosts.origin}/llms.txt and follow the install guide.
-Add Templ support to this app. Reuse its wallet connection.
+Ask whether I want an embedded widget, a standalone support link, or both.
 Help me create a workspace at ${hosts.origin}/create or use one I manage.
-Ask me to copy its public workspace ID from the Widget tab. It is not a credential.
+For a support link, open Settings → Widget → Guest support, select Host a support page on Templ and Save guest support. Use Copy support link for the saved URL. Link-only setup needs no widget code.
+For the widget, ask me to copy its public workspace ID from Settings → Widget. It is not a credential.
 Use Connect's wallet confirmation only when current availability says Connect is open.
 Use free integration mode: ${PRODUCT_LIMITS.freeSupportTickets} lifetime test tickets, with ${PRODUCT_LIMITS.freeTeamRepliesPerTicket} team replies per ticket. Templ AI stays off.
 Preserve existing paid access, grants, team roles and AI settings.
-Use the workspace's install prompt to add Help, wallet updates and failure capture.
+For an embed, reuse the app’s wallet connection and use the workspace install prompt to add Help, wallet updates and failure capture. For both, keep the link and the widget on this workspace.
 Check current availability. Keep unavailable features off.
 Never request passwords, private keys, recovery phrases or staff tokens.
 Test a guest question and a team reply. Tell me what needs attention.
@@ -236,12 +237,14 @@ export function closeSupport() {
 export function installPrompt({
   release,
   workspaceId,
+  supportUrl,
   workspaceFeatures = {},
   workspaceOptions = {},
   hosts = SITE,
 }: {
   release: InstallPromptRelease;
   workspaceId?: string;
+  supportUrl?: string;
   workspaceFeatures?: InstallPromptWorkspaceFeatures;
   workspaceOptions?: { loopback?: boolean };
   hosts?: InstallHosts;
@@ -262,7 +265,9 @@ export function installPrompt({
     : " For local testing, use your host's HTTPS preview or an HTTPS tunnel to your local server. Open the app at that URL before testing.";
   return `Add Templ support chat to this app.
 Start at ${origin} and read ${origin}/llms.txt for the install guide.
-Reuse the wallet connection the app already has.
+Ask whether I want the widget, a standalone chat link, or both.
+For a link, open Settings → Widget → Guest support. Select Host a support page on Templ and Save guest support. Use Copy support link${id ? ` and check that the saved address is ${supportUrl ?? `${origin}/help/${id}`}` : " to get this workspace’s address"}. Link to it from the app’s official Help or Support entry. For link only, stop after verifying the page. No widget code is needed.
+For an embed or both, follow the widget steps below. Reuse the wallet connection the app already has.
 
 Templ loads from a hosted ES module. There is no npm package. Don't install one or copy the hosted module into the repo.
 

@@ -45,8 +45,8 @@ const VISIBILITY: ChatVisibility = "public";
 const NEXT_STEPS = [
   {
     icon: IconCode,
-    title: "Copy install prompt",
-    body: "Paste it into your AI coding tool. Your workspace ID is already in it.",
+    title: "Choose where people ask for help",
+    body: "Embed the widget in your app, share a standalone chat link, or use both.",
   },
   {
     icon: IconInbox,
@@ -57,8 +57,10 @@ const NEXT_STEPS = [
 
 export function NativeChatCreate({
   available: suppliedAvailable,
+  showPlanAfterCreate = false,
 }: {
   available?: boolean;
+  showPlanAfterCreate?: boolean;
 }) {
   const RELEASE = useRelease();
   const available = suppliedAvailable ?? workspaceCreationEnabled(RELEASE);
@@ -154,7 +156,7 @@ export function NativeChatCreate({
       } catch {
         /* Creation is already confirmed. */
       }
-      router.push(`/inbox/${room.id}?tab=home`);
+      router.push(`/inbox/${room.id}?tab=${showPlanAfterCreate ? "plan" : "home"}`);
     } catch (reason) {
       trackEvent("create_failed");
       if (lifetime.current && !isChatSignInCanceled(reason))
@@ -183,7 +185,7 @@ export function NativeChatCreate({
         <form onSubmit={(event) => void submit(event)} className={styles.form}>
           <Field
             label={t("shell.create.name")}
-            hint="Users see it in the widget header. You can change it later."
+            hint="Visitors see it in your support chat. You can change it later."
           >
             <input
               className={`${ui.input} ${styles.nameInput}`}

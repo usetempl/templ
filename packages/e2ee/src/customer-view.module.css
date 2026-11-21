@@ -176,12 +176,23 @@
 /* One quiet line above the composer. The delay keeps instant states from flashing. */
 .activity { display: flex; align-items: center; gap: 6px; margin-top: 6px; color: var(--own-muted); font-size: 12px; animation: state-in .2s ease-out .15s backwards; }
 .activity[hidden] { display: none; }
-.firstSendEstimate { color: var(--own-muted); margin-inline-start: 20px; }
-.activity svg { flex: none; width: 14px; height: 14px; }
-.activity svg path:last-child { animation: lock-settle .7s ease-in-out .15s 5 alternate both; }
-@keyframes lock-settle { from { transform: translateY(-1.5px); } to { transform: translateY(0); } }
+.activity[data-first-send] {
+  align-self: stretch;
+  width: 100%;
+  gap: 10px;
+  padding: 8px 4px 3px;
+  border-top: 1px solid var(--secure-border);
+  color: var(--own-text);
+}
+.activityCopy { min-width: 0; }
+.activityCopy > span { display: block; }
+.activityCopy > span[hidden] { display: none; }
+.firstSendEstimate { color: var(--own-muted); }
+.activity[data-first-send] [role="status"] { font-weight: 500; font-size: 13px; }
+.activity > div:first-child { flex: none; }
+.activity:not([data-first-send]) svg { display: block; width: 14px; height: 14px; }
 @media (prefers-reduced-motion: reduce) {
-  .compact .messages, .opening, .chatState > p, .chatState > button, .activity, .activity svg path:last-child { transition: none; animation: none; }
+  .compact .messages, .opening, .chatState > p, .chatState > button, .activity { transition: none; animation: none; }
   .compact[data-view='opening'] .messages { transform: none; }
   .compact[data-loading='true'] .opening { animation: none; transform: scaleX(.4); }
 }

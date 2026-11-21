@@ -144,7 +144,16 @@ export async function guestFollowUpThread(
   const workflow = await storage.get<{ lastMemberMessageAt?: number | null }>(
     `support-workflow-v1:${record.id}`,
   );
-  if (context.method !== "POST" || !workflow?.lastMemberMessageAt)
+  // The Templ homepage can reserve a guest's own empty thread after the
+  // visitor asks for notices. The same email confirmation and delivery
+  // checks apply before and after their first message.
+  const ownHome = context.appOrigin === "https://usetempl.com" &&
+    origin === context.appOrigin &&
+    context.room === `room:${OWN_SUPPORT_ENDPOINT.workspace}` &&
+    context.mediaEnv.TEMPL_SUPPORT_WORKSPACE === OWN_SUPPORT_ENDPOINT.workspace &&
+    record.state === "open" && !record.stopped && !record.deleting &&
+    !record.encryptedCases && record.messageCount === 0;
+  if (context.method !== "POST" || (!workflow?.lastMemberMessageAt && !ownHome))
     throw new HttpError(400, "Send your question first.");
   if (context.body.enabled === false) {
     if (held) await storage.delete(guestFollowUpKey(record.id));

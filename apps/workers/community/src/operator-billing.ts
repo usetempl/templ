@@ -678,8 +678,13 @@ export async function roomOperatorBillingRequest(
       body.confirmed,
       now,
     );
+    if (body.mode === "sponsored") {
+      const state = await readProductState(storage, now, payment.env);
+      if (state.cardCoverage || await activeProductOrderForm(storage, now))
+        throw new HttpError(409, "Keep the active payment agreement until its term ends.");
+    }
     await setPrepaidMode(storage, {
-      mode: body.mode as "prepaid" | "debt" | "custom",
+      mode: body.mode as "prepaid" | "debt" | "custom" | "sponsored",
       expectedRevision: body.expectedRevision as number,
       operator,
       reason,

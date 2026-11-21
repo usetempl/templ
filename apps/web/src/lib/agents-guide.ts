@@ -3,6 +3,7 @@ import { SITE } from "@/lib/site-environment";
 import {
   PRODUCT_LIMITS,
   PRODUCT_STANDARD_PRICES as PRICES,
+  PRODUCT_STARTER_PRICES as STARTER,
 } from "@templ/chat/plans";
 import { installConnectSteps } from "@/lib/support-integration-prompt";
 
@@ -28,10 +29,10 @@ export function renderAgentsGuide({
     : "";
   return `# Templ support integration
 
-Support inside your crypto app.
+Support inside your crypto app or on a standalone page.
 
 Templ adds private support chat and a team inbox.
-Users share the wallet and transaction details your team needs.
+Visitors choose which wallet and transaction details to share.
 Your AI agent answers or hands off. Your team replies in chat.
 [Test ${PRODUCT_LIMITS.freeSupportTickets} tickets free, without Templ AI. Read pricing.](${SITE.docs}/pricing)
 Transaction checks appear only when enabled.
@@ -40,6 +41,8 @@ Connect your AI agent with the backend guide below.
 Ask a question through [Templ's widget](${SITE.origin}/#support).
 
 ## Choose an integration
+
+Ask whether the team wants a widget, a standalone link, or both. For the link, open Settings → Widget → Guest support. Select Host a support page on Templ and Save guest support. Use Copy support link and publish the saved URL on the official site. The page accepts guests and works without the widget script. For both, install the widget for that same workspace. Both entries reach its inbox. Guest sessions are scoped to their site and workspace.
 
 - [Install with your AI](${SITE.docs}/install): create or choose your workspace, copy its install prompt into your AI coding tool, then test the widget.
 - [Wallet support widget](${SITE.docs}/developers/widget): load \`${SITE.origin}/support-widget.js\` in the browser as a hosted ES module with \`import()\`. There is no npm package; don't install one. The guide links to the full install prompt. Call \`captureSupportFailure(workspaceId, failure)\` from your failure handler with the [typed \`app\` fields and limits](${SITE.docs}/developers/widget#capture-failure). Make a "Get help" button call \`openSupport(workspaceId)\`. Pass the wallet the app already connected: \`{ evm: provider }\` with the EIP-1193 provider the user picked${solana ? ", or `{ solana: wallet }` with `useWallet()` from @solana/wallet-adapter-react or the Wallet Standard wallet the user picked" : ""}. Visitors can ask without a wallet unless the workspace requires one; a separate ${solana ? "SIWE or SIWS" : "SIWE"} proof verifies their wallet when they choose to sign in. Reuse the existing wallet connection; do not add a second wallet modal. To pin one build, load \`${SITE.origin}${SUPPORT_WIDGET_LATEST_PATH}\` instead: that file never changes and keeps working for ${SUPPORT_WIDGET_SUPPORT_DAYS} days after a newer version replaces it.
@@ -76,12 +79,12 @@ Each test ticket allows ${PRODUCT_LIMITS.freeTeamRepliesPerTicket} team replies.
 Retries, deleting replies and reopening do not reset this allowance.
 After the free allowance, pay for workspace access to continue.
 Do not create more workspaces to bypass the free limit.
-Open Plan and choose Pay $${PRICES.workspaceMonthlyUsdCents / 100} USDC when you are ready for live support.
+Open Plan & usage. Select Start paid month and choose an available plan.
 Use an available checkout network. Templ verifies payment before your month starts.
 A pending transfer does not activate access. Ask Templ in chat if payment is unavailable.
 Check Plan & usage for access, reviewed usage totals and amounts due.
 Missing or unreviewed usage stays unavailable for billing.
-Templ costs $${PRICES.workspaceMonthlyUsdCents / 100}/month per workspace.
+Templ Hosted Starter for new workspaces costs $${STARTER.workspaceMonthlyUsdCents / 100}/month for ${STARTER.includedAnsweredCasesPerMonth} answered cases. Each extra case costs $${(STARTER.additionalAnsweredCaseUsdCents / 100).toFixed(2)}. Starter uses prepaid Templ AI with a monthly limit. Plus costs $${PRICES.workspaceMonthlyUsdCents / 100}/month per workspace.
 It includes ${PRICES.includedAnsweredCasesPerMonth} answered cases and $${PRICES.includedAiCreditUsdCents / 100} in retail AI credit each month.
 Each additional answered case costs $${(PRICES.additionalAnsweredCaseUsdCents / 100).toFixed(2)}.
 A case counts once after its first answer reaches the user.

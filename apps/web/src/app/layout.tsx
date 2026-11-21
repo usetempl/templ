@@ -19,6 +19,21 @@ import { copy as t } from "@/lib/copy";
 import { OPERATOR } from "@/lib/operator";
 import "./globals.css";
 
+// The router can replace the initial URL before React receives a visitor's
+// first tap. Remember the native anchor until the support panel takes over.
+const rememberSupportAnchor = `(() => {
+  if (location.pathname !== "/") return;
+  const remember = (url) => document.documentElement.toggleAttribute(
+    "data-templ-open-support", new URL(url).hash === "#support"
+  );
+  const changed = (event) => remember(event.newURL);
+  remember(location.href);
+  window.addEventListener("hashchange", changed);
+  window.addEventListener("templ:support-listening", () => {
+    window.removeEventListener("hashchange", changed);
+  }, { once: true });
+})();`;
+
 const geist = Geist({
   subsets: ["latin"],
   variable: "--font-sans",
@@ -98,6 +113,10 @@ export default async function RootLayout({
         <script
           nonce={nonce}
           dangerouslySetInnerHTML={{ __html: APP_THEME_SCRIPT }}
+        />
+        <script
+          nonce={nonce}
+          dangerouslySetInnerHTML={{ __html: rememberSupportAnchor }}
         />
         <link
           rel="alternate"

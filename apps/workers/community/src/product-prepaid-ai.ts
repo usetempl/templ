@@ -1,11 +1,14 @@
 import {
   PRODUCT_STANDARD_AI_RATES,
   PRODUCT_STANDARD_PRICES,
+  PRODUCT_STARTER_PRICES,
 } from "@templ/chat/plans";
 import {
   standardAiUsageUsdNanos,
   captureStandardAiRate,
   checkedStandardAiRate,
+  isStandardAiModel,
+  type StandardAiModel,
   type StandardAiRate,
   type StandardAiTokenUsage,
 } from "@templ/chat/standard-usage";
@@ -13,6 +16,7 @@ import type { ChatPrincipalId } from "@templ/chat/principal";
 import { HttpError, sha256Hex } from "./common";
 import {
   readPrepaidAccount,
+  starterAiRemaining,
   readPrepaidPeriod,
   reserveAi,
   settleAi,
@@ -67,7 +71,7 @@ export type PrepaidAiReserve = {
   attemptId: string;
   requestBytes: number;
   maxOutputTokens: number;
-  model: "gpt-6.1-sol";
+  model: StandardAiModel;
   requestSha256?: string;
   /** Exact provider count of this request, including its schema and framing. Absent means full-context hold. */
   inputTokens?: number;
@@ -130,7 +134,7 @@ function checkedEnvelope(value: unknown): Envelope {
     !integer(value.at) ||
     typeof value.maximumUsdNanos !== "string" ||
     !/^[1-9][0-9]{0,29}$/.test(value.maximumUsdNanos) ||
-    value.model !== PRODUCT_STANDARD_AI_RATES.model ||
+    !isStandardAiModel(value.model) ||
     !checkedStandardAiRate(value) ||
     typeof value.aiRateCardVersion !== "string" ||
     !/^[a-zA-Z0-9._:-]{1,120}$/.test(value.aiRateCardVersion) ||
@@ -311,7 +315,7 @@ export async function reservePrepaidAi(
       ["requestSha256", "inputTokens"],
     ) ||
     !UUID.test(String(input.attemptId)) ||
-    input.model !== PRODUCT_STANDARD_AI_RATES.model ||
+    !isStandardAiModel(input.model) ||
     !integer(input.requestBytes) ||
     input.requestBytes < 1 ||
     input.requestBytes > PREPAID_AI_LIMITS.requestBytes ||
@@ -339,8 +343,11 @@ export async function reservePrepaidAi(
       undefined,
       "prepaid-period-required",
     );
+  const rateCardVersion = period.priceVersion === PRODUCT_STARTER_PRICES.publishedOn
+    ? PRODUCT_STARTER_PRICES.aiRateCardVersion
+    : PRODUCT_STANDARD_AI_RATES.version;
   if (
-    period.aiRateCardVersion !== PRODUCT_STANDARD_AI_RATES.version ||
+    period.aiRateCardVersion !== rateCardVersion ||
     !(
       period.aiRateMultiplier === 2 ||
       period.aiRateBasisPoints === PRODUCT_STANDARD_PRICES.aiRateBasisPoints
@@ -386,17 +393,21 @@ export async function reservePrepaidAi(
   let customerHoldPolicy: "bounded_risk_v1" | undefined;
   if (input.inputTokens === undefined) {
     const view = await standardPlanView(storage, now);
+    const remaining = await starterAiRemaining(storage, period);
     if (
       view.status === "paid" &&
       view.period?.id === period.id &&
       view.period.source === "verified-payment" &&
-      view.period.workspaceMonthlyCents ===
-        PRODUCT_STANDARD_PRICES.workspaceMonthlyUsdCents
+      (remaining !== undefined ||
+        view.period.workspaceMonthlyCents === PRODUCT_STANDARD_PRICES.workspaceMonthlyUsdCents)
     ) {
       const account = await readPrepaidAccount(storage);
-      const available =
+      let available =
         BigInt(period.includedAiAvailableUsdNanos) +
         BigInt(account.cashAvailableUsdNanos);
+      if (remaining === 0n)
+        throw new HttpError(402, "Set a monthly AI limit with funds available.", undefined, "prepaid-ai-limit");
+      if (remaining !== undefined && remaining < available) available = remaining;
       const cap = BigInt(PREPAID_AI_LIMITS.fallbackCustomerHoldUsdNanos);
       if (available <= 0n)
         throw new HttpError(
@@ -509,7 +520,8 @@ export async function settlePrepaidAi(
     input.outcome === "completed" &&
     usage &&
     input.model === row.model &&
-    row.aiRateCardVersion === PRODUCT_STANDARD_AI_RATES.version
+    (row.aiRateCardVersion === PRODUCT_STANDARD_AI_RATES.version ||
+      row.aiRateCardVersion === PRODUCT_STARTER_PRICES.aiRateCardVersion)
       ? standardAiUsageUsdNanos(input.model, usage, row)
       : null;
   if (

@@ -17,7 +17,7 @@
   "scripts": {
     "type-check": "tsc --noEmit",
     "lint": "eslint . --fix",
-    "format": "prettier --write . --ignore-path ../../.prettierignore",
+    "format": "prettier --write . --ignore-path ../../.gitignore",
     "test": "vitest run src/widget-wallet.test.ts --maxWorkers=2"
   },
   "devDependencies": {

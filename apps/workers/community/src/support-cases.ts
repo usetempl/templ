@@ -1641,6 +1641,7 @@ function awaitingEntry(key: string, value: unknown): NeedsReplyEntry | null {
 }
 /** What the pulse and the index views need to split Needs reply. */
 export type TurnInput = {
+  assistantPaused?: boolean;
   /** The workspace default for new requests. */
   aiDefault: SupportAiMode;
   agent: AgentState;
@@ -1659,7 +1660,7 @@ export function awaitingTurn(
     // The row keeps no handoff reason; only the turn is used here.
     handoffReason: entry.handoff ? "other" : null,
     notSolved: entry.notSolved,
-    aiMode: entry.ai ?? input.aiDefault,
+    aiMode: input.assistantPaused ? "off" : entry.ai ?? input.aiDefault,
     agentDraftAt: null,
     agent: input.agent,
     now: input.now,

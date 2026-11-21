@@ -190,7 +190,8 @@ export function route(
       try {
         const answer = await pending;
         if (version !== revision || ready() !== current) return;
-        if (!answer.encryption) start(current);
+        if (!answer.encryption)
+          start(host.policy?.newConversation ? answer.mine ?? current : current);
         keepRoute = true;
       } finally {
         if (!keepRoute && version === revision) {

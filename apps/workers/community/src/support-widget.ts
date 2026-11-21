@@ -1838,6 +1838,15 @@ async function startWidgetReads(
 
 /** Only the member ticket surface accepts the scoped bearer. It never becomes
  * an ambient app cookie and cannot confer staff or management authority. */
+async function readOwnWidgetMode(env: Env, room: string, origin: string) {
+  if (env.TEMPL_SUPPORT_WORKSPACE !== room ||
+      (origin !== env.APP_ORIGIN && origin !== OWN_SUPPORT_ENDPOINT.clientOrigin)) return;
+  const response = await roomStub(env, room).fetch(internal("/private/support/own-new-chat-mode", {}));
+  if (!response.ok) return;
+  const { mode } = await response.json<{ mode?: string }>();
+  if (mode === "standard" || mode === "encrypted") return mode;
+}
+
 export async function supportWidgetRoute(
   request: Request,
   env: Env,
@@ -1906,10 +1915,12 @@ export async function supportWidgetRoute(
       admitFunnelRequest(env);
       response = preflight();
     } else {
+      const visitorReplyPolicy = path === "/auth/policy" && !frame && origin === env.APP_ORIGIN &&
+        room === env.TEMPL_SUPPORT_WORKSPACE;
       const workspaceRead =
         path.startsWith("/auth/") &&
         !["/auth/logout", "/auth/forget"].includes(path)
-          ? started(nativeRecord(env, room))
+          ? started(nativeRecord(env, room, visitorReplyPolicy))
           : null;
       const settingsRead = started(
         widgetConfig(env, room, {
@@ -2036,14 +2047,20 @@ export async function supportWidgetRoute(
           (body) => widgetConfig(env, room, body as never),
         );
       } else if (path === "/auth/policy" && request.method === "GET") {
+        const chatMode = await readOwnWidgetMode(env, room, origin);
         const shownDomain = domainVerifyOffered(env as DomainVerifyEnv)
           ? verifiedDomainFor(current, origin)
           : null;
+        const workspace = (await workspaceRead)?.record;
+        const contacts = workspace?.supportProfiles;
         // `replyEmail`: a signed member can ask for an email
         // when the team replies; present only while email delivery is on.
         // The saved visitor requirement stays visible during an outage.
         response = json({
           minimumLevel,
+          ...(visitorReplyPolicy && typeof workspace?.aiReplyExpected === "boolean"
+            ? { aiReplyExpected: chatMode !== "encrypted" && workspace.aiReplyExpected } : {}),
+          ...(chatMode === "standard" || chatMode === "encrypted" ? { chatMode } : {}),
           ...(featureOn(env, undefined, "solanaSignIn")
             ? { solanaSignIn: true }
             : {}),
@@ -2051,6 +2068,13 @@ export async function supportWidgetRoute(
             ? { templLeadCapture: true }
             : {}),
           ...(hosted ? { hosted: true } : {}),
+          ...(contacts ? {
+            supportProfiles: {
+              founder: contacts.founder,
+              assistant: contacts.assistantEnabled && workspace?.supportResponderConfigured
+                ? contacts.assistant : null,
+            },
+          } : {}),
           ...(current.walletFallback === false
             ? { walletFallback: false }
             : {}),
@@ -2065,6 +2089,7 @@ export async function supportWidgetRoute(
           ...(current.safetyLine === true ? { safetyLine: true } : {}),
           ...(featureOn(env, undefined, "supportDiagnostics") ? { diagnostics: true } : {}),
           ...(featureOn(env, undefined, "supportChatFirst") ? { chatFirst: true } : {}),
+          ...(featureOn(env, undefined, "supportParallelConversations") ? { newConversation: true } : {}),
           ...((current.appearanceRevision ?? 0) > 0
             ? {
                 appearance:
@@ -2237,6 +2262,7 @@ export async function supportWidgetRoute(
         const sessionRecord = await record(env, "session", token);
         let principalId: ChatPrincipalId;
         let checked = false;
+        const opening = !credential && !claim && !walletUnavailable && origin === env.APP_ORIGIN;
         if (credential) {
           const read = await early.guest!;
           const stored = read!.stored;
@@ -2366,6 +2392,11 @@ export async function supportWidgetRoute(
           }
           if (checkOn) checked = true;
         }
+        // Read after the guest is saved. This replaces the browser's mode
+        // round trip for a first send. Case admission still checks current mode.
+        const newChatMode = opening
+          ? await readOwnWidgetMode(env, room, origin).catch(() => undefined)
+          : undefined;
         response = json({
           token,
           expiresAt,
@@ -2373,6 +2404,7 @@ export async function supportWidgetRoute(
           servicePrincipals: [principalId],
           credential,
           level: sessionLevel(session(principalId)),
+          ...(newChatMode === "standard" ? { standardOpening: true } : {}),
           ...(claim ? { wallet: claim } : {}),
           ...(checked ? { checked: "turnstile" } : {}),
         });

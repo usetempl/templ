@@ -4,6 +4,7 @@ import {
   PRODUCT_FREE_START,
   PRODUCT_OFFER_VERSION,
   PRODUCT_TOP_UP,
+  PRODUCT_STARTER_PRICES,
   PRODUCT_STANDARD_PRICES,
   PRODUCT_STANDARD_AI_RATES,
   PRODUCT_STANDARD_RECORDED_PRICES,
@@ -316,13 +317,16 @@ export const PAYMENT_MISMATCH =
 export function checkTopUp(intent: ProductPaymentIntent) {
   if (intent.settlement === "standard-prepaid") {
     const terms = intent.standard;
-    const prices =
-      terms?.priceVersion === PRODUCT_STANDARD_RECORDED_PRICES.publishedOn
-        ? PRODUCT_STANDARD_RECORDED_PRICES
-        : PRODUCT_STANDARD_PRICES;
+    const prices = [
+      PRODUCT_STANDARD_PRICES,
+      PRODUCT_STANDARD_RECORDED_PRICES,
+      PRODUCT_STARTER_PRICES,
+    ].find((entry) => entry.publishedOn === terms?.priceVersion);
     if (
       !terms ||
+      !prices ||
       !["period", "credit"].includes(terms.purpose) ||
+      (prices === PRODUCT_STARTER_PRICES && terms.purpose !== "period") ||
       !(
         terms.expectedPeriod === null || /^\d{16}$/.test(terms.expectedPeriod)
       ) ||
@@ -335,7 +339,9 @@ export function checkTopUp(intent: ProductPaymentIntent) {
       !checkedStandardAiRate(terms) ||
       JSON.stringify(captureStandardAiRate(terms)) !==
         JSON.stringify(captureStandardAiRate(prices)) ||
-      terms.aiRateCardVersion !== PRODUCT_STANDARD_AI_RATES.version ||
+      terms.aiRateCardVersion !== (prices === PRODUCT_STARTER_PRICES
+        ? PRODUCT_STARTER_PRICES.aiRateCardVersion
+        : PRODUCT_STANDARD_AI_RATES.version) ||
       !["ethereum-usdc", "base-usdc", "bnb-usdc", "solana-usdc"].includes(
         intent.rail,
       ) ||

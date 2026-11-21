@@ -33,6 +33,17 @@
 .chatPage > :global(footer[aria-label='Support information']) { font-size: 10px; padding: 2px 12px 5px; gap: 12px; background: var(--own-bg); }
 .chatPage > :global(footer[aria-label='Support information']) a { padding: 0; }
 .widgetPage > :global(footer[aria-label='Support information']) { display: none; }
+.inboxPage > :global(header[aria-label='Templ']),
+.inboxPage > :global(footer[aria-label='Support information']) { display: none; }
+.participantMenu :global(.member-conversations[hidden]),
+.participantMenu .participantActions[hidden] { display: none; }
+.participantMenu :global(.member-conversations) { display: grid; gap: 4px; }
+.participantMenu :global(.member-conversations button) { width: 100%; }
+.participantMenu :global(.member-conversations [aria-current]) { background: var(--own-surface); }
+.conversationOptions :global([data-unread])::after {
+  content: ""; display: inline-block; width: 7px; height: 7px; margin-left: 7px;
+  border-radius: 50%; background: currentColor; vertical-align: middle;
+}
 .chatStatus { padding: 0 12px; flex: 0 0 auto; font-size: 12px; }
 .chatStatus:empty { display: none; }
 .chatTools, .caseActions { display: flex; align-items: center; gap: 4px; }
@@ -79,13 +90,14 @@
 /* Telegram-like header and separate participant/options disclosures. */
 .chatTools { display: flex; align-items: center; flex: 1; min-width: 0; gap: 0; position: relative; }
 .participants { min-width: 0; flex: 1; }
-.participants summary { display: flex; flex-direction: column; justify-content: center; min-height: 44px; padding: 0 6px; cursor: pointer; list-style: none; }
+.participants summary { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 6px; cursor: pointer; list-style: none; }
+.participants summary strong, .participants summary small { display: block; }
 .participants summary strong { font-size: 15px; line-height: 1.4; font-weight: 600; }
-.participants summary strong small { margin-left: 8px; color: var(--own-muted); font-size: 10px; font-weight: 400; }
-.participants summary > span { font-size: 12px; line-height: 1.4; color: var(--own-muted); }
+.participants summary small { color: var(--own-muted); font-size: 11px; }
+.participantAvatars { display: flex; flex: none; padding-left: 4px; }
+.participantAvatars > span { box-sizing: border-box; display: grid; place-items: center; width: 24px; height: 24px; margin-left: -4px; border: 1px solid var(--own-bg); border-radius: 50%; background: var(--own-selected); font-size: 9px; font-weight: 600; }
 .participants summary::-webkit-details-marker, .conversationOptions summary::-webkit-details-marker { display: none; }
-.conversationOptions summary { display: grid; place-items: center; width: 40px; height: 44px; cursor: pointer; list-style: none; border-radius: 50%; }
-.conversationOptions summary svg { width: 20px; height: 20px; }
+.conversationOptions summary { display: grid; place-items: center; min-width: 44px; height: 44px; padding: 0 8px; cursor: pointer; list-style: none; border-radius: 8px; font-size: 13px; color: var(--own-muted); }
 .participants summary:hover, .conversationOptions summary:hover { background: var(--own-raised); }
 .participantMenu { box-sizing: border-box; position: absolute; right: 0; top: calc(100% + 8px); z-index: 5; width: min(280px, calc(100vw - 44px)); max-height: calc(100dvh - 88px); overflow-y: auto; padding: 8px; border: 1px solid var(--own-border); border-radius: 12px; background: var(--own-bg); box-shadow: 0 8px 24px #14241a20; display: grid; gap: 4px; }
 .participantMenu * { box-sizing: border-box; }

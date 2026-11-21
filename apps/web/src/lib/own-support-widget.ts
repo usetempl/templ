@@ -39,6 +39,7 @@ export function mountOwnSupportWidget(options: {
   panel.dataset.templOwnSupport = "";
   panel.hidden = true;
   frame.title = "Templ encrypted support";
+  frame.inert = true;
   frame.referrerPolicy = "no-referrer";
   frame.setAttribute(
     "sandbox",
@@ -93,6 +94,7 @@ export function mountOwnSupportWidget(options: {
       return;
     if (event.data.type === "templ-own-ready") {
       ready = true;
+      frame.inert = false;
       failedBeforeReady = false;
       clearTimeout(timeout);
       loading.remove();
@@ -121,6 +123,7 @@ export function mountOwnSupportWidget(options: {
         // existing encrypted draft/outbox are restored by the same client.
         const next = frame.cloneNode(false) as HTMLIFrameElement;
         next.removeAttribute("src");
+        next.inert = true;
         frame.replaceWith(next);
         frame = next;
         started = ready = false;
@@ -159,7 +162,7 @@ export function mountOwnSupportWidget(options: {
           }
         }, 15_000);
       }
-      frame.focus();
+      (ready ? frame : close).focus();
     },
     close: hide,
     destroy() {

@@ -130,7 +130,6 @@ import {
 import {
   aiView,
   checkedAiControl,
-  readAiDefault,
   type StoredAiControl,
 } from "./support-ai-mode";
 import {
@@ -1576,30 +1575,28 @@ async function threadTyping(
     /** The thread's newest message, when this read is the newest page. */
     newest: ChatMessage | null;
   },
-): Promise<TeamConversationTyping> {
-  if (!enabled || record.stopped) return null;
+): Promise<{ typing: TeamConversationTyping; aiQueued?: true }> {
+  if (!enabled || record.stopped) return { typing: null };
   const reader = viewReader(storage, context);
-  const typing =
-    (await typingView(context.typing, {
-      thread: record.id,
-      now: context.now,
-      reader: context.aliases,
-      bots: context.bots ?? [],
-      registeredBots: context.registeredBots ?? [],
-      isStaff: async (id) => Boolean(await context.isSupportStaff?.(id)),
-    })) ??
-    (read.role === "member" &&
-    (await agentPickingUp(reader, context, record, read.newest))
-      ? "agent"
-      : null);
-  if (typing === null) return null;
+  const marked = await typingView(context.typing, {
+    thread: record.id,
+    now: context.now,
+    reader: context.aliases,
+    bots: context.bots ?? [],
+    registeredBots: context.registeredBots ?? [],
+    isStaff: async (id) => Boolean(await context.isSupportStaff?.(id)),
+  });
+  const queued = marked === null && read.role === "member" &&
+    await agentPickingUp(reader, context, record, read.newest);
+  const typing: TeamConversationTyping = marked ?? (queued ? "agent" : null);
+  if (typing === null) return { typing };
   try {
     await assertTeamReplyAdmitted(reader, context);
   } catch (error) {
-    if (error instanceof HttpError) return null;
+    if (error instanceof HttpError) return { typing: null };
     throw error;
   }
-  return typing;
+  return { typing, ...(queued ? { aiQueued: true } : {}) };
 }
 /** "AI agent is typing" right after the member's message, before the agent
  * marks it: the workspace's AI agent is running and would answer this
@@ -2678,10 +2675,7 @@ async function conversationRoomRoute(
       storage,
       await pulseOpen(storage, context),
       now,
-      {
-        aiDefault: readAiDefault(await supportSettings(storage)),
-        agent: await agentState(context),
-      },
+      await teamSummaryInput(storage, context),
     );
     return json(pulse);
   }
@@ -2750,6 +2744,43 @@ async function conversationRoomRoute(
     )
       throw new HttpError(400, "Invalid cursor.");
     const conversations: TeamConversation[] = [];
+    if (context.query.get("view") === "member") {
+      if (filter !== "all" && filter !== "open") throw new HttpError(400, "Choose a valid conversation view.");
+      // Start from this viewer's indexes, even when the viewer also has a
+      // team role. Links and a supplied cursor never grant member access.
+      const queue = await Promise.all(aliases.map(alias => storage.get<string>(memberIndexKey(alias))));
+      const visited = new Set<string>();
+      let afterCursor = cursor === null;
+      for (const id of queue) {
+        if (!id || visited.has(id)) continue;
+        visited.add(id);
+        const record = await readConversation(storage, id);
+        if (!record || record.room !== context.room || !actsAs(aliases, record.member)) continue;
+        queue.push(record.previousConversation, ...(record.linkedConversations ?? []));
+        if (!afterCursor) {
+          afterCursor = id === cursor;
+          continue;
+        }
+        if (record.archivedAt !== undefined || (filter === "open" && record.state !== "open")) continue;
+        const data = await supportRecord(storage, record);
+        const last = record.lastMessageAt ?? 0;
+        const staff = data.lastStaffReplyAt ?? 0;
+        const agent = data.lastAgentReplyAt === undefined
+          ? last > Math.max(staff, data.lastMemberMessageAt ?? 0) ? last : 0
+          : data.lastAgentReplyAt ?? 0;
+        const reply = Math.max(staff, agent);
+        conversations.push({
+          ...await view(record, "member"),
+          ...(reply ? { lastReplyAt: new Date(reply).toISOString() } : {}),
+        });
+        if (conversations.length === 51) break;
+      }
+      return json({
+        filter,
+        conversations: conversations.slice(0, 50),
+        nextCursor: conversations.length > 50 ? conversations[49].id : null,
+      } satisfies TeamConversationList);
+    }
     if (authority.team) {
       // Read once per list: who acts next on each row depends on them.
       const team: Omit<TeamSummaryInput, "record"> = await teamSummaryInput(
@@ -2858,9 +2889,13 @@ async function conversationRoomRoute(
       // Open views read the open-thread index once it is ready; the other
       // views, and every view before then, scan at most LIST_SCAN_RECORDS
       // records per call and hand back a cursor when more remain.
-      const scanLimit = product
-        ? LIST_SCAN_RECORDS
-        : TEAM_CONVERSATION_LIMITS.retainedRecordsPerRoom;
+      // All without filters needs one page, even when old records live in
+      // cold partitions. Continue from the last checked key on later pages.
+      const browseAll = filter === "all" && !memberFilter && !assigneeFilter &&
+        !tagFilter && !categoryFilter && !afterFilter && !beforeFilter;
+      const scanLimit = product && browseAll
+        ? 128
+        : product ? LIST_SCAN_RECORDS : TEAM_CONVERSATION_LIMITS.retainedRecordsPerRoom;
       const page =
         OPEN_INDEX_FILTERS.includes(filter) && (await openIndexReady(storage))
           ? await openIndexRecords(storage, cursor)
@@ -2870,37 +2905,40 @@ async function conversationRoomRoute(
               ...(cursor ? { startAfter: recordKey(cursor) } : {}),
             });
       const scanned = page.size >= scanLimit ? [...page.keys()].at(-1) : null;
+      const reader = viewReader(storage, context);
+      const visibleRow = async (record: TeamConversationRecord) => {
+        const support = await readSupportSummary(reader, record, actor, team);
+        const active = ["open", "waiting"].includes(support.state);
+        if (filter === "waiting-on-member" && (!active || support.turn !== "member")) return null;
+        if (filter === "unassigned" && (record.assignment || !active)) return null;
+        if (filter === "mine" && (!record.assignment ||
+          !actsAs(aliases, record.assignment.principalId) || !active)) return null;
+        if (filter === "open" && !active) return null;
+        if (filter === "needs-person" && (!active || !record.handoff)) return null;
+        if (["waiting", "resolved", "abandoned", "spam"].includes(filter) &&
+          support.state !== filter) return null;
+        return matches(record, support) ? row(record, support) : null;
+      };
+      // Run a bounded set of row reads at once. Keep storage order and
+      // the 51st-row lookahead even when a row does not match.
+      let batch: TeamConversationRecord[] = [];
+      const collect = async () => {
+        for (const shown of await Promise.all(batch.map(visibleRow))) {
+          if (shown) conversations.push(shown);
+          if (conversations.length === 51) break;
+        }
+        batch = [];
+      };
       for (const raw of page.values()) {
         const record = checkedRecord(raw);
-        if (!record || record.room !== context.room || hidden(record)) continue;
-        const support = await readSupportSummary(storage, record, actor, team);
-        const active = ["open", "waiting"].includes(support.state);
-        if (
-          filter === "waiting-on-member" &&
-          (!active || support.turn !== "member")
-        )
-          continue;
-        if (filter === "unassigned" && (record.assignment || !active)) continue;
-        if (
-          filter === "mine" &&
-          (!record.assignment ||
-            !actsAs(aliases, record.assignment.principalId) ||
-            !active)
-        )
-          continue;
-        if (filter === "open" && !active) continue;
-        if (filter === "needs-person" && (!active || !record.handoff)) continue;
-        if (
-          ["waiting", "resolved", "abandoned", "spam"].includes(filter) &&
-          support.state !== filter
-        )
-          continue;
-        if (!matches(record, support)) continue;
-        const shown = await row(record, support);
-        if (!shown) continue;
-        conversations.push(shown);
+        if (!record || record.room !== context.room || hidden(record) ||
+            (filter === "archived") !== (record.archivedAt !== undefined) ||
+            (memberFilter && record.member !== memberFilter)) continue;
+        batch.push(record);
+        if (batch.length === 8) await collect();
         if (conversations.length === 51) break;
       }
+      if (batch.length) await collect();
       const result: TeamConversationList = {
         filter,
         conversations: conversations.slice(0, 50),
@@ -3089,8 +3127,13 @@ async function conversationRoomRoute(
           opened: false,
         });
       }
+      const parallel =
+        previous.record.state !== "resolved" &&
+        previous.record.encryptedCases !== true &&
+        context.headers.get("X-Support-Widget") === "member" &&
+        await featureOn(context.mediaEnv, storage, "supportParallelConversations");
       if (
-        previous.record.state !== "resolved" ||
+        (previous.record.state !== "resolved" && !parallel) ||
         (await storage.get<string>(memberIndexKey(previous.record.member))) !==
           previous.record.id
       )
@@ -3419,8 +3462,29 @@ async function conversationRoomRoute(
       joinLimit: Math.min(limit, MAX_REPLY_JOINS),
       aliases,
     });
+    const { typing, aiQueued } = await threadTyping(storage, context, record, enabled, {
+      role,
+      newest: before === null ? (page.rows.at(-1) ?? null) : null,
+    });
+    const shown = await threadView(record, role);
+    // Readiness for the next send is separate from a bot's short-lived typing mark.
+    const visitorReplyPolicy = role === "member" && before === null &&
+      record.room === `room:${OWN_SUPPORT_ENDPOINT.workspace}`;
+    let aiReplyExpected = false;
+    if (visitorReplyPolicy && enabled && !record.handoff && !record.assignment && !record.stopped &&
+        !record.deleting && !shown.encryption && record.state === "open" && record.member !== context.canary &&
+        (await agentState(context)).registered) {
+      const reader = viewReader(storage, context);
+      const {data, effective} = await readAiState(reader, record);
+      aiReplyExpected = data.state !== "resolved" && data.state !== "spam" && effective.mode === "answers" &&
+        await teamReplyBlock(reader, context, record, effective.mode) === null;
+    }
     const result: TeamConversationMessages = {
-      conversation: await threadView(record, role),
+      conversation: {
+        ...shown,
+        ...(visitorReplyPolicy ? { aiReplyExpected } : {}),
+        ...(aiQueued ? { aiQueued } : {}),
+      },
       deletionRevision:
         (await storage.get<number>(`channel-deletions:${record.id}`)) ?? 0,
       nextBefore: page.nextBefore,
@@ -3444,10 +3508,7 @@ async function conversationRoomRoute(
             ),
           }
         : {}),
-      typing: await threadTyping(storage, context, record, enabled, {
-        role,
-        newest: before === null ? (page.rows.at(-1) ?? null) : null,
-      }),
+      typing,
       // Team only: why the AI agent wrote each of its replies on this page.
       ...(role === "team"
         ? {

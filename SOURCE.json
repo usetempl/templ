@@ -1,5 +1,8 @@
 {
-  "sourceRevision": "64e7393c12ef0c11842f170ecef0b96d21dd9598",
   "licenseBasis": "a96c0d7ad57da7d605025b3cd98c1692d898bf02",
-  "scope": "Web app, support workers, chat and encryption source. Closed local configuration."
+  "scope": "Templ web, support workers and shared chat and encryption code with self-host configuration.",
+  "productionSources": {
+    "web": "8ffa6b9bc0bdfa9de17f23675c2bcbc855b745f2",
+    "workers": "aeae3898a20cc96c73f93742b088687390714664"
+  }
 }

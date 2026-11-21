@@ -6,12 +6,16 @@ import type {
   ChatRoomId,
   ChatState,
   NativeRoom,
+  TeamConversationList,
   TeamConversationStatus,
 } from "@templ/chat/index";
 import type { ChatPrincipalId } from "@templ/chat/principal";
 import type { SupportReport } from "@templ/chat/support";
 import { readPrioritySettings } from "@/lib/support-priority-client";
 import { accountChatCache } from "@/lib/chat-cache-scope";
+import { readLinkedInboxView } from "@/lib/inbox-link-view";
+import { readSupportInboxState } from "@/lib/support-local-state";
+import { teamQueueCacheKey } from "@/lib/team-conversations-cache";
 import {
   CommunityApiError,
   communityFetch,
@@ -41,6 +45,36 @@ export type WorkspaceView = {
  * again. Presentation only: every tab still reads its own data and the
  * worker authorizes every call. */
 export const workspaceViews = accountChatCache<WorkspaceView>(8, 10 * 60_000);
+
+export type EarlyCasePage = {
+  query: string;
+  take(): Promise<TeamConversationList> | undefined;
+};
+
+/** Start the selected account's All cases read while workspace data loads.
+ * The inbox takes this page only after its signed team access is known. */
+export function startEarlyAllCases(
+  room: ChatRoomId,
+  account: ChatPrincipalId | undefined,
+  signal: AbortSignal,
+): EarlyCasePage | undefined {
+  if (!account) return;
+  const saved = readSupportInboxState(room, account);
+  if ((readLinkedInboxView() ?? saved.filter) !== "all") return;
+  const filters = saved.filters ?? {};
+  let pending: Promise<TeamConversationList> | undefined = listConversations(
+    room, "all", null, signal, filters,
+  );
+  void pending.catch(() => {});
+  return {
+    query: teamQueueCacheKey("all", filters),
+    take() {
+      const page = pending;
+      pending = undefined;
+      return page;
+    },
+  };
+}
 
 const signedState = (id: string, signal?: AbortSignal) =>
   communityFetch<ChatState>(
@@ -200,7 +234,7 @@ export type WorkspaceSetup = {
   hasRequests?: boolean;
   installChecked?: boolean;
   priorityContractsPicked?: boolean;
-  widgetLoopback?: boolean;
+  hostedPage?: boolean;
   /** Null when the service refuses this viewer the report (401 or 403). */
   report?: SupportReport | null;
   /** The report read failed for another reason. A retry may load it. */
@@ -267,7 +301,8 @@ export async function readWorkspaceSetup(
           "widget",
           communityFetch<{
             origins: string[];
-            options?: { loopback?: boolean };
+            hostedPage?: boolean;
+            options?: { hostedPage?: boolean };
           }>(roomPath(room, "widget"), undefined, signal),
           (data) => {
             if (
@@ -276,7 +311,7 @@ export async function readWorkspaceSetup(
             )
               throw new TypeError("origins");
             results.origins = data.origins;
-            results.widgetLoopback = data.options?.loopback === true;
+            results.hostedPage = data.hostedPage === true && data.options?.hostedPage === true;
           },
         )
       : undefined,

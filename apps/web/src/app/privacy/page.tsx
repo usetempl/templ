@@ -32,7 +32,7 @@ export default async function PrivacyPage() {
       title="Privacy"
       description="How Templ uses and keeps the information you share."
       active="privacy"
-      updated="10 November 2026"
+      updated="20 November 2026"
     >
       <p>
         {
@@ -385,12 +385,12 @@ export default async function PrivacyPage() {
         </p>
         <p>
           {
-            "Templ-managed agents use the provider approved for their workspace. New prepaid workspaces use OpenAI's GPT-6.1 Sol when Templ AI is enabled. Existing agreements may retain Anthropic. Providers receive permitted messages and approved knowledge. Secret filters can miss content."
+            "The new prepaid Templ AI service sends permitted case messages and approved knowledge to OpenAI through Cloudflare AI Gateway when a workspace enables it and meets its service requirements. An existing workspace follows its order and can use Anthropic for managed AI. Secret filters can miss content."
           }
         </p>
         <p>
           {
-            "OpenAI runs enabled hosted Templ agents. This includes Templ's own support and approved Customer workspaces. It receives selected case messages, checked transaction facts and approved knowledge. Improvement copies never go to OpenAI."
+            "Templ uses OpenAI for its own support as controller. With AI off, agents cannot read or work on the case. Model providers do not receive improvement-store copies."
           }
         </p>
         <p>
@@ -583,7 +583,7 @@ export default async function PrivacyPage() {
               <td>{"Anthropic"}</td>
               <td>
                 {
-                  "Runs enabled AI under existing Customer service agreements that use Anthropic. It receives permitted inputs and outputs, as section 6 explains. It receives no improvement-store copies."
+                  "Processes permitted model input and output when an existing workspace order specifies Anthropic and managed AI is on. It receives no improvement-store copies."
                 }
               </td>
             </tr>
@@ -591,7 +591,7 @@ export default async function PrivacyPage() {
               <td>{"OpenAI"}</td>
               <td>
                 {
-                  "Runs enabled hosted Templ agents, including prepaid AI and approved Customer workspaces. It receives selected case messages, checked transaction facts and approved knowledge. It receives no improvement-store copies."
+                  "Runs Templ's own support AI. OpenAI also processes permitted input and output for the new prepaid Templ AI service when enabled and applicable. Existing workspace orders govern their service. It receives no improvement-store copies."
                 }
               </td>
             </tr>
@@ -1170,7 +1170,7 @@ export default async function PrivacyPage() {
       <PolicySection title="14. How access stays private" id="security">
         <p>
           {
-            "We check identity and current access. Ordinary customer cases are not end-to-end encrypted. On Templ's encrypted support page, messages are encrypted before they reach the message API and storage. Templ's support team and its security and recovery service can read them. When AI is enabled, Templ's AI and its model provider can read the chat. The page identifies that protection before you send; older cases keep their original format."
+            "We check identity and current access. Templ servers process Standard messages. In a customer-controlled encrypted workspace, only approved endpoints with its keys can decrypt messages. On Templ's own encrypted support page, Templ operates the receiving team and its recovery service. An authorized AI endpoint can share permitted content with its model provider. Earlier cases keep their original protection."
           }
         </p>
         <p>

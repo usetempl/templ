@@ -170,6 +170,15 @@ export function consent(
     !!host.offered?.app?.action || /^#templ-check=/.test(location.hash);
   if (opsNeeded()) void ops().catch(() => {});
   return {
+    caseReturn(node: HTMLElement, conversation: string, drafting: boolean, busy: boolean) {
+      node.className = "system tail return-case";
+      if (drafting) node.append(host.el("p", "New case"));
+      const back = host.el("button", drafting ? "Back to chat" : "Back to current case");
+      back.type = "button";
+      back.disabled = busy;
+      back.addEventListener("click", () => void host.run(() => host.showCase!(conversation)));
+      node.append(back);
+    },
     // The page reports an action's result.
     // Nothing is recorded unless the user ticked the consent box.
     outcome: (value: Outcome) =>

@@ -14,7 +14,7 @@
  * - grant-80, grant-14d and grant-3d: once per grant;
  * - budget-50, -80 and -100: once per UTC month;
  * - price-change: once per price version that makes a case cost more. */
-import { customerBillingManagedByTempl } from "./customer-debt-access";
+import { billingManagedForWorkspace } from "./customer-debt-access";
 import type { StripeRoomState } from "./stripe-store";
 import type { ProductBillingAlert } from "@templ/chat/product-catalog";
 import {
@@ -78,7 +78,7 @@ async function queue(
   const native = await storage.get<{ room?: { id?: string } }>("native-room");
   if (
     facts.alert !== "suspended" &&
-    customerBillingManagedByTempl(native?.room?.id ?? "")
+    await billingManagedForWorkspace(storage, native?.room?.id ?? "")
   )
     return;
   if (await storage.get(`${SENT_PREFIX}${sentKey}`)) return;
@@ -112,7 +112,7 @@ export async function emitBalanceAlerts(
     if (!(await storage.get(PRODUCT_STATE_KEY))) return;
     state = await readProductState(storage, now, env);
   }
-  if (customerBillingManagedByTempl(state.room) && !extra.suspended) return;
+  if (await billingManagedForWorkspace(storage, state.room) && !extra.suspended) return;
   const available = availableCents(state);
   const base = {
     balanceCents: state.balanceCents,
@@ -148,7 +148,7 @@ export async function emitBalanceAlerts(
       alert: "suspended",
       ...base,
     });
-  if (customerBillingManagedByTempl(state.room)) return;
+  if (await billingManagedForWorkspace(storage, state.room)) return;
   const level = productBalanceLevel({
     creditBaseCents: state.creditBaseCents,
     availableCents: available,
@@ -267,7 +267,7 @@ export async function emitCardAlerts(
       );
   if (!invoices.length) return null;
   const product = await readProductState(storage, now, env);
-  if (customerBillingManagedByTempl(product.room)) return null;
+  if (await billingManagedForWorkspace(storage, product.room)) return null;
   const reminders: number[] = [];
   for (const [index, invoice] of invoices.entries()) {
     const key = `product-card-reminder-v1:${invoice}`;

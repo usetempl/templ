@@ -290,5 +290,11 @@
     "workspaceOnly": true,
     "killSwitch": "SUPPORT_WIDGET_CHAT_FIRST_ENABLED",
     "name": "Chat-first support"
+  },
+  "supportParallelConversations": {
+    "releaseFlag": "supportWidgetVerified",
+    "workspaceOnly": true,
+    "killSwitch": "SUPPORT_WIDGET_CHAT_FIRST_ENABLED",
+    "name": "Separate support conversations"
   }
 }

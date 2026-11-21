@@ -1,7 +1,7 @@
 "use client";
 
 import { useRelease } from "@/lib/release-context";
-import { useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { loadTemplSupportWidget } from "@/lib/templ-support";
 import { SUPPORT_WIDGET_LATEST } from "@/lib/support-widget-release";
 import { supportPageWallet } from "@/lib/support-page-wallet";
@@ -12,6 +12,41 @@ import { trackEvent } from "@/lib/analytics";
 import styles from "./help.module.css";
 
 type WidgetModule = { mountSupportWidget: typeof mountSupportWidget };
+
+export function HostedSupportFrame({ children }: { children: ReactNode }) {
+  const frame = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const viewport = window.visualViewport;
+    const root = frame.current;
+    if (!viewport || !root) return;
+    const fitViewport = () => {
+      if (viewport.scale === 1) {
+        root.style.setProperty("--chat-height", `${viewport.height}px`);
+        root.style.setProperty("--chat-top", `${viewport.offsetTop}px`);
+      } else {
+        root.style.removeProperty("--chat-height");
+        root.style.removeProperty("--chat-top");
+      }
+    };
+    fitViewport();
+    viewport.addEventListener("resize", fitViewport);
+    viewport.addEventListener("scroll", fitViewport);
+    window.addEventListener("resize", fitViewport);
+    window.addEventListener("pageshow", fitViewport);
+    return () => {
+      viewport.removeEventListener("resize", fitViewport);
+      viewport.removeEventListener("scroll", fitViewport);
+      window.removeEventListener("resize", fitViewport);
+      window.removeEventListener("pageshow", fitViewport);
+    };
+  }, []);
+  return (
+    <div ref={frame} className={`${styles.page} ${styles.conversationPage}`}>
+      {children}
+    </div>
+  );
+}
+
 export function HostedSupportChat({
   workspace,
   name,
@@ -55,6 +90,7 @@ export function HostedSupportChat({
         wallet: supportPageWallet(currentNetwork.current),
         styleNonce: nonce,
         label: name,
+        chatFirst: true,
         appearance: { theme: "dark", accent: "#2854c5" },
       });
       widget.current = mounted;

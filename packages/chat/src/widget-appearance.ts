@@ -127,6 +127,7 @@ export function checkedWidgetAppearance(
       typeof notice.enabled !== "boolean" ||
       typeof notice.text !== "string" ||
       notice.text.length > 280 ||
+      // eslint-disable-next-line no-control-regex -- Allow tabs and line breaks, reject the other C0 controls.
       /[\u0000-\u0008\u000b\u000c\u000e-\u001f]/.test(notice.text)
     )
       throw new TypeError("Write a header notice of up to 280 characters.");

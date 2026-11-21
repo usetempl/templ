@@ -205,6 +205,18 @@ export async function newCaseEncryptionView(storage: Pick<Storage, "get">) {
       }
     : undefined;
 }
+/** A missing or mismatched Own policy is insufficient to select Standard. */
+export async function ownNewChatMode(
+  storage: Pick<Storage, "get">,
+  rootKey: string | undefined,
+) {
+  const policy = await storage.get<Policy>(ENCRYPTION_POLICY_KEY);
+  if (policy?.profile.custody !== "templ-own-support" ||
+      policy.profile.workspace !== OWN_SUPPORT_ENDPOINT.workspace ||
+      policy.profile.rootKey !== rootKey)
+    return undefined;
+  return policy.on ? "encrypted" : "standard";
+}
 /** Invoked only after native retention/hold checks authorize the deletion. */
 export async function deleteCaseEncryption(
   storage: Storage,

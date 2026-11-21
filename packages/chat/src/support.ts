@@ -384,6 +384,21 @@ export type SupportSavedReply = {
   text: string;
   updatedAt: string;
 };
+export type SupportContactRole = "founder" | "assistant";
+export type SupportContactProfile = {
+  name: string | null;
+  image: string | null;
+};
+export type WorkspaceSupportProfiles = {
+  revision: number;
+  founder: SupportContactProfile;
+  assistant: SupportContactProfile;
+  assistantEnabled: boolean;
+};
+export type VisitorSupportProfiles = {
+  founder: SupportContactProfile;
+  assistant: SupportContactProfile | null;
+};
 export type SupportSettings = {
   timezone: string;
   businessHours: string;

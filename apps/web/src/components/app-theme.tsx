@@ -3,6 +3,7 @@
 import { useEffect, useSyncExternalStore } from "react";
 import { usePathname } from "next/navigation";
 import {
+  type AppTheme as AppThemePreference,
   readAppTheme,
   serverAppTheme,
   setAppTheme,
@@ -17,7 +18,7 @@ export function AppTheme() {
 }
 
 export function AppThemeChoice() {
-  const choice = useSyncExternalStore(
+  const choice = useSyncExternalStore<AppThemePreference | null>(
     subscribeAppTheme,
     readAppTheme,
     serverAppTheme,
@@ -30,7 +31,8 @@ export function AppThemeChoice() {
           <button
             key={value}
             type="button"
-            aria-pressed={choice === value}
+            aria-pressed={(choice ?? "system") === value}
+            disabled={choice === null}
             onClick={() => setAppTheme(value)}
           >
             {value === "system"

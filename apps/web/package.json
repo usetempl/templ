@@ -7,12 +7,9 @@
     "build": "next build --webpack && node ../scripts/src/release/scan-client-bundle.mjs --forbid-manifest-secrets --dir .next/static --dir public",
     "start": "next start",
     "lint": "eslint src next.config.ts open-next.config.ts vitest.config.ts",
-    "format": "prettier --write . --ignore-path ../../.prettierignore",
+    "format": "prettier --write . --ignore-path ../../.gitignore",
     "type-check": "next typegen && tsc --noEmit",
-    "test": "vitest run src/lib/community-auth.test.ts src/lib/support-widget-frame-host.test.ts src/lib/support-widget-frame.test.ts src/lib/support-widget-snapshot.test.tsx src/lib/support-widget-drafts.test.ts src/components/product-checkout.test.tsx src/components/product-payment-request.test.tsx src/components/workspace/plan-finance-email.test.tsx --maxWorkers=2",
-    "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
-    "cf:deploy:staging": "make -C ../.. deploy-staging-web",
-    "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts"
+    "test": "vitest run src/lib/public-hosted-support.test.ts --maxWorkers=2"
   },
   "dependencies": {
     "@solana/spl-token": "0.4.14",

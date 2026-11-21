@@ -21,8 +21,8 @@ export function readAppTheme(): AppTheme {
   }
 }
 
-export function serverAppTheme(): AppTheme {
-  return "system";
+export function serverAppTheme(): null {
+  return null;
 }
 
 function applyAppTheme(choice = readAppTheme()) {

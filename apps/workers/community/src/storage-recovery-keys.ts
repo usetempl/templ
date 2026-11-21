@@ -71,6 +71,8 @@ export const RECOVERY_KEPT_KEYS = Object.freeze([
   // The product state: merged, not replaced (see above).
   "product-entitlements-v1",
   "product-standard-plan-v1",
+  "product-starter-available-v1",
+  "product-starter-ai-limit-v1",
   "product-standard-debt-access-v1",
   "product-standard-monthly-debt-v1",
   "product-prepaid-account-v1",
