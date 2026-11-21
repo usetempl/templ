@@ -2,7 +2,7 @@ import manifest from "./support-widget-versions.json";
 
 /** A file a build loads on first use: `card` (the context card),
  * `extras` (what the member sees after a send, from Received and the AI
- * agent typing to the Verify wallet card and "Did this solve it?", and the
+ * agent typing to the Verify wallet card, and the
  * Sign in again card), and the wallet sign-in for the page's wallet family,
  * `evm` or `solana`. */
 export type SupportWidgetChunk = {

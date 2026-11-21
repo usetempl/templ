@@ -25,6 +25,8 @@ flowchart TD
 
 The widget keeps the message ID until the server confirms the send. The server checks access and saves the message. When you retry, the widget uses the same ID. The server returns the saved message. The conversation shows one copy. The visitor can reopen the conversation in a browser that still has access.
 
+Staff can select **Resolve** in the inbox. Visitors can send a follow-up in the same chat. Silence does not confirm a resolution or start a charge.
+
 A team or AI reply can name the message it answers and its revision. If the conversation changes, read it again before replying.
 
 See the [widget client](../apps/web/src/lib/support-widget-live.ts), [inbox](../apps/web/src/components/team-conversations.tsx), and [message storage and access checks](../apps/workers/community/src/team-conversations.ts). Run `pnpm test:support` after [installing the workspace](../README.md#try-a-complete-conversation) to test guest send, team reply, and resume with synthetic data.

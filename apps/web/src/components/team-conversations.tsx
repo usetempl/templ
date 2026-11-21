@@ -85,7 +85,6 @@ import {
   askPerson,
   askTeam,
   claimConversation,
-  confirmConversation,
   conversationErrorMessage,
   conversationErrorReason,
   handOffConversation,
@@ -1485,12 +1484,6 @@ function ConversationView({
   } | null>(null);
   /** The member tapped "Talk to a person" and the request is on its way. */
   const [asking, setAsking] = useState<string | null>(null);
-  /** The member's answer to "Did this solve it?" while it is being sent. */
-  const [confirming, setConfirming] = useState<boolean | null>(null);
-  const [confirmNote, setConfirmNote] = useState<{
-    thread: string;
-    text: string;
-  } | null>(null);
   const [timeSpent, setTimeSpent] = useState<SupportTimeSpent | "">("");
   /** The details panel's latest workflow read, for the AI note and presence. */
   const [panelWorkflow, setPanelWorkflow] = useState<{
@@ -2068,7 +2061,6 @@ function ConversationView({
     openingRequest.current = controller;
     setBusy(true);
     setError("");
-    setConfirmNote(null);
     try {
       if (conversation) {
         enqueueConversationMessage(
@@ -2388,35 +2380,6 @@ function ConversationView({
       setError(conversationErrorMessage(reason, t, "member"));
     } finally {
       setAsking(null);
-    }
-  }
-  /** "Did this solve it?": Yes or No, once per team resolution. */
-  async function answerConfirm(solved: boolean) {
-    if (!conversation || confirming !== null) return;
-    const id = conversation.id;
-    setConfirming(solved);
-    setError("");
-    try {
-      const result = await confirmConversation(account, room, id, solved);
-      mutationRevision.current += 1;
-      setConversation(result.conversation);
-      if (!solved) {
-        setConfirmNote({
-          thread: id,
-          text:
-            result.reopened === false
-              ? t("room.confirm.notReopened")
-              : t("room.confirm.reopened"),
-        });
-        if (result.reopened !== false) composer.current?.focus();
-      }
-    } catch (reason) {
-      // Answered already or no longer asked: the next read shows which.
-      if (reason instanceof CommunityApiError && reason.status === 409)
-        await refreshThread.current();
-      else setError(conversationErrorMessage(reason, t, "member"));
-    } finally {
-      setConfirming(null);
     }
   }
   function showNote(note: SupportNote) {
@@ -2815,40 +2778,6 @@ function ConversationView({
       )}
     </>
   );
-  const confirmCard =
-    viewerIsMember &&
-    conversation?.state === "resolved" &&
-    conversation.confirmation &&
-    (conversation.confirmation.answer === null ? (
-      <div
-        className={styles.confirm}
-        role="group"
-        aria-label={t("room.confirm.question")}
-      >
-        <p>{t("room.confirm.question")}</p>
-        <div>
-          {(
-            [
-              [true, "room.confirm.yes"],
-              [false, "room.confirm.no"],
-            ] as const
-          ).map(([solved, key]) => (
-            <button
-              key={key}
-              type="button"
-              className={solved ? "button small" : "button small secondary"}
-              aria-pressed={confirming === solved}
-              disabled={confirming !== null || !status.available}
-              onClick={() => void answerConfirm(solved)}
-            >
-              {t(key)}
-            </button>
-          ))}
-        </div>
-      </div>
-    ) : conversation.confirmation.answer === "solved" ? (
-      <p className={styles.system}>{t("room.confirm.thanks")}</p>
-    ) : null);
   const memberIds = conversation
     ? [conversation.member, ...(conversation.formerMembers ?? [])]
     : [];
@@ -3248,12 +3177,6 @@ function ConversationView({
             data-billing={conversation.billing.status}
           >
             {caseBillingLabel(conversation.billing)}
-          </p>
-        )}
-        {confirmCard}
-        {confirmNote && confirmNote.thread === conversation?.id && (
-          <p className={styles.system} role="status">
-            {confirmNote.text}
           </p>
         )}
       </div>

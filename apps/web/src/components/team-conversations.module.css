@@ -970,29 +970,6 @@
   border-color: var(--templ-border-strong);
   transform: none;
 }
-.confirm {
-  display: grid;
-  justify-items: center;
-  gap: var(--templ-space-2);
-  align-self: center;
-  padding: var(--templ-space-3) var(--templ-space-4);
-  border: var(--templ-border-width) solid var(--templ-border-strong);
-  border-radius: var(--templ-radius-control);
-  background: var(--templ-surface);
-  color: var(--templ-muted);
-  font-size: var(--templ-text-small);
-}
-.confirm p {
-  margin: 0;
-  color: var(--templ-text);
-  font-weight: var(--templ-weight-heading);
-}
-.confirm div {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: var(--templ-space-2);
-}
 .timeSpent {
   display: inline-flex;
   align-items: center;

@@ -1066,7 +1066,7 @@ export type WidgetMessages = {
   messages: WidgetMessage[];
   nextBefore: string | null;
   /** Guest ids that held this thread before the member proved a wallet,
-   * whether a person was asked to answer, "Did this solve it?", who
+   * whether a person was asked to answer, who
    * resolved it and the team's follow-up line. */
   conversation?: { diagnosisRunning?: boolean; aiQueued?: true } & Partial<
     Pick<
@@ -1431,7 +1431,7 @@ export type CardRules = Pick<
  * from the app, which load the context card with the network names and
  * explorer rules it needs) and the extras (what the chat shows after a
  * send: typing, the handoff lines, Talk to a person, the team's request to
- * verify, "Did this solve it?" and Solved, which load the member lines).
+ * verify, and closed-case status).
  * Next and test bundles load the same code as module chunks. */
 declare const __TEMPL_WIDGET_CONTEXT__: string | undefined;
 declare const __TEMPL_WIDGET_EXTRAS__: string | undefined;
@@ -1564,7 +1564,6 @@ export type TailHost = {
    * `<thread>:<message id>`, for when storage is unavailable. */
   member?: MemberLines;
   loadingMember?: boolean;
-  declined?: string;
   // What the ops chunk reads from the widget.
   // The page's latest setContext value and the public calls.
   offered?: SupportContextInput;
@@ -1603,10 +1602,6 @@ const TAIL_LINES: Record<string, string> = {
   dot: "You can close this chat or come back later. While this page is open, the chat button shows a dot when they reply.",
   verify:
     "The team asked you to prove this wallet is yours. Signing is free and can't move funds.",
-  closed: "You marked this solved. Write here if you need more help.",
-  // Member case closure copy.
-  // Names archived and abandoned requests as closed.
-  // Members may continue the same conversation.
   "closed-case": "Closed. Write here if you need more help.",
 };
 /** The fixed line a widget shows while Templ has an open
@@ -1648,24 +1643,6 @@ function readNotice(host: TailHost) {
 type MemberCall = (path: string, body?: object) => Promise<unknown>;
 export const memberCall = (host: TailHost) =>
   (host.client as { adopt?(): readonly [unknown, MemberCall] }).adopt?.()[1];
-/** The member closes their own open request: "Solved", or Yes to "Did this
- * solve it?" on an open request. */
-const solve = (host: TailHost, thread: string, ifRevision?: number) =>
-  memberCall(host)!(`/conversations/${thread}/resolve`, {
-    resolved: true,
-    ifRevision,
-  });
-/** A "No" to "Did this solve it?" holds for that team reply across page
- * loads: its id is kept per thread in this browser. */
-const declinedKey = (thread: string) => `templ:support-declined:v1:${thread}`;
-function declined(host: TailHost, thread: string, id: string | undefined) {
-  if (host.declined == `${thread}:${id}`) return true;
-  try {
-    return !!id && localStorage.getItem(declinedKey(thread)) == id;
-  } catch {
-    return false;
-  }
-}
 /* The member lines (support-widget-member.ts): the wait
  * expectation, the follow-up line, reply email, the sources of the AI
  * agent's reply and the details the member shared. The extras load them. */
@@ -1674,72 +1651,6 @@ const loadMember = (): Promise<{ member: MemberLines }> =>
   typeof __TEMPL_WIDGET_MEMBER__ == "string"
     ? chunk(__TEMPL_WIDGET_MEMBER__)
     : import("./support-widget-member");
-/** "Did this solve it?" until the member answers Yes, then a thanks line.
- * After a team resolution: Yes or No, once; No reopens the request when the
- * team can take it. On an open request whose newest message is the team's
- * (`latest`, its id): Yes resolves it as the member's own, and No keeps it
- * open and asks what's still wrong. */
-function askedCard(
-  host: TailHost,
-  node: HTMLElement,
-  answered: boolean,
-  thread: string,
-  latest?: string,
-  ifRevision?: number,
-) {
-  const { el, draft } = host;
-  node.className = "system tail";
-  if (answered) node.textContent = "Thanks. The team can see your answer.";
-  else {
-    node.setAttribute("role", "group");
-    node.setAttribute("aria-label", "Did this solve it?");
-    node.append(el("p", "Did this solve it?"));
-    for (const [text, solved] of [
-      ["Yes", true],
-      ["No, I still need help", false],
-    ] as const) {
-      const choice = el("button", text);
-      choice.type = "button";
-      choice.addEventListener(
-        "click",
-        () =>
-          void host.run(async () => {
-            let result;
-            if (latest) {
-              if (solved) await solve(host, thread, ifRevision);
-              else {
-                host.declined = `${thread}:${latest}`;
-                try {
-                  localStorage.setItem(declinedKey(thread), latest);
-                } catch {
-                  /* The answer holds until this page closes. */
-                }
-              }
-            } else
-              result = await host.client.confirm!(thread, solved).catch(
-                (reason) => {
-                  // Already answered or not asked now: the read shows which.
-                  if (reason?.status != 409) throw reason;
-                },
-              );
-            await host.refresh(true);
-            if (!solved) {
-              if (result?.reopened === false) throw new Error(NOT_TAKING);
-              const before = draft.placeholder;
-              draft.placeholder = "Tell the team what's still wrong.";
-              draft.addEventListener(
-                "input",
-                () => (draft.placeholder = before),
-                { once: true },
-              );
-              draft.focus();
-            }
-          }),
-      );
-      node.append(choice);
-    }
-  }
-}
 /* The guest reply-notice chunk and the welcome chunk (sign-in, the
  * first-open controls and identity text), both loaded by the extras. */
 declare const __TEMPL_WIDGET_GUEST__: string | undefined;
@@ -1823,7 +1734,7 @@ export const extras = {
    * who acts next: one assistant bubble across sending and writing, a
    * receipt for team-only sends, the team's wait line,
    * the handoff line for whoever asked for a person, a guest's dot line,
-   * the team's request to verify and "Did this solve it?". Returns one
+   * and the team's request to verify. Returns one
    * entry per line, each with its key, what it depends on and what builds
    * it, so a line that stays keeps its node: the typing row doesn't rise
    * again and a screen reader doesn't hear it again when another line
@@ -1855,19 +1766,7 @@ export const extras = {
       level = client.session?.level,
       handoff = info?.handoff,
       resolved = info?.state == "resolved",
-      asked = client.confirm && info?.confirmation,
-      kept = host.held?.thread == thread ? host.held : null,
-      // The member may close an open request once the team has replied;
-      // the member lines carry the wait before asking.
-      closable =
-        // Member confirmation after abandonment.
-        // A member may confirm an abandoned case as solved.
-        // The authoritative room applies resolution billing.
-        (!resolved || info?.closed === "abandoned") &&
-        !pending &&
-        !typing &&
-        messages.some((message) => !own(message.author)) &&
-        host.member;
+      kept = host.held?.thread == thread ? host.held : null;
     const held = (host.held = handoff
       ? {
           by:
@@ -1889,15 +1788,7 @@ export const extras = {
       else if (fresh) (host.replyWaits ??= new Set()).add(thread);
     }
     const parts: string[] = [];
-    if (resolved) {
-      // Member closure status.
-      // A closed case shows Closed once its "Did this solve it?" is
-      // answered; an open question keeps its Yes and No. Sending stays open.
-      if (info?.closed && (!asked || asked.answer)) parts.push("closed-case");
-      else if (asked && asked.answer != "not-solved")
-        parts.push(asked.answer ? "thanks" : "ask");
-      else if (info?.resolvedBy?.kind == "member") parts.push("closed");
-    }
+    if (resolved) parts.push("closed-case");
     else if (!held && typing !== "team" && !info?.encryption && info?.aiReplyExpected !== false && (
       pending ? pending === "sending" && expected :
       mine && (typing === "agent" || (expected && (fresh || host.replyWaits?.has(thread!) || age < 300_000)))
@@ -1934,17 +1825,6 @@ export const extras = {
     const waits =
       !typing &&
       (parts.includes("wait") || !!held?.by);
-    // Only while the team's reply is the newest message and no handoff is
-    // open: a team reply that has waited a day asks "Did this solve it?"
-    // once; otherwise Solved stays one tap away, beside Talk to a person
-    // when that shows. A No to a reply keeps both away until the next one.
-    const solvable =
-      !mine && !held?.by && !declined(host, thread!, last.id)
-        ? closable
-        : undefined;
-    const stale = solvable && age >= solvable.askAfterMs;
-    if (stale) parts.push("stale");
-    else if (solvable && !parts.includes("hatch")) parts.push("solved");
     if (verify) parts.push("verify");
     readNotice(host);
     if (!resolved && host.notice!.line) parts.push("incident");
@@ -1980,70 +1860,45 @@ export const extras = {
         // verify card shows the wallet step while it runs.
         [
           thread,
-          (part == "hatch" || part == "stale") && id,
-          part == "hatch" && !!solvable && !stale,
+          part == "hatch" && id,
           part == "hatch" && !!held,
-          (part == "solved" || part == "hatch" || part == "stale") &&
-            info?.revision,
           part == "verify" && !!host.signing,
           part == "incident" && host.notice!.line,
         ],
         (node) => {
           node.dataset.state = part;
-          if (part == "ask" || part == "thanks" || part == "stale")
-            askedCard(
-              host,
-              node,
-              part == "thanks",
-              thread!,
-              part == "stale" ? last.id : undefined,
-              info?.revision,
+          node.className =
+            part == "verify" || part == "incident"
+              ? "system nudge tail"
+              : "system tail";
+          // Talk to a person is a button with no line of its own.
+          node.append(
+            (part == "incident"
+              ? host.notice!.line
+              : host.options.chatFirst &&
+                  host.policy?.chatFirst &&
+                  ["member", "person", "dot"].includes(part)
+                ? part === "dot"
+                  ? "The chat button shows replies while this page is open."
+                  : "The team will reply here. Keep writing in this chat."
+                : TAIL_LINES[part]) || "",
+          );
+          if (part == "hatch") {
+            const control = button(
+              held ? "Waiting for the team" : "Talk to a person",
+              talk,
             );
-          else {
-            node.className =
-              part == "verify" || part == "incident"
-                ? "system nudge tail"
-                : "system tail";
-            // Talk to a person is a button with no line of its own.
-            node.append(
-              (part == "incident"
-                ? host.notice!.line
-                : host.options.chatFirst &&
-                    host.policy?.chatFirst &&
-                    ["member", "person", "dot"].includes(part)
-                  ? part === "dot"
-                    ? "The chat button shows replies while this page is open."
-                    : "The team will reply here. Keep writing in this chat."
-                  : TAIL_LINES[part]) || "",
+            control.disabled = !!held;
+            node.append(control);
+          }
+          // The team asked; only the member starts the sign-in.
+          if (part == "verify") {
+            const sign = button(
+              host.signing ? "Check your wallet…" : "Sign in",
+              () => host.signIn.click(),
             );
-            if (part == "hatch") {
-              const control = button(
-                held ? "Waiting for the team" : "Talk to a person",
-                talk,
-              );
-              control.disabled = !!held;
-              node.append(control);
-            }
-            if (part == "solved" || (part == "hatch" && solvable && !stale))
-              node.append(
-                button("Mark as solved", () =>
-                  host.member!.confirmSolve(
-                    host,
-                    node,
-                    thread!,
-                    info?.revision,
-                  ),
-                ),
-              );
-            // The team asked; only the member starts the sign-in.
-            if (part == "verify") {
-              const sign = button(
-                host.signing ? "Check your wallet…" : "Sign in",
-                () => host.signIn.click(),
-              );
-              sign.disabled = !!host.signing;
-              node.append(sign);
-            }
+            sign.disabled = !!host.signing;
+            node.append(sign);
           }
         },
       ],

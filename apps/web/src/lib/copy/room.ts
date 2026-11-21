@@ -289,15 +289,6 @@ export const room = {
     "The AI agent handed your case to the team. They’ll reply here.",
   "room.member.teamHasRequest":
     "Your case is with the team. They’ll reply here.",
-  // "Did this solve it?" after the team resolves (the widget's wording)
-  "room.confirm.question": "Did this solve it?",
-  "room.confirm.yes": "Yes",
-  "room.confirm.no": "No, I still need help",
-  "room.confirm.thanks": "Thanks. The team can see your answer.",
-  "room.confirm.reopened":
-    "The case is open again. Tell the team what’s still wrong.",
-  "room.confirm.notReopened":
-    "This team can’t take new cases right now. To reopen your case, send a message here later.",
   // profile-settings-dialog.tsx (the shared name rules and walletError keep
   // their English)
   "room.profile.chooseAnotherName": "Choose another name.",

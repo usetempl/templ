@@ -140,25 +140,6 @@ export function resolveConversation(
     options.assertCurrent,
   );
 }
-/** The member answers "Did this solve it?" once per team resolution. No
- * reopens the request when the workspace can take it; `reopened: false`
- * means it stayed resolved. */
-export function confirmConversation(
-  account: ChatPrincipalId | undefined,
-  room: ChatRoomId,
-  id: string,
-  solved: boolean,
-): Promise<{
-  workflow: SupportWorkflow;
-  conversation: TeamConversation;
-  reopened?: boolean;
-}> {
-  return chatMutation(
-    account,
-    roomPath(room, `conversations/${conversationId(id)}/workflow`),
-    { action: "confirm", solved },
-  );
-}
 /** The thread's member asks for a person. It posts no message, counts
  * nothing and, while a handoff is open, changes nothing. */
 export function askPerson(

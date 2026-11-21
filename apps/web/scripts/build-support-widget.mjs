@@ -11,7 +11,6 @@ import {
 import process from "node:process";
 import { fileURLToPath, URL } from "node:url";
 import { FEATURE_LIMITS } from "../../../packages/chat/src/feature-limits.ts";
-import { PRODUCT_RESOLUTION_RULES } from "../../../packages/chat/src/plans.ts";
 import { generateWidgetColors } from "./generate-widget-colors.mjs";
 import {
   WIDGET_BUDGET,
@@ -80,11 +79,7 @@ const bundle = async (contents, define = {}, banner) =>
                     if (!(key in FEATURE_LIMITS))
                       throw new Error(`Unknown widget limit: ${key}`);
                     return JSON.stringify(FEATURE_LIMITS[key]);
-                  })
-                  .replace(
-                    /PRODUCT_RESOLUTION_RULES\.askAfterHours/g,
-                    JSON.stringify(PRODUCT_RESOLUTION_RULES.askAfterHours),
-                  ),
+                  }),
               }),
             );
           },
@@ -151,8 +146,8 @@ export const card = (widget) => contextCard(widget, rules);`,
   // messages and the lines that say a person from the team joined.
   consent: 'export { consent, leadStyles } from "./support-widget-consent";',
   // What the member sees after a send (Received, the AI agent typing with
-  // Talk to a person, the wait and handoff lines, the Verify wallet card,
-  // "Did this solve it?" and Solved), and the Sign in again card.
+  // Talk to a person, the wait and handoff lines, and the Verify wallet
+  // card), and the Sign in again card.
   conversation: 'export { chatFirstControls } from "./support-widget-chat-first";',
   "conversation-style": 'export { CONVERSATION_STYLE } from "./support-widget-chat-style";',
   conversations: 'export { conversationDrawer, memberConversations, memberConversationsPath } from "./support-widget-conversations";',

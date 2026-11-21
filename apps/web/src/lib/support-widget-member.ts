@@ -18,7 +18,6 @@ import type {
 } from "@templ/chat/support";
 import { SUPPORT_IDENTITY_LABELS } from "@templ/chat/support-identity";
 import type { TailHost, WidgetMessage, WidgetMessages } from "./support-widget";
-import { PRODUCT_RESOLUTION_RULES } from "@templ/chat/plans";
 import { screenshotButton } from "./support-widget-shot";
 import { emailLines } from "./support-widget-email-loader";
 
@@ -201,52 +200,6 @@ async function sharedRows(context: Shared): Promise<SharedRow[]> {
 }
 
 export const member = {
-  confirmSolve(
-    host: TailHost,
-    node: HTMLElement,
-    thread: string,
-    ifRevision?: number,
-  ) {
-    const { el } = host;
-    const choices = el("div", undefined, "solve-review");
-    choices.setAttribute("role", "group");
-    choices.setAttribute("aria-label", "Mark this case solved?");
-    choices.append(el("p", "Mark this case solved?"));
-    const yes = el("button", "Yes, solved");
-    const keep = el("button", "Keep open");
-    yes.type = keep.type = "button";
-    keep.addEventListener("click", () => {
-      choices.remove();
-      node
-        .querySelectorAll("button")
-        .forEach((button) => (button.hidden = false));
-    });
-    yes.addEventListener("click", () => {
-      yes.disabled = keep.disabled = true;
-      yes.textContent = "Closing…";
-      choices.setAttribute("aria-busy", "true");
-      void host.run(async () => {
-        try {
-          await memberCall(host)(`/conversations/${thread}/resolve`, {
-            resolved: true,
-            ifRevision,
-          });
-          await host.refresh(true);
-        } finally {
-          yes.disabled = keep.disabled = false;
-          yes.textContent = "Yes, solved";
-          choices.removeAttribute("aria-busy");
-        }
-      });
-    });
-    node.querySelectorAll("button").forEach((button) => (button.hidden = true));
-    choices.append(yes, keep);
-    node.append(choices);
-    keep.focus();
-  },
-  /** How old the team's newest reply on an open request is before the
-   * widget asks "Did this solve it?". */
-  askAfterMs: PRODUCT_RESOLUTION_RULES.askAfterHours * 3_600_000,
   lines(host: TailHost, view: MemberView): [Line[], Line[]] {
     const { el } = host;
     const { messages, info, authors, thread, mine, waits } = view;
