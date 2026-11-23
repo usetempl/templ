@@ -29,6 +29,8 @@
 /* Same site action shape as the landing Try the chat button. */
 .launcher {
   composes: button primary from "./ui/design-system.module.css";
+  background: var(--a, var(--templ-accent));
+  color: var(--oa, var(--templ-on-accent));
   position: fixed;
   right: var(--site-chat-edge);
   bottom: var(--site-chat-edge);
@@ -36,12 +38,14 @@
   gap: var(--site-action-gap);
   min-height: var(--site-action-height);
   padding: 0 var(--site-action-padding-inline);
-  border: var(--site-action-border-width) solid var(--templ-action-border);
+  border: var(--site-action-border-width) solid var(--af, var(--templ-action-border));
   border-radius: var(--site-action-radius);
   font-size: var(--site-action-font-size);
   font-weight: var(--site-action-weight);
   line-height: var(--site-action-line);
 }
+.launcher:hover { background: var(--ah, var(--templ-accent-hover)); color: var(--oh, var(--templ-on-accent)); }
+.launcher:active { background: var(--aa, var(--templ-accent-active)); color: var(--op, var(--templ-on-accent)); }
 .launcher[hidden] { display: none; }
 .launcherMark {
   flex: none;
@@ -49,7 +53,7 @@
   height: 20px;
 }
 .launcher:focus-visible {
-  outline: var(--templ-focus-width) solid var(--templ-focus);
+  outline: var(--templ-focus-width) solid var(--af, var(--templ-focus));
   outline-offset: var(--templ-focus-offset);
 }
 .chatContent,

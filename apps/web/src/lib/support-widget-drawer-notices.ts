@@ -5,6 +5,16 @@ type Notices = { enabled: boolean; pending?: boolean };
 /** A guest's email and choice to subscribe belong to one conversation. */
 export function drawerNotices(host: TailHost, menu: HTMLElement, signal: AbortSignal) {
   const { el } = host;
+  host.style.append(document.createTextNode(`
+.shared-chat .drawer-section-body label{display:grid;gap:4px;font-size:13px}
+.shared-chat .drawer-section-body input{box-sizing:border-box;width:100%;min-width:0;padding:8px;border:1px solid var(--b2);border-radius:8px;color:var(--t);background:var(--s);font:inherit;font-size:16px}
+.shared-chat .drawer-form-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.shared-chat .drawer-section-body .drawer-primary{background:var(--a);color:var(--oa)}
+.shared-chat .drawer-section-body .drawer-primary:hover:enabled{background:var(--ah);color:var(--oh)}
+.shared-chat .drawer-section-body .drawer-primary:active:enabled{background:var(--aa);color:var(--op)}
+.shared-chat .drawer-section-body .drawer-primary:disabled{background:var(--s);color:var(--m)}
+.shared-chat .drawer-section-body .drawer-stop{background:var(--s2);color:light-dark(#9e3024,#ffaea3)}
+`));
   const client = host.client as ReturnType<typeof createSupportClient>;
   const section = el("section", undefined, "drawer-section");
   const heading = el("h3", "Reply notifications");

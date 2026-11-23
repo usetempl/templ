@@ -112,24 +112,9 @@ export function WidgetAppearanceEditor({
   }, [value.logo]);
   const patch = (next: Partial<WidgetAppearance>) =>
     onChange({ ...value, ...next });
-  const accent =
-    typeof value.accent === "string"
-      ? value.accent
-      : (value.accent?.[mode] ?? WIDGET_DEFAULT_ACCENT[mode]);
-  const setAccent = (color: string) =>
-    patch({
-      accent: {
-        light:
-          typeof value.accent === "string"
-            ? value.accent
-            : (value.accent?.light ?? WIDGET_DEFAULT_ACCENT.light),
-        dark:
-          typeof value.accent === "string"
-            ? value.accent
-            : (value.accent?.dark ?? WIDGET_DEFAULT_ACCENT.dark),
-        [mode]: color,
-      },
-    });
+  const pair = typeof value.accent === "object" ? value.accent : undefined;
+  const accent = typeof value.accent === "string" ? value.accent : pair?.light ?? WIDGET_DEFAULT_ACCENT.light;
+  const setAccent = (color: string) => patch({ accent: pair ? { ...pair, light: color } : color });
   const palette = value.colors?.[mode] ?? {};
   const notice = value.headerNotice ?? { enabled: false, text: "" };
   const background = palette.background ?? defaultColor(mode, "bg");
@@ -147,12 +132,10 @@ export function WidgetAppearanceEditor({
     <div className={styles.editor}>
       <fieldset className={styles.controls} disabled={disabled}>
         <legend className={styles.srOnly}>Widget appearance</legend>
-        <section className={styles.section} aria-label="Widget colors">
-          <h3>
-            Colors <span>{mode === "light" ? "Light" : "Dark"}</span>
-          </h3>
-          <p>Switch the preview to edit each theme.</p>
-          <ColorField label="Buttons" value={accent} onChange={setAccent} />
+        <section className={styles.section} aria-label="Chat button color">
+          <h3>Chat button color</h3>
+          <p>Set the accent for the launcher, Send and other chat controls.</p>
+          <ColorField label="Button color" value={accent} onChange={setAccent} />
           <div
             className={styles.swatches}
             role="group"
@@ -170,6 +153,19 @@ export function WidgetAppearanceEditor({
               />
             ))}
           </div>
+          <label>
+            <input type="checkbox" checked={!!pair}
+              onChange={(event) => patch({ accent: event.target.checked
+                ? { light: accent, dark: typeof value.accent === "string" ? value.accent : WIDGET_DEFAULT_ACCENT.dark }
+                : accent })} />
+            Use a different color in dark mode
+          </label>
+          {pair && <ColorField label="Dark mode button color" value={pair.dark}
+            onChange={(dark) => patch({ accent: { ...pair, dark } })} />}
+        </section>
+        <section className={styles.section} aria-label="Widget colors">
+          <h3>Chat colors <span>{mode === "light" ? "Light" : "Dark"}</span></h3>
+          <p>Switch the preview to edit each theme.</p>
           {FIELDS.map(([key, name, token]) => (
             <ColorField
               key={key}

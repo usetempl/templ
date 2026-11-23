@@ -2,10 +2,14 @@
 
 import Image from "next/image";
 import { useEffect, useRef, type ReactNode } from "react";
+import { setPageChatAccent, type WidgetAccent } from "@/lib/support-widget-appearance";
 import styles from "./help.module.css";
 
-export function SupportChatFrame({ children, label, siteAppearance = false }: { children: ReactNode; label?: string; siteAppearance?: boolean }) {
+export function SupportChatFrame({ children, label, accent, siteAppearance = false }: { children: ReactNode; label?: string; accent?: WidgetAccent; siteAppearance?: boolean }) {
   const page = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (page.current) setPageChatAccent(page.current, accent);
+  }, [accent]);
   useEffect(() => {
     const root = page.current;
     const viewport = window.visualViewport;

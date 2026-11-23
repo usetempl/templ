@@ -323,8 +323,8 @@ const support = mountSupportWidget({
         </Card>
 
         <Card
-          title="Customize widget"
-          description="Save the appearance for everyone using the updated widget. Open widgets can reload to get the changes."
+          title="Chat appearance"
+          description="Applies to your full-page chat and embedded widget. Reload an open chat to see your changes."
           footer={
             <>
               <button

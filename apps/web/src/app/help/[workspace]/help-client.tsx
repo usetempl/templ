@@ -10,6 +10,7 @@ import { SITE } from "@/lib/site-environment";
 import { widgetSignInNetworks } from "@/lib/support-availability";
 import { trackEvent } from "@/lib/analytics";
 import { SupportChatFrame, SupportChatLoading } from "./support-chat-frame";
+import type { WidgetAccent } from "@/lib/support-widget-appearance";
 import styles from "./help.module.css";
 
 type WidgetModule = { mountSupportWidget: typeof mountSupportWidget };
@@ -29,6 +30,7 @@ export function HostedSupportChat({
   const release = useRelease();
   const WIDGET_SIGN_IN_NETWORKS = widgetSignInNetworks(release);
 
+  const [accent, setAccent] = useState<WidgetAccent>();
   const container = useRef<HTMLDivElement>(null);
   const widget = useRef<ReturnType<typeof mountSupportWidget> | null>(null);
   const [state, setState] = useState<"loading" | "ready" | "failed">("loading");
@@ -58,6 +60,7 @@ export function HostedSupportChat({
         container: container.current,
         wallet: supportPageWallet(currentNetwork.current),
         styleNonce: nonce,
+        appearanceChanged: (saved) => setAccent(saved.accent),
         label: name,
         chatFirst: true,
         guestPath: `/help/${workspace}`,
@@ -90,7 +93,7 @@ export function HostedSupportChat({
     };
   }, [workspace, name, nonce, frameRequired, retry]);
   return (
-    <SupportChatFrame label={`Support for ${name}`} siteAppearance={workspace === release.templSupport?.workspaceId}>
+    <SupportChatFrame accent={accent} label={`Support for ${name}`} siteAppearance={workspace === release.templSupport?.workspaceId}>
       {state === "ready" && <details className={styles.channelInfo}>
         <summary>About this support link</summary>
         {verifiedSites.length ? <p>Verified sites: {verifiedSites.map(site => <a key={site} href={site} rel="noreferrer">{new URL(site).hostname} </a>)}</p>

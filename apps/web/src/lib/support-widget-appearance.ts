@@ -76,18 +76,15 @@ export function resolveWidgetAccent(
     mode === "light" ? WIDGET_LIGHT_SURFACES : WIDGET_DARK_SURFACES
   ).map((color) => luminance(rgb(color)));
   const direction = mode === "light" ? -1 : 1;
+  const readableOnSurfaces = (level: number, minimum: number) => surfaces.every((bg) => ratio(level, bg) >= minimum);
   const adjusted = (minimum: number) => {
-    if (surfaces.every((bg) => ratio(luminance(rgb(brand)), bg) >= minimum))
+    if (readableOnSurfaces(luminance(rgb(brand)), minimum))
       return brand;
     const value = [...base];
     // A small margin covers display gamut mapping and decimal rounding.
     for (let i = 1; i <= 200; i++) {
       value[0] = clamp(base[0] + (direction * i) / 200);
-      if (
-        surfaces.every(
-          (bg) => ratio(luminance(channels(value)), bg) >= minimum + 0.2,
-        )
-      )
+      if (readableOnSurfaces(luminance(channels(value)), minimum + 0.2))
         break;
     }
     return css(value);
@@ -119,12 +116,25 @@ export function resolveWidgetAccent(
   };
 }
 
-/** Read only host theme signals on html/body and the color-scheme meta tag. */
-export function hostWidgetTheme(
-  doc = document,
-  mediaDark = false,
-  parent?: HTMLElement,
-): WidgetTheme {
+export function widgetAccentTokens(value: WidgetAccent | undefined, mode: WidgetTheme) {
+  const accent = resolveWidgetAccent(value, mode);
+  return {
+    "--a": accent.brand, "--ah": accent.hover, "--aa": accent.pressed,
+    "--oa": accent.ink, "--oh": accent.hoverInk, "--op": accent.pressedInk,
+    "--at": accent.text, "--af": accent.focus,
+  };
+}
+
+/** Page-owned controls outside the widget shadow follow the same accent. */
+export function setPageChatAccent(element: HTMLElement, value: WidgetAccent | undefined) {
+  const light = widgetAccentTokens(value, "light");
+  const dark = widgetAccentTokens(value, "dark");
+  for (const key of Object.keys(light) as (keyof typeof light)[])
+    if (value) element.style.setProperty(key, `light-dark(${light[key]},${dark[key]})`);
+    else element.style.removeProperty(key);
+}
+
+function themeParents(doc: Document, parent?: HTMLElement) {
   const nodes: HTMLElement[] = [];
   for (
     let node: HTMLElement | null = parent ?? doc.body;
@@ -133,6 +143,16 @@ export function hostWidgetTheme(
   )
     nodes.push(node);
   if (!nodes.includes(doc.documentElement)) nodes.push(doc.documentElement);
+  return nodes;
+}
+
+/** Read only host theme signals on html/body and the color-scheme meta tag. */
+export function hostWidgetTheme(
+  doc = document,
+  mediaDark = false,
+  parent?: HTMLElement,
+): WidgetTheme {
+  const nodes = themeParents(doc, parent);
   const mode = (value: string) => {
     const dark = /dark/i.test(value),
       light = /light/i.test(value);
@@ -212,7 +232,7 @@ export function bindWidgetAppearance(
       ".loading-case{display:flex;align-items:center;justify-content:center;gap:12px;min-height:96px}.loading-case::before{content:'';width:24px;height:24px;border:2px solid var(--b2);border-top-color:var(--a);border-radius:50%;animation:spin .8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}.head button[aria-label]{position:relative}.head button[aria-label]:is(:hover,:focus-visible)::after{content:attr(aria-label);position:absolute;top:calc(100% + 6px);right:0;z-index:2;width:max-content;max-width:200px;padding:5px 8px;background:var(--t);color:var(--bg);font-size:12px;font-weight:500;line-height:1.4;pointer-events:none}";
     root.append(style);
   }
-  let appearance = { ...initial };
+  let appearance = initial;
   const parent = host.parentElement ?? document.body;
   let previous = "";
   const media =
@@ -236,17 +256,8 @@ export function bindWidgetAppearance(
     ["--rp", "--rb", "--rc", "--rl"].forEach((key, i) =>
       host.style.setProperty(key, `${radius[i]}px`),
     );
-    const accent = resolveWidgetAccent(appearance.accent, mode);
-    Object.entries({
-      "--a": accent.brand,
-      "--ah": accent.hover,
-      "--aa": accent.pressed,
-      "--oa": accent.ink,
-      "--oh": accent.hoverInk,
-      "--op": accent.pressedInk,
-      "--at": accent.text,
-      "--af": accent.focus,
-    }).forEach(([key, value]) => host.style.setProperty(key, value));
+    for (const [key, value] of Object.entries(widgetAccentTokens(appearance.accent, mode)))
+      host.style.setProperty(key, value);
     const font = getComputedStyle(parent).fontFamily.slice(0, 300);
     if (font) host.style.fontFamily = font;
     const display = { theme: mode, font };
@@ -265,13 +276,7 @@ export function bindWidgetAppearance(
       }, 32);
   };
   const observer = new MutationObserver(schedule);
-  const watched = new Set<HTMLElement>([
-    document.documentElement,
-    document.body,
-  ]);
-  for (let node: HTMLElement | null = parent; node; node = node.parentElement)
-    watched.add(node);
-  for (const node of watched)
+  for (const node of new Set([...themeParents(document, parent), document.body]))
     if (node)
       observer.observe(node, {
         attributes: true,
@@ -303,19 +308,10 @@ export function bindWidgetAppearance(
 
 /** The launcher and the frame's box, matching the widget's own panel. */
 export const FRAME_STYLE = `${WIDGET_FRAME_COLORS}:host{all:initial;--rl:14px;font-family:inherit;font-size:15px;font-weight:650;line-height:1.5}[hidden]{display:none!important}\
-button{position:fixed;right:20px;bottom:36px;z-index:2147483000;display:flex;align-items:center;gap:9px;height:52px;padding:0 20px 0 16px;border:0;border-radius:var(--rl);background:var(--a);color:var(--oa);font:inherit;cursor:pointer;transition:transform .2s cubic-bezier(.3,1.6,.6,1)}button:hover{transform:translateY(-1px) scale(1.03)}button:focus-visible{outline:2px solid var(--af,var(--t));outline-offset:2px}svg{width:18px;height:18px}\
+button{position:fixed;right:20px;bottom:36px;z-index:2147483000;display:flex;align-items:center;gap:9px;height:52px;padding:0 20px 0 16px;border:0;border-radius:var(--rl);background:var(--a);color:var(--oa);font:inherit;cursor:pointer;transition:transform .2s cubic-bezier(.3,1.6,.6,1)}button:hover{background:var(--ah);color:var(--oh);transform:translateY(-1px) scale(1.03)}button:active{background:var(--aa);color:var(--op)}button:focus-visible{outline:2px solid var(--af,var(--t));outline-offset:2px}svg{width:18px;height:18px}\
 button[data-unread]::after{content:"";position:absolute;inset:8px 10px auto auto;padding:5px;border-radius:99px;background:var(--d);outline:2px solid var(--bg)}\
 iframe,p{position:fixed;right:20px;bottom:100px;z-index:2147483001;margin:0}iframe{width:min(392px,calc(100vw - 32px));height:min(480px,calc(100dvh - 124px));border:0;border-radius:var(--rp,16px);color-scheme:normal;background:transparent;box-shadow:0 28px 80px var(--shc)}\
 p{max-width:280px;padding:10px 12px;border-radius:12px;background:var(--bg);color:var(--t);font-size:13px;font-weight:400}\
 :host([data-position=left]) iframe,:host([data-position=left]) button{right:auto;left:20px}\
 @media(max-width:480px){iframe{inset:auto 8px 8px;width:auto;height:calc(100dvh - 16px)}button{right:16px;bottom:16px}:host([data-position=left]) iframe{left:8px;right:8px}:host([data-position=left]) button{left:16px}button[aria-expanded=true]{display:none}}\
 @media(prefers-reduced-motion:reduce){button{transition:none}button:hover{transform:none}}`;
-
-export function frameStyle(fullPage: boolean) {
-  return (
-    FRAME_STYLE +
-    (fullPage
-      ? ":host{display:block;height:100%}button{display:none!important}iframe{position:static;inset:auto;width:100%;height:100%;border-radius:0;box-shadow:none}"
-      : "")
-  );
-}

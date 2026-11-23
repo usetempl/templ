@@ -109,7 +109,7 @@ const chunks = Object.fromEntries(WIDGET_CHUNKS.map((name) => [name, null]));
 const chunkBytes = {};
 for (const [name, contents] of Object.entries({
   appearance:
-    'export { bindWidgetAppearance, frameStyle } from "./support-widget-appearance";',
+    'export { bindWidgetAppearance, FRAME_STYLE } from "./support-widget-appearance";',
   drafts: 'export { save, read, canPersist, pending } from "./support-widget-drafts";',
   style: 'export { widgetStyle } from "./support-widget-style";',
   lead: 'export { lead, forms } from "./support-widget-lead";',

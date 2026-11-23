@@ -109,7 +109,7 @@ export type SupportWidgetOptions = {
   showLauncher?: boolean;
   /** Match the widget to your app. Defaults to the app's theme and font. */
   appearance?: SupportWidgetAppearance;
-  /** Dedicated hosted pages can keep a consistent skin. */
+  /** Keep the hosted page skin while using the workspace button color. */
   fixedAppearance?: boolean;
   decorateOwnMenu?(host: TailHost, actions: HTMLElement): () => void;
   /** The frame adapter receives public display settings only. */
@@ -3425,6 +3425,26 @@ function renderSupportWidget(
     }
     render(prepend);
   }
+  let pendingPolicy: ReturnType<NonNullable<WidgetClient["policy"]>> | undefined;
+  function readPolicy() {
+    return pendingPolicy ??= client.policy?.().then((policy) => {
+      const saved = policy.appearance;
+      if (active && saved) {
+        appearance = typeof __TEMPL_WIDGET_BUILD__ === "undefined" && options.fixedAppearance
+          ? { ...options.appearance, accent: saved.accent ?? options.appearance?.accent }
+          : { ...options.appearance, ...saved };
+        boundAppearance?.set({theme: "auto", accent: undefined, radius: "soft", position: "right", ...appearance});
+        paintBranding();
+        options.appearanceChanged?.(saved);
+      }
+      return policy;
+    }).finally(() => { pendingPolicy = undefined; });
+  }
+  // A closed launcher needs only public branding. Opening chat still checks
+  // today's access policy and creates or restores the visitor session.
+  if (!demo && (!launcher.hidden || options.appearanceChanged))
+    void readPolicy()?.catch(() => {});
+
   async function refreshNow(stale: () => boolean): Promise<void> {
     // The demo has no network; it renders even in a background tab. A
     // closed widget reads only while the visitor waits on the team.
@@ -3448,9 +3468,7 @@ function renderSupportWidget(
     // readable policy, the wallet sign-in stays in front.
     await Promise.all([
       minimumLevel === undefined &&
-        client
-          .policy?.()
-          .then(
+        readPolicy()?.then(
             (policy) => {
               // The team's own line, set in its widget settings, once
               // even when two reads overlap.
@@ -3463,18 +3481,6 @@ function renderSupportWidget(
                 );
               tailHost.policy = policy;
               attachToggle.hidden = tx.hidden && !policy.diagnostics;
-              if (policy.appearance && !options.fixedAppearance) {
-                appearance = { ...options.appearance, ...policy.appearance };
-                boundAppearance?.set({
-                  theme: "auto",
-                  accent: undefined,
-                  radius: "soft",
-                  position: "right",
-                  ...appearance,
-                });
-                paintBranding();
-                options.appearanceChanged?.(policy.appearance);
-              }
               if (
                 options.templLeadCapture &&
                 policy.templLeadCapture &&

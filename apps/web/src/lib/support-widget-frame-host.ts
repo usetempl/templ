@@ -233,7 +233,9 @@ export function mountSupportWidget(options: SupportWidgetOptions) {
   const colors = loadAppearance()
     .then((module) => {
       if (destroyed) return;
-      style.textContent = module.frameStyle(!!options.container);
+      style.textContent = module.FRAME_STYLE + (options.container
+        ? ":host{display:block;height:100%}button{display:none!important}iframe{position:static;inset:auto;width:100%;height:100%;border-radius:0;box-shadow:none}"
+        : "");
       const bound = (boundColors = module.bindWidgetAppearance(
         host,
         effectiveAppearance,
@@ -278,6 +280,7 @@ export function mountSupportWidget(options: SupportWidgetOptions) {
       };
       boundColors?.set(effectiveAppearance);
       paintBranding();
+      options.appearanceChanged?.(message.value as SupportWidgetAppearance);
     } else if (k === "guest-restored")
       void page.then((value) => value.restored(message.fragment));
     else if (k == "ready" && !ready) {

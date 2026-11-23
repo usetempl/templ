@@ -51,15 +51,14 @@ export const drawerStyle = `
 .shared-chat .drawer-section h3{display:flex;align-items:center;gap:8px;margin:0 0 8px;font-size:14px;font-weight:600}
 .shared-chat .drawer-section h3 svg{width:18px;height:18px;flex:none}
 .shared-chat .drawer-section-body{display:grid;gap:8px;margin:0;min-width:0;padding:0 0 0 26px}
-.shared-chat .drawer-section-body label{display:grid;gap:4px;font-size:13px}
-.shared-chat .drawer-section-body input{box-sizing:border-box;width:100%;min-width:0;padding:8px;border:1px solid var(--b2);border-radius:8px;color:var(--t);background:var(--s);font:inherit;font-size:16px}
 .shared-chat .drawer-section-body p{margin:0;color:var(--m);font-size:13px;line-height:1.45}
 .shared-chat .drawer-section-body p:empty{display:none}
-.shared-chat .drawer-form-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 .shared-chat .drawer-section-body button{display:inline-flex;align-items:center;justify-content:center;width:auto;min-height:44px;margin:0;padding:6px 12px;border-radius:8px;font-weight:600}
-.shared-chat .drawer-section-body .drawer-primary{background:#186a32;color:white}
-.shared-chat .drawer-section-body .drawer-stop{background:var(--s2);color:light-dark(#9e3024,#ffaea3)}
 .shared-chat .drawer-section [hidden]{display:none!important}
+.shared-chat :is(.head button,.head summary,.drawer-section-body .quiet,.member-conversations button):where(:not(:disabled,.drawer-primary,.drawer-stop,.flex-menu-backdrop)){color:var(--at)}
+.shared-chat :is(.head button,.head summary,.chat-menu button,.member-conversations button):where(:not(.drawer-primary,.drawer-stop,.flex-menu-backdrop):not(:disabled)):hover,
+.shared-chat .head details[open]>summary,.shared-chat .member-conversations button[aria-current]{background:color-mix(in srgb,var(--a) 12%,var(--bg));color:var(--at)}
+.shared-chat :is(.head button,.head summary,.chat-menu button):where(:not(.drawer-primary,.drawer-stop,.flex-menu-backdrop):not(:disabled)):active{background:color-mix(in srgb,var(--a) 20%,var(--bg));color:var(--t)}
 .shared-chat .chat-history>summary{position:relative}
 .shared-chat .member-conversations button[data-thread]{position:relative;padding-inline-end:28px}
 .shared-chat .chat-history [data-unread]::after{content:"";position:absolute;display:block;width:8px;height:8px;padding:0;margin:0;border-radius:50%;background:var(--d);outline:2px solid var(--bg)}

@@ -67,8 +67,8 @@
   font: inherit;
 }
 .network button[aria-pressed="true"] {
-  border-color: var(--templ-action-border);
-  color: var(--templ-accent-text);
+  border-color: var(--af, var(--templ-action-border));
+  color: var(--at, var(--templ-accent-text));
 }
 .network button:focus-visible {
   outline: var(--templ-focus-width) solid var(--templ-focus);
@@ -207,8 +207,8 @@ body:has(.fullPage),
   height: 16px;
   box-sizing: border-box;
   border: 2px solid #aaa;
-  border-top-color: light-dark(#384526, #a1c8a5);
-  border-right-color: light-dark(#384526, #a1c8a5);
+  border-top-color: var(--af, currentColor);
+  border-right-color: var(--af, currentColor);
   border-radius: 50%;
   animation: chat-connecting .9s linear infinite;
 }
@@ -230,3 +230,6 @@ body:has(.fullPage),
 .channelInfo { flex: none; font-size: 0.875rem; padding: 4px 12px; }
 .channelInfo summary { cursor: pointer; }
 .fullPage .network { flex: none; padding: 4px 12px; }
+
+.fullPage :is(.network button,.loadingBody a,.loadingBody button):hover { color: var(--at, currentColor); }
+.fullPage :is(.network button,.loadingBody a,.loadingBody button):focus-visible { outline-color: var(--af, currentColor); }

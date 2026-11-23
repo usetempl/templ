@@ -29,6 +29,7 @@ import {
 } from "@/lib/own-support-widget";
 import type { SupportContextInput } from "@templ/chat/support";
 import type { SupportForm } from "@/lib/support-widget-form";
+import { setPageChatAccent, type WidgetAccent } from "@/lib/support-widget-appearance";
 import styles from "./templ-support.module.css";
 import panelStyles from "@/lib/own-support-widget.module.css";
 
@@ -125,6 +126,7 @@ export function TemplSupportLink({
 
 export function TemplSupportButton({
   className,
+  buttonRef,
   returnFocusRef,
   children,
   label = "Templ support",
@@ -135,6 +137,7 @@ export function TemplSupportButton({
   hidden,
 }: {
   className?: string;
+  buttonRef?: RefObject<HTMLButtonElement | null>;
   /** Where focus returns when the widget closes, if not this button. */
   returnFocusRef?: RefObject<HTMLElement | null>;
   children?: ReactNode;
@@ -151,6 +154,7 @@ export function TemplSupportButton({
 }) {
   return (
     <button
+      ref={buttonRef}
       type="button"
       hidden={hidden}
       className={className}
@@ -218,6 +222,7 @@ export function TemplSupport({ showLauncher = false }: { showLauncher?: boolean 
   const openedFromHash = useRef(false);
   const [topic, setTopic] = useState<TemplSupportTopic>();
   const retryRequest = useRef<SupportOpenRequest | undefined>(undefined);
+  const launcher = useRef<HTMLButtonElement>(null);
   const standardPanel = useRef<HTMLElement>(null);
   const standardContent = useRef<HTMLDivElement>(null);
   const cancelOpening = useRef<(() => void) | undefined>(undefined);
@@ -237,6 +242,7 @@ export function TemplSupport({ showLauncher = false }: { showLauncher?: boolean 
   useEffect(() => {
     let widget: ReturnType<typeof mountOwnSupportWidget> | undefined;
     let standard: ReturnType<Awaited<ReturnType<typeof loadTemplSupportWidget>>["mountSupportWidget"]> | undefined;
+    let disposed = false;
     let openRevision = 0;
     const policyMaxAge = 3_000;
     let policyRead: {
@@ -272,7 +278,9 @@ export function TemplSupport({ showLauncher = false }: { showLauncher?: boolean 
             signal: AbortSignal.timeout(8_000),
           }).then(async response => {
             if (!response.ok) return;
-            const { chatMode } = (await response.clone().json()) as { chatMode?: unknown };
+            const { chatMode, appearance }: { chatMode?: unknown; appearance?: { accent?: WidgetAccent } } = await response.clone().json();
+            if (!disposed && launcher.current && policyRead === read)
+              setPageChatAccent(launcher.current, appearance?.accent);
             if (chatMode === "standard" || chatMode === "encrypted")
               return { response, mode: chatMode } as const;
           }).catch(() => undefined),
@@ -284,6 +292,8 @@ export function TemplSupport({ showLauncher = false }: { showLauncher?: boolean 
       }
       return policyRead;
     };
+    const initial = workspace();
+    if (initial && launcher.current) currentPolicy(initial);
     const prepare = () => {
       const id = workspace();
       if (id) {
@@ -424,6 +434,7 @@ export function TemplSupport({ showLauncher = false }: { showLauncher?: boolean 
     window.dispatchEvent(new Event("templ:support-listening"));
     setListening(true);
     return () => {
+      disposed = true;
       clearTimeout(expiryTimer);
       cancelOpening.current = undefined;
       openedFromHash.current = false;
@@ -482,6 +493,7 @@ export function TemplSupport({ showLauncher = false }: { showLauncher?: boolean 
       {showLauncher && available && (
         <TemplSupportButton
           className={styles.launcher}
+          buttonRef={launcher}
           hidden={view !== null}
           label="Talk to us"
           icon={false}
