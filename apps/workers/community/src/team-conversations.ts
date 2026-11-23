@@ -363,6 +363,8 @@ export const QUOTA_ERROR =
 export const SELF_ERROR = "You cannot start a case with yourself.";
 
 export type TeamConversationRecord = {
+  /** Guest consent applies only to this Standard conversation. */
+  sharedVerifiedWallet?: WidgetWallet;
   schemaVersion: 1;
   encryptedCases?: true;
   deleting?: boolean;
@@ -531,6 +533,7 @@ function checkedRecord(raw: unknown): TeamConversationRecord | null {
     record.schemaVersion !== 1 ||
     record.deleting === true ||
     !isConversationId(record.id) ||
+    (record.sharedVerifiedWallet !== undefined && (record.encryptedCases || !parseWidgetWallet(record.sharedVerifiedWallet))) ||
     typeof record.room !== "string" ||
     normalizeChatPrincipal(record.member) !== record.member ||
     !record.initiator ||
@@ -740,6 +743,7 @@ export function conversationView(
     id: record.id,
     room: record.room as TeamConversation["room"],
     member: record.member,
+    ...(record.sharedVerifiedWallet ? { verifiedWalletAddress: record.sharedVerifiedWallet.address } : {}),
     ...(record.formerMembers?.length
       ? { formerMembers: [...record.formerMembers] }
       : {}),
@@ -1234,6 +1238,32 @@ export function widgetVerification(
     origin: body.origin as string,
     authenticatedAt: body.authenticatedAt,
   };
+}
+/** A shared proof labels the conversation without changing its member. */
+export async function shareGuestWalletProof(
+  storage: Storage,
+  body: Record<string, unknown>,
+  pending: PendingEvent[],
+) {
+  const guest = normalizeChatPrincipal(body.guest);
+  const wallet = parseWidgetWallet(body);
+  if (!guest?.startsWith("account:") || !wallet || !isConversationId(body.conversation))
+    throw new HttpError(403, "Invalid wallet proof for this conversation.");
+  const thread = await readConversation(storage, body.conversation);
+  if (
+    !thread ||
+    thread.member !== guest || thread.encryptedCases ||
+    await storage.get(`ban:${guest}`)
+  )
+    throw new HttpError(403, "Choose your Standard conversation to share a wallet.");
+  if (thread.sharedVerifiedWallet?.address === wallet.address) return;
+  const next = { ...thread, sharedVerifiedWallet: wallet, revision: thread.revision + 1 };
+  await save(storage, next);
+  pending.push({
+    type: "conversation.updated",
+    channelId: next.id,
+    conversationRevision: next.revision,
+  });
 }
 /** A guest proved a wallet in the same widget session. Their thread moves to
  * that wallet's account; when the wallet already holds a thread here, both

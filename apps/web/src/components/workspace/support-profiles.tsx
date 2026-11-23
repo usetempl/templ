@@ -32,6 +32,7 @@ export function SupportProfiles({
       aria-label="Support profiles"
       className={styles.sections}
     >
+      <TeamWebsiteForm context={context} saved={saved} onSave={setSaved} />
       {(["founder", "assistant"] as const).map((role) => (
         <ContactForm
           key={role}
@@ -44,6 +45,50 @@ export function SupportProfiles({
       ))}
     </section>
   );
+}
+
+function TeamWebsiteForm({ context, saved, onSave }: {
+  context: WorkspaceContext;
+  saved?: WorkspaceSupportProfiles;
+  onSave(value: WorkspaceSupportProfiles): void;
+}) {
+  const [edit, setEdit] = useState<{ name: string; website: string }>();
+  const [busy, setBusy] = useState(false);
+  const [feedback, setFeedback] = useState("");
+  const value = edit ?? saved?.teamLink ?? { name: "", website: "" };
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!edit || busy) return;
+    setBusy(true);
+    setFeedback("");
+    try {
+      const result = await chatMutation<{ supportProfiles: WorkspaceSupportProfiles }>(
+        context.account as never, roomPath(context.room, "profile"), {
+          contactRole: "founder", confirmed: true, profileRevision: saved?.revision ?? 0,
+          teamLink: value.website.trim() || value.name.trim()
+            ? { name: value.name.trim(), website: value.website.trim() } : null,
+        },
+      );
+      onSave(result.supportProfiles);
+      setEdit(undefined);
+      setFeedback("Team link saved.");
+    } catch (error) {
+      setFeedback(error instanceof Error ? error.message : "Could not save the team link.");
+    } finally { setBusy(false); }
+  }
+  return <form onSubmit={submit}>
+    <UnsavedChanges dirty={!!edit} />
+    <Card title="Team website" description="Visitors can open your website from the chat menu." bodyClassName={styles.panelBody}>
+      <Field label="Name in the chat footer"><input className={ui.input} maxLength={48}
+        value={value.name} required={!!value.website} disabled={busy}
+        onChange={event => setEdit({ ...value, name: event.target.value })} /></Field>
+      <Field label="Team website"><input className={ui.input} type="url" placeholder="https://example.com"
+        value={value.website} required={!!value.name} disabled={busy}
+        onChange={event => setEdit({ ...value, website: event.target.value })} /></Field>
+      <button type="submit" className="button" disabled={busy || !edit}>Save team link</button>
+      {feedback && <p role="status">{feedback}</p>}
+    </Card>
+  </form>;
 }
 
 function ContactForm({

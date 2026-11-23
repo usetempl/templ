@@ -353,7 +353,7 @@ export function TemplSupport({ showLauncher = false }: { showLauncher?: boolean 
           standard ??= widgetClient.mountSupportWidget({
             workspace: workspaceId, apiUrl: SITE.community, label: "Templ",
             container, chatFirst: true, conversationDrawers: true, showLauncher: false,
-            appearance: { theme: "light", radius: "soft", logo: "/art/brand/templ-square.svg", accent: "#99FF00" },
+            appearance: { theme: "auto", radius: "soft", logo: "/art/brand/templ-square.svg" },
             intro: TEMPL_SUPPORT_INTRO, transactionField: false,
             ...(location.pathname === "/" ? { wallet: supportPageWallet(network), decorateOwnMenu: addOwnChatMenu } : {}),
             onClose: () => {
@@ -477,7 +477,7 @@ export function TemplSupport({ showLauncher = false }: { showLauncher?: boolean 
             </div>
           </div>
         )}
-        <div ref={standardContent} className={styles.chatContent} inert={startup || opening} />
+        <div ref={standardContent} data-templ-site-appearance="" className={styles.chatContent} inert={startup || opening} />
       </section>
       {showLauncher && available && (
         <TemplSupportButton

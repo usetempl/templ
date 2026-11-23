@@ -1,18 +1,18 @@
 "use client";
 
 import { SiteFooter, SiteHeader } from "@/components/site-frame";
-import { LandingHeroFlow } from "./landing-hero-flow";
+import { PRODUCT_LIMITS, PRODUCT_STARTER_PRICES } from "@templ/chat/plans";
+import { formatUsdCents } from "@templ/chat/resolution-copy";
 import { LANDING_PREVIEW, LANDING_PREVIEW_BANNER } from "@/lib/landing-preview";
 import { LandingActions } from "./landing-install";
 import { LandingPricing } from "./landing-pricing";
-import { LandingResults } from "./landing-results";
 import { LandingStory } from "./landing-story";
 import styles from "./landing-page.module.css";
 
-export const CLOSE_TITLE = "Give your users a place to talk.";
+export const CLOSE_TITLE = "Open your team’s support line.";
 export function LandingPage() {
   return (
-    <div className={styles.page} data-theme="light">
+    <div className={styles.page}>
       {LANDING_PREVIEW && (
         <p className={styles.preview} role="note">
           {LANDING_PREVIEW_BANNER}
@@ -24,20 +24,18 @@ export function LandingPage() {
           <div className={styles.heroInner}>
             <div className={styles.heroCopy}>
               <h1 id="landing-title" className={styles.heroTitle}>
-                Support that respects your privacy
+                Crypto support where visitors choose what to share
               </h1>
               <p className={styles.subline}>
-                Add support chat to your app. Reply from one inbox. Run it
-                yourself or let Templ host it.
+                Share one chat link. Visitors can ask without connecting a wallet. Your team answers from one inbox.
               </p>
-              <LandingActions id="hero-chat" secondary="source" />
+              <LandingActions id="hero-chat" />
+              <p className={styles.terms}>Try {PRODUCT_LIMITS.freeSupportTickets} tickets free. Hosted plans start at {formatUsdCents(PRODUCT_STARTER_PRICES.workspaceMonthlyUsdCents)} per month, paid in USDC.</p>
             </div>
-            <LandingHeroFlow />
           </div>
         </section>
         <LandingStory />
         <LandingPricing />
-        <LandingResults />
         <section
           id="start"
           className={styles.close}

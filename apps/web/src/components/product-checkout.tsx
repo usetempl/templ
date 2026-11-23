@@ -628,7 +628,7 @@ function Checkout({
                 </label>
               )}
               <p>
-                Pay {formatUsd(monthlyPrices.workspaceMonthlyUsdCents)} USDC for one month.
+                Pay {formatUsd(monthlyPrices.workspaceMonthlyUsdCents)} USDC for one month. Renew manually when you want another month.
                 Includes all seats and {monthlyPrices.includedAnsweredCasesPerMonth} answered cases.
                 Extra cases cost {formatUsd(monthlyPrices.additionalAnsweredCaseUsdCents)} each.
               </p>

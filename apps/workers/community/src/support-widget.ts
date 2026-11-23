@@ -47,6 +47,7 @@ import { isSupportSiweChainId } from "@templ/chat/chains";
 import { createSolanaSignInMessage } from "@templ/chat/solana";
 import {
   decodeWidgetSolanaSignature,
+  WIDGET_WALLET_SHARE_STATEMENT,
   formatCaip10,
   isLoopbackOrigin,
   parseWidgetWalletClaim,
@@ -808,6 +809,11 @@ function widgetConfigTransaction(
         !(body.authenticatedAt === null || natural(body.authenticatedAt))
       )
         throw new HttpError(400, "Invalid widget settings.");
+      // Retrying creation can never reverse a manager's later guest settings.
+      if (body.initializeOnly === true && (saved || body.hostedPageAvailable !== true)) {
+        const outbox = checkedOutbox(await local.get(WIDGET_AUDIT_KEY));
+        return { response: json({ ...shown(current), audit: outbox?.entries ?? [] }), marked: false };
+      }
       const intro = widgetIntroFields(body, body.widgetIntroAvailable === true);
       const updatedAppearance =
         body.appearance === undefined
@@ -1207,6 +1213,7 @@ export async function widgetConfig(
     | { op: "read"; origin: string }
     | {
         op: "save";
+        initializeOnly?: boolean;
         /** A worker-bound connect request deadline, checked within the save. */
         approvalExpiresAt?: number;
         origins?: unknown;
@@ -1813,6 +1820,7 @@ async function startWidgetReads(
         [
           "/auth/nonce",
           "/auth/verify",
+          "/auth/share-wallet",
           "/auth/resume",
           "/auth/forget",
           "/auth/logout",
@@ -2071,6 +2079,7 @@ export async function supportWidgetRoute(
           ...(contacts ? {
             supportProfiles: {
               founder: contacts.founder,
+              ...(contacts.teamLink ? { teamLink: contacts.teamLink } : {}),
               assistant: contacts.assistantEnabled && workspace?.supportResponderConfigured
                 ? contacts.assistant : null,
             },
@@ -2088,6 +2097,7 @@ export async function supportWidgetRoute(
           // The manager's "We never DM you first." line; off unless set.
           ...(current.safetyLine === true ? { safetyLine: true } : {}),
           ...(featureOn(env, undefined, "supportDiagnostics") ? { diagnostics: true } : {}),
+          ...(featureOn(env, undefined, "supportSingleConversation") ? { singleConversation: true } : {}),
           ...(featureOn(env, undefined, "supportChatFirst") ? { chatFirst: true } : {}),
           ...(featureOn(env, undefined, "supportParallelConversations") ? { newConversation: true } : {}),
           ...((current.appearanceRevision ?? 0) > 0
@@ -2422,6 +2432,24 @@ export async function supportWidgetRoute(
             body: await early.body!,
           }),
         );
+      } else if (path === "/auth/share-wallet" && request.method === "POST") {
+        const guest = await bearerSession(early.bearer, scope);
+        const body = await early.body!;
+        if (guest?.session.authMethod !== "guest" || typeof body.receipt !== "string" ||
+          !/^[0-9a-f]{64}$/.test(body.receipt) || typeof body.conversation !== "string" ||
+          !/^tc-[0-9a-f]{32}$/.test(body.conversation))
+          throw new HttpError(403, "Verify your wallet for this conversation.");
+        const grant = await record(env, "nonce", body.receipt);
+        const bound = await grant.fetch(internal("/bind-shared-wallet", {
+          guest: guest.session.principalId, scope, conversation: body.conversation,
+        }));
+        if (!bound.ok) throw new HttpError(bound.status === 503 ? 503 : 403, "Verify your wallet again for this conversation.");
+        const wallet = await bound.json<WidgetWallet>();
+        const saved = await roomStub(env, room).fetch(internal("/private/support/share-wallet", {
+          guest: guest.session.principalId, conversation: body.conversation, ...wallet,
+        }));
+        if (!saved.ok) throw new HttpError(saved.status === 403 ? 403 : 503, "Could not share the address in this conversation.");
+        response = json({ shared: true });
       } else if (path === "/auth/nonce" && request.method === "POST") {
         // A challenge requested from a guest session can only be redeemed by
         // that same session; redeeming it moves the guest's thread.
@@ -2429,6 +2457,10 @@ export async function supportWidgetRoute(
         if (guest && guest.session.authMethod !== "guest")
           throw new HttpError(409, "You are already signed in.");
         const body = await early.body!;
+        const shareConversation = body.shareConversation;
+        if (shareConversation !== undefined && (!guest ||
+          typeof shareConversation !== "string" || (shareConversation !== "next" && !/^tc-[0-9a-f]{32}$/.test(shareConversation))))
+          throw new HttpError(403, "Start a guest session before sharing a wallet.");
         // `network` picks the proof: SIWE for an EVM wallet (the default,
         // as widgets built before Solana sign-in send no network) or Sign In
         // With Solana. Both challenges bind this site's domain and URI, a
@@ -2450,16 +2482,16 @@ export async function supportWidgetRoute(
           expiresAt = now + NONCE_TTL;
         // A widget that asked to stay signed in gets the remember statement
         // only where remembered sign-in is available; otherwise today's.
-        const remember = body.remember === true && rememberAvailable;
+        const remember = shareConversation === undefined && body.remember === true && rememberAvailable;
         const challenge = {
           domain: new URL(origin).host,
           uri: hosted ? hostedPageHref(origin, room) : origin,
           nonce,
           // Every widget challenge, SIWE and SIWS; the widget and Templ's
           // hourly check compare it word for word.
-          statement: remember
-            ? WIDGET_REMEMBER_STATEMENT
-            : WIDGET_SIGN_IN_STATEMENT,
+          statement: shareConversation ? WIDGET_WALLET_SHARE_STATEMENT : remember
+              ? WIDGET_REMEMBER_STATEMENT
+              : WIDGET_SIGN_IN_STATEMENT,
           issuedAt: new Date(now),
           expirationTime: new Date(expiresAt),
           resources: [widgetSignInResource(env.APP_ORIGIN, room)],
@@ -2507,6 +2539,7 @@ export async function supportWidgetRoute(
             purpose: "widget-login",
             widgetScope: scope,
             ...(guest ? { guestPrincipal: guest.session.principalId } : {}),
+            ...(typeof shareConversation === "string" ? { shareConversation } : {}),
             ...(remember ? { remember: true as const } : {}),
           } satisfies AuthData),
         );
@@ -2644,6 +2677,44 @@ export async function supportWidgetRoute(
             guest.session.principalId !== challenge.guestPrincipal)
         )
           throw challengeMismatch();
+        if (challenge.shareConversation) {
+          if (!guest)
+            throw challengeMismatch();
+          let walletReceipt: string | undefined;
+          let expiresAt: number | undefined;
+          if (challenge.shareConversation === "next") {
+            walletReceipt = randomToken();
+            expiresAt = Math.min(guest.session.expiresAt, Date.now() + 30 * 60_000);
+            const created = await (await record(env, "nonce", walletReceipt)).fetch(internal("/create", {
+              purpose: "widget-wallet-share", address: null, shareConversation: "next", sharedWallet: proof,
+              guestPrincipal: guest.session.principalId, widgetScope: scope, expiresAt,
+            } satisfies AuthData));
+            if (!created.ok) throw new HttpError(503, "Could not save the wallet proof. Try again.");
+          } else {
+            const saved = await roomStub(env, room).fetch(internal(
+              "/private/support/share-wallet", {
+              guest: guest.session.principalId,
+              conversation: challenge.shareConversation,
+              ...proof,
+            }));
+            if (!saved.ok) {
+              if (saved.status === 403 || saved.status === 404)
+                throw new HttpError(403, "Choose your Standard conversation to share a wallet.");
+              throw new HttpError(503, "Could not save the verified wallet. Try again.");
+            }
+          }
+          return json({
+            token: guest.token,
+            principalId: guest.session.principalId,
+            expiresAt: guest.session.expiresAt,
+            wallet: proof,
+            shareConversation: challenge.shareConversation,
+            ...(walletReceipt ? { walletReceipt, walletReceiptExpiresAt: expiresAt } : {}),
+          }, 200, {
+            "Access-Control-Allow-Origin": corsOrigin,
+            "Vary": `Origin, ${WIDGET_HOST_ORIGIN_HEADER}`,
+          });
+        }
         // The account that holds this key, or a new one on first use. A key
         // another account holds signs in to that account; the guest's own
         // account is never merged into it.

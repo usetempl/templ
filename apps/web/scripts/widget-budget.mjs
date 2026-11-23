@@ -58,6 +58,10 @@ export const WIDGET_CHUNKS = Object.freeze([
   // Sign-in, first-open controls and identity text.
   "conversation",
   "conversation-style",
+  "drawer",
+  "drawer-style",
+  "drawer-notices",
+  "drawer-wallet",
   "conversations",
   "welcome",
   // Optional guest reply notices and one-use thread resume links.

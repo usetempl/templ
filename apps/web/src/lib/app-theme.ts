@@ -1,4 +1,5 @@
 import { brandAsset } from "./brand-assets";
+import { restoreSiteAppearanceScript, savedSiteAppearance, saveSiteAppearance } from "./site-appearance";
 
 export type AppTheme = "system" | "light" | "dark";
 
@@ -28,9 +29,7 @@ export function serverAppTheme(): null {
 function applyAppTheme(choice = readAppTheme()) {
   document.documentElement.dataset.appearance = choice;
   document.documentElement.dataset.theme =
-    window.location.pathname === "/"
-      ? "light"
-      : choice === "system"
+    choice === "system"
         ? window.matchMedia(SYSTEM_QUERY).matches
           ? "dark"
           : "light"
@@ -46,6 +45,7 @@ function applyAppTheme(choice = readAppTheme()) {
 
 export function setAppTheme(choice: AppTheme) {
   document.documentElement.dataset.appearance = choice;
+  saveSiteAppearance(choice);
   try {
     window.localStorage.setItem(APP_THEME_KEY, choice);
   } catch {
@@ -67,11 +67,21 @@ export function subscribeAppTheme(onChange: () => void) {
       onChange();
     }
   };
+  const restore = () => {
+    const choice = savedSiteAppearance();
+    if (choice && choice !== readAppTheme()) {
+      applyAppTheme(choice);
+      onChange();
+    }
+  };
   applyAppTheme();
+  restore();
+  window.addEventListener("pageshow", restore);
   window.addEventListener(THEME_EVENT, changed);
   window.addEventListener("storage", stored);
   media.addEventListener("change", changed);
   return () => {
+    window.removeEventListener("pageshow", restore);
     window.removeEventListener(THEME_EVENT, changed);
     window.removeEventListener("storage", stored);
     media.removeEventListener("change", changed);
@@ -79,4 +89,4 @@ export function subscribeAppTheme(onChange: () => void) {
 }
 
 /** Set the saved appearance before the browser paints the page. */
-export const APP_THEME_SCRIPT = `(()=>{let t="system";try{t=localStorage.getItem("${APP_THEME_KEY}")||t}catch{}if(t!=="light"&&t!=="dark")t="system";const h=document.documentElement;h.dataset.appearance=t;h.dataset.theme=location.pathname==="/"?"light":t==="system"?(matchMedia("${SYSTEM_QUERY}").matches?"dark":"light"):t;document.getElementById("templ-theme-icon")?.setAttribute("href",h.dataset.theme==="dark"?"${brandAsset("/favicon-dark.svg")}":"${brandAsset("/favicon.svg")}")})()`;
+export const APP_THEME_SCRIPT = `${restoreSiteAppearanceScript(APP_THEME_KEY)};(()=>{let t="system";try{t=localStorage.getItem("${APP_THEME_KEY}")||t}catch{}if(t!=="light"&&t!=="dark")t="system";const h=document.documentElement;h.dataset.appearance=t;h.dataset.theme=t==="system"?(matchMedia("${SYSTEM_QUERY}").matches?"dark":"light"):t;document.getElementById("templ-theme-icon")?.setAttribute("href",h.dataset.theme==="dark"?"${brandAsset("/favicon-dark.svg")}":"${brandAsset("/favicon.svg")}")})()`;

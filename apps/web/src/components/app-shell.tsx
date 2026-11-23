@@ -117,7 +117,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     );
   return (
     <>
-      <TemplSupport showLauncher={landing} />
+      <TemplSupport />
       {pathname.startsWith("/connect/") ? (
         <main id="main-content" tabIndex={-1}>
           {children}

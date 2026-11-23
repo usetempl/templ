@@ -12,7 +12,7 @@
 .install {
   min-width: 0;
 }
-/* Site action shape; lime fill and states from the design-system primary. */
+/* Share the app's primary action colors and focus treatment. */
 .cta {
   composes: button primary from "../../ui/design-system.module.css";
   min-height: var(--site-action-height);

@@ -6,6 +6,7 @@ import {
 } from "./connect-trial-capture";
 import { supportEntryRecord } from "./hosted-support";
 import { widgetConfigRecord, type WidgetScope } from "./support-widget";
+import { sameWidgetScope } from "./widget-frame";
 import { flushWorkspaceSteps, type FunnelEnv } from "./funnel-metrics";
 import { receiveWidgetOnboardingScope } from "./onboarding-metrics";
 import { messageBudgetRequest, expireMessageBudget } from "./message-budget";
@@ -93,7 +94,11 @@ export type AuthData = {
    * guest session can redeem it, with its own bearer, which moves the guest's
    * thread. SIWE and SIWS challenges alike. */
   guestPrincipal?: ChatPrincipalId;
+  /** A guest can share a proof in one Standard conversation, including the next one they start. */
+  shareConversation?: string;
+  sharedWallet?: WidgetWallet;
   purpose?:
+    | "widget-wallet-share"
     | "widget-login"
     | "widget-session"
     | "widget-guest"
@@ -427,6 +432,23 @@ export class AuthRecord {
         return true;
       });
       return json({ ok: created }, created ? 201 : 409);
+    }
+    if (path === "/bind-shared-wallet") {
+      const body = await readJson(request);
+      if (typeof body.conversation !== "string" || !/^tc-[0-9a-f]{32}$/.test(body.conversation))
+        throw new HttpError(400, "Choose a conversation.");
+      const conversation = body.conversation;
+      return this.state.storage.transaction(async storage => {
+        const grant = await storage.get<AuthData>(key);
+        const scope = body.scope as WidgetScope | undefined;
+        if (!grant || grant.ended || grant.purpose !== "widget-wallet-share" || !grant.sharedWallet ||
+          grant.expiresAt <= Date.now() || grant.guestPrincipal !== body.guest ||
+          !sameWidgetScope(grant.widgetScope, scope) || grant.widgetScope?.hosted !== scope?.hosted ||
+          (grant.shareConversation !== "next" && grant.shareConversation !== conversation))
+          throw new HttpError(403, "Verify your wallet again for this conversation.");
+        if (grant.shareConversation === "next") await storage.put(key, { ...grant, shareConversation: conversation });
+        return json(grant.sharedWallet);
+      });
     }
     if (path === "/consume" || path === "/read") {
       const value = await this.state.storage.transaction(async (storage) => {

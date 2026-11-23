@@ -41,7 +41,17 @@ export const CONVERSATION_STYLE = `
 .conversation-chat .own[data-client-id] time::after{content:none}
 .delivery-status{font-size:12px;line-height:1}
 .delivery-clock{position:relative;align-self:center;width:12px;height:12px;border:1px solid currentColor;border-radius:50%}
-.delivery-clock::after{content:"";position:absolute;top:2px;left:4px;width:2px;height:3px;border-left:1px solid;border-bottom:1px solid}
+.delivery-clock::before,.delivery-clock::after{content:"";position:absolute;bottom:50%;left:calc(50% - .5px);width:1px;border-radius:1px;background:currentColor;transform-origin:50% 100%}
+.delivery-clock::before{height:3px;transform:rotate(55deg)}
+.delivery-clock::after{height:4px;transform:rotate(-35deg)}
+@media(prefers-reduced-motion:no-preference){
+  .delivery-clock::before{animation:delivery-hour 12s linear infinite}
+  .delivery-clock::after{animation:delivery-minute 1s linear infinite}
+  .delivery-arrived{animation:delivery-check .18s ease-out}
+}
+@keyframes delivery-hour{to{transform:rotate(415deg)}}
+@keyframes delivery-minute{to{transform:rotate(325deg)}}
+@keyframes delivery-check{from{opacity:.15;transform:scale(.72)}to{opacity:1;transform:scale(1)}}
 .conversation-chat .state button{min-height:36px;padding:0 4px}
 .conversation-chat .composer{padding:0;align-items:flex-end;background:none;border:0;overflow:visible}
 .conversation-chat .composer textarea{padding:11px 16px;background:var(--s);border-radius:22px;font-size:16px;line-height:22px}
@@ -54,10 +64,6 @@ export const CONVERSATION_STYLE = `
 .conversation-chat .chat-empty p{max-width:36ch;margin:6px auto 0}
 .chat-day{align-self:center;margin:6px 0;color:var(--m);font-size:12px;font-weight:500;line-height:1.4;text-align:center}
 .conversation-drawers{container:conversation / inline-size}
-.conversation-drawers .head{position:static}
-.conversation-drawers .chat-people{flex:none}
-.conversation-drawers .chat-people-menu{top:56px}
-.conversation-drawers .return-case{display:none}
 .chat-history>summary{display:grid;place-items:center;list-style:none;min-width:38px;min-height:44px;border-radius:var(--rc);cursor:pointer}
 .chat-history>summary::-webkit-details-marker{display:none}
 .chat-history>summary:hover,.chat-history[open]>summary{background:var(--s)}
@@ -65,8 +71,6 @@ export const CONVERSATION_STYLE = `
 .conversation-drawers :is(.chat-options,.chat-history)[open]>summary{position:relative;z-index:7;background:var(--s)}
 .conversation-drawers :is(.chat-menu,.chat-history .member-conversations){position:absolute;inset:0;width:auto;max-width:none;max-height:none;align-content:start;padding:56px 12px 12px;border:0;border-radius:0;overflow:auto;overscroll-behavior:contain;background:var(--bg);box-shadow:none;z-index:6;animation:conversation-drawer .18s ease-out both;--drawer-shift:100%}
 .conversation-drawers .chat-history .member-conversations{--drawer-shift:-100%}
-.conversation-drawers .chat-menu .tools button:not([hidden]){display:flex;align-items:center;gap:10px}
-.conversation-drawers .chat-menu .tools svg{width:18px;height:18px;flex:none}
 @keyframes conversation-drawer{from{transform:translateX(var(--drawer-shift))}to{transform:translateX(0)}}
 @media(prefers-reduced-motion:reduce){.conversation-drawers :is(.chat-menu,.chat-history .member-conversations){animation:none}}
 @container conversation (width < 768px){

@@ -69,8 +69,8 @@
   inset: 0;
   display: flex;
   flex-direction: column;
-  background: #fafbf9;
-  color: #242728;
+  background: var(--templ-surface);
+  color: var(--templ-text);
 }
 .opening header {
   display: flex;
@@ -78,7 +78,7 @@
   align-items: center;
   gap: 8px;
   padding: 8px 12px;
-  border-bottom: 1px solid #d7dcd8;
+  border-bottom: 1px solid var(--templ-line);
   font-size: 15px;
 }
 .opening header strong {

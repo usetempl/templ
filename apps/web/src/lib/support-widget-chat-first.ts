@@ -1,6 +1,5 @@
-import type { TeamConversationList } from "@templ/chat/index";
 import type { memberConversations } from "./support-widget-conversations";
-import type { TailHost, createSupportClient } from "./support-widget";
+import type { TailHost } from "./support-widget";
 type Controls = {
   disclosure: HTMLDetailsElement;
   people: HTMLDetailsElement;
@@ -16,7 +15,6 @@ type Controls = {
   action?: string;
   conversations?: ReturnType<typeof memberConversations>;
   history?: HTMLDetailsElement;
-  newConversation?: HTMLButtonElement;
 };
 const controls = new WeakMap<TailHost, Controls>();
 const calendarDay = new Intl.DateTimeFormat("en-GB", {
@@ -34,8 +32,9 @@ export function chatFirstControls(
   listModule?: typeof import("./support-widget-conversations"),
 ) {
   const enabled =
-    host.options.chatFirst === true && host.policy?.chatFirst === true;
+    host.options.chatFirst === true && (host.policy?.chatFirst === true || host.policy?.singleConversation === true);
   let state = controls.get(host);
+
   if (!enabled) {
     if (state?.disclosure.isConnected) {
       const panel = state.disclosure.closest(".panel");
@@ -47,7 +46,6 @@ export function chatFirstControls(
         if (state.subtitle) state.title.append(state.subtitle);
       }
       state.disclosure.before(tools);
-      state.newConversation?.remove();
       state.history?.remove();
       if (state.shareDetails) {
         state.shareDetails.textContent = "+";
@@ -72,13 +70,8 @@ export function chatFirstControls(
     const people = host.el("details", undefined, "chat-people"),
       summary = host.el("summary");
     const panel = tools.closest(".panel");
-    const drafting = () => !!panel?.querySelector(".return-case p");
-    const drawer = host.options.conversationDrawers && listModule?.conversationDrawer(host, () => {
-      if (!host.policy?.newConversation || drafting() || host.draft.value.trim()) return;
-      close();
-      if (host.thread?.()) host.newCase?.(true);
-    });
-    const history = drawer ? drawer.history : undefined;
+    const drawer = host.showCase && listModule?.conversationDrawer(host);
+    const history = drawer?.history;
     summary.setAttribute("aria-label", "Conversation participants");
     const roster = host.el("div", undefined, "chat-roster"),
       peopleMenu = host.el("div", undefined, "chat-people-menu");
@@ -95,7 +88,7 @@ export function chatFirstControls(
       host.draft.focus();
     };
     for (const details of [disclosure, people, ...(history ? [history] : [])]) {
-      if (!drawer) {
+      if (!host.options.conversationDrawers) {
         const back = host.el("button", "Back to chat", "return-chat");
         back.type = "button";
         back.addEventListener("click", close);
@@ -119,27 +112,7 @@ export function chatFirstControls(
     menu.prepend(note);
     disclosure.append(more, menu);
     people.append(summary, peopleMenu);
-    const selected = () => drawer && drafting() ? null : host.thread?.();
-    const client = host.client as Partial<ReturnType<typeof createSupportClient>>;
-    const threadList = listModule && client.adopt && host.showCase && panel instanceof HTMLElement
-      ? listModule.memberConversations({
-          workspace: host.options.workspace,
-          menu: history ?? disclosure,
-          trigger: drawer ? drawer.trigger : more,
-          actions: tools,
-          ...(history ? { drawer: { drafting } } : {}),
-          principal: () => host.client.session?.principalId,
-          selected,
-          active: () => panel.isConnected && !panel.hidden && !document.hidden,
-          load: cursor => client.adopt!()[1]<TeamConversationList>(listModule.memberConversationsPath(cursor)),
-          open: async row => {
-            if (host.draft.value.trim()) return false;
-            await host.showCase!(row.id);
-            return selected() === row.id;
-          },
-          focusChat: () => host.draft.focus(),
-        })
-      : undefined;
+    const threadList = drawer && listModule?.bindMemberHistory(host, tools, drawer.history, drawer.trigger, true);
     state = {
       disclosure,
       people,
@@ -148,7 +121,6 @@ export function chatFirstControls(
       roster,
       avatars,
       history: threadList ? history : undefined,
-      newConversation: drawer ? drawer.button : undefined,
       shareDetails: host.draft.closest(".composer")?.querySelector<HTMLButtonElement>("button[aria-controls]") ?? undefined,
       placeholder: host.draft.placeholder,
       conversations: threadList,
@@ -157,7 +129,7 @@ export function chatFirstControls(
     tools.addEventListener(
       "click",
       (event) => {
-        if (host.options.chatFirst !== true || host.policy?.chatFirst !== true)
+        if (host.options.chatFirst !== true || !(host.policy?.chatFirst || host.policy?.singleConversation))
           return;
         const button = (event.target as HTMLElement).closest("button");
         if (!button || button.disabled || button.hasAttribute("data-conversation-list")) return;
@@ -199,7 +171,6 @@ export function chatFirstControls(
     else if (state.conversations)
       tools.after(state.conversations.list);
     if (state.shareDetails) tools.prepend(state.shareDetails);
-    if (state.newConversation) tools.prepend(state.newConversation);
     header.after(state.feedback);
     const panel = header.closest(".panel");
     panel?.classList.add("conversation-chat");
@@ -217,28 +188,16 @@ export function chatFirstControls(
   const panel = state.disclosure.closest<HTMLElement>(".panel"),
     empty = panel?.querySelector<HTMLElement>(".chat-empty");
   if (empty) empty.hidden = !!panel?.querySelector(".message:not(.tail)");
-  if (state.newConversation) {
-    state.newConversation.hidden = host.policy?.newConversation !== true;
-    state.newConversation.disabled = busy || !!host.draft.value.trim() || !!panel?.querySelector(".return-case p");
-  }
   void state.conversations?.refresh();
   host.draft.placeholder = "Message";
   state.disclosure.hidden = host.draft.closest("form")?.hidden ?? false;
   const level = host.client.session?.level;
-  const templSupport = host.options.workspace === "01a0fe6b-fccc-7633-b0e8-bcb29c000ebb";
-  if (templSupport && !host.options.decorateOwnMenu && !state.disclosure.querySelector("a")) {
-    const history = host.el("a", "Encrypted history");
-    history.href = "https://secure-support.usetempl.com/#encrypted-history";
-    history.target = "_blank"; history.rel = "noopener noreferrer";
-    state.disclosure.querySelector(".chat-menu")?.append(history);
-  }
-  const assistant = templSupport || Boolean(panel?.querySelector(".message[data-assistant]"));
+  const assistant = Boolean(panel?.querySelector(".message[data-assistant]"));
   const team = host.options.label ?? "Support";
   const contacts = peopleView.workspaceContacts(host);
   const identity = JSON.stringify([level, assistant, team, contacts]);
   if (state.identity !== identity) {
     state.identity = identity;
-    const example = templSupport || panel?.dataset.demo === "conversation";
     const visitor = level === "signed" ? "Verified wallet"
       : level === "connected" ? "Connected wallet" : "Anonymous User";
     const people: [string, string, string, (string | null)?][] = [
@@ -246,15 +205,15 @@ export function chatFirstControls(
     ];
     if (contacts) people.push(...contacts);
     else {
-      people.push(example ? ["Founder", "Marco Worms", "F"] : ["Team", team, "T"]);
-      if (assistant) people.push([example ? "Templ AI" : "AI assistant", "Support assistant", "AI"]);
+      people.push(["Team", team, "T"]);
+      if (assistant) people.push(["AI assistant", "Support assistant", "AI"]);
     }
     peopleView.renderPeople(host, state.roster, state.avatars, people);
   }
   for (const button of tools.querySelectorAll("button")) {
     if (button.hasAttribute("data-conversation-list")) continue;
     if (button === host.firstPerson) {
-      button.hidden = true;
+      button.hidden = !host.client.askPerson || host.policy?.askPerson === false;
       continue;
     }
     const text =
@@ -266,7 +225,7 @@ export function chatFirstControls(
             ? "Sign out"
             : "Verify wallet";
     const label = document.createTextNode(text);
-    if (state.history) {
+    if (host.options.conversationDrawers) {
       const icon = host.icon(button === state.shareDetails || button === host.emailButton ? "chat" : "wallet");
       button.replaceChildren(icon, label);
     } else button.replaceChildren(label);
@@ -278,7 +237,7 @@ export function chatFirstControls(
       ? "Wallet ownership verified."
       : level === "connected"
         ? "Wallet connected. Ownership not verified."
-        : templSupport && host.options.decorateOwnMenu ? "" : "You can chat without verifying a wallet.";
+        : "";
   state.note.hidden = !state.note.textContent;
   if (!busy) {
     const error = panel?.querySelector<HTMLElement>(".error");
@@ -300,6 +259,7 @@ export function chatFirstControls(
     body && body.scrollHeight - body.scrollTop - body.clientHeight < 72;
   for (const node of log?.querySelectorAll(".chat-day") ?? []) node.remove();
   let previous = "",
+    previousSender: string | undefined,
     own = false,
     lastReplyAt = 0;
   for (const row of log?.querySelectorAll<HTMLElement>(".message:not(.tail)") ?? []) {
@@ -308,11 +268,14 @@ export function chatFirstControls(
     if (row.matches(".own[data-client-id]") && !row.querySelector(".delivery-status")) {
       const pending = row.querySelector(".state");
       if (pending && !pending.classList.contains("failed")) {
+        row.dataset.sending = "true";
         const clock = host.el("span", undefined, "delivery-status delivery-clock");
         clock.setAttribute("aria-hidden", "true");
-        pending.prepend(clock);
+        if (time) time.append(clock);
+        else pending.prepend(clock);
       } else if (time && !pending) {
-        const tick = host.el("span", "✓", "delivery-status");
+        const tick = host.el("span", "✓", row.dataset.sending ? "delivery-status delivery-arrived" : "delivery-status");
+        delete row.dataset.sending;
         tick.setAttribute("role", "img"); tick.setAttribute("aria-label", "Sent");
         time.append(tick);
       }
@@ -322,7 +285,12 @@ export function chatFirstControls(
       member = row.classList.contains("own");
     if (!member)
       lastReplyAt = Math.max(lastReplyAt, date.getTime());
-    row.dataset.grouped = String(own && member && previous === day);
+    if (!member) row.dataset.avatar = row.querySelector("small")?.textContent?.trim().charAt(0) || "T";
+    const sender = host.messageAuthors?.get(row);
+    const adjacent = row.previousElementSibling?.matches(".message:not(.tail)") === true;
+    row.dataset.grouped = String(adjacent && previous === day && own === member &&
+      (sender ? sender === previousSender : member));
+    previousSender = sender;
     own = member;
     if (previous !== day)
       row.before(

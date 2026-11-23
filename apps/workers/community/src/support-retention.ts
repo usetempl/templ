@@ -290,7 +290,8 @@ export async function sweepSupportRetention(
           workflow.attachments.reduce((sum, image) => sum + image.bytes, 0),
       ),
     );
-    await storage.delete(`conversation-member-v1:${record.member}`);
+    const memberKey = `conversation-member-v1:${record.member}`;
+    if (await storage.get<string>(memberKey) === pending) await storage.delete(memberKey);
     const counts = await storage.get<{
       schemaVersion: 1;
       records: number;

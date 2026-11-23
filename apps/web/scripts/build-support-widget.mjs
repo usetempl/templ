@@ -150,7 +150,11 @@ export const card = (widget) => contextCard(widget, rules);`,
   // card), and the Sign in again card.
   conversation: 'export { chatFirstControls } from "./support-widget-chat-first";',
   "conversation-style": 'export { CONVERSATION_STYLE } from "./support-widget-chat-style";',
-  conversations: 'export { conversationDrawer, memberConversations, memberConversationsPath } from "./support-widget-conversations";',
+  "drawer-style": 'export { drawerStyle } from "./support-widget-drawer-style";',
+  "drawer-notices": 'export { drawerNotices } from "./support-widget-drawer-notices";',
+  "drawer-wallet": 'export { drawerWallet } from "./support-widget-drawer-wallet";',
+  drawer: 'export { prepareDrawer } from "./support-widget-drawer";',
+  conversations: 'export { conversationDrawer, memberConversations, memberConversationsPath, bindMemberHistory, classicMemberHistory } from "./support-widget-conversations";',
   welcome: 'export { welcome } from "./support-widget-welcome";',
   art: 'export { art, mount, bindWidgetBranding } from "./support-widget-art";',
   extras: 'export { extras } from "./support-widget";',
@@ -197,9 +201,15 @@ export const solana = (wallet) =>
     live: { __TEMPL_WIDGET_TURNSTILE__: "turnstile", __TEMPL_WIDGET_ENCRYPTED__: "encrypted" },
     ops: { __TEMPL_WIDGET_CHECK__: "check" },
     consent: { __TEMPL_WIDGET_OPS__: "ops" },
+    drawer: {
+      __TEMPL_WIDGET_DRAWER_STYLE__: "drawer-style",
+      __TEMPL_WIDGET_DRAWER_NOTICES__: "drawer-notices",
+      __TEMPL_WIDGET_DRAWER_WALLET__: "drawer-wallet",
+    },
     welcome: {
       __TEMPL_WIDGET_CONVERSATION__: "conversation",
       __TEMPL_WIDGET_CONVERSATION_STYLE__: "conversation-style",
+      __TEMPL_WIDGET_DRAWER__: "drawer",
       __TEMPL_WIDGET_CONVERSATIONS__: "conversations",
     },
   }[name];

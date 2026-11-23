@@ -161,14 +161,11 @@
 }
 .landingApp {
   padding: 10px 12px;
-  color: #0b1220;
+  color: var(--templ-text);
   font-size: 15px;
   font-weight: 600;
   text-underline-offset: 4px;
 }
 .landingApp:hover {
-  background: rgb(11 18 32 / 0.08);
-}
-.landingApp:focus-visible {
-  outline-color: #0b1220;
+  background: var(--templ-neutral-hover);
 }

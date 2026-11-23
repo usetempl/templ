@@ -1,7 +1,7 @@
 "use client";
 
 import { useRelease } from "@/lib/release-context";
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { loadTemplSupportWidget } from "@/lib/templ-support";
 import { SUPPORT_WIDGET_LATEST } from "@/lib/support-widget-release";
 import { supportPageWallet } from "@/lib/support-page-wallet";
@@ -9,56 +9,25 @@ import type { mountSupportWidget } from "@/lib/support-widget";
 import { SITE } from "@/lib/site-environment";
 import { widgetSignInNetworks } from "@/lib/support-availability";
 import { trackEvent } from "@/lib/analytics";
+import { SupportChatFrame, SupportChatLoading } from "./support-chat-frame";
 import styles from "./help.module.css";
 
 type WidgetModule = { mountSupportWidget: typeof mountSupportWidget };
-
-export function HostedSupportFrame({ children }: { children: ReactNode }) {
-  const frame = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const viewport = window.visualViewport;
-    const root = frame.current;
-    if (!viewport || !root) return;
-    const fitViewport = () => {
-      if (viewport.scale === 1) {
-        root.style.setProperty("--chat-height", `${viewport.height}px`);
-        root.style.setProperty("--chat-top", `${viewport.offsetTop}px`);
-      } else {
-        root.style.removeProperty("--chat-height");
-        root.style.removeProperty("--chat-top");
-      }
-    };
-    fitViewport();
-    viewport.addEventListener("resize", fitViewport);
-    viewport.addEventListener("scroll", fitViewport);
-    window.addEventListener("resize", fitViewport);
-    window.addEventListener("pageshow", fitViewport);
-    return () => {
-      viewport.removeEventListener("resize", fitViewport);
-      viewport.removeEventListener("scroll", fitViewport);
-      window.removeEventListener("resize", fitViewport);
-      window.removeEventListener("pageshow", fitViewport);
-    };
-  }, []);
-  return (
-    <div ref={frame} className={`${styles.page} ${styles.conversationPage}`}>
-      {children}
-    </div>
-  );
-}
-
 export function HostedSupportChat({
   workspace,
   name,
   nonce,
   frameRequired,
+  verifiedSites = [],
 }: {
   workspace: string;
   name: string;
   nonce?: string;
   frameRequired: boolean;
+  verifiedSites?: string[];
 }) {
-  const WIDGET_SIGN_IN_NETWORKS = widgetSignInNetworks(useRelease());
+  const release = useRelease();
+  const WIDGET_SIGN_IN_NETWORKS = widgetSignInNetworks(release);
 
   const container = useRef<HTMLDivElement>(null);
   const widget = useRef<ReturnType<typeof mountSupportWidget> | null>(null);
@@ -91,10 +60,15 @@ export function HostedSupportChat({
         styleNonce: nonce,
         label: name,
         chatFirst: true,
-        appearance: { theme: "dark", accent: "#2854c5" },
+        guestPath: `/help/${workspace}`,
+        conversationDrawers: true,
       });
       widget.current = mounted;
-      mounted.open();
+      await mounted.open(false);
+      if (disposed) return;
+      const root = container.current?.querySelector("[data-templ-support]")?.shadowRoot;
+      if (!frameRequired && (!root || root.querySelector(".error")?.textContent))
+        throw new Error("The conversation could not load.");
       setState("ready");
     }
     void load().catch(() => {
@@ -116,8 +90,13 @@ export function HostedSupportChat({
     };
   }, [workspace, name, nonce, frameRequired, retry]);
   return (
-    <>
-      {WIDGET_SIGN_IN_NETWORKS.length > 1 && (
+    <SupportChatFrame label={`Support for ${name}`} siteAppearance={workspace === release.templSupport?.workspaceId}>
+      {state === "ready" && <details className={styles.channelInfo}>
+        <summary>About this support link</summary>
+        {verifiedSites.length ? <p>Verified sites: {verifiedSites.map(site => <a key={site} href={site} rel="noreferrer">{new URL(site).hostname} </a>)}</p>
+          : <p>Templ has not verified a website for this workspace.</p>}
+      </details>}
+      {state === "ready" && WIDGET_SIGN_IN_NETWORKS.length > 1 && (
         <div
           className={styles.network}
           role="group"
@@ -140,27 +119,14 @@ export function HostedSupportChat({
           ))}
         </div>
       )}
-      {state === "loading" && <p role="status">Loading support…</p>}
-      {state === "failed" && (
-        <div role="alert">
-          <p>Support could not load.</p>
-          <button
-            className="button quiet"
-            type="button"
-            onClick={() => {
-              setState("loading");
-              setRetry(!retry);
-            }}
-          >
-            Try again
-          </button>
-        </div>
-      )}
+      {state !== "ready" && <SupportChatLoading name={name}
+        retry={state === "failed" ? () => { setState("loading"); setRetry(value => !value); } : undefined} />}
       <div
         ref={container}
+        hidden={state !== "ready"}
         className={styles.chat}
         aria-label="Support conversation"
       />
-    </>
+    </SupportChatFrame>
   );
 }

@@ -21,12 +21,8 @@ export function mountTemplSupportToolbar(root: ShadowRoot) {
   const help = document.createElement("p");
   help.id = "templ-privacy-help";
   choose.setAttribute("aria-describedby", help.id);
-  const start = document.createElement("button");
-  start.type = "button";
-  start.className = "quiet";
-  start.textContent = "New case";
-  start.hidden = true;
-  privacy.append(choose, start, help);
+  help.textContent = "Browser details are optional and start unselected.";
+  privacy.append(choose, help);
   let requested = false;
   const details = () =>
     root.querySelector<HTMLButtonElement>(
@@ -34,8 +30,6 @@ export function mountTemplSupportToolbar(root: ShadowRoot) {
     );
   const addDetails = () =>
     root.querySelector<HTMLButtonElement>('[aria-label="Add details"]');
-  const newCase = () =>
-    root.querySelector<HTMLButtonElement>(".case-actions>button:first-child");
   choose.addEventListener("click", () => {
     if (choose.disabled) return;
     const picker = details();
@@ -46,9 +40,6 @@ export function mountTemplSupportToolbar(root: ShadowRoot) {
       requested = true;
       addDetails()?.click();
     }
-  });
-  start.addEventListener("click", () => {
-    if (!start.disabled) newCase()?.click();
   });
   const hidden = (node: HTMLElement, value: boolean) => {
     if (node.hidden !== value) node.hidden = value;
@@ -74,17 +65,10 @@ export function mountTemplSupportToolbar(root: ShadowRoot) {
     if (privacy.parentElement !== form) form.prepend(privacy);
     const picker = details();
     const toggle = addDetails();
-    const closed = !!newCase();
     const busy = !!form.querySelector<HTMLButtonElement>(".send")?.disabled;
     hidden(privacy, !toggle || toggle.hidden || !!picker?.hidden);
-    const disabled = busy || closed;
+    const disabled = busy || form.hasAttribute("data-case-resolved");
     if (choose.disabled !== disabled) choose.disabled = disabled;
-    if (start.disabled !== busy) start.disabled = busy;
-    hidden(start, !closed);
-    const text = closed
-      ? "Open a new case to choose which browser details to share."
-      : "Browser details are optional and start unselected.";
-    if (help.textContent !== text) help.textContent = text;
     const expanded = picker?.getAttribute("aria-expanded") ?? "false";
     if (choose.getAttribute("aria-expanded") !== expanded)
       choose.setAttribute("aria-expanded", expanded);
@@ -112,7 +96,7 @@ export function mountTemplSupportToolbar(root: ShadowRoot) {
     childList: true,
     subtree: true,
     attributes: true,
-    attributeFilter: ["hidden", "disabled", "aria-expanded"],
+    attributeFilter: ["hidden", "disabled", "aria-expanded", "data-case-resolved"],
   });
   align();
   return () => {

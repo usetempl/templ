@@ -5,7 +5,8 @@ import type {
   WidgetSession,
 } from "./support-widget";
 
-export { replyEmail } from "./support-widget-email";
+import { replyEmail } from "./support-widget-email";
+export { replyEmail };
 
 type State = { enabled: boolean; pending: boolean };
 type Line = [string, unknown[], (node: HTMLElement) => void];
@@ -18,7 +19,7 @@ type Client = {
   ];
 };
 const client = (host: TailHost) => host.client as unknown as Client;
-const statuses = new WeakMap<TailHost, Map<string, State | null>>();
+const statuses = new WeakMap<TailHost, Map<string, State | "error" | null>>();
 const watching = new WeakSet<TailHost>();
 const resumed = new WeakMap<TailHost, Promise<void>>();
 
@@ -80,12 +81,14 @@ export const guest = {
           states!.set(thread, answer as State);
           host.render();
         },
-        () => {},
+        () => {
+          states!.set(thread, "error");
+          host.render();
+        },
       );
     }
     const state = states.get(thread);
-    if (!state) return [];
-    if (state.pending && !watching.has(host)) {
+    if (state && state !== "error" && state.pending && !watching.has(host)) {
       watching.add(host);
       window.addEventListener(
         "focus",
@@ -100,7 +103,7 @@ export const guest = {
     return [
       [
         "~guest-email",
-        [thread, state.enabled, state.pending],
+        [thread, state && state !== "error" ? [state.enabled, state.pending].join() : state],
         (node) => {
           const { el } = host;
           node.className = "system nudge tail";
@@ -122,7 +125,18 @@ export const guest = {
             );
             return button;
           };
-          if (state.enabled) {
+          const cancel = el("button", "Cancel");
+          cancel.type = "button";
+          cancel.addEventListener("click", () => replyEmail.dismiss(host, thread));
+          if (!state || state === "error") {
+            node.append(el("p", state === "error" ? "Couldn’t load email settings." : "Loading email settings…"));
+            if (state === "error") {
+              const retry = el("button", "Retry");
+              retry.type = "button";
+              retry.onclick = () => { states!.delete(thread); host.render(); };
+              node.append(retry);
+            }
+          } else if (state.enabled) {
             node.append(
               el("p", "Email notices: on"),
               submit("Turn off email notices", () => ({ enabled: false })),
@@ -130,6 +144,7 @@ export const guest = {
           } else if (state.pending) {
             node.append(
               el("p", "Open the link in your email to turn notices on."),
+              submit("Turn off email notices", () => ({ enabled: false })),
             );
           } else {
             const form = el("form");
@@ -170,6 +185,7 @@ export const guest = {
               form,
             );
           }
+          node.append(cancel);
         },
       ],
     ];

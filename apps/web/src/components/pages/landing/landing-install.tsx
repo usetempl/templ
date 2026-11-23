@@ -3,13 +3,13 @@
 import { useEffect, useRef, useState } from "react";
 import { IconCopy } from "@tabler/icons-react";
 import { SITE_FUNNEL_PATHS } from "@templ/chat/funnel";
-import { TemplSupportLink } from "@/components/templ-support";
+import Link from "next/link";
 import { trackEvent } from "@/lib/analytics";
 import { startInstallPrompt } from "@/lib/support-integration-prompt";
 import { SITE } from "@/lib/site-environment";
 import styles from "./landing-install.module.css";
 
-export const CONTACT_LABEL = "Try the chat";
+export const CREATE_CHAT_URL = "/create";
 export const TEMPL_SOURCE_URL = "https://github.com/usetempl/templ";
 
 export function InstallPromptButton({ className }: { className?: string }) {
@@ -86,33 +86,16 @@ export function InstallPromptButton({ className }: { className?: string }) {
   );
 }
 
-export function LandingActions({
-  id = "install",
-  tone = "page",
-  showContact = true,
-  secondary = "install",
-}: {
-  id?: string;
+export function LandingActions({ id, tone = "page" }: {
+  id: string;
   tone?: "page" | "band";
-  showContact?: boolean;
-  secondary?: "install" | "source";
 }) {
   return (
-    <div
-      id={id}
-      className={`${styles.actions} ${tone === "band" ? styles.band : ""}`}
-    >
+    <div id={id} className={`${styles.actions} ${tone === "band" ? styles.band : ""}`}>
       <div className={styles.pair}>
-        {showContact && (
-          <TemplSupportLink className={styles.cta}>
-            {CONTACT_LABEL}
-          </TemplSupportLink>
-        )}
-        <a
-          className={styles.secondary}
-          href={secondary === "source" ? TEMPL_SOURCE_URL : "#install"}
-        >
-          {secondary === "source" ? "View source" : "Install in your app"}
+        <Link href={CREATE_CHAT_URL} className={styles.cta} data-templ-conversion="create_clicked">Create your chat</Link>
+        <a className={styles.secondary} href={TEMPL_SOURCE_URL + "#try-a-complete-conversation"}>
+          Self-host Templ
         </a>
       </div>
     </div>

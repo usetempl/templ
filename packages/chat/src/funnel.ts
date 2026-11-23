@@ -29,6 +29,7 @@ export const FUNNEL_STEPS = {
   connect_denied: { label: "Cancelled app connect", scope: "site" },
   signed_in: { label: "Signed in", scope: "sign-in" },
   workspace_created: { label: "Created a workspace", scope: "workspace" },
+  hosted_name_claimed: { label: "Claimed a paid hosted name", scope: "workspace" },
   team_invite_created: { label: "Created a team invitation", scope: "workspace" },
   team_invite_accepted: { label: "Teammate joined", scope: "workspace" },
   widget_site_approved: { label: "Approved a website", scope: "workspace" },

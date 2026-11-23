@@ -56,3 +56,15 @@ export async function readHostedSupport(
     return "unavailable";
   }
 }
+
+
+/** New visitor names opt in. Previously issued staff links keep their destination. */
+export async function namedHostedWorkspace(slug: string): Promise<string | null> {
+  const response = await fetch(`${SITE.community}/slugs/${encodeURIComponent(slug)}`, {
+    headers: { Origin: SITE.origin }, cache: "no-store",
+  });
+  if (response.status === 404 || response.status === 400) return null;
+  if (!response.ok) throw new Error("The workspace name could not be read.");
+  const room = await response.json() as { id?: string; hostedName?: boolean };
+  return room.hostedName === true ? supportPageWorkspace(room.id) : null;
+}

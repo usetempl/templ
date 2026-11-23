@@ -31,15 +31,10 @@ const ratio = (a: number, b: number) =>
   (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
 export const widgetContrast = (a: string, b: string) =>
   ratio(luminance(rgb(a)), luminance(rgb(b)));
+const contrastingInk = (level: number) => level > 0.179 ? "#000000" : "#ffffff";
 /** Black or white always passes 4.5:1 against an opaque sRGB color. */
 export function accentInk(hex: string) {
-  const channel = (offset: number) => {
-    const value = parseInt(hex.slice(offset, offset + 2), 16) / 255;
-    return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
-  };
-  return 0.2126 * channel(1) + 0.7152 * channel(3) + 0.0722 * channel(5) > 0.179
-    ? "#000000"
-    : "#ffffff";
+  return contrastingInk(luminance(rgb(hex)));
 }
 
 /** OKLab's a and b retain the OKLCH hue and chroma as lightness changes. */
@@ -103,8 +98,8 @@ export function resolveWidgetAccent(
       (direction > 0 && base[0] > 0.9) || (direction < 0 && base[0] < 0.1)
         ? -direction
         : direction;
-    value[0] = clamp(base[0] + way * step);
-    return css(value);
+    value[0] = Number(clamp(base[0] + way * step).toFixed(5));
+    return { color: css(value), ink: contrastingInk(luminance(channels(value))) };
   };
   const text = adjusted(4.5),
     focus = adjusted(3);
@@ -112,25 +107,16 @@ export function resolveWidgetAccent(
     pressed = state(0.07);
   return {
     brand,
-    hover,
-    pressed,
+    hover: hover.color,
+    pressed: pressed.color,
     ink: accentInk(brand),
     text,
     focus,
-    hoverInk:
-      luminance(channels(labState(base, hover))) > 0.179
-        ? "#000000"
-        : "#ffffff",
-    pressedInk:
-      luminance(channels(labState(base, pressed))) > 0.179
-        ? "#000000"
-        : "#ffffff",
+    hoverInk: hover.ink,
+    pressedInk: pressed.ink,
     textAdjusted: text !== brand,
     focusAdjusted: focus !== brand,
   };
-}
-function labState(base: number[], color: string) {
-  return [Number(color.slice(6).split(" ")[0]), base[1], base[2]];
 }
 
 /** Read only host theme signals on html/body and the color-scheme meta tag. */
@@ -234,9 +220,10 @@ export function bindWidgetAppearance(
       ? matchMedia("(prefers-color-scheme: dark)")
       : undefined;
   const apply = () => {
+    const choice = host.dataset.visitorTheme || appearance.theme;
     const mode =
-      appearance.theme === "light" || appearance.theme === "dark"
-        ? appearance.theme
+      choice === "light" || choice === "dark"
+        ? choice
         : hostWidgetTheme(document, media?.matches, parent);
     host.dataset.theme = mode;
     host.dataset.position = appearance.position === "left" ? "left" : "right";
@@ -298,6 +285,7 @@ export function bindWidgetAppearance(
         ],
       });
   media?.addEventListener("change", schedule);
+  host.addEventListener("visitor-theme", apply);
   apply();
   return {
     set(next: WidgetAppearance) {
@@ -308,6 +296,7 @@ export function bindWidgetAppearance(
       observer.disconnect();
       clearTimeout(timer);
       media?.removeEventListener("change", schedule);
+      host.removeEventListener("visitor-theme", apply);
     },
   };
 }

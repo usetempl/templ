@@ -74,6 +74,7 @@ import {
   NATIVE_CATALOG,
   NATIVE_UUID,
   nativeRoomId,
+  hostedName,
   nativeSlug,
   nativeCreation,
   requireTrialWorkspaceCreation,
@@ -3417,6 +3418,9 @@ async function route(
       "Set-Cookie": cookie(SESSION_COOKIE, "", 0),
     });
   }
+  const availability = /^\/slugs\/([^/]+)\/availability$/.exec(url.pathname);
+  if (availability && request.method === "GET")
+    return nativeCatalog(env, { op: "name-availability", slug: decodeURIComponent(availability[1]) });
   const slugRoute = /^\/slugs\/([^/]+)$/.exec(url.pathname);
   if (slugRoute && request.method === "GET") {
     return nativeCatalog(env, {
@@ -3739,6 +3743,7 @@ async function route(
             await widgetConfig(env, id, {
               op: "save",
               approvalExpiresAt: (env as ConnectDeadlineEnv)[CONNECT_DEADLINE],
+              initializeOnly: body.initializeOnly === true && body.hostedPage === true,
               ...(body.origins === undefined
                 ? {}
                 : {
@@ -3840,6 +3845,13 @@ async function route(
         roomId: id,
       });
     }
+    if (path === "/slug" && request.method === "GET") {
+      const session = await currentSession(request, env, false, deps.verifySessionAuthority);
+      if (!sessionPrincipals(session).includes(context.record.room.manager))
+        throw new HttpError(403, "Only the workspace owner can read a reserved name.");
+      await requireSafetyAccess(scopedNative as SafetyEnv, `room:${id}`, session.principalId, sessionPrincipals(session));
+      return nativeCatalog(env, { op: "read-name-hold", id });
+    }
     if (path === "/slug" && request.method === "POST") {
       await scopeNativeBudget(env, context);
       const session = await currentSession(
@@ -3856,7 +3868,15 @@ async function route(
         session.principalId,
         sessionPrincipals(session),
       );
-      const nextSlug = body.slug === null ? null : nativeSlug(body.slug);
+      if (!sessionPrincipals(session).includes(context.record.room.manager))
+        throw new HttpError(403, "Only the workspace owner can change its name link.");
+      const guestName = body.hostedName === true;
+      if (guestName && context.record.room.visibility !== "public")
+        throw new HttpError(400, "A hosted chat link needs a public workspace.");
+      const nextSlug = guestName ? hostedName(body.slug) : body.slug === null ? null : nativeSlug(body.slug);
+      if (guestName && body.reserveOnly === true)
+        return nativeCatalog(env, { op: "hold-name", id, slug: nextSlug, manager: context.record.room.manager });
+      let created = false;
       if (nextSlug) {
         const claimed = await nativeCatalog(env, {
           op: "claim-slug",
@@ -3865,16 +3885,18 @@ async function route(
           manager: context.record.room.manager,
         });
         if (!claimed.ok) return claimed;
+        created = (await claimed.json<{ created?: boolean }>()).created === true;
       }
       const result = await context.room.fetch(
         internalPost("/private/native/slug", {
           principalId: session.principalId,
           servicePrincipals: sessionPrincipals(session),
           slug: nextSlug,
+          hostedName: guestName,
         }),
       );
       if (!result.ok) {
-        if (nextSlug)
+        if (nextSlug && created && result.status < 500)
           await nativeCatalog(env, {
             op: "release-slug",
             id,
@@ -4012,6 +4034,7 @@ async function route(
             ...(isSupportContactRole(contact) ? {
               contactRole: contact, profileRevision: body.profileRevision,
               assistantEnabled: body.assistantEnabled,
+              ...(contact === "founder" && body.teamLink !== undefined ? { teamLink: body.teamLink } : {}),
             } : {}),
             ...(body.name !== undefined ? { name: body.name } : {}),
             ...(body.image !== undefined ? { image: body.image } : {}),

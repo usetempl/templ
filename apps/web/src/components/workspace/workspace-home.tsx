@@ -60,6 +60,7 @@ import {
   Stat,
 } from "@/components/ui/ui";
 import { InboxAlertsNudge } from "./inbox-alerts";
+import { HostedChatSetup } from "./hosted-chat-setup";
 import { AppApprovalRequestButton } from "@/components/app-approval-request";
 import type { WorkspaceContext, WorkspaceTab } from "./support-workspace";
 import {
@@ -269,6 +270,9 @@ export function WorkspaceHome({
   return (
     <div className={styles.page}>
       <div className={styles.stack}>
+        {manager && current?.hostedPage && <HostedChatSetup
+          key={`${room}:${account}`} context={context}
+          paid={Boolean(approvedUsage)} />}
         <section className={styles.welcome} aria-labelledby="home-title">
           <TemplMark className={styles.welcomeStamp} decorative />
           <h1 id="home-title">

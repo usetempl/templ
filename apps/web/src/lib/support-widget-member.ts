@@ -68,7 +68,7 @@ type Shared = {
 /** The wait line's answer is read again after this long. */
 const WAIT_REREAD_MS = 10 * 60_000;
 const STYLE =
-  ".sources{display:flex;flex-wrap:wrap;gap:2px 8px;font-size:12px}.sources a{color:inherit}.case-actions{display:flex;flex-wrap:wrap;gap:8px}.shared-tail{align-self:stretch;min-width:0}.shared-list{font-size:12px;text-align:left}.shared-list summary{cursor:pointer}.shared-list .row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 8px;margin-top:12px}.shared-list .row b{grid-column:1/-1}.shared-list .row span{min-width:0;white-space:pre-wrap;overflow-wrap:anywhere}.shared-list .actions{display:flex;align-items:flex-start;gap:8px}";
+  ".sources{display:flex;flex-wrap:wrap;gap:2px 8px;font-size:12px}.sources a{color:inherit}.shared-tail{align-self:stretch;min-width:0}.shared-list{font-size:12px;text-align:left}.shared-list summary{cursor:pointer}.shared-list .row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 8px;margin-top:12px}.shared-list .row b{grid-column:1/-1}.shared-list .row span{min-width:0;white-space:pre-wrap;overflow-wrap:anywhere}.shared-list .actions{display:flex;align-items:flex-start;gap:8px}";
 
 /** Answers per host, by key. `undefined` is not read yet; `null` holds nothing. */
 const answers = new WeakMap<TailHost, Map<string, unknown>>();
@@ -217,83 +217,6 @@ export const member = {
       node.addEventListener("click", () => void host.run(action));
       return node;
     };
-
-    const resolvedAt = Date.parse(info?.resolvedBy?.at ?? "");
-    const age = Date.now() - resolvedAt;
-    if (info?.state === "resolved")
-      below.push([
-        "~case-actions",
-        [
-          thread,
-          resolvedAt,
-          info.closed,
-          info.previousConversation,
-          info.revision,
-        ],
-        (node) => {
-          node.className = "system tail case-actions";
-          if (host.newCase) {
-            const start = el("button", "Open a new case");
-            start.type = "button";
-            start.addEventListener("click", () => host.newCase!());
-            node.append(start);
-          }
-          if (info.previousConversation && host.showCase)
-            node.append(
-              button("Previous case", () =>
-                host.showCase!(info.previousConversation!),
-              ),
-            );
-          if (
-            info.closed ||
-            age < 0 ||
-            age > 48 * 3_600_000 ||
-            !Number.isFinite(age)
-          )
-            return;
-          const reopen = el("button", "Reopen this case");
-          reopen.type = "button";
-          reopen.addEventListener("click", () => {
-            if (reopen.disabled) return;
-            void host.run(async () => {
-              reopen.disabled = true;
-              reopen.textContent = "Reopening…";
-              reopen.setAttribute("aria-busy", "true");
-              try {
-                await memberCall(host)(`${base}/resolve`, {
-                  resolved: false,
-                  ifRevision: info.revision,
-                });
-                await host.refresh(true);
-                host.draft.focus();
-              } finally {
-                reopen.disabled = false;
-                reopen.textContent = "Reopen this case";
-                reopen.removeAttribute("aria-busy");
-              }
-            });
-          });
-          node.append(reopen);
-        },
-      ]);
-
-    if (
-      info?.state !== "resolved" &&
-      info?.previousConversation &&
-      host.showCase
-    )
-      below.push([
-        "~previous-case",
-        [thread, info.previousConversation],
-        (node) => {
-          node.className = "system tail";
-          node.append(
-            button("Previous case", () =>
-              host.showCase!(info.previousConversation!),
-            ),
-          );
-        },
-      ]);
 
     // The AI agent's newest reply: the sources it used.
     if (!mine && last.id && authors?.[last.author]?.badges?.includes("bot")) {

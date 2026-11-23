@@ -48,7 +48,7 @@ Transaction checks appear only when enabled. Feature status appears below.
 
 ## Start
 
-Choose a widget, a standalone support page, or both in Settings → Widget. To share a link, open Guest support, select Host a support page on Templ and Save guest support, then use Copy support link. The page accepts guests. The public link grants no access to another visitor’s cases. Both entries reach the same workspace inbox.
+Create a workspace at ${SITE.origin}/create. Copy the visitor link under Your support chat and try a reply in Cases. Self-hosted teams use their own domain. To add the embedded widget or enable a link in an existing workspace, open Settings → Widget. Under Guest support, select Host a support page on Templ and Save guest support, then use Copy support link. The page accepts guests. The public link grants no access to another visitor’s cases. Both entries reach the same workspace inbox.
 For the widget, copy the install prompt from ${SITE.docs}/install into your AI coding tool.
 ${
   release.support.connectVerified
@@ -144,7 +144,7 @@ Read ${SITE.origin}/privacy, ${SITE.origin}/terms, ${SITE.origin}/dpa and ${SITE
 
 ## Docs
 
-- Set up Chief in an existing Codex or Claude conversation and connect Dot or another device. [Read the guide](${SITE.origin}/chief) or [get the Markdown](${SITE.origin}/chief.md).
+- [Set up Chief in Codex or Claude Code](${SITE.origin}/chief) or [get the Markdown](${SITE.origin}/chief.md). Chief tracks tasks and relays the project lead’s results or questions. The lead decides how to do the work, what to test and when to ship within your authorization. The guide also covers lead status, chat history on paired devices and private Claude relays.
 - [How Templ works for crypto app support](${SITE.docs}/): Cases reach your team with wallet details and transaction checks.
 - Choose an embedded widget, a standalone chat link, or both. [Set up Templ guest support](${SITE.docs}/install).
 - [Fix widget install problems](${SITE.docs}/install/troubleshooting): Check why the widget does not load or questions do not arrive.

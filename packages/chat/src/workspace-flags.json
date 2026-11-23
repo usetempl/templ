@@ -291,6 +291,11 @@
     "killSwitch": "SUPPORT_WIDGET_CHAT_FIRST_ENABLED",
     "name": "Chat-first support"
   },
+  "supportSingleConversation": {
+    "releaseFlag": "hostedSupportPageVerified",
+    "killSwitch": "SUPPORT_WIDGET_CHAT_FIRST_ENABLED",
+    "name": "Single visitor conversation"
+  },
   "supportParallelConversations": {
     "releaseFlag": "supportWidgetVerified",
     "workspaceOnly": true,

@@ -15,7 +15,7 @@ const LANDING_CONVERSIONS = {
   talk_to_us_clicked: { href: "", button: true },
   pilot_clicked: { href: "", button: true },
   pricing_rules_clicked: {
-    href: `${SITE.docs}/pricing#planned-usage-pricing`,
+    href: `${SITE.docs}/pricing`,
     button: false,
   },
 } as const satisfies Partial<

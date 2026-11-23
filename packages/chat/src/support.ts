@@ -389,13 +389,16 @@ export type SupportContactProfile = {
   name: string | null;
   image: string | null;
 };
+export type SupportTeamLink = { name: string; website: string };
 export type WorkspaceSupportProfiles = {
+  teamLink?: SupportTeamLink;
   revision: number;
   founder: SupportContactProfile;
   assistant: SupportContactProfile;
   assistantEnabled: boolean;
 };
 export type VisitorSupportProfiles = {
+  teamLink?: SupportTeamLink;
   founder: SupportContactProfile;
   assistant: SupportContactProfile | null;
 };

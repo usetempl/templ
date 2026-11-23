@@ -45,6 +45,8 @@ export const SOLANA_MAINNET_CAIP2 = "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp";
  * widget compares it before asking a wallet to sign. */
 export const WIDGET_SIGN_IN_STATEMENT =
   "Sign in to this protocol's support on Templ. This does not send a transaction.";
+export const WIDGET_WALLET_SHARE_STATEMENT =
+  "Share my verified wallet address with the support team in this conversation. This signature proves I control the wallet.";
 /** How long a remembered widget sign-in lasts, counted from the signature. */
 export const WIDGET_REMEMBER_DAYS = 30;
 /** The statement of a challenge that also asks to stay signed in: today's

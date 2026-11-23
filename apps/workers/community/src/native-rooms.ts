@@ -25,7 +25,7 @@ import { HttpError, json } from "./common";
 import { requestPrefetch, started, timed } from "./request-context";
 import { principal } from "./principal";
 import { visibility, admitRoomMember } from "./room-privacy";
-import { initializeProducts, readProductSupport } from "./product-entitlements";
+import { initializeProducts, readProductState, productFunded, productMode, standardPlanForState } from "./product-entitlements";
 import { markWorkspaceStep } from "./funnel-metrics";
 import { WORKSPACE_ONBOARDING } from "./onboarding-metrics";
 import {
@@ -129,6 +129,7 @@ export function publicNativeRoom(room: NativeRoom): NativeRoom {
   return {
     id: room.id,
     slug: room.slug,
+    ...(room.hostedName === true ? { hostedName: true } : {}),
     name: room.name,
     image: room.image,
     creator: room.creator,
@@ -162,6 +163,20 @@ export function nativeSlug(value: unknown): string {
   if (!NATIVE_SLUG_PATTERN.test(slug) || RESERVED_NATIVE_SLUGS.has(slug))
     throw invalid("Use 3 to 32 lowercase letters, numbers or hyphens.");
   return slug;
+}
+const appRoutes = new Set(["analytics","availability","chief","example","flex","help","inbox","og","reply","support-entry","team-invite","trust","install","pricing"]);
+/** Hosted names must resolve to the public chat, including names reserved by static Next routes. */
+export function hostedName(value: unknown): string {
+  const slug = nativeSlug(value);
+  if (slug.length < 3 || appRoutes.has(slug))
+    throw invalid("Choose another name with 3 to 32 letters, numbers or hyphens.");
+  return slug;
+}
+
+type NameHold = { id: string; expiresAt: number };
+async function nameHold(storage: DurableObjectTransaction, slug: string) {
+  const hold = await storage.get<NameHold>(`native-name-hold-v1:${slug}`);
+  return hold && hold.expiresAt > Date.now() ? hold : null;
 }
 export function nativeName(value: unknown, max = 80) {
   if (
@@ -384,6 +399,35 @@ export async function nativeCatalogRequest(
       cursor: rows.size === 100 ? [...rows.keys()].at(-1) : null,
     });
   }
+  if (body.op === "name-availability") {
+    const slug = hostedName(body.slug);
+    return json({ available: !(await storage.get(`native-slug:${slug}`)) && !(await nameHold(storage, slug)) });
+  }
+  if (body.op === "read-name-hold") {
+    const id = nativeRoomId(body.id);
+    const slug = await storage.get<string>(`native-room-name-hold-v1:${id}`);
+    const hold = slug ? await nameHold(storage, slug) : null;
+    return json({ hold: hold?.id === id ? { slug, expiresAt: hold.expiresAt } : null });
+  }
+  if (body.op === "hold-name") {
+    const id = nativeRoomId(body.id);
+    const slug = hostedName(body.slug);
+    const room = await storage.get<NativeRoom>(`native-index:${id}`);
+    if (!room || requireCurrentRoom(room).manager !== principal(body.manager))
+      throw new HttpError(403, "Only the workspace owner can reserve its hosted name.");
+    const owner = await storage.get<string>(`native-slug:${slug}`);
+    const hold = await nameHold(storage, slug);
+    if ((owner && owner !== id) || (hold && hold.id !== id))
+      throw new HttpError(409, "Another team has this name. Choose another.");
+    const previous = await storage.get<string>(`native-room-name-hold-v1:${id}`);
+    if (previous && previous !== slug && (await nameHold(storage, previous))?.id === id)
+      await storage.delete(`native-name-hold-v1:${previous}`);
+    // Match the one-day lifetime of a self-serve payment intent.
+    const expiresAt = hold?.expiresAt ?? Date.now() + 86_400_000;
+    await storage.put(`native-name-hold-v1:${slug}`, { id, expiresAt });
+    await storage.put(`native-room-name-hold-v1:${id}`, slug);
+    return json({ slug, expiresAt });
+  }
   if (body.op === "resolve-slug") {
     const slug = nativeSlug(body.slug);
     const id = await storage.get<string>(`native-slug:${slug}`);
@@ -391,7 +435,7 @@ export async function nativeCatalogRequest(
     const room = await storage.get<NativeRoom>(`native-index:${id}`);
     if (!room || requireCurrentRoom(room).slug !== slug)
       throw new HttpError(404, "Chat not found.");
-    return json({ id });
+    return json({ id, ...(room.hostedName === true ? { hostedName: true } : {}) });
   }
   if (body.op === "claim-slug") {
     const id = nativeRoomId(body.id);
@@ -403,15 +447,17 @@ export async function nativeCatalogRequest(
     )
       throw new HttpError(403, "Only the manager can claim a slug.");
     const existing = await storage.get<string>(`native-slug:${slug}`);
-    if (existing && existing !== id)
+    const hold = await nameHold(storage, slug);
+    if ((existing && existing !== id) || (hold && hold.id !== id))
       throw new HttpError(409, "That slug is already taken.");
     await storage.put(`native-slug:${slug}`, id);
-    return json({ ok: true });
+    return json({ ok: true, created: !existing });
   }
   if (body.op === "release-slug") {
     const id = nativeRoomId(body.id);
     const slug = nativeSlug(body.slug);
-    if ((await storage.get<string>(`native-slug:${slug}`)) === id)
+    const indexed = await storage.get<NativeRoom>(`native-index:${id}`);
+    if (indexed?.slug !== slug && (await storage.get<string>(`native-slug:${slug}`)) === id)
       await storage.delete(`native-slug:${slug}`);
     return json({ ok: true });
   }
@@ -812,19 +858,33 @@ export async function nativeControlRequest(
         "Only the manager can change this workspace slug.",
       );
     const next = body.slug === null ? null : nativeSlug(body.slug);
+    let paidHostedName = false;
     if (next) {
-      const product = await readProductSupport(storage, Date.now());
-      if (!product.funded)
+      const product = await readProductState(storage, Date.now());
+      const standard = standardPlanForState(product);
+      paidHostedName = body.hostedName === true && standard?.status === "paid";
+      if (body.hostedName === true) {
+        const mode = productMode(product);
+        if (mode === "suspended" || mode === "paused")
+          throw new HttpError(403, "Restore workspace access before claiming a hosted name.");
+        if (standard && standard.status !== "paid" && mode !== "exempt")
+          throw new HttpError(403, "Confirm payment for your workspace plan before claiming a hosted name.");
+      }
+      if (!productFunded(product))
         throw new HttpError(
           403,
           "Add balance to this workspace to claim a custom link.",
         );
     }
-    if ((existing.room.slug ?? null) === next)
+    const serveGuests = Boolean(next && (body.hostedName === true || (existing.room.slug === next && existing.room.hostedName)));
+    if ((existing.room.slug ?? null) === next && Boolean(existing.room.hostedName) === serveGuests)
       return json(recordView(existing));
     existing.room.slug = next;
+    if (serveGuests) existing.room.hostedName = true;
+    else delete existing.room.hostedName;
     existing.revision++;
     await storage.put("native-room", existing);
+    if (paidHostedName) await markWorkspaceStep(storage, "hosted_name_claimed", Date.now());
     return json(recordView(existing));
   }
   if (op === "profile") {

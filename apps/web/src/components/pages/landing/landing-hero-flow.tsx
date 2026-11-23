@@ -17,9 +17,8 @@ export function LandingHeroFlow() {
             presentation
             appearance={{
               logo: brandAsset("/art/brand/templ-square.svg"),
-              theme: "light",
+              theme: "auto",
               radius: "soft",
-              accent: "#99FF00",
             }}
           />
         </div>

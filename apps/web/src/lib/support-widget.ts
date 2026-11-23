@@ -1,3 +1,4 @@
+import { transactionExample } from "./standalone-trial-example";
 import { widgetMessageId as requestId } from "./support-widget-message-id";
 import { widgetErrorMessage } from "./support-widget-error";
 import type {
@@ -20,6 +21,7 @@ import { createSolanaSignInMessage, isSolanaAddress } from "@templ/chat/solana";
 import {
   WIDGET_REMEMBER_STATEMENT,
   WIDGET_SIGN_IN_STATEMENT,
+  WIDGET_WALLET_SHARE_STATEMENT,
 } from "@templ/chat/widget-wallet";
 import type * as WalletRules from "@templ/chat/widget-wallet";
 import type * as ContextRules from "@templ/chat/support-context";
@@ -263,6 +265,7 @@ type SignInHost = {
   hosted?: boolean;
   /** A guest's bearer: the service moves that guest's thread to the wallet. */
   bearer?: string;
+  shareConversation?: string;
   call<T>(
     path: string,
     body: object,
@@ -276,6 +279,9 @@ type SignInHost = {
 type Verified = Omit<WidgetSession, "address" | "chainId" | "level"> & {
   address?: string;
   wallet?: { address?: string };
+  shareConversation?: string;
+  walletReceipt?: string;
+  walletReceiptExpiresAt?: number;
   transfer?: { moved?: boolean; conversation?: string | null };
   /** A remembered sign-in's key, when the member signed the 30-day line. */
   remember?: { credential: string; expiresAt: number };
@@ -694,6 +700,7 @@ export function createSupportClient(
         screenshots?: boolean;
         diagnostics?: boolean;
         chatFirst?: boolean;
+        singleConversation?: boolean;
         newConversation?: boolean;
         templLeadCapture?: boolean;
         prompts?: string[];
@@ -1049,7 +1056,7 @@ export function mountSupportWidget(
   options: SupportWidgetOptions,
   runtime?: Parameters<typeof createSupportClient>[1],
 ) {
-  return renderSupportWidget(options, createSupportClient(options, runtime));
+  return renderSupportWidget({ chatFirst: true, conversationDrawers: true, ...options }, createSupportClient(options, runtime));
 }
 
 export type WidgetMessage = {
@@ -1074,6 +1081,7 @@ export type WidgetMessages = {
       | "id"
       | "aiReplyExpected"
       | "revision"
+      | "verifiedWalletAddress"
       | "formerMembers"
       | "state"
       | "handoff"
@@ -1129,6 +1137,7 @@ export type WidgetClient = {
     screenshots?: boolean;
     diagnostics?: boolean;
     chatFirst?: boolean;
+    singleConversation?: boolean;
     newConversation?: boolean;
     templLeadCapture?: boolean;
     prompts?: string[];
@@ -1183,7 +1192,7 @@ export type SupportDemoOptions = {
   label?: string;
   appearance?: SupportWidgetAppearance;
   /** A fixed sample case, confined to the in-memory demo transport. */
-  scenario?: "failed-transaction" | "conversation";
+  scenario?: "failed-transaction" | "conversation" | "shared-transaction";
   /** Called with each demo message, for a page that mirrors the inbox. */
   onMessage?: (message: { from: "member" | "team"; text: string }) => void;
 };
@@ -1196,7 +1205,8 @@ export function mountSupportDemo(
 ) {
   const id = "demo";
   const failedTransaction = demo.scenario === "failed-transaction";
-  const conversationDemo = demo.scenario === "conversation";
+  const sharedTransaction = demo.scenario === "shared-transaction";
+  const conversationDemo = demo.scenario === "conversation" || sharedTransaction;
   const session = {
     address: failedTransaction
       ? "0x71C400000000000000000000000000000000a42f"
@@ -1227,6 +1237,13 @@ export function mountSupportDemo(
     {id:"1",author:"demo-member",text:"Can I get help without connecting my wallet?",createdAt:new Date().toISOString()},
     {id:"2",author:"demo-ai",text:"Yes. Share only the details you want us to see.",createdAt:new Date().toISOString()},
     {id:"3",author:"demo-team",teamName:"Founder",text:"And you can talk to me in this same chat.",createdAt:new Date().toISOString()});
+  if (sharedTransaction) {
+    const now = new Date().toISOString();
+    messages.splice(0, messages.length,
+      { id: "1", author: "demo-member", text: transactionExample.question, createdAt: now },
+      { id: "2", author: "demo-member", text: `${transactionExample.network} transaction: ${transactionExample.transaction}`, createdAt: now },
+      { id: "3", author: "demo-team", teamName: "Support team", text: transactionExample.reply, createdAt: now });
+  }
   const sent = new Set<string>();
   const answer = (text: string) =>
     conversationDemo ? "This is an example. Try the chat to talk to Templ." : text === "What happens next?"
@@ -1251,7 +1268,7 @@ export function mountSupportDemo(
     {
       workspace: "demo",
       chatFirst: conversationDemo,
-      label: failedTransaction
+      label: sharedTransaction ? "Protocol support" : failedTransaction
         ? "Sample case"
         : (demo.label ?? "Vault support"),
       prompts: failedTransaction
@@ -1284,7 +1301,7 @@ export function mountSupportDemo(
     },
     {
       container,
-      readOnly: failedTransaction,
+      readOnly: failedTransaction || sharedTransaction,
       style: DEMO_STYLE,
       decorate({ header, close, body, starter, panel, draft }) {
         if (conversationDemo) {panel.dataset.demo = "conversation"; panel.setAttribute("aria-description", "Example conversation. Nothing is sent or signed."); close.hidden = true; return;}
@@ -1430,8 +1447,7 @@ export type CardRules = Pick<
  * immutable file named at build time: the context rows (the typed details
  * from the app, which load the context card with the network names and
  * explorer rules it needs) and the extras (what the chat shows after a
- * send: typing, the handoff lines, Talk to a person, the team's request to
- * verify, and closed-case status).
+ * send: typing, handoff, Talk to a person, and wallet verification).
  * Next and test bundles load the same code as module chunks. */
 declare const __TEMPL_WIDGET_CONTEXT__: string | undefined;
 declare const __TEMPL_WIDGET_EXTRAS__: string | undefined;
@@ -1488,7 +1504,10 @@ const loadBranding = (): Promise<typeof import("./support-widget-art")> =>
     : import("./support-widget-art");
 
 export type TailHost = {
+  lifetime?: AbortSignal;
   options: SupportWidgetOptions;
+  /** Used only for visual grouping. Never copy a private sender ID into the DOM. */
+  messageAuthors?: WeakMap<HTMLElement, string>;
   guest?: typeof import("./support-widget-guest").guest;
   loadingGuest?: boolean;
   el: Make;
@@ -1511,13 +1530,16 @@ export type TailHost = {
   leadState?(busy: boolean, handoff: boolean): void;
   /** A confirmed member send may offer an optional email follow-up. */
   messageSent?: boolean;
+  /** A drawer opt-in may attach only to the case created by this visitor's actual send. */
+  firstMessageListeners?: Set<(conversation: string, principal: string) => void>;
   /** Threads whose visitor send started a wait in this widget. */
   replyWaits?: Set<string>;
   leadStyles?: string;
   /** The single action row and its optional email action. */
   emailButton?: HTMLButtonElement;
   thread?(): string | null;
-  newCase?(parallel?: true): void;
+  verifiedWallet?(): string | undefined;
+  draftingConversation?(): boolean;
   showCase?(id: string): Promise<void>;
   replyNotices?: boolean;
   notify?: () => Promise<void>;
@@ -1544,6 +1566,8 @@ export type TailHost = {
   held?: { by: string; id: number; thread: string | null } | null;
   /** The workspace's policy answer, once read. */
   policy?: {
+    hosted?: boolean;
+    chatMode?: "standard" | "encrypted";
     aiReplyExpected?: boolean;
     supportProfiles?: VisitorSupportProfiles;
     minimumLevel?: string;
@@ -1554,6 +1578,7 @@ export type TailHost = {
     screenshots?: boolean;
     diagnostics?: boolean;
     chatFirst?: boolean;
+    singleConversation?: boolean;
     newConversation?: boolean;
     templLeadCapture?: boolean;
     prompts?: string[];
@@ -1602,7 +1627,6 @@ const TAIL_LINES: Record<string, string> = {
   dot: "You can close this chat or come back later. While this page is open, the chat button shows a dot when they reply.",
   verify:
     "The team asked you to prove this wallet is yours. Signing is free and can't move funds.",
-  "closed-case": "Closed. Write here if you need more help.",
 };
 /** The fixed line a widget shows while Templ has an open
  * notice of that kind. Operator notes never reach a widget, and kinds that
@@ -1725,10 +1749,8 @@ export const extras = {
     );
   },
   fullPage(style: HTMLStyleElement) {
-    void loadWelcome().then(
-      ({ welcome }) => welcome.fullPage(style),
-      () => {},
-    );
+    style.textContent +=
+      ":host{display:block;height:100%;width:100%}.panel,:host([data-position=left]) .panel{position:relative;inset:auto;width:100%;height:100%;border:0;border-radius:0;box-shadow:none}";
   },
   /** What the member sees under the newest message, so they always know
    * who acts next: one assistant bubble across sending and writing, a
@@ -1788,14 +1810,13 @@ export const extras = {
       else if (fresh) (host.replyWaits ??= new Set()).add(thread);
     }
     const parts: string[] = [];
-    if (resolved) parts.push("closed-case");
-    else if (!held && typing !== "team" && !info?.encryption && info?.aiReplyExpected !== false && (
+    if (!resolved && !held && typing !== "team" && !info?.encryption && info?.aiReplyExpected !== false && (
       pending ? pending === "sending" && expected :
       mine && (typing === "agent" || (expected && (fresh || host.replyWaits?.has(thread!) || age < 300_000)))
     )) parts.push("typing agent");
-    else if (fresh && !pending && !held && !info?.diagnosisRunning)
+    else if (!resolved && fresh && !pending && !held && !info?.diagnosisRunning)
       parts.push("received");
-    else if (!pending) {
+    else if (!resolved && !pending) {
       const by = held?.by;
       if (info?.diagnosisRunning) parts.push("checking");
       else if (typing === "team") parts.push("typing team");
@@ -1876,7 +1897,7 @@ export const extras = {
             (part == "incident"
               ? host.notice!.line
               : host.options.chatFirst &&
-                  host.policy?.chatFirst &&
+                  (host.policy?.chatFirst || host.policy?.singleConversation) &&
                   ["member", "person", "dot"].includes(part)
                 ? part === "dot"
                   ? "The chat button shows replies while this page is open."
@@ -1946,6 +1967,20 @@ export const extras = {
       mine,
       waits,
     });
+    if (host.policy?.singleConversation && held && !resolved) {
+      // Keep the same notification buttons and opt-in form when a handoff is shown.
+      const choice = [...above, ...lines, ...below].find(([key]) => key === "~reply-email" || key === "~guest-email");
+      const handoff = lines.find(([key]) => ["~member", "~person", "~agent"].includes(key));
+      if (choice && handoff) {
+        const [key, deps, draw] = choice;
+        const joined: typeof handoff = [handoff[0], [...handoff[1], key, ...deps], (node) => {
+          draw(node);
+          node.classList.add("handoff-notice");
+          node.prepend(el("strong", "Your question is with the team."));
+        }];
+        return [...above, ...lines, ...below].filter(line => line !== choice).map(line => line === handoff ? joined : line);
+      }
+    }
     return [...above, ...lines, ...below];
   },
 };
@@ -2236,6 +2271,7 @@ function makeKit(
       let keep = false;
       try {
         keep =
+          !host.shareConversation &&
           // Set by the live chunk of the widget rendered in this tab.
           sessionStorage.getItem(`templ:support-keep:v1:${host.workspace}`) ==
             "1" &&
@@ -2252,7 +2288,8 @@ function makeKit(
       const requestedAt = Date.now();
       const challenge = await host.call<Challenge>(
         "/auth/nonce",
-        keep ? { ...selected, remember: true } : selected,
+        host.shareConversation ? { ...selected, shareConversation: host.shareConversation }
+          : keep ? { ...selected, remember: true } : selected,
         true,
         host.bearer,
       );
@@ -2262,9 +2299,9 @@ function makeKit(
           selected,
           host,
           requestedAt,
-          keep
-            ? [WIDGET_SIGN_IN_STATEMENT, WIDGET_REMEMBER_STATEMENT]
-            : [WIDGET_SIGN_IN_STATEMENT],
+          host.shareConversation ? [WIDGET_WALLET_SHARE_STATEMENT]
+            : keep ? [WIDGET_SIGN_IN_STATEMENT, WIDGET_REMEMBER_STATEMENT]
+              : [WIDGET_SIGN_IN_STATEMENT],
         )
       )
         throw new Error(MISMATCH);
@@ -2296,6 +2333,7 @@ function makeKit(
         host.stale() ||
         JSON.stringify(current) !== JSON.stringify(selected) ||
         (verified.wallet?.address ?? verified.address) !== selected.address ||
+        verified.shareConversation !== host.shareConversation ||
         !/^[0-9a-f]{64}$/.test(verified.token) ||
         verified.expiresAt <= Date.now()
       )
@@ -2379,7 +2417,7 @@ export function evmKit(provider: SupportWalletProvider): WalletKit {
     (
       challenge,
       selected,
-      { origin, workspace, hosted },
+      { origin, workspace, hosted, shareConversation },
       requestedAt,
       statements,
     ) => {
@@ -2389,8 +2427,8 @@ export function evmKit(provider: SupportWalletProvider): WalletKit {
         lines[0] ===
           `${site.protocol}//${site.host} wants you to sign in with your Ethereum account:` &&
         lines[1]?.toLowerCase() === selected.address &&
-        // The 30-day line only when this sign-in asked for it.
-        (lines[3] === "" || statements.includes(lines[3])) &&
+        // Wallet sharing requires the explicit consent statement.
+        ((!shareConversation && lines[3] === "") || statements.includes(lines[3])) &&
         lines.includes(
           `URI: ${hosted ? `${origin}/help/${workspace}` : origin}`,
         ) &&
@@ -2832,8 +2870,6 @@ function renderSupportWidget(
   };
   let pending: PendingMessage | undefined;
   let newCaseFrom: string | undefined;
-  let returnTo: string | undefined;
-  let openNewCase: typeof import("./support-widget-live").newCase | undefined;
   /** The approved details frozen with this reply. */
   const sharing = (attempt: PendingMessage) =>
     attempt.target &&
@@ -2846,7 +2882,6 @@ function renderSupportWidget(
     Number.parseInt(id.slice(0, 8) + id.slice(9, 13), 16);
   let draftPrincipal: string | undefined;
   let refreshing: Promise<void> | undefined;
-  let switchingCase = false;
   const draftKey = (principal: string) =>
     `templ:support-draft:v1:${window.location.origin}:${options.workspace}:${principal}`;
   const own = (author: string) =>
@@ -2857,7 +2892,11 @@ function renderSupportWidget(
     own(message.author) &&
     (message.clientId === attempt.id ||
       (!!attempt.serverId && message.id === attempt.serverId));
+  const lifetime = new AbortController();
+  const messageAuthors = new WeakMap<HTMLElement, string>();
   const tailHost: TailHost = {
+    lifetime: lifetime.signal,
+    messageAuthors,
     options,
     el,
     draft,
@@ -2867,46 +2906,7 @@ function renderSupportWidget(
     launcher,
     emailButton,
     thread: () => conversation,
-    newCase: (parallel) =>
-      void openNewCase?.(
-        tailHost,
-        () => !pending && active && (parallel || info?.state === "resolved") && conversation,
-        (current) => {
-          newCaseFrom = current;
-          sequence++;
-          draft.value = tx.value = error.textContent = "";
-          fitDraft();
-          saveDraft();
-          render();
-          draft.focus();
-        },
-      ),
-    showCase: async (id) => {
-      const ready = () => active && !(pending || draft.value.trim() || tx.value);
-      if (switchingCase || !ready()) return;
-      switchingCase = true;
-      const epoch = ++sequence;
-      try {
-        const page = await client.messages(id, undefined, true, true);
-        if (epoch !== sequence || !ready()) return;
-        if (page.conversation?.id !== id) throw new Error(UNAVAILABLE);
-        newCaseFrom = undefined;
-        if (id !== conversation) {
-          returnTo =
-            id === returnTo ? undefined : (returnTo ?? conversation ?? undefined);
-          conversation = id;
-          earlier = latest = [];
-          before = null;
-          authors = joined = {};
-        }
-        display(page);
-        saveDraft();
-        schedule();
-        draft.focus();
-      } finally {
-        switchingCase = false;
-      }
-    },
+    draftingConversation: () => !!newCaseFrom,
     client,
     own,
     run,
@@ -2924,11 +2924,14 @@ function renderSupportWidget(
       return consent!.review(text, send, details);
     },
   };
+  tailHost.verifiedWallet = () =>
+    info?.id === conversation && !newCaseFrom ? info.verifiedWalletAddress : undefined;
   function setAttachOpen(open: boolean) {
     attach.hidden = !open || !!demoContainer;
     attachToggle.setAttribute("aria-expanded", String(open));
   }
   function setStarter() {
+    form.toggleAttribute("data-case-resolved", !newCaseFrom && info?.state === "resolved");
     choices.hidden = form.hidden || !!demoContainer;
     cards?.available?.(
       !pending &&
@@ -2977,7 +2980,7 @@ function renderSupportWidget(
         ? !suggestions.hidden
         : !starter.hidden &&
             noThreadYet &&
-            !(options.chatFirst && tailHost.policy?.chatFirst),
+            !(options.chatFirst && (tailHost.policy?.chatFirst || tailHost.policy?.singleConversation)),
       busy || !!pending || !!draft.value.trim(),
       (text) => {
         if (busy || pending || draft.value.trim()) return;
@@ -3202,7 +3205,7 @@ function renderSupportWidget(
       busy = signIn.disabled = tailHost.signing = false;
       signInLabel.textContent = "Verify wallet";
       showPending();
-      if (active && (signing || returnTo || newCaseFrom)) render();
+      if (active && (signing || newCaseFrom)) render();
     }
   }
   const timeFormat = new Intl.DateTimeFormat(undefined, {
@@ -3243,6 +3246,7 @@ function renderSupportWidget(
     ) => {
       node.className = `message${mine ? " own" : ""}`;
       if (mine && message.clientId) node.dataset.clientId = message.clientId;
+      if (!mine) messageAuthors.set(node, message.author);
       const author = el("small", who);
       if (!mine && message.teamName && who === message.teamName)
         author.append(" ", el("span", "Team", "tag"));
@@ -3262,7 +3266,7 @@ function renderSupportWidget(
       add(`c${attempt.id}`, [attempt.text, sendState, attempt.sent], (node) => {
         bubble(
           node,
-          { author: "", ...attempt, clientId: attempt.id },
+          { author: client.session?.principalId ?? "", ...attempt, clientId: attempt.id, createdAt: new Date(sentAt(attempt.id)).toISOString() },
           "You",
           true,
         );
@@ -3285,14 +3289,6 @@ function renderSupportWidget(
           );
         node.append(state);
       });
-    const returnCase = newCaseFrom ?? returnTo;
-    if (returnCase && consent) {
-      const drafting = !!newCaseFrom;
-      const disabled = busy || !!pending;
-      add("~return-case", [returnCase, drafting, disabled], (node) =>
-        consent!.caseReturn(node, returnCase, drafting, disabled),
-      );
-    }
     const joins = newCaseFrom ? [] : (consent?.join(joined, timeFormat) ?? []);
     (newCaseFrom ? [] : [...earlier, ...latest]).forEach((message, index) => {
       while (joins[0] && (message.createdAt ?? "") >= joins[0][1][0])
@@ -3311,7 +3307,7 @@ function renderSupportWidget(
         mine && message.clientId
           ? `c${message.clientId}`
           : `#${message.id ?? `@${index}`}`,
-        [message.text, message.createdAt, who, consent?.linksReady],
+        [message.text, message.createdAt, message.author, assistant, who, consent?.linksReady],
         (node) => {
           bubble(node, message, who, mine);
           node.toggleAttribute("data-assistant", !mine && !!assistant);
@@ -3532,6 +3528,7 @@ function renderSupportWidget(
     if (!thread && !hintTried) {
       hintTried = true;
       thread = session.thread ?? null;
+
     }
     if (!thread) {
       const status = await client.status();
@@ -3569,11 +3566,12 @@ function renderSupportWidget(
     const asked = page.workflow?.verificationRequested;
     if (guest && asked !== undefined) verifyRequested = !!asked;
     display(page);
+
   }
   /** A read after a write starts at once; an older read still in flight is
    * then dropped when it lands, results and errors alike. */
   function refresh(afterWrite = false): Promise<void> {
-    if (switchingCase || (busy && !afterWrite)) return Promise.resolve();
+    if (busy && !afterWrite) return Promise.resolve();
     if (refreshing && !afterWrite) return refreshing;
     const mine = ++sequence;
     const stale = () => mine !== sequence || !active;
@@ -3645,7 +3643,7 @@ function renderSupportWidget(
       if (draftPrincipal) {
         sequence++;
         pending = undefined;
-        newCaseFrom = returnTo = undefined;
+        newCaseFrom = undefined;
         draft.value = "";
         draftNotice.textContent = "";
         tx.value = "";
@@ -3713,7 +3711,6 @@ function renderSupportWidget(
       ? Promise.resolve()
       : (booting ||= loadLive()
           .then((module) => {
-            openNewCase = module.newCase;
             return module.live(
               client as SupportClient,
               (wake?: number) =>
@@ -3816,10 +3813,12 @@ function renderSupportWidget(
               authors = joined = {};
               info = sent.conversation;
               older.hidden = true;
-              newCaseFrom = returnTo = undefined;
+              newCaseFrom = undefined;
             }
             conversation = sent.conversation.id;
             message = sent.message;
+            if (message && sendingPrincipal)
+              for (const notify of tailHost.firstMessageListeners ?? []) notify(conversation, sendingPrincipal);
           }
           cards?.confirmed?.(attempt.context);
           pending = undefined;
@@ -4121,6 +4120,7 @@ function renderSupportWidget(
     /** The page's wallet was connected, switched or dropped. */
     setWallet: (next: SupportWallet | null) => client.setWallet?.(next),
     destroy() {
+      lifetime.abort();
       saveDraft();
       active = false;
       formRevision++;

@@ -653,6 +653,30 @@ async function threadRefs(storage: Storage, thread: string) {
   );
   return { refs, markers: [...built.keys()] };
 }
+/** A controller's thread-scoped erasure must leave the same member's other cases alone. */
+export async function forgetThreadCorpus(storage: Storage, env: CorpusEnv, record: TeamConversationRecord, now: number) {
+  await storage.put(CORPUS_SKIP_PREFIX + record.id, { at: now });
+  if (!await storage.get(CORPUS_ROOM_KEY)) return;
+  const members = [record.member, ...(record.formerMembers ?? [])];
+  for (const type of [CORPUS_BUILT_PREFIX, CASE_PREFIX]) {
+    const prefix = type + record.id + ":";
+    let after: string | undefined;
+    do {
+      const page = await storage.list({ prefix, limit: 50, ...(after ? { startAfter: after } : {}) });
+      const keys = [...page.keys()];
+      const seqs = keys.map(key => Number(key.slice(prefix.length)));
+      if (seqs.some(seq => !Number.isSafeInteger(seq) || seq < 1))
+        throw new HttpError(503, "The case source register is unavailable.");
+      const refs = await Promise.all(seqs.map(seq => corpusRef(storage, record.id, seq)));
+      if (refs.length) {
+        await deleteRefs(env, record.room, refs);
+        for (const member of members) await storage.delete(refs.map(ref => CORPUS_MEMBER_PREFIX + member + ":" + ref));
+      }
+      after = page.size === 50 ? keys.at(-1) : undefined;
+    } while (after);
+  }
+}
+
 /** Deletes every row of the members' requests: the rows of their live
  * threads and every row the member index names, including rows whose chat
  * ordinary retention already deleted. Returns how many rows went. */

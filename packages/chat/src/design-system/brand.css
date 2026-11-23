@@ -1,39 +1,39 @@
 /* Templ accent shared by the app, docs and blog. */
 :root,
 [data-theme="light"] {
-  --templ-accent: #99ff00;
-  --templ-accent-hover: #8fe800;
-  --templ-accent-active: #82d400;
-  --templ-accent-soft: #edf8dd;
-  --templ-accent-text: #367000;
-  --templ-action-border: #131313;
-  --templ-on-accent: #131313;
-  --templ-focus: #131313;
-  --templ-chart-1: #367000;
+  --templ-accent: #396f4d;
+  --templ-accent-hover: #315f42;
+  --templ-accent-active: #29543a;
+  --templ-accent-soft: #e2eedb;
+  --templ-accent-text: #325f42;
+  --templ-action-border: #345f43;
+  --templ-on-accent: #ffffff;
+  --templ-focus: #326342;
+  --templ-chart-1: #325f42;
 }
 
 [data-theme="dark"] {
-  --templ-accent: #99ff00;
-  --templ-accent-hover: #8fe800;
-  --templ-accent-active: #82d400;
-  --templ-accent-soft: #202b15;
-  --templ-accent-text: #bbff66;
-  --templ-action-border: #99ff00;
-  --templ-on-accent: #131313;
-  --templ-focus: #99ff00;
-  --templ-chart-1: #99ff00;
+  --templ-accent: #a1c8a5;
+  --templ-accent-hover: #b0d0b3;
+  --templ-accent-active: #bddac0;
+  --templ-accent-soft: #2c463a;
+  --templ-accent-text: #afd4b4;
+  --templ-action-border: #a1c8a5;
+  --templ-on-accent: #17281d;
+  --templ-focus: #a1c8a5;
+  --templ-chart-1: #a1c8a5;
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme]) {
-    --templ-accent: #99ff00;
-    --templ-accent-hover: #8fe800;
-    --templ-accent-active: #82d400;
-    --templ-accent-soft: #202b15;
-    --templ-accent-text: #bbff66;
-    --templ-action-border: #99ff00;
-    --templ-on-accent: #131313;
-    --templ-focus: #99ff00;
-    --templ-chart-1: #99ff00;
+    --templ-accent: #a1c8a5;
+    --templ-accent-hover: #b0d0b3;
+    --templ-accent-active: #bddac0;
+    --templ-accent-soft: #2c463a;
+    --templ-accent-text: #afd4b4;
+    --templ-action-border: #a1c8a5;
+    --templ-on-accent: #17281d;
+    --templ-focus: #a1c8a5;
+    --templ-chart-1: #a1c8a5;
   }
 }

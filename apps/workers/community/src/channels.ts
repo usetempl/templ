@@ -264,6 +264,7 @@ import {
   conversationAuthority,
   isConversationId,
   readConversation,
+  shareGuestWalletProof,
   verifyWidgetMember,
   widgetVerification,
   type ConversationContext,
@@ -1181,6 +1182,17 @@ export class ChannelRoom {
           await requireOwnWidgetWallet(storage, env as Env, native.room.id, input.origin as string);
         });
         return json({ available: true });
+      }
+      if (url.pathname === "/private/support/share-wallet" && request.method === "POST") {
+        const body = await readJson(request);
+        const committed = await this.state.storage.transaction(async (local) => {
+          const storage = await supportStorage(local, env, this.state.id?.toString() ?? "");
+          const pending: PendingEvent[] = [];
+          await shareGuestWalletProof(storage, body, pending);
+          return pending.length ? appendEvents(storage, pending, Date.now()) : [];
+        });
+        this.afterCommit(committed);
+        return json({ saved: true });
       }
       if (
         ["/private/support/widget-verify", "/private/support/own-encrypted-widget-verify"].includes(url.pathname) &&

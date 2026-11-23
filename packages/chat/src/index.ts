@@ -41,6 +41,8 @@ export type NativeRoom = {
   id: string;
   /** Optional paid-plan vanity path, normalized to lowercase by the service. */
   slug?: string | null;
+  /** The owner claimed this name for the public support page. */
+  hostedName?: boolean;
   name: string;
   image: string | null;
   creator: ChatPrincipalId;
@@ -203,6 +205,8 @@ export type ChatNativeSubscription = {
  * member-to-member conversation exists. Public metadata never lists it. */
 export type TeamConversationState = "open" | "resolved";
 export type TeamConversation = {
+  /** A wallet the guest proved for this conversation. Membership stays with the guest. */
+  verifiedWalletAddress?: string;
   /** Widget member view. The current request permits automatic answers. */
   aiReplyExpected?: boolean;
   /** The active agent can pick up this case but has no typing mark yet. */

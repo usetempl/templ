@@ -42,7 +42,7 @@ export const ONBOARDING_STAGES = [
   { name: "prompt_copied", label: "Copied install prompt", optional: true },
   { name: "server_signed_in", label: "Signed in" },
   { name: "server_workspace_created", label: "Created workspace" },
-  { name: "server_widget_seen", label: "Widget installed" },
+  { name: "server_widget_seen", label: "Widget installed", optional: true },
   { name: "server_first_request", label: "First user case" },
   { name: "server_first_reply", label: "First team reply" },
   { name: "server_first_resolution", label: "First resolved case" },
@@ -216,6 +216,7 @@ export function onboardingReport(
         "server_payment_credited",
         "Complete payment",
       ],
+      ["server_workspace_created", "server_hosted_name_claimed", "Claim a paid hosted name"],
     ] as const satisfies readonly (readonly [
       OnboardingEventName,
       OnboardingEventName,

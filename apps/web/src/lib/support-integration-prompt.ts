@@ -11,7 +11,8 @@ export function startInstallPrompt(hosts: InstallHosts = SITE): string {
   return `Read ${hosts.origin}/llms.txt and follow the install guide.
 Ask whether I want an embedded widget, a standalone support link, or both.
 Help me create a workspace at ${hosts.origin}/create or use one I manage.
-For a support link, open Settings → Widget → Guest support, select Host a support page on Templ and Save guest support. Use Copy support link for the saved URL. Link-only setup needs no widget code.
+Start with the visitor link in Your support chat. Open it in a separate browser, send a test question, then answer from Cases. A self-hosted team uses its own domain.
+For an existing workspace without a support link, open Settings → Widget → Guest support, select Host a support page on Templ and Save guest support. Use Copy support link for the saved URL. Link-only setup needs no widget code.
 For the widget, ask me to copy its public workspace ID from Settings → Widget. It is not a credential.
 Use Connect's wallet confirmation only when current availability says Connect is open.
 Use free integration mode: ${PRODUCT_LIMITS.freeSupportTickets} lifetime test tickets, with ${PRODUCT_LIMITS.freeTeamRepliesPerTicket} team replies per ticket. Templ AI stays off.
@@ -20,7 +21,7 @@ For an embed, reuse the app’s wallet connection and use the workspace install 
 Check current availability. Keep unavailable features off.
 Never request passwords, private keys, recovery phrases or staff tokens.
 Test a guest question and a team reply. Tell me what needs attention.
-Stop before payment. Show me the workspace's Plan & usage page when I am ready to go live.`;
+Stop before payment. When I want a hosted name, show me how to reserve it under Your support chat and choose a monthly plan. Payment is in USDC and renewals are manual.`;
 }
 
 /** The hosts a prompt names. Every build uses its own `SITE`; tests and the
@@ -266,7 +267,7 @@ export function installPrompt({
   return `Add Templ support chat to this app.
 Start at ${origin} and read ${origin}/llms.txt for the install guide.
 Ask whether I want the widget, a standalone chat link, or both.
-For a link, open Settings → Widget → Guest support. Select Host a support page on Templ and Save guest support. Use Copy support link${id ? ` and check that the saved address is ${supportUrl ?? `${origin}/help/${id}`}` : " to get this workspace’s address"}. Link to it from the app’s official Help or Support entry. For link only, stop after verifying the page. No widget code is needed.
+New teams can test the visitor link under Your support chat before installing anything. To turn it on in an existing workspace, open Settings → Widget → Guest support. Select Host a support page on Templ and Save guest support. Use Copy support link${id ? ` and check that the saved address is ${supportUrl ?? `${origin}/help/${id}`}` : " to get this workspace’s address"}. Link to it from the app’s official Help or Support entry. For link only, stop after verifying the page. No widget code is needed.
 For an embed or both, follow the widget steps below. Reuse the wallet connection the app already has.
 
 Templ loads from a hosted ES module. There is no npm package. Don't install one or copy the hosted module into the repo.
@@ -370,10 +371,8 @@ Then test it:
 - Add a review-only Preview failed transaction control.
   Preview failed transaction opens support with a simulated error and a known failed transaction. Send no transaction.
   Keep this control out of the normal customer flow.
-- To repeat the test, resolve the current test case in the team inbox.
-  In the widget, choose Open a new case. This sends nothing.
-  Send a guest message. Check that it creates a separate case in the team inbox.
-  Use Previous case to read the old chat.
+- In the team inbox, resolve the test case. Send a follow-up in the same chat.
+  Check that the team sees it in the original case and that the visitor can still read the earlier messages after reloading.
 - Block the widget module once, then press Get help to retry. Check that the saved details appear.
 - Without a Help button, block the first widget load. Check the error and press Retry to load the launcher.
 Tell me which checks passed and what's still missing.`;

@@ -21,6 +21,11 @@ const loadConversationStyle = () => typeof __TEMPL_WIDGET_CONVERSATION_STYLE__ =
 const loadConversations = () => typeof __TEMPL_WIDGET_CONVERSATIONS__ === "string"
   ? import(/* webpackIgnore: true */ /* turbopackIgnore: true */ new globalThis.URL(__TEMPL_WIDGET_CONVERSATIONS__, import.meta.url).href)
   : import("./support-widget-conversations");
+declare const __TEMPL_WIDGET_DRAWER__: string | undefined;
+const loadDrawer = () => typeof __TEMPL_WIDGET_DRAWER__ === "string"
+  ? import(/* webpackIgnore: true */ /* turbopackIgnore: true */ new globalThis.URL(__TEMPL_WIDGET_DRAWER__, import.meta.url).href)
+  : import("./support-widget-drawer");
+let prepareDrawer: typeof import("./support-widget-drawer").prepareDrawer | undefined;
 const decoratedMenus = new WeakMap<TailHost, () => void>();
 const WELCOME_STYLE =
   ".welcome h2{margin:0;font-size:23px;font-weight:720;line-height:1.2}.lede{color:var(--m)}.trust{display:grid;gap:10px;margin:0;padding:14px;list-style:none;border:1px solid var(--b);border-radius:16px;background:var(--s)}.trust li{display:flex;gap:10px;font-size:13px;line-height:1.45}.trust span{color:var(--m)}.tick{display:grid;place-items:center;width:20px;height:20px;flex:none;border-radius:7px;background:var(--s2);color:var(--t)}.tick svg{width:13px;height:13px;stroke-width:3}";
@@ -91,10 +96,7 @@ export const welcome = {
       line.textContent = `We usually reply within ${hours} ${hours === 1 ? "hour" : "hours"}.`;
     } else line?.remove();
   },
-  fullPage(style: HTMLStyleElement) {
-    style.textContent +=
-      ":host{display:block;height:100%;width:100%}.panel,:host([data-position=left]) .panel{position:relative;inset:auto;width:100%;height:100%;border:0;border-radius:0;box-shadow:none}";
-  },
+
   firstOpen(
     host: TailHost,
     parent: HTMLElement,
@@ -133,9 +135,10 @@ export const welcome = {
     host.firstPerson.textContent = handedOff
       ? "Waiting for the team"
       : "Talk to a person";
-    if (host.options.chatFirst === true && host.policy?.chatFirst === true && !conversation && !conversationFailed) {
-      conversationLoad ??= Promise.all([loadConversation(), loadConversationStyle(), loadConversations()])
-        .then(([module, style, list]) => {
+    if ((thread || (host.options.chatFirst && (host.policy?.chatFirst || host.policy?.singleConversation))) && !conversation && !conversationFailed) {
+      conversationLoad ??= Promise.all([loadConversation(), loadConversationStyle(), loadConversations(), loadDrawer()])
+        .then(([module, style, list, drawer]) => {
+          prepareDrawer = drawer.prepareDrawer;
           conversation = module;
           conversationStyle = style.CONVERSATION_STYLE;
           conversations = list;
@@ -143,8 +146,8 @@ export const welcome = {
       void conversationLoad.then(() => host.render()); return;
     }
     if (conversation?.chatFirstControls(host, parent, peopleView, handedOff, busy, conversationStyle, conversations)) {
-      if (host.options.decorateOwnMenu && host.policy?.templLeadCapture &&
-        host.options.container && location.origin === "https://usetempl.com") {
+      if (host.options.conversationDrawers) prepareDrawer?.(host, parent);
+      if (host.options.decorateOwnMenu && host.options.container && host.policy?.hosted) {
         const update = decoratedMenus.get(host) ?? host.options.decorateOwnMenu(host, parent);
         decoratedMenus.set(host, update);
         update();
@@ -212,8 +215,10 @@ export const welcome = {
       const trust = el("ul", undefined, "trust");
       for (const [strong, rest] of [
         [
-          "Private.",
-          ` Only you, any AI agent the team adds and ${host.options.label ? `${host.options.label}'s` : "the app's"} support team, including people who answer for them, can read this chat.`,
+          "Who can read this chat.",
+          host.policy?.chatMode === "encrypted"
+            ? " The devices and services your team approves can read messages."
+            : " The support team and the server operator can read Standard messages. An authorized AI can process the text it receives.",
         ],
         ["No transaction.", " Signing in is free and can’t move funds."],
         ["Return with this wallet.", " Sign in again to see replies."],

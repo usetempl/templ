@@ -64,6 +64,23 @@ export async function saveSupportProfile(
       throw new HttpError(400, "Upload a support profile photo first.");
     next[role].image = body.image as string | null;
   }
+  if (role === "founder" && body.teamLink !== undefined) {
+    if (body.teamLink === null) delete next.teamLink;
+    else {
+      const value = body.teamLink as { name?: unknown; website?: unknown };
+      if (typeof value.name !== "string" || typeof value.website !== "string")
+        throw new HttpError(400, "Enter a team name and its HTTPS website.");
+      const name = value.name.normalize("NFKC").trim();
+      if (!name || Array.from(name).length > 48 || hasHiddenCharacters(name))
+        throw new HttpError(400, "Enter a team name of up to 48 visible characters.");
+      let site: URL;
+      try { site = new URL(value.website); } catch { throw new HttpError(400, "Enter the team's HTTPS website."); }
+      if (site.protocol !== "https:" || site.username || site.password || site.search || site.hash ||
+          site.pathname !== "/" || !site.hostname.includes(".") || value.website.length > 2048)
+        throw new HttpError(400, "Enter an HTTPS website such as https://example.com.");
+      next.teamLink = { name, website: site.origin };
+    }
+  }
   if (body.assistantEnabled !== undefined) {
     if (role !== "assistant" || typeof body.assistantEnabled !== "boolean")
       throw new HttpError(400, "Choose whether the assistant can answer.");

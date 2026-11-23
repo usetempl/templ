@@ -14,6 +14,15 @@ import styles from "./app-theme.module.css";
 export function AppTheme() {
   const pathname = usePathname();
   useEffect(() => subscribeAppTheme(() => {}), [pathname]);
+  useEffect(() => {
+    const select = (event: Event) => {
+      if (!(event.target instanceof HTMLElement) || !event.target.hasAttribute("data-templ-site-appearance")) return;
+      const choice = (event as CustomEvent).detail;
+      if (choice === "light" || choice === "dark") setAppTheme(choice);
+    };
+    document.addEventListener("templ:visitor-appearance", select);
+    return () => document.removeEventListener("templ:visitor-appearance", select);
+  }, []);
   return null;
 }
 

@@ -1,5 +1,5 @@
-// Generated from apps/web/public/chief.md, usetempl/chief v0.8.1.
-// Source 14460657ab0f29036a0e3e57accb25c86d3f72c3. Legacy fragment IDs preserve bookmarks.
+// Generated from apps/web/public/chief.md, usetempl/chief v0.9.3.
+// Source 2cbf2aa3435e5290f4c0c77899df0f074c4d84d4. Legacy fragment IDs preserve bookmarks.
 import styles from "./page.module.css";
 
 export function ChiefGuide() {
@@ -8,7 +8,11 @@ export function ChiefGuide() {
       <h1 id="chief-by-templ">{"Chief by Templ"}</h1>
 
       <p>
-        {"Your AI chief of staff. One private board for all your projects."}
+        {"Chief by "}
+        <a href="https://usetempl.com">{"Templ"}</a>
+        {
+          " tracks your projects on one private board in Codex or Claude Code. You set the goal. Chief passes it to the project lead and brings back their result or question. The lead decides how to do the work, what to test and when to ship within your authorization."
+        }
       </p>
 
       <ol>
@@ -29,17 +33,21 @@ export function ChiefGuide() {
         </li>
         <li>
           <p>
-            <strong>{"Ask for work in that conversation."}</strong>
+            <strong>{"Give Chief a task."}</strong>
             {
-              " Give Chief a goal and any release limits. Chief can send the brief to the existing lead through a supported native tool and bring the result back to you."
+              " State the outcome and any release limits. Chief sends the brief to the existing project lead. Open that lead under "
+            }
+            <strong>{"Pinned"}</strong>
+            {
+              " in Codex to follow the work. Claude leads have a Codex relay to their existing conversation."
             }
           </p>
         </li>
         <li>
           <p>
-            <strong>{"Continue from another device."}</strong>
+            <strong>{"Read the same chats from your phone or tablet."}</strong>
             {
-              " Use a supported, authenticated connection to the host. Open the same conversation and verify that a message sent from the device gets an answer there. "
+              " Pair the device with the host, open a pinned lead and check a known message. "
             }
             <a href="#connect-another-device">{"Device setup"}</a>
           </p>
@@ -66,8 +74,7 @@ export function ChiefGuide() {
       </p>
 
       <p>
-        <a href="https://github.com/usetempl/chief">{"Source and versions"}</a>
-        {" · Guide version 0.8.1"}
+        <a href="https://github.com/usetempl/chief">{"Chief source"}</a>
       </p>
 
       <p>
@@ -78,13 +85,17 @@ export function ChiefGuide() {
         <a href="#connect-another-device">{"Connect another device"}</a>
         {" · "}
         <a href="#core-instructions">{"Core instructions"}</a>
+        {" · "}
+        <a href="#workspace-instructions">{"Workspace instructions"}</a>
+        {" · "}
+        <a href="#private-relays">{"Private relays"}</a>
       </p>
 
       <h2 id="start-your-own-chief">{"Start your own Chief"}</h2>
 
       <p>
         {
-          "Use your signed-in Codex or Claude Code on the computer that holds your private board. If you already have a Chief conversation, open it in that workspace and follow the upgrade instructions below."
+          "Open your existing Chief chat in the signed-in desktop app on the computer that will host your projects. For a first installation, open a workspace that Chief can keep private."
         }
       </p>
 
@@ -95,102 +106,106 @@ export function ChiefGuide() {
 
       <ol>
         <li>
-          {"Obtain the "}
+          {"Get the "}
           <a href="https://github.com/usetempl/chief">{"public source"}</a>
-          {" through your existing file or Git tools. If Git is available, "}
+          {". With Git, run "}
           <code>
             {"git clone https://github.com/usetempl/chief.git chief-source"}
           </code>
-          {
-            " creates a fresh source checkout. You can also read the guides directly in the app."
-          }
-        </li>
-        <li>
-          {"Create a separate, private workspace. Copy the "}
-          <a href="#core-instructions">{"core instructions"}</a>
-          {" to "}
-          <code>{"COORDINATOR.md"}</code>
-          {". In "}
-          <code>{"AGENTS.md"}</code>
-          {" for Codex or "}
-          <code>{"CLAUDE.md"}</code>
-          {
-            " for Claude Code, tell the app to read those instructions during onboarding and return to them when a rule is in question. Create "
-          }
-          <code>{"projects.md"}</code>
-          {", "}
-          <code>{"priorities.md"}</code>
-          {" and six folders under "}
-          <code>{"tasks/"}</code>
-          {" named "}
-          <code>{"backlog"}</code>
-          {", "}
-          <code>{"todo"}</code>
-          {", "}
-          <code>{"doing"}</code>
-          {", "}
-          <code>{"blocked"}</code>
-          {", "}
-          <code>{"review"}</code>
-          {" and "}
-          <code>{"done"}</code>
           {"."}
         </li>
         <li>
           {
-            "Offer the user a nickname. Ask separately before inspecting project conversation history. With consent, read the minimum needed to identify projects and existing owners. Otherwise, use the context the user supplies. List owners and priorities for the user to accept or correct. Mark any gaps."
+            "From the source checkout, run the command below. It prepares an unused directory and prints how to open it. To set up by hand, copy the "
           }
+          <a href="#workspace-instructions">{"workspace instructions"}</a>
+          {" to both "}
+          <code>{"AGENTS.md"}</code>
+          {" and "}
+          <code>{"CLAUDE.md"}</code>
+          {" and the "}
+          <a href="#core-instructions">{"core instructions"}</a>
+          {" to "}
+          <code>{"COORDINATOR.md"}</code>
+          {". Create "}
+          <code>{"projects.md"}</code>
+          {", "}
+          <code>{"priorities.md"}</code>
+          {" and the six task folders listed in the core instructions."}
         </li>
         <li>
           {
-            "Open or continue one Chief conversation in that workspace. Save the accepted inventory and carry out one small, authorized request. Record the result on its card and return it to the user in the same conversation. If a native tool cannot reach an owner, identify the missing access and keep the assignment with that owner."
+            "Open that private workspace in the app. Choose a name for Chief and decide whether it may consult project history. Approve or correct the proposed projects and their existing owners. Record each project's release and access limits."
+          }
+        </li>
+        <li>
+          {"In Codex, set the follow-up behavior to "}
+          <strong>{"Steer"}</strong>
+          {
+            ". Give Chief a small task for one of the leads. Open the lead under "
+          }
+          <strong>{"Pinned"}</strong>
+          {
+            " in Codex. Check that an idle lead starts in the same chat and a follow-up reaches a busy lead’s active turn. Work in progress is 🟡. After delivery, the pin turns 🟢 for review. If the lead needs an action from you, the pin turns 🔴. Tell Chief explicitly when the assignment is done."
           }
         </li>
       </ol>
 
-      <p>
-        {
-          "If Python 3.9 or later is available, this optional command prepares the files in step 2 from a source checkout."
-        }
-      </p>
-
       <pre>
         <code data-language="sh">
           {
-            "python3 onboard.py --directory ../chief-private --driver codex --history no --no-start\n"
+            "python3 onboard.py --directory ../chief-private --driver codex --history no\n"
           }
         </code>
       </pre>
 
       <p>
-        {"For Claude Code, use "}
-        <code>{"--driver claude"}</code>
         {
-          ". The helper requires an unused destination. It creates the private board without reading conversation history or starting a model. Open that workspace in the app and ask Chief to read "
+          "The helper requires Python 3.9 or later. It prepares files without launching a model. Use "
         }
-        <code>{"COORDINATOR.md"}</code>
-        {" to continue."}
+        <code>{"--driver claude"}</code>
+        {" if Claude Code hosts Chief. Use "}
+        <code>{"--start"}</code>
+        {
+          " only when you want a terminal conversation for the new workspace. Keep Codex lead chats on the desktop app that your phone or tablet can reach."
+        }
       </p>
 
       <p>
         {
-          "Incident remediation has no standing grant at setup. To opt in, the operator can write the exact scope into the private "
+          "Use the Codex app’s chat and sidebar tools to manage pins. For a Claude lead, Chief registers one Codex relay to the existing Claude conversation. Verify the app can read a known message from each lead. Pair a phone or tablet to the host and check a known message there too. "
         }
+        <a href="#connect-another-device">{"Connect a device"}</a>
+        {" · "}
+        <a href="#reach-a-claude-lead-from-codex">{"Claude relay setup"}</a>
+      </p>
+
+      <p>
+        {
+          "For Telegram or another app, use your own host adapter and follow the "
+        }
+        <a href="#private-relays">{"private relay guide"}</a>
+        {"."}
+      </p>
+
+      <p>
+        {"To grant standing incident authority, record the scope in private "}
         <code>{"priorities.md"}</code>
-        {" or supply "}
+        {" or pass "}
         <code>{"--incident-grant-file FILE"}</code>
-        {" during setup. Use separate "}
+        {" during setup. Include nonempty "}
         <code>{"Project:"}</code>
         {", "}
         <code>{"Target:"}</code>
         {" and "}
         <code>{"Actions:"}</code>
         {
-          " lines in the file. Include every restriction and notice or approval term. The helper saves that text in the new workspace. Both drivers use the same core guide."
+          " fields, plus any limits or notification terms. The operator grants production authority separately for each scope."
         }
       </p>
 
-      <h3 id="upgrade-an-existing-chief">
+      <h3 id="maintain-an-existing-workspace">
+        <span aria-hidden="true" id="upgrade-an-existing-chief" />
         <span aria-hidden="true" id="add-telegram" />
         <span aria-hidden="true" id="start-in-your-codex" />
         <span aria-hidden="true" id="windows-first" />
@@ -200,50 +215,19 @@ export function ChiefGuide() {
         <span aria-hidden="true" id="weekly-maintenance" />
         <span aria-hidden="true" id="existing-thread-advance-notice" />
         <span aria-hidden="true" id="recovery" />
-        {"Upgrade an existing Chief"}
+        {"Maintain an existing workspace"}
       </h3>
 
       <p>
         {
-          "Version 0.8.0 removes the Telegram service and its local relay commands. The same Markdown board and owner records work in the native conversation."
+          "Open its registered Chief conversation. Compare its startup instructions with the "
         }
-      </p>
-
-      <ol>
-        <li>
-          {
-            "Keep a private backup of the existing workspace, including any old service records you need. Review pending actions and unconfirmed deliveries before moving a request to the new conversation. An uncertain delivery still needs evidence before a retry."
-          }
-        </li>
-        <li>
-          {
-            "If the old service is running, arrange a handover with its operator. Let active work finish, then stop its collector and disable its automatic startup using the service manager that runs it. This releases its hold on the Chief conversation. Updating this source checkout alone does not stop an installed service."
-          }
-        </li>
-        <li>
-          {
-            "Open the existing conversation and workspace in the signed-in app. In its private operating instructions, replace directions for the retired service with instructions to read the original cards, send briefs using native owner tools, and answer in this conversation. Preserve the workspace’s own permissions, project owners and release rules. Prior enrollment alone does not grant access through the app."
-          }
-        </li>
-        <li>
-          {
-            "Ask for the open board and check a known card and its owner. For a phone or another computer, verify a round trip through the "
-          }
-          <a href="#connect-another-device">{"device guide"}</a>
-          {". Keep old records private for any outstanding reconciliation."}
-        </li>
-      </ol>
-
-      <p>
+        <a href="#workspace-instructions">{"workspace instructions"}</a>
+        {" and "}
+        <a href="#core-instructions">{"core guide"}</a>
         {
-          "When updating an existing workspace, compare its operating instructions with the current core guide. Carry any private operating choices and explicit grants into its private records before replacing stock guidance. Remove a template-only incident exception. Retain explicit standing grants, their targets, limits and notification terms. Keep the existing priorities and task cards in place. The setup helper refuses an existing workspace."
+          ". Use the same division of work in an existing installation. Each lead makes its project decisions. Chief tracks the assignment and relays the lead’s result or question. Check that leads receive briefs immediately in their existing conversations. Retain explicit standing grants, their targets, limits and notice terms. Preserve cards and personal sidebar choices. Check the open board and a known lead message in the app. The helper requires a new directory for a fresh installation."
         }
-      </p>
-
-      <p>
-        <a href="#core-instructions">{"Core instructions"}</a>
-        {" · "}
-        <a href="#use-dot-or-mobile">{"Using a phone"}</a>
       </p>
 
       <h2 id="use-dot-or-mobile">{"Use Dot or mobile"}</h2>
@@ -274,9 +258,9 @@ export function ChiefGuide() {
 
       <p>
         {
-          "If the app says another session is using the conversation, finish the active turn on the host and release its session before retrying. An installation moving from an earlier Chief version may also need the "
+          "Select the host in Codex and open a pinned lead. Check that you can read a known message from its history. If the app shows a blank thread or reports a competing session, follow the "
         }
-        <a href="#upgrade-an-existing-chief">{"upgrade steps"}</a>
+        <a href="#check-a-lead-that-will-not-open">{"connection checks"}</a>
         {"."}
       </p>
 
@@ -309,6 +293,34 @@ export function ChiefGuide() {
         <a href="#use-dot-or-mobile">{"Phone instructions"}</a>
       </p>
 
+      <p>
+        {
+          "On a paired phone or tablet, select the computer hosting Codex. Under Pinned, open each active lead and check a known message. For a Claude lead, open its registered Codex relay and match a reply from the producer. The host must be awake and reachable."
+        }
+      </p>
+
+      <h3 id="check-a-lead-that-will-not-open">
+        {"Check a lead that will not open"}
+      </h3>
+
+      <ol>
+        <li>
+          {
+            "Match the project and thread on the host. Read a known older message through the desktop app as well as the latest turn. A visible title confirms only the sidebar entry."
+          }
+        </li>
+        <li>
+          {
+            "If another session holds that thread, let its active work finish. Release the competing session at a safe point and open the same thread in the desktop app. Use that app for subsequent handoffs."
+          }
+        </li>
+        <li>
+          {
+            "If the host cannot read a known message, check the signed desktop app and its reader for a compatible update. Save pending work before relaunching. Verify the same message on the host, then on the paired device. Keep that device marked unverified until the message opens there."
+          }
+        </li>
+      </ol>
+
       <h3 id="assign-project-work-to-a-device">
         <span aria-hidden="true" id="choose-where-work-runs" />
         {"Assign project work to a device"}
@@ -338,6 +350,21 @@ export function ChiefGuide() {
         {
           "Conversation access and permission to execute work are separate checks. If either fails, tell the user which capability is missing."
         }
+      </p>
+
+      <p>
+        {
+          "To replace the host, restore the private board and project sources, remap workspace paths and restore authorized session data using a private transfer. Pair the new host and sign in to each required service. Stop intake on the old host, reconcile pending deliveries and check a harmless round trip to each original owner before cutover. Keep local-only assets and saved drafts on the old host until the operator verifies the new copy."
+        }
+      </p>
+
+      <p>
+        {
+          "For a teammate who uses a separate messaging account, the relay guide shows how to pair that account, forward a short request into Chief and return its answer. "
+        }
+        <a href="https://github.com/usetempl/chief/blob/main/docs/relays.md">
+          {"Build a relay with Telegram"}
+        </a>
       </p>
 
       <p>
@@ -382,11 +409,7 @@ export function ChiefGuide() {
 
       <p>
         {
-          "Propose the initial board, priorities and existing owners once for acceptance or correction. Mark unknowns and unavailable tools. Keep the accepted work or hobby classification on the card. For a business project, propose a short "
-        }
-        <code>{"business.md"}</code>
-        {
-          " with its purpose, stage, customers and available revenue or product-fit evidence. Save accepted context and begin already authorized work. Check one requested outcome and record its evidence. Parked work requires a new request. Do not create a replacement owner merely because routing is unavailable."
+          "Propose an initial board with the existing projects, their owners and the priorities the user supplied. Let the user correct it. Send the first authorized task to its lead and record the lead’s reply. Parked work requires a new request. If a lead is unreachable, keep the assignment with that lead."
         }
       </p>
 
@@ -400,12 +423,12 @@ export function ChiefGuide() {
         </li>
         <li>
           {
-            "Keep one continuing owner per project. Send one concise brief containing the goal, relevant constraints and evidence. The owner handles implementation, specialists, tests and release within the user's authorization."
+            "Send the goal and the user’s constraints once to the existing lead. The lead decides how to do the work, which specialists to involve, what to test and when an authorized release is ready."
           }
         </li>
         <li>
           {
-            "Keep routine technical work with the owner. Return completed outcomes, real blockers or consequential decisions to the user. Do not poll idle leads, create extra managers or equate a queued request with completion."
+            "Use the lead’s own report to update the board and share the result or blocker. An independent check is a separate task only if the user requests it. Resume on a result, a question or new user input."
           }
         </li>
         <li>
@@ -420,12 +443,7 @@ export function ChiefGuide() {
         </li>
         <li>
           {
-            "Acknowledge uncertainty accurately. Built, tested, deployed and accepted are different. Preserve ambiguous operation/delivery outcomes; do not blindly repeat them."
-          }
-        </li>
-        <li>
-          {
-            "Keep work focused. Test the changed behavior and consequential realistic failures. Broaden checks only when new evidence warrants it."
+            "Report the stage the lead reached and any uncertainty they mention. An ended turn leaves the assignment open until the lead reports an outcome."
           }
         </li>
         <li>
@@ -443,7 +461,7 @@ export function ChiefGuide() {
         </li>
         <li>
           {
-            "Follow the user's established release and access boundaries. Prepare a concrete reviewable result before asking for a decision. Do not repeatedly request permission already granted."
+            "Follow the user's established release and access boundaries. Forward the lead’s review link or the specific decision they need. Existing grants still apply."
           }
         </li>
         <li>
@@ -453,7 +471,7 @@ export function ChiefGuide() {
         </li>
         <li>
           {
-            "Preserve the requested scope without imposing time, token or response limits. Prepare a local or staging preview when a release needs review. Keep each project owner's browser work in its authorized tab and profile."
+            "Preserve the requested scope without imposing time, token or response limits. Each lead uses its authorized project workspace, browser tab and profile."
           }
         </li>
       </ul>
@@ -462,7 +480,7 @@ export function ChiefGuide() {
 
       <p>
         {
-          "A production change, including incident remediation, requires an explicit operator grant covering this project, target and action. For a routine release, get approval for the exact change and target unless a standing grant already covers them. Follow the grant's limits, notification requirements and approvals. A confirmed incident alone grants no permission to make changes. Without a matching grant, record the impact, proposed fix and exact decision needed. During an update, preserve existing explicit grants and their limits in the private workspace."
+          "A production change, including incident remediation, requires an explicit operator grant covering this project, target and action. The lead follows the grant’s limits, notification requirements and approvals. If a release needs a new decision, Chief relays the lead’s question to the operator. A confirmed incident alone grants no permission to make changes. If a grant is missing, record the impact and decision the lead reports. During an update, preserve existing explicit grants and their limits in the private workspace."
         }
       </p>
 
@@ -492,14 +510,26 @@ export function ChiefGuide() {
       </p>
 
       <p>
+        {
+          "Deliver the brief immediately. Steer the lead’s active turn or start a turn in the same conversation if it is idle. Use a transport that supports both actions. If the writer cannot accept the brief, record the specific blocker on the original card."
+        }
+      </p>
+
+      <p>
         {"In Codex, use "}
         <code>{"send_message_to_thread"}</code>
         {
-          " when available for the verified owner and host and the human has explicitly authorized messaging that task. Use "
+          " when it uses immediate delivery and the human has explicitly authorized messaging that task. Use the registered host and thread. When the desktop app owns the conversation, send through that app. Use "
         }
         <code>{"read_thread"}</code>
         {
-          " to check the accepting turn and its result. In Claude Code, use an available, authorized messaging interface that addresses the existing owner. Either driver can recover through the card on the owner's next authorized visit if they already have access. Give the owner the card reference, assignment key and exact return label. If the owner cannot access the card or conversation, record the missing access and leave the assignment pending."
+          " to check the accepting turn and its result. In Claude Code, use an authorized messaging interface that addresses the existing owner."
+        }
+      </p>
+
+      <p>
+        {
+          "Keep one message ID across a change from steer to start. Start only after the writer confirms that the active turn ended before it accepted the brief. If delivery is unavailable, the owner can accept the saved brief on their next authorized visit. Give them the original card link if they have access."
         }
       </p>
 
@@ -511,7 +541,7 @@ export function ChiefGuide() {
         }
         <strong>{"unconfirmed"}</strong>
         {
-          ". Read the existing owner turn or card before taking further action. Retry a send only after evidence of refusal and a new opportunity to reach the owner. The owner can also accept the saved brief from the card. Chief normally records that acceptance and reads the result from the owner's turn. An owner may edit the card only with existing write authority. Match the owner, assignment key and accepting turn or equivalent evidence. When requests share a turn, require a labelled result for each. Return the saved result to the original requester within their authority. Record human delivery separately."
+          ". Read the existing owner turn or card before taking further action. Retry a send only after evidence of refusal and a new opportunity to reach the owner. Chief records acceptance and reads the lead’s normal reply. A completion notice only points to that reply. When a turn covers several requests, record only the outcomes the reply clearly addresses and leave the others open. Relay each result to its original requester within their authority."
         }
       </p>
 
@@ -537,11 +567,11 @@ export function ChiefGuide() {
         {" or "}
         <code>{"retry"}</code>
         {
-          " reserves one native send. If the first send succeeds, accept attempt 1 directly. If the owner takes the refused brief from the card, accept attempt 1 there. Start the outcome with the exact "
+          " reserves one native send. If the first send succeeds, accept attempt 1 directly. If the owner takes the refused brief from the card, accept attempt 1 there. When filing a matched result with the helper, Chief puts its "
         }
         <code>{"return_label"}</code>
         {
-          " from the helper on its own line. Repeating a return preserves the result. Use "
+          " above the lead’s reply in the local input file. Repeating a return preserves the result. Use "
         }
         <code>{"status"}</code>
         {
@@ -549,11 +579,106 @@ export function ChiefGuide() {
         }
       </p>
 
+      <h3 id="lead-chats-in-codex">{"Lead chats in Codex"}</h3>
+
+      <p>
+        {
+          "Set up each approved lead once. Use the desktop app to identify its original project, host and thread. Read a known message through that app and match it to the project. Record the thread, its base title and its original sidebar section in private "
+        }
+        <code>{"projects.md"}</code>
+        {
+          ". For a Claude owner, register one inexpensive Codex relay to the original Claude session and check a reply in both. When a phone or tablet is paired, open the same lead there and check its history. Record which device you verified."
+        }
+      </p>
+
+      <p>
+        {
+          "At setup and after each assignment, blocker, delivery or closure, read all open cards for the same owner. Apply the first matching row to the lead’s chat. For a Claude relay, use the producer’s actual assignment and outcome. Forwarding a request leaves production in progress."
+        }
+      </p>
+
+      <div className={styles.table}>
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">{"Pin"}</th>
+              <th scope="col">{"When to use it"}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>{"🔴"}</td>
+              <td>
+                {
+                  "The operator must answer a question or take an action before work can proceed. Name the action on the card."
+                }
+              </td>
+            </tr>
+            <tr>
+              <td>{"🟡"}</td>
+              <td>
+                {
+                  "The lead is working. An older result can still be available for review."
+                }
+              </td>
+            </tr>
+            <tr>
+              <td>{"🟢"}</td>
+              <td>
+                {
+                  "The lead has delivered a result to a named reviewer and has no work in progress or operator blocker."
+                }
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>
+        {
+          "If work depends on someone else and no other row applies, keep the assignment yellow and name the resolver on the card. Parked ideas and future tasks alone receive no status pin."
+        }
+      </p>
+
+      <p>
+        {"Use "}
+        <code>{"list_threads"}</code>
+        {" to check the registered thread. Use "}
+        <code>{"set_thread_title"}</code>
+        {" to prefix the saved base title with one color. Use "}
+        <code>{"move_thread_to_sidebar_section"}</code>
+        {" with section "}
+        <code>{"pinned"}</code>
+        {
+          " if needed. Read back the title and pin. Keep the original section in the registry across color changes. After the operator explicitly closes the last assignment, restore the base title and original section. Keep a personal pin in place. Retain the owner and thread for the next assignment. When an app tool is unavailable, keep the correct state on the card and record which sidebar action is pending."
+        }
+      </p>
+
+      <p>
+        {"From the source checkout, "}
+        <code>
+          {
+            'python3 runtime/alfred_report.py --root ../chief-private pin "Demo"'
+          }
+        </code>
+        {
+          " reads the color for a project. Pass all project names registered to the same lead. Use the exact "
+        }
+        <code>{"Project:"}</code>
+        {" name on each card and "}
+        <code>{"Resolver: operator"}</code>
+        {" for input only the operator can supply. Use "}
+        <code>{"--operator NAME"}</code>
+        {" if a card names the operator directly."}
+      </p>
+
       <h3 id="durable-records">{"Durable records"}</h3>
 
       <p>
         <code>{"projects.md"}</code>
-        {": project, purpose, existing owner and repository/workspace pointer."}
+        {
+          " records the project, purpose, owner, workspace and app thread. For a Claude lead, record both the producer and its Codex relay."
+        }
       </p>
 
       <p>
@@ -630,7 +755,7 @@ export function ChiefGuide() {
               </td>
               <td>
                 {
-                  "A verified outcome with completion evidence and any required human acceptance."
+                  "An assignment the operator explicitly closed. Keep the lead’s result and the operator’s decision."
                 }
               </td>
             </tr>
@@ -656,17 +781,7 @@ export function ChiefGuide() {
 
       <p>
         {
-          "A running owner, pending agent work or an unperformed extra review is not a blocker. An actually required external input or shared-resource release can be blocked when its missing item and resolver are named. Completed output moves to "
-        }
-        <code>{"review"}</code>
-        {" (or "}
-        <code>{"done"}</code>
-        {
-          ") when it is delivered, even if an automatic callback failed. Canceled work leaves "
-        }
-        <code>{"doing"}</code>
-        {
-          ". Delivery holds are only the user's release/account authority, a human sign-in, a cost limit, real data preservation, privacy or a reproducible failure of the requested main flow. Do not add unrequested reviews, synthetic suites, case counters, reporting loops or dependencies that are already satisfied. Repeat checks only after a failure or material change."
+          "Keep work in Doing while the lead works. For a blocker, record what the lead needs and who can supply it. When the lead says the result is ready for review, move the card to Review and name the reviewer. Only the operator closes an assignment. Record cancellations on the original card."
         }
       </p>
 
@@ -751,12 +866,20 @@ export function ChiefGuide() {
       </pre>
 
       <p>
+        {"For Done, pass "}
+        <code>{"--closure-ref"}</code>
         {
-          "When the operator requests a due Todo occurrence, check its authority and move the card to Doing as work starts. Complete it from Doing or its later review or completion column after verifying the result. Use "
+          " with a private reference to the operator’s close instruction. A delivery receipt alone keeps the card in Review."
+        }
+      </p>
+
+      <p>
+        {
+          "When the operator requests a due Todo occurrence, check its authority and move the card to Doing as work starts. Record completion when the assigned owner reports the outcome. Use "
         }
         <code>
           {
-            'python3 runtime/alfred_tasks.py complete CARD --expected-run TIME --outcome "Verified result"'
+            'python3 runtime/alfred_tasks.py complete CARD --expected-run TIME --outcome "Result from the assigned owner"'
           }
         </code>
         {". The card needs "}
@@ -790,8 +913,203 @@ export function ChiefGuide() {
 
       <p>
         {
-          "Keep operational records in private storage outside the public source. Keep credentials and account sessions out of Git. Review the relevant file changes before backing up to a verified private destination. Keep each lead in its own browser tab and authorized profile. If a native owner handoff ends without an answer, consult the existing owner and its saved work before retrying."
+          "Keep operational records in private storage outside the public source. Keep credentials and account sessions out of Git. Review the relevant file changes before backing up to a verified private destination. Keep each lead in its own browser tab and authorized profile. If a handoff has no recorded answer, leave it open and recover the existing exchange before any retry."
         }
+      </p>
+
+      <h2 id="workspace-instructions">{"Workspace instructions"}</h2>
+
+      <p>
+        {
+          "Work in the existing Chief conversation. Read COORDINATOR.md during setup and when a rule is in question. After a context reset, use projects.md, priorities.md and the open cards to recover each assignment and its recipient."
+        }
+      </p>
+
+      <p>
+        {
+          "Send the user's goal and constraints once to the registered lead. Steer an active turn or start an idle turn in the same conversation. If delivery is unavailable, record the specific blocker on the original card. The lead makes project decisions and owns implementation, testing and release within the sender's authority. Update the card from the lead's own report. Pass on the result, any limits the lead reported, or a question the user needs to answer. A separate review requires a user request."
+        }
+      </p>
+
+      <p>
+        {
+          "If a turn ends, read its saved reply. An assignment with no reported outcome stays open. Check an uncertain handoff against its receipt before retrying. Keep credentials out of Git."
+        }
+      </p>
+
+      <p>
+        {
+          "On setup and whenever an assignment changes, update the lead's chat in the Codex app. Use its registered host and thread. Keep the desktop app as its only writer. For a Claude lead, use one Codex relay to the existing Claude session. Its color follows Claude's work."
+        }
+      </p>
+
+      <p>
+        {
+          "Pin 🔴 when the operator must act, 🟡 while work proceeds, or 🟢 when a result is ready for review, in that priority order. Check all open cards for the lead. Only the operator can close an assignment. After the last one closes, remove Chief's color and pin. Keep the owner registered and preserve personal pins. Verify the sidebar change in the app."
+        }
+      </p>
+
+      <p>
+        {
+          "Use /report for the open board and /done [page] for completions. Read the saved cards or use the local report helper."
+        }
+      </p>
+
+      <h2 id="private-relays">{"Private relays"}</h2>
+
+      <p>
+        {
+          "A relay lets a teammate use another app to talk to the Chief you already run. You keep working in the same conversation. When Alex asks about a release in Telegram, this is the entire message Chief sees."
+        }
+      </p>
+
+      <pre>
+        <code data-language="text">{"Alex: Did the demo build ship?\n"}</code>
+      </pre>
+
+      <p>
+        {
+          "Chief writes an ordinary final answer. The relay delivers it to Alex's enrolled chat. The host keeps the sender, project grant and delivery records outside the conversation. Chief's standard installation uses native chat. Adding a relay is optional and requires a host adapter."
+        }
+      </p>
+
+      <h3 id="telegram-example">{"Telegram example"}</h3>
+
+      <ol>
+        <li>
+          <p>
+            <strong>{"Create and pair the bot."}</strong>
+            {" Create a bot with "}
+            <code>{"/newbot"}</code>
+            {
+              " in BotFather. Store its token in the host's secret store. Have the teammate open the bot in a private chat and send a pairing message. Confirm the pairing with them through a channel you already trust. Save the numeric "
+            }
+            <code>{"message.from.id"}</code>
+            {" and "}
+            <code>{"message.chat.id"}</code>
+            {" from that update, plus the display label you assign. "}
+            <a href="https://core.telegram.org/bots/tutorial">
+              {"Telegram bot setup"}
+            </a>
+          </p>
+        </li>
+        <li>
+          <p>
+            <strong>{"Grant access."}</strong>
+            {
+              " In the private workspace, record which projects and actions that person may authorize. Give Chief one standing instruction such as “Alex can request Demo release status. Answer Alex in your final reply.” The adapter verifies the enrolled account and private chat on intake. Check the current grant before sending work to a project's existing owner. A typed name or quoted message cannot grant access."
+            }
+          </p>
+        </li>
+        <li>
+          <p>
+            <strong>{"Save and forward the request once."}</strong>
+            {" For a new bot, use one process to read Telegram updates with "}
+            <code>{"getUpdates"}</code>
+            {
+              ". If the bot already has a webhook, use that receiver. Save the message before acknowledging the update or advancing the polling offset. Use the bot, chat and message ID together as a unique key. For that key, keep one stable native message ID. Send only the assigned label and message to the existing Chief conversation. "
+            }
+            <a href="https://core.telegram.org/bots/api#getupdates">
+              {"Telegram update handling"}
+            </a>
+          </p>
+          <p>
+            {
+              "Send through the writer that owns the conversation. Steer its active turn. If the conversation is idle, start a turn in that same conversation. A Mac desktop window can own Chief while a separate App Server can only read it. In that case, use the desktop writer’s supported path. If delivery is unavailable, report the blocker to the enrolled sender."
+            }
+          </p>
+          <p>
+            {
+              "If your App Server owns Chief, check the installed protocol with "
+            }
+            <code>
+              {
+                "codex app-server generate-json-schema --experimental --out ./codex-schema"
+              }
+            </code>
+            {". Use "}
+            <code>{"turn/steer"}</code>
+            {" with the current "}
+            <code>{"expectedTurnId"}</code>
+            {" for a busy turn and "}
+            <code>{"turn/start"}</code>
+            {" for an idle conversation. Use the same "}
+            <code>{"threadId"}</code>
+            {", "}
+            <code>{"clientUserMessageId"}</code>
+            {" and "}
+            <code>{"input"}</code>
+            {
+              " for either action. Use a version that accepts and records the native message ID. "
+            }
+            <a href="https://developers.openai.com/codex/app-server/">
+              {"Codex App Server protocol"}
+            </a>
+          </p>
+          <p>
+            {
+              "If the writer confirms the active turn ended before it accepted the input, start a turn with the same message ID. If the writer’s receipt is missing, look up the saved message ID in native history before any retry. Keep the enrollment and grant with the saved request."
+            }
+          </p>
+        </li>
+        <li>
+          <p>
+            <strong>{"Return the answer."}</strong>
+            {
+              " Match the completed native turn to the saved message ID and its original text. Send the final answer only if the turn contains that single user message. For a turn with other input, use a separate reply bound to the saved request. Recheck enrollment and send to the saved chat with "
+            }
+            <code>{"sendMessage"}</code>
+            {
+              ". Store Telegram's returned message ID as the delivery receipt. If Telegram lost an acknowledgment, reconcile the saved request before retrying. "
+            }
+            <a href="https://core.telegram.org/bots/api#sendmessage">
+              {"Telegram message delivery"}
+            </a>
+          </p>
+        </li>
+        <li>
+          <p>
+            <strong>{"Try it with a test account."}</strong>
+            {
+              " Send a harmless question while Chief is idle. Check that it starts in the same conversation. Send another while Chief is working on a request. Check that it reaches the active turn and its private reply contains only the test account’s answer. Restart the adapter and present the same update again. Check that each request produces one native input and one Telegram reply. Type the same words directly in Chief and check that the private answer stays there. Revoke the test account and check that its next message cannot start work."
+            }
+          </p>
+        </li>
+      </ol>
+
+      <p>
+        {
+          "For another channel, replace the account pairing, incoming message reader and reply API. The same private grants and native request matching still apply. If the host lacks a supported way to deliver immediately and identify the accepting turn, use the "
+        }
+        <a href="#connect-another-device">{"native device connection"}</a>
+        {" until those capabilities are available."}
+      </p>
+
+      <h3 id="reach-a-claude-lead-from-codex">
+        {"Reach a Claude lead from Codex"}
+      </h3>
+
+      <p>
+        {
+          "For each Claude lead the operator assigns, use one Codex relay. Record both conversations, the host, the project folder and the producer’s model in the private registry. Use an inexpensive forwarding model at low effort, such as Terra at Low when the host offers it. Keep creative and technical decisions with the original Claude lead."
+        }
+      </p>
+
+      <p>
+        {
+          "Save a private receipt before forwarding. Send active follow-ups through Claude’s open desktop session if it owns the chat. For an idle CLI session, use "
+        }
+        <code>{"claude --resume SESSION_ID"}</code>
+        {
+          " in its project folder. Match the response to the original request and return its text and review links in the same Codex chat. Reconcile uncertain delivery there before retrying. Confirm a harmless round trip on the host and on each paired device you intend to use."
+        }
+      </p>
+
+      <p>
+        {
+          "Color the Codex relay from the Claude lead’s cards. A forwarded brief stays yellow while Claude is working. Use green when the producer delivers reviewable work and red when the operator must act. "
+        }
+        <a href="#lead-chats-in-codex">{"Lead chat rules"}</a>
       </p>
     </article>
   );

@@ -1,23 +1,46 @@
 import type { TeamConversation, TeamConversationList } from "@templ/chat/index";
-import type { TailHost } from "./support-widget";
+import type { createSupportClient, TailHost } from "./support-widget";
 
 export const memberConversationsPath = (cursor?: string) =>
   "/conversations?view=member&filter=all" +
   (cursor ? `&cursor=${encodeURIComponent(cursor)}` : "");
 
-export function conversationDrawer(host: TailHost, start: () => void) {
+export function conversationDrawer(host: TailHost) {
   const history = host.el("details", undefined, "chat-history");
   history.hidden = true;
   const trigger = host.el("summary");
   trigger.setAttribute("aria-label", "Conversations");
   trigger.append(host.icon("chat"));
   history.append(trigger);
-  const button = host.el("button", "New conversation");
-  button.type = "button";
-  button.dataset.conversationList = "";
-  button.prepend(host.icon("chat"));
-  button.addEventListener("click", start);
-  return { history, trigger, button };
+  return { history, trigger };
+}
+
+/** Open only conversations returned for this widget session. */
+export function bindMemberHistory(
+  host: TailHost, actions: HTMLElement, menu: HTMLDetailsElement,
+  trigger: HTMLElement, drawer: boolean,
+) {
+  const panel = actions.closest<HTMLElement>(".panel");
+  const client = host.client as Partial<ReturnType<typeof createSupportClient>>;
+  if (!client.adopt || !host.showCase || !panel) return;
+  const drafting = () => host.draftingConversation?.() === true;
+  const selected = () => drafting() ? null : host.thread?.();
+  return memberConversations({
+    workspace: host.options.workspace, menu, trigger, actions,
+    ...(drawer ? { drawer: { drafting } } : {}),
+    // Opening any standalone drawer leaves every read marker alone.
+    reading: () => !panel.hasAttribute("data-drawer-open"),
+    principal: () => host.client.session?.principalId,
+    selected,
+    active: () => menu.isConnected && panel.isConnected && !panel.hidden && !document.hidden,
+    load: cursor => client.adopt!()[1]<TeamConversationList>(memberConversationsPath(cursor)),
+    open: async row => {
+      if (host.draft.value.trim()) return false;
+      await host.showCase!(row.id);
+      return selected() === row.id;
+    },
+    focusChat: () => host.draft.focus(),
+  });
 }
 
 /** Both renderers mark only messages that their own verified history showed. */
@@ -30,6 +53,7 @@ export function memberConversations(input: {
   principal(): string | undefined;
   selected(): string | undefined | null;
   active(): boolean;
+  reading?(): boolean;
   load(cursor?: string): Promise<TeamConversationList>;
   open(row: TeamConversation): Promise<boolean>;
   focusChat(): void;
@@ -63,6 +87,10 @@ export function memberConversations(input: {
     actions.after(list);
   }
   const seen = new Map<string, number>();
+  // The standalone header can announce a reply on an older page. Reuse the
+  // existing poll, reading at most one member-list page per refresh.
+  const pages = input.reading && new Map<string | undefined, TeamConversationList>();
+  let backgroundPage: string | undefined;
   let conversations: TeamConversation[] = [];
   let cursor: string | null = null, updated = 0;
   let account: string | undefined, flight: Promise<void> | undefined;
@@ -82,7 +110,7 @@ export function memberConversations(input: {
     element.setAttribute("aria-label", unread ? `${label}, unread reply` : label);
   };
   function render() {
-    const hasUnread = conversations.some(row => row.id !== input.selected() && unseen(row));
+    const hasUnread = conversations.some(row => (row.id !== input.selected() || input.reading?.() === false) && unseen(row));
     badge(trigger, drawer ? "Conversations" : "Chat options", hasUnread);
     badge(entry, "Conversations", hasUnread);
     if (drawer) {
@@ -123,17 +151,39 @@ export function memberConversations(input: {
     if (account !== principal) {
       account = principal;
       conversations = []; seen.clear(); cursor = null; updated = 0; flight = undefined;
+      pages?.clear();
+      backgroundPage = undefined;
       render();
     }
     if (!principal || !input.active() || document.hidden) return Promise.resolve();
     if (flight) return flight;
     if (!force && Date.now() - updated < 10_000) return Promise.resolve();
-    if (!next && !list.hidden && (!drawer || menu.open) && conversations.length > 50 && !force) return Promise.resolve();
+    if (!pages && !next && !list.hidden && (!drawer || menu.open) && conversations.length > 50 && !force) return Promise.resolve();
     const active = () => input.active() && input.principal() === principal;
-    const task = input.load(next).then(page => {
+    const pageKey = next ?? (!force ? backgroundPage : undefined);
+    const task = input.load(pageKey).then(page => {
       if (!active()) return;
-      conversations = next ? [...conversations, ...page.conversations.filter(row => !conversations.some(previous => previous.id === row.id))] : page.conversations;
-      cursor = page.nextCursor;
+      if (pages) {
+        pages.set(pageKey, page);
+        backgroundPage = page.nextCursor ?? undefined;
+        const loaded = new Map<string, TeamConversation>();
+        const visited = new Set<string | undefined>();
+        let key: string | undefined;
+        while (!visited.has(key)) {
+          visited.add(key);
+          const part = pages.get(key);
+          if (!part) break;
+          for (const row of part.conversations) loaded.set(row.id, row);
+          key = part.nextCursor ?? undefined;
+          if (!key) break;
+        }
+        conversations = [...loaded.values()];
+        cursor = key && !pages.has(key) ? key : null;
+        for (const cached of pages.keys()) if (!visited.has(cached)) pages.delete(cached);
+      } else {
+        conversations = next ? [...conversations, ...page.conversations.filter(row => !conversations.some(previous => previous.id === row.id))] : page.conversations;
+        cursor = page.nextCursor;
+      }
       updated = Date.now();
       render();
     }).catch(() => {
@@ -173,7 +223,7 @@ export function memberConversations(input: {
       return refresh(undefined, Boolean(drawer && changed));
     },
     read(id: string, receivedAt: number) {
-      if (!input.active() || !Number.isFinite(receivedAt) || receivedAt <= 0) return;
+      if (!input.active() || input.selected() !== id || input.reading?.() === false || !Number.isFinite(receivedAt) || receivedAt <= 0) return;
       const time = Math.max(seen.get(id) ?? 0, receivedAt);
       if (seen.get(id) === time) return;
       seen.set(id, time);

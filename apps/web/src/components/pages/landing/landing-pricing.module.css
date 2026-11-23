@@ -16,7 +16,8 @@
 .trial { margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--border); scroll-margin-top: 88px; }
 .trial h4 { margin: 0; font-size: 18px; }
 .contact { composes: button from "../../ui/design-system.module.css"; display: inline-flex; align-items: center; min-height: 44px; padding: 0 var(--site-action-padding-inline); border: var(--site-action-border-width) solid var(--templ-action-border); border-radius: var(--site-action-radius); font-size: var(--site-action-font-size); font-weight: var(--site-action-weight); text-decoration: none; }
-.hosted .contact { background: var(--lp-accent); }
+.hosted .contact { background: var(--lp-accent); color: var(--templ-on-accent); }
+.hosted .contact:hover { background: var(--templ-accent-hover); }
 .installPrompt { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 4px 8px; margin-inline-start: 8px; border: 0; background: none; color: var(--fg); cursor: pointer; font: inherit; text-decoration: underline; text-underline-offset: 4px; }
 .installPrompt svg { width: 16px; height: 16px; }
 .help { display: inline-flex; align-items: center; min-height: 44px; }

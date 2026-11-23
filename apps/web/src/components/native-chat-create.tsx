@@ -16,6 +16,8 @@ import { useChatAuth } from "@/lib/chat-auth";
 import { isChatSignInCanceled } from "@/lib/chat-auth-cancellation";
 import { rememberCreatedRoomFollow } from "@/lib/chat-subscriptions";
 import { peekCommunitySession } from "@/lib/community-auth";
+import { chatMutation } from "@/lib/chat-api";
+import { roomPath } from "@/lib/community-client";
 import { walletError } from "@/lib/wallet";
 import { newChatMessageId } from "@/lib/chat-outbox";
 import {
@@ -45,8 +47,8 @@ const VISIBILITY: ChatVisibility = "public";
 const NEXT_STEPS = [
   {
     icon: IconCode,
-    title: "Choose where people ask for help",
-    body: "Embed the widget in your app, share a standalone chat link, or use both.",
+    title: "Open your team's chat",
+    body: "Send a test question from your shareable link. You can add the widget to your site later.",
   },
   {
     icon: IconInbox,
@@ -73,6 +75,7 @@ export function NativeChatCreate({
   const [busy, setBusy] = useState(false);
   const [pending, setPending] = useState<NativeRoomDraft>();
   const [error, setError] = useState("");
+  const [createdRoom, setCreatedRoom] = useState<string>();
   const inFlight = useRef(false);
   const lifetime = useRef(true);
   useEffect(() => {
@@ -83,6 +86,7 @@ export function NativeChatCreate({
   }, []);
   useEffect(() => {
     setPending(undefined);
+    setCreatedRoom(undefined);
     setError("");
     if (!account) return;
     try {
@@ -148,9 +152,16 @@ export function NativeChatCreate({
         setPending(draft);
       }
       const room = await createNativeRoom(draft);
-      trackEvent("create_completed");
       assertCurrent(account);
+      setCreatedRoom(room.id);
       if (room.followed !== false) rememberCreatedRoomFollow(account, room);
+      await chatMutation(account, roomPath(`room:${room.id}`, "widget"), {
+        hostedPage: true,
+        initializeOnly: true,
+        confirmed: true,
+      });
+      assertCurrent(account);
+      trackEvent("create_completed");
       try {
         sessionStorage.removeItem(pendingKey(account));
       } catch {
@@ -172,10 +183,10 @@ export function NativeChatCreate({
         <p className={styles.eyebrow}>
           <IconSparkles aria-hidden="true" /> New workspace
         </p>
-        <h1 id="create-title">Set up support for your protocol</h1>
+        <h1 id="create-title">Create your team’s chat</h1>
         <p className={styles.lede}>
-          Name your workspace. You finish the rest inside it, one step at a
-          time.
+          Choose a team name to open your trial inbox and a support link.
+          Anyone with the link can start a private conversation with your team.
         </p>
         {!available && (
           <div id="create-unavailable">
@@ -200,7 +211,7 @@ export function NativeChatCreate({
           </Field>
           {error && (
             <Callout tone="danger" role="alert">
-              {error}
+              {error} {createdRoom && <a href={`/inbox/${createdRoom}?tab=home`}>Open your workspace</a>}
             </Callout>
           )}
           <button
@@ -224,7 +235,7 @@ export function NativeChatCreate({
               ? t("shell.create.creating")
               : pending
                 ? t("shell.create.retry")
-                : "Create workspace"}
+                : "Create your chat"}
             {!busy && <IconArrowRight aria-hidden="true" />}
           </button>
           {!account && !auth.restoring && (

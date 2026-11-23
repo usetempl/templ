@@ -32,6 +32,12 @@ const call = (host: TailHost, path: string, body?: object) =>
 
 /** Rendering can read preferences. Only a member's click can start opt-in. */
 export const replyEmail = {
+  dismiss(host: TailHost, thread: string) {
+    states.get(host)?.dismissed.add(thread);
+    host.replyNotices = false;
+    host.render();
+    host.draft.focus();
+  },
   lines(host: TailHost, view: MemberView): Line[] {
     const current = scope(host);
     host.notify = undefined;

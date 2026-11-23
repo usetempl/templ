@@ -9,6 +9,7 @@ import {
   subscribeCommunitySession,
 } from "@/lib/community-auth";
 import { billingAdmin, type BillingDetail } from "@/lib/billing-admin-client";
+import { AdminPrepaidPolicy } from "./admin-prepaid-policy";
 import { Field, ui } from "./ui/ui";
 import styles from "./cost-dashboard.module.css";
 
@@ -201,6 +202,19 @@ export function BillingLookup({ principal }: { principal: ChatPrincipalId }) {
           </button>
           {downloading?.error && <p role="alert">{downloading.error}</p>}
           {downloading?.note && <p role="status">{downloading.note}</p>}
+          {selected && detail.standardPlan?.prepaid && (
+            <AdminPrepaidPolicy
+              key={selected.request}
+              workspace={selected.id}
+              principal={principal}
+              plan={detail.standardPlan}
+              onChanged={() => {
+                setSelected((active) => active?.request === selected.request
+                  ? { ...active, request: active.request + 1 }
+                  : active);
+              }}
+            />
+          )}
         </>
       )}
     </section>

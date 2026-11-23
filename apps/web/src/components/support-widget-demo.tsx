@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { CONVERSATION_STYLE } from "@/lib/support-widget-chat-style";
+import { drawerStyle } from "@/lib/support-widget-drawer-style";
 import type {
   SupportDemoOptions,
   SupportWidgetAppearance,
@@ -71,6 +72,7 @@ export function SupportWidgetDemo({
         });
         const root = container.current.firstElementChild?.shadowRoot;
         if (root) {
+          if (scenario === "shared-transaction") root.querySelector(".panel")?.classList.add("conversation-chat", "shared-chat");
           if (scenario === "conversation") {
             root.querySelector(".panel")?.classList.add("conversation-chat");
             const labelExample = () => {
@@ -108,8 +110,8 @@ export function SupportWidgetDemo({
           }
           const style = document.createElement("style");
           style.textContent =
-            (scenario === "conversation"
-              ? CONVERSATION_STYLE +
+            ((scenario === "conversation" || scenario === "shared-transaction")
+              ? CONVERSATION_STYLE + (scenario === "shared-transaction" ? drawerStyle : "") +
                 ".panel[data-demo=conversation]{height:100%;min-height:0;border:0;box-shadow:none;border-radius:0}.panel[data-demo=conversation] :is(.chat-options,.demo-label){display:none}.panel[data-demo=conversation] .message{animation:none}"
               : "") +
             ".avatar.logo{background:transparent;border-radius:0}.avatar.logo img{object-fit:contain}" +

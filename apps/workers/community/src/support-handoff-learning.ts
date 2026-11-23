@@ -393,6 +393,23 @@ export async function forgetMemberHandoffLearning(
   return removed;
 }
 
+/** Remove source contributions of just this conversation, including work
+ * already running. A later completion is fenced by the knowledge object. */
+export async function forgetThreadLearning(storage: Pick<Storage, "get" | "list" | "delete">, env: KnowledgeEnv, record: TeamConversationRecord) {
+  const prefix = HANDOFF_LEARNING_JOB_PREFIX + record.id + ":";
+  let after: string | undefined;
+  do {
+    const page = await storage.list({ prefix, limit: 50, ...(after ? { startAfter: after } : {}) });
+    for (const raw of page.values()) {
+      const job = checkedJob(raw);
+      if (!job) throw new HttpError(503, "The case learning record is unavailable.");
+      await forgetToken(env, record.room, job.sourceToken);
+      await removeTokenIndexes(storage, job.sourceToken, job.indexMembers);
+    }
+    after = page.size === 50 ? [...page.keys()].at(-1) : undefined;
+  } while (after);
+}
+
 /** Per-case and per-thread retention remove pending references and receipts. */
 export async function deleteCaseHandoffLearning(storage: Pick<Storage, "get" | "list" | "delete">, thread: string, seq: number, budget: number) {
   let removed = 0;
