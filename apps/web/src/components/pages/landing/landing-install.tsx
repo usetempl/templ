@@ -86,17 +86,17 @@ export function InstallPromptButton({ className }: { className?: string }) {
   );
 }
 
-export function LandingActions({ id, tone = "page" }: {
+export function LandingActions({ id, selfHost = false }: {
   id: string;
-  tone?: "page" | "band";
+  selfHost?: boolean;
 }) {
   return (
-    <div id={id} className={`${styles.actions} ${tone === "band" ? styles.band : ""}`}>
+    <div id={id} className={styles.actions}>
       <div className={styles.pair}>
         <Link href={CREATE_CHAT_URL} className={styles.cta} data-templ-conversion="create_clicked">Create your chat</Link>
-        <a className={styles.secondary} href={TEMPL_SOURCE_URL + "#try-a-complete-conversation"}>
+        {selfHost && <a className={styles.secondary} href={TEMPL_SOURCE_URL + "#try-a-complete-conversation"}>
           Self-host Templ
-        </a>
+        </a>}
       </div>
     </div>
   );

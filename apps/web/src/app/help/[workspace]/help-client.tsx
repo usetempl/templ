@@ -1,5 +1,6 @@
 "use client";
 
+import { addOwnChatMenu } from "@/lib/support-widget-visitor-menu";
 import { useRelease } from "@/lib/release-context";
 import { useEffect, useRef, useState } from "react";
 import { loadTemplSupportWidget } from "@/lib/templ-support";
@@ -65,6 +66,7 @@ export function HostedSupportChat({
         chatFirst: true,
         guestPath: `/help/${workspace}`,
         conversationDrawers: true,
+        ...(workspace === release.templSupport?.workspaceId && !frameRequired ? { decorateOwnMenu: addOwnChatMenu } : {}),
       });
       widget.current = mounted;
       await mounted.open(false);
@@ -91,7 +93,7 @@ export function HostedSupportChat({
       mounted?.destroy();
       widget.current = null;
     };
-  }, [workspace, name, nonce, frameRequired, retry]);
+  }, [workspace, name, nonce, frameRequired, retry, release.templSupport?.workspaceId]);
   return (
     <SupportChatFrame accent={accent} label={`Support for ${name}`} siteAppearance={workspace === release.templSupport?.workspaceId}>
       {state === "ready" && <details className={styles.channelInfo}>

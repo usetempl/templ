@@ -1,50 +1,40 @@
 "use client";
 
 import { SiteFooter, SiteHeader } from "@/components/site-frame";
-import { PRODUCT_LIMITS, PRODUCT_STARTER_PRICES } from "@templ/chat/plans";
-import { formatUsdCents } from "@templ/chat/resolution-copy";
+import { TemplSupportLink } from "@/components/templ-support";
+import { SITE } from "@/lib/site-environment";
 import { LANDING_PREVIEW, LANDING_PREVIEW_BANNER } from "@/lib/landing-preview";
-import { LandingActions } from "./landing-install";
+import { LandingActions, TEMPL_SOURCE_URL } from "./landing-install";
 import { LandingPricing } from "./landing-pricing";
-import { LandingStory } from "./landing-story";
+import { LandingStory, StandardReaders } from "./landing-story";
 import styles from "./landing-page.module.css";
 
-export const CLOSE_TITLE = "Open your team’s support line.";
 export function LandingPage() {
   return (
     <div className={styles.page}>
-      {LANDING_PREVIEW && (
-        <p className={styles.preview} role="note">
-          {LANDING_PREVIEW_BANNER}
-        </p>
-      )}
+      {LANDING_PREVIEW && <p className={styles.preview} role="note">{LANDING_PREVIEW_BANNER}</p>}
       <SiteHeader brandOnly />
       <main id="main-content" tabIndex={-1}>
         <section className={styles.hero} aria-labelledby="landing-title">
           <div className={styles.heroInner}>
+            <h1 id="landing-title" className={styles.heroTitle}>A secure support line for apps that care about anonymity.</h1>
             <div className={styles.heroCopy}>
-              <h1 id="landing-title" className={styles.heroTitle}>
-                Crypto support where visitors choose what to share
-              </h1>
-              <p className={styles.subline}>
-                Share one chat link. Visitors can ask without connecting a wallet. Your team answers from one inbox.
-              </p>
-              <LandingActions id="hero-chat" />
-              <p className={styles.terms}>Try {PRODUCT_LIMITS.freeSupportTickets} tickets free. Hosted plans start at {formatUsdCents(PRODUCT_STARTER_PRICES.workspaceMonthlyUsdCents)} per month, paid in USDC.</p>
+              <p className={styles.subline}>A visitor can ask for help without connecting a wallet. Try your own line and inbox free.</p>
+              <LandingActions id="hero-chat" selfHost />
             </div>
+            <LandingStory />
           </div>
         </section>
-        <LandingStory />
+        <StandardReaders />
         <LandingPricing />
-        <section
-          id="start"
-          className={styles.close}
-          aria-labelledby="start-title"
-        >
-          <div className={styles.closeInner}>
-            <h2 id="start-title">{CLOSE_TITLE}</h2>
-            <LandingActions id="start-install" tone="band" />
-          </div>
+        <section id="start" className={styles.close} aria-labelledby="start-title">
+          <h2 id="start-title">Run Templ on your own domain</h2>
+          <p>Templ is MIT licensed.</p>
+          <nav aria-label="Self-hosting and help">
+            <a href={TEMPL_SOURCE_URL + "#try-a-complete-conversation"}>Self-host Templ</a>
+            <a href={SITE.docs + "/setup"}>Read the docs</a>
+            <TemplSupportLink className={styles.helpLink}>Talk to us</TemplSupportLink>
+          </nav>
         </section>
       </main>
       <SiteFooter />

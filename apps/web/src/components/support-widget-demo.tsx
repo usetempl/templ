@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { CONVERSATION_STYLE } from "@/lib/support-widget-chat-style";
-import { drawerStyle } from "@/lib/support-widget-drawer-style";
+import { drawerStyle, outgoingBubbleStyle } from "@/lib/support-widget-drawer-style";
 import type {
   SupportDemoOptions,
   SupportWidgetAppearance,
@@ -21,6 +21,7 @@ export function SupportWidgetDemo({
   scenario,
   animateScenario = false,
   presentation = false,
+  children,
 }: {
   className?: string;
   label?: string;
@@ -31,6 +32,7 @@ export function SupportWidgetDemo({
   scenario?: SupportDemoOptions["scenario"];
   animateScenario?: boolean;
   presentation?: boolean;
+  children?: ReactNode;
 }) {
   const container = useRef<HTMLDivElement>(null);
   const listener = useRef(onMessage);
@@ -110,6 +112,7 @@ export function SupportWidgetDemo({
           }
           const style = document.createElement("style");
           style.textContent =
+            (previewLauncher ? outgoingBubbleStyle : "") +
             ((scenario === "conversation" || scenario === "shared-transaction")
               ? CONVERSATION_STYLE + (scenario === "shared-transaction" ? drawerStyle : "") +
                 ".panel[data-demo=conversation]{height:100%;min-height:0;border:0;box-shadow:none;border-radius:0}.panel[data-demo=conversation] :is(.chat-options,.demo-label){display:none}.panel[data-demo=conversation] .message{animation:none}"
@@ -122,6 +125,19 @@ export function SupportWidgetDemo({
               ? ".panel[data-demo=failed-transaction]{--b:#000;--b2:#000}.panel[data-demo=failed-transaction] .demo-context{border-width:2px;border-radius:0}.panel[data-demo=failed-transaction] .demo-result{border-radius:0}"
                 + ".panel[data-demo=conversation] .body{overflow:clip;overscroll-behavior:auto;scrollbar-width:none}"
               : "") +
+            (presentation && scenario === "shared-transaction"
+              ? `.panel[data-demo=conversation]{background:transparent}
+                 .panel[data-demo=conversation]>.body{padding:0;background:transparent}
+                 .panel[data-demo=conversation]>:not(.body),.panel[data-demo=conversation] .body>:not(.messages),
+                 .panel[data-demo=conversation] :is(.tail,.chat-day,time){display:none}
+                 .panel[data-demo=conversation] .messages{display:grid;grid-template-rows:var(--example-first) auto;row-gap:var(--example-gap);padding-inline-start:var(--example-inset);align-content:start}
+                 .panel[data-demo=conversation] .message:not(.tail){box-sizing:border-box;max-width:100%;width:fit-content;margin:0;padding:10px 14px;font-size:16px;line-height:1.4;color:var(--example-ink);box-shadow:none;animation:none;overflow-wrap:anywhere}
+                 .panel[data-demo=conversation] .message.own{grid-row:1;align-self:end;justify-self:start;background:var(--example-guest);border-radius:14px 14px 4px 14px}
+                 .panel[data-demo=conversation] .message:not(.own,.tail){grid-row:2;align-self:start;justify-self:end;background:var(--example-team);border-radius:14px 14px 14px 4px}
+                 .panel[data-demo=conversation].shared-chat .message:not(.own,.tail)::before{content:none}
+                 .panel[data-demo=conversation].shared-chat .message.own time{display:none}
+                 .panel[data-demo=conversation] .message small{position:static;display:block;width:auto;height:auto;overflow:visible;clip:auto;font-size:12px;line-height:1.4;font-weight:600;color:inherit;margin:0 0 3px}`
+              : "") +
             (animateScenario && scenario === "failed-transaction"
               ? "@keyframes demo-step{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}" +
                 "@media(prefers-reduced-motion:no-preference){" +
@@ -132,7 +148,20 @@ export function SupportWidgetDemo({
           root.append(style);
         }
         widget.current = demo;
-        setStatus("ready");
+        if (presentation && scenario === "shared-transaction" && root) {
+          const showExchange = () => {
+            const visitor = root.querySelector(".message.own small");
+            const team = root.querySelector(".message:not(.own,.tail) small");
+            if (!visitor || !team) return;
+            visitor.textContent = "Visitor chat";
+            team.textContent = "Team inbox";
+            authorObserver?.disconnect();
+            setStatus("ready");
+          };
+          authorObserver = new MutationObserver(showExchange);
+          authorObserver.observe(root, { childList: true, subtree: true });
+          showExchange();
+        } else setStatus("ready");
       })
       .catch(() => {
         if (active) {
@@ -163,8 +192,9 @@ export function SupportWidgetDemo({
   ]);
   return (
     <div className={className} style={{ position: "relative" }}>
-      <div ref={container} style={{ height: "100%" }} />
-      {status !== "ready" && (
+      <div ref={container} style={{ height: "100%", visibility: children && status !== "ready" ? "hidden" : undefined }} />
+      {children && status !== "ready" && children}
+      {!children && status !== "ready" && (
         <div
           style={{
             position: "absolute",

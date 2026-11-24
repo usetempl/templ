@@ -111,6 +111,8 @@ export type SupportWidgetOptions = {
   appearance?: SupportWidgetAppearance;
   /** Keep the hosted page skin while using the workspace button color. */
   fixedAppearance?: boolean;
+  /** Start the assistant's typing row once the visitor's send is acknowledged. */
+  replyAfterReceipt?: boolean;
   decorateOwnMenu?(host: TailHost, actions: HTMLElement): () => void;
   /** The frame adapter receives public display settings only. */
   appearanceChanged?(value: SupportWidgetAppearance): void;
@@ -1241,8 +1243,7 @@ export function mountSupportDemo(
     const now = new Date().toISOString();
     messages.splice(0, messages.length,
       { id: "1", author: "demo-member", text: transactionExample.question, createdAt: now },
-      { id: "2", author: "demo-member", text: `${transactionExample.network} transaction: ${transactionExample.transaction}`, createdAt: now },
-      { id: "3", author: "demo-team", teamName: "Support team", text: transactionExample.reply, createdAt: now });
+      { id: "2", author: "demo-team", teamName: "Support team", text: transactionExample.reply, createdAt: now });
   }
   const sent = new Set<string>();
   const answer = (text: string) =>
@@ -1781,7 +1782,8 @@ export const extras = {
     }
     const last = thread ? messages.at(-1) : undefined;
     const expected = ((thread ? info?.aiReplyExpected : undefined) ?? host.policy?.aiReplyExpected) === true;
-    if (!last) return pending === "sending" && expected ? [typingLine(el, "typing agent")] : [];
+    const typingDuringSend = pending === "sending" && expected && !host.options.replyAfterReceipt;
+    if (!last) return typingDuringSend ? [typingLine(el, "typing agent")] : [];
     const id = Number(last.id),
       mine = own(last.author),
       age = Date.now() - Date.parse(last.createdAt ?? ""),
@@ -1811,7 +1813,7 @@ export const extras = {
     }
     const parts: string[] = [];
     if (!resolved && !held && typing !== "team" && !info?.encryption && info?.aiReplyExpected !== false && (
-      pending ? pending === "sending" && expected :
+      pending !== undefined ? typingDuringSend :
       mine && (typing === "agent" || (expected && (fresh || host.replyWaits?.has(thread!) || age < 300_000)))
     )) parts.push("typing agent");
     else if (!resolved && fresh && !pending && !held && !info?.diagnosisRunning)
@@ -3817,10 +3819,10 @@ function renderSupportWidget(
               earlier = latest = [];
               before = null;
               authors = joined = {};
-              info = sent.conversation;
               older.hidden = true;
               newCaseFrom = undefined;
             }
+            info = sent.conversation;
             conversation = sent.conversation.id;
             message = sent.message;
             if (message && sendingPrincipal)

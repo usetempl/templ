@@ -15,7 +15,7 @@ import { TemplMark } from "./brand/templ-mark";
 import { SITE } from "@/lib/release-public";
 import { supportPageWallet } from "@/lib/support-page-wallet";
 import { widgetSignInNetworks } from "@/lib/support-availability";
-import { addOwnChatMenu } from "@/lib/templ-support-menu";
+import { addOwnChatMenu } from "@/lib/support-widget-visitor-menu";
 import { OPERATOR } from "@/lib/operator";
 import { trackEvent } from "@/lib/analytics";
 import {

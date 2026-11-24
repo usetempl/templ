@@ -12,9 +12,13 @@
 .install {
   min-width: 0;
 }
-/* Share the app's primary action colors and focus treatment. */
 .cta {
   composes: button primary from "../../ui/design-system.module.css";
+  --templ-accent: #99ff00;
+  --templ-accent-hover: #aaff2b;
+  --templ-accent-active: #8ce600;
+  --templ-on-accent: #17241a;
+  --templ-action-border: #537500;
   min-height: var(--site-action-height);
   padding: 0 var(--site-action-padding-inline);
   gap: var(--site-action-gap);
@@ -51,9 +55,6 @@
     14px/1.5 var(--font-mono),
     monospace;
   resize: vertical;
-}
-.band {
-  margin: 0;
 }
 .cta svg {
   width: var(--site-action-icon);

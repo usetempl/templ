@@ -134,7 +134,7 @@ export function WidgetAppearanceEditor({
         <legend className={styles.srOnly}>Widget appearance</legend>
         <section className={styles.section} aria-label="Chat button color">
           <h3>Chat button color</h3>
-          <p>Set the accent for the launcher, Send and other chat controls.</p>
+          <p>This color sets the launcher and Send button and tints the visitor’s messages.</p>
           <ColorField label="Button color" value={accent} onChange={setAccent} />
           <div
             className={styles.swatches}

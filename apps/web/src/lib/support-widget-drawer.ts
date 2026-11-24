@@ -37,7 +37,7 @@ export function bindSupportDrawer(host: TailHost, actions: HTMLElement, signal: 
   const activePane = () => panes.find(pane => pane.details.open);
   let refreshNotices: ((menuOpen: boolean) => void) | undefined;
   let refreshWallet: (() => void) | undefined;
-  const refreshMenu = () => { refreshWallet?.(); refreshNotices?.(activePane()?.details === disclosure); };
+  const refreshMenu = () => { updateTeamLink(); refreshWallet?.(); refreshNotices?.(activePane()?.details === disclosure); };
   refreshOptions.set(host, refreshMenu);
   const loadNotices = () => typeof __TEMPL_WIDGET_DRAWER_NOTICES__ === "string"
     ? import(/* webpackIgnore: true */ /* turbopackIgnore: true */ new globalThis.URL(__TEMPL_WIDGET_DRAWER_NOTICES__, import.meta.url).href)
@@ -59,7 +59,10 @@ export function bindSupportDrawer(host: TailHost, actions: HTMLElement, signal: 
   brand.rel = "noopener noreferrer";
   brand.setAttribute("aria-label", "Templ home (opens in a new tab)");
   const logo = el("img");
-  logo.src = new globalThis.URL(brandAsset("/art/brand/lockup-for-light.svg"), import.meta.url).href;
+  // Published embeds load art from the script's origin. The first-party app
+  // serves it from the page; Next can give bundled modules a file: URL.
+  const artBase = typeof __TEMPL_WIDGET_DRAWER_STYLE__ === "string" ? import.meta.url : header.ownerDocument.baseURI;
+  logo.src = new globalThis.URL(brandAsset("/art/brand/lockup-for-light.svg"), artBase).href;
   logo.alt = "Templ";
   brand.append(logo);
   const team = el("span");
@@ -78,7 +81,7 @@ export function bindSupportDrawer(host: TailHost, actions: HTMLElement, signal: 
     site.href = link.website;
     site.target = "_blank";
     site.rel = "noopener noreferrer";
-    team.append(site, " team’s secure support line");
+    team.append("This is ", site, " secure support");
   }
   let displayedPane = panes[0]!;
 
@@ -122,7 +125,6 @@ export function bindSupportDrawer(host: TailHost, actions: HTMLElement, signal: 
 
   function syncDrawer() {
     const active = activePane();
-    if (active) updateTeamLink();
     if (active?.details === disclosure && !refreshWallet) {
       loadingWallet ??= (typeof __TEMPL_WIDGET_DRAWER_WALLET__ === "string"
         ? import(/* webpackIgnore: true */ /* turbopackIgnore: true */ new globalThis.URL(__TEMPL_WIDGET_DRAWER_WALLET__, import.meta.url).href)

@@ -1,3 +1,12 @@
+export const messageSpacing = "padding:8px 12px;line-height:1.45";
+export const senderGutter = "position:relative;margin-inline-start:36px;max-width:min(82%,calc(100% - 36px))";
+
+/** The appearance preview and the two visitor chat surfaces use the same accent and ink. */
+export const outgoingBubbleStyle = `
+.panel .message.own{background:color-mix(in srgb,var(--a) 22%,var(--bg));color:var(--t)}
+.panel .message.own :is(time,a){color:inherit}
+`;
+
 export const drawerStyle = `
 .conversation-drawers .head{position:static}
 .conversation-drawers .chat-people{flex:none}
@@ -13,14 +22,13 @@ export const drawerStyle = `
 .shared-chat .send svg{display:block}
 .shared-chat .send:hover:not(:disabled){transform:none}
 .shared-chat .message[data-restored]{animation:none}
-.shared-chat .message:not(.tail){padding:8px 12px;line-height:1.45}
-.shared-chat .message.own{background:color-mix(in srgb,var(--a) 22%,var(--bg));color:var(--t)}
-.shared-chat .message.own :is(time,a){color:inherit}
+.shared-chat .message:not(.tail){${messageSpacing}}
+${outgoingBubbleStyle}
 .shared-chat .message.own time{min-height:14px;gap:4px}
 .shared-chat .message.own .delivery-status{flex:0 0 12px;width:12px;height:12px;text-align:center}
 .shared-chat .message.own .state:not(.failed){position:absolute;clip-path:inset(50%);overflow:hidden;width:1px;height:1px}
 .shared-chat .message.own:has(.state.failed) time::after{content:"!";display:inline-block;width:12px;text-align:center}
-.shared-chat .message:not(.own,.tail){position:relative;margin-inline-start:36px;max-width:min(82%,calc(100% - 36px))}
+.shared-chat .message:not(.own,.tail){${senderGutter}}
 .shared-chat .message[data-grouped=true]{margin-top:-6px}
 .shared-chat .message[data-grouped=true]>small{position:absolute;clip-path:inset(50%);overflow:hidden;width:1px;height:1px}
 .shared-chat .handoff-notice{align-self:stretch;max-width:32rem;padding:12px 16px;line-height:1.5}

@@ -7,7 +7,7 @@ export function drawerWallet(host: TailHost, menu: HTMLElement, signal: AbortSig
   const { el } = host;
   const client = host.client as ReturnType<typeof createSupportClient>;
   const section = el("section", undefined, "drawer-section");
-  const heading = el("h3", "Wallet");
+  const heading = el("h3", "Wallet verification");
   heading.prepend(host.icon("wallet"));
   const content = el("div", undefined, "drawer-section-body");
   const hint = el("p");
@@ -25,6 +25,15 @@ export function drawerWallet(host: TailHost, menu: HTMLElement, signal: AbortSig
   let proof: Proof | undefined;
   let busy = false;
   let selected: string | undefined;
+  // These chats group account actions under Wallet verification. Keep the
+  // existing sign-in, sign-out and minimum-level handlers in charge.
+  const accountAction = () => {
+    if (!host.options.decorateOwnMenu) return;
+    const signed = client.session?.level === "signed";
+    const required = host.policy?.chatMode === "encrypted" || host.policy?.minimumLevel === "signed" || host.policy?.minimumLevel === "connected";
+    if (!signed && (thread() || !required)) return;
+    return menu.querySelector<HTMLButtonElement>(signed ? '.tools button[aria-label="Sign out"]' : '.tools button[aria-label="Verify wallet"]');
+  };
   function remember(value?: Proof) {
     proof = value;
     if (!scope) return;
@@ -56,6 +65,14 @@ export function drawerWallet(host: TailHost, menu: HTMLElement, signal: AbortSig
     const attached = host.verifiedWallet?.();
     const retry = !!proof?.conversation && proof.conversation === id;
     const encrypted = host.policy?.chatMode === "encrypted" && !id;
+    const account = accountAction();
+    if (account) {
+      section.hidden = button.hidden = false;
+      button.disabled = account.disabled;
+      button.textContent = account.textContent;
+      hint.textContent = session?.level === "signed" ? "You’re signed in with your wallet." : "This chat requires a wallet. Sign a message to verify it.";
+      return;
+    }
     section.hidden = session?.level === "signed" || encrypted;
     hint.textContent = attached ? "The support team can see your verified address in this chat."
       : proof && !proof.conversation && !id ? "Wallet verified. Your first message will share the address with this team."
@@ -87,6 +104,8 @@ export function drawerWallet(host: TailHost, menu: HTMLElement, signal: AbortSig
   }
   button.addEventListener("click", async () => {
     if (busy || signal.aborted) return;
+    const account = accountAction();
+    if (account) { account.click(); return; }
     const id = thread();
     if (proof?.conversation && proof.conversation === id && client.session) {
       await attach(id, client.session.principalId);

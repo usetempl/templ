@@ -146,12 +146,11 @@ export const welcome = {
       void conversationLoad.then(() => host.render()); return;
     }
     if (conversation?.chatFirstControls(host, parent, peopleView, handedOff, busy, conversationStyle, conversations)) {
-      if (host.options.conversationDrawers) prepareDrawer?.(host, parent);
-      if (host.options.decorateOwnMenu && host.options.container && host.policy?.hosted) {
+      if (host.options.decorateOwnMenu && host.options.container) {
         const update = decoratedMenus.get(host) ?? host.options.decorateOwnMenu(host, parent);
         decoratedMenus.set(host, update);
         update();
-      }
+      } else if (host.options.conversationDrawers) prepareDrawer?.(host, parent);
       return;
     }
     const head = parent.closest(".panel")?.querySelector(".head");

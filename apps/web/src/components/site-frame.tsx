@@ -54,11 +54,7 @@ export function SiteFooter() {
     <footer className={styles.footer}>
       <div className={styles.footerBrand}>
         <TemplLogo className={styles.footerLogo} lockup />
-        <p>
-          {landing
-            ? "Support for apps and users who care about privacy."
-            : "Wallet and transaction support for DeFi apps."}
-        </p>
+        {!landing && <p>Wallet and transaction support for DeFi apps.</p>}
       </div>
       <nav aria-label="Footer" className={styles.footerNav}>
         <div>
