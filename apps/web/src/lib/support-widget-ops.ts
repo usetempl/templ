@@ -86,7 +86,7 @@ export function ops({ host, form, thread }: { host: TailHost; form: HTMLFormElem
     refresh: () => host.refresh(false),
   };
   if (/^#templ-check=/.test(location.hash) && host.api)
-    void loadCheck().then((module) => module.check(checkHost), () => fail("The install check could not load. Start it again from the Widget tab."));
+    void loadCheck().then((module) => module.check(checkHost), () => fail("The install check could not load. Start it again from Settings → Chat."));
   return {
     /** Message text stays text. Complete http(s) addresses become links that
      * show their destination; "[label](url)" reads "label: url". */

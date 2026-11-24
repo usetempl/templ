@@ -6,6 +6,7 @@ import { SupportWidgetDemo } from "@/components/support-widget-demo";
 import {
   WIDGET_DEFAULT_ACCENT,
   widgetContrast,
+  widgetSurfaces,
 } from "@/lib/support-widget-appearance";
 import {
   WIDGET_LIGHT_COLORS,
@@ -45,6 +46,16 @@ const defaultColor = (mode: "light" | "dark", key: string) =>
   (mode === "light" ? WIDGET_LIGHT_COLORS : WIDGET_DARK_COLORS).match(
     new RegExp(`--${key}:(#[0-9a-f]{6})`),
   )?.[1] ?? "#808080";
+
+function lowButtonContrast(appearance: WidgetAppearance) {
+  return (["light", "dark"] as const).flatMap((mode) => {
+    const fill = typeof appearance.accent === "string" ? appearance.accent : appearance.accent?.[mode] ?? WIDGET_DEFAULT_ACCENT[mode];
+    if (!isHex(fill)) return [];
+    const surfaces = widgetSurfaces(mode, appearance.colors?.[mode]);
+    const least = Math.min(...surfaces.map((surface) => widgetContrast(fill, surface)));
+    return least < 3 ? [{ mode, ratio: (Math.floor(least * 10) / 10).toFixed(1) }] : [];
+  });
+}
 const subscribeDark = (changed: () => void) => {
   const media = window.matchMedia?.("(prefers-color-scheme: dark)");
   media?.addEventListener("change", changed);
@@ -132,9 +143,9 @@ export function WidgetAppearanceEditor({
     <div className={styles.editor}>
       <fieldset className={styles.controls} disabled={disabled}>
         <legend className={styles.srOnly}>Widget appearance</legend>
-        <section className={styles.section} aria-label="Chat button color">
-          <h3>Chat button color</h3>
-          <p>This color sets the launcher and Send button and tints the visitor’s messages.</p>
+        <section className={styles.section} aria-label="Chat accent color">
+          <h3>Chat accent color</h3>
+          <p>Pick one color for the chat button and Send. Menu actions, links and visitor messages use shades of it in both themes.</p>
           <ColorField label="Button color" value={accent} onChange={setAccent} />
           <div
             className={styles.swatches}
@@ -162,10 +173,16 @@ export function WidgetAppearanceEditor({
           </label>
           {pair && <ColorField label="Dark mode button color" value={pair.dark}
             onChange={(dark) => patch({ accent: { ...pair, dark } })} />}
+          {lowButtonContrast(value).map(({ mode, ratio }) => (
+            <p key={mode} className={styles.contrastWarning} role="status">
+              <strong>Low contrast in {mode} mode.</strong>{" "}
+              The button can blend into the chat surface ({ratio}:1). Aim for 3:1.
+            </p>
+          ))}
         </section>
         <section className={styles.section} aria-label="Widget colors">
           <h3>Chat colors <span>{mode === "light" ? "Light" : "Dark"}</span></h3>
-          <p>Switch the preview to edit each theme.</p>
+          <p>These colors are optional. Switch the preview to edit a theme.</p>
           {FIELDS.map(([key, name, token]) => (
             <ColorField
               key={key}

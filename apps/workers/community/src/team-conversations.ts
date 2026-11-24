@@ -6,6 +6,7 @@ import { activeOrderForm, readProductOrderForms } from "./product-order-forms";
 import { requireLegacyCase, requireLegacyOpening, supportEncryptionRoute, encryptedCaseExists, encryptedCaseView, newCaseEncryptionView, type EncryptionNativeHooks } from "./support-encryption";
 import { EncryptionProtocolError, OWN_SUPPORT_ENDPOINT, OWN_SUPPORT_AI_PRINCIPAL, type EncryptedRecord, type ValidationReceipt } from "@templ/e2ee/protocol";
 import { SUPPORT_LIMITS } from "@templ/chat/support";
+import { ACCOUNT_METHOD_LIMITS } from "@templ/chat/wallets";
 import { HANDOFF_LEARNING_PATH, handoffLearningRoute, queueHandoffLearningReply, linkHandoffLearningMembers } from "./support-handoff-learning";
 import { releaseActivationReadUnknown } from "./release-activation";
 import type { TemplStaffEnv } from "./templ-staff";
@@ -179,7 +180,7 @@ import {
   parseWidgetWallet,
   type WidgetWallet,
 } from "@templ/chat/widget-wallet";
-import type { AppOrigin, Env } from "./common";
+import { NONCE_TTL, WALLET_SHARE_RECEIPT_TTL, sha256Hex, type AppOrigin, type Env } from "./common";
 import {
   withMessageBudget,
   MESSAGE_BUDGET_AVAILABLE_HEADER,
@@ -372,6 +373,9 @@ export type TeamConversationRecord = {
   id: string;
   room: string;
   member: ChatPrincipalId;
+  sharedVerifiedWallets?: WidgetWallet[];
+  /** A proof issued before an unlink cannot put the removed wallet back on a retry. */
+  walletUnlinks?: Record<string, number>;
   initiator: { kind: "member" | "staff"; principalId: ChatPrincipalId };
   createdAt: number;
   state: "open" | "resolved";
@@ -535,6 +539,10 @@ function checkedRecord(raw: unknown): TeamConversationRecord | null {
     !isConversationId(record.id) ||
     (record.sharedVerifiedWallet !== undefined && (record.encryptedCases || !parseWidgetWallet(record.sharedVerifiedWallet))) ||
     typeof record.room !== "string" ||
+    (record.sharedVerifiedWallets !== undefined && (record.encryptedCases || !Array.isArray(record.sharedVerifiedWallets) ||
+      record.sharedVerifiedWallets.some(wallet => !parseWidgetWallet(wallet)))) ||
+    (record.walletUnlinks !== undefined && (!record.walletUnlinks || typeof record.walletUnlinks !== "object" ||
+      Array.isArray(record.walletUnlinks) || Object.entries(record.walletUnlinks).some(([key, at]) => !/^[0-9a-f]{64}$/.test(key) || !natural(at)))) ||
     normalizeChatPrincipal(record.member) !== record.member ||
     !record.initiator ||
     (record.initiator.kind !== "member" && record.initiator.kind !== "staff") ||
@@ -735,6 +743,7 @@ export function conversationView(
   const blocked = postBlockedReason(record, role, viewer, enabled);
   const replyBlocked = role === "team" ? (extras?.replyBlocked ?? null) : null;
   const assignment = record.assignment ?? null;
+  const wallets = conversationWallets(record);
   const mine = Boolean(
     assignment &&
     actsAs(workflow?.aliases ?? [viewer.principalId!], assignment.principalId),
@@ -743,7 +752,8 @@ export function conversationView(
     id: record.id,
     room: record.room as TeamConversation["room"],
     member: record.member,
-    ...(record.sharedVerifiedWallet ? { verifiedWalletAddress: record.sharedVerifiedWallet.address } : {}),
+    ...(wallets.length ? { verifiedWalletAddress: wallets[0]!.address,
+      verifiedWalletAddresses: wallets.map(wallet => wallet.address) } : {}),
     ...(record.formerMembers?.length
       ? { formerMembers: [...record.formerMembers] }
       : {}),
@@ -1239,15 +1249,25 @@ export function widgetVerification(
     authenticatedAt: body.authenticatedAt,
   };
 }
-/** A shared proof labels the conversation without changing its member. */
+function conversationWallets(record: TeamConversationRecord): WidgetWallet[] {
+  if (record.encryptedCases) return [];
+  const wallets = new Map<string, WidgetWallet>();
+  for (const wallet of [record.sharedVerifiedWallet,
+    ...(record.sharedVerifiedWallets ?? [])]) {
+    if (wallet && !wallets.has(wallet.address)) wallets.set(wallet.address, wallet);
+  }
+  return [...wallets.values()];
+}
+
+/** A wallet identifies a visitor only in their own Standard conversation. */
 export async function shareGuestWalletProof(
   storage: Storage,
   body: Record<string, unknown>,
   pending: PendingEvent[],
+  unlink = false,
 ) {
   const guest = normalizeChatPrincipal(body.guest);
-  const wallet = parseWidgetWallet(body);
-  if (!guest?.startsWith("account:") || !wallet || !isConversationId(body.conversation))
+  if (!guest?.startsWith("account:") || !isConversationId(body.conversation))
     throw new HttpError(403, "Invalid wallet proof for this conversation.");
   const thread = await readConversation(storage, body.conversation);
   if (
@@ -1256,8 +1276,41 @@ export async function shareGuestWalletProof(
     await storage.get(`ban:${guest}`)
   )
     throw new HttpError(403, "Choose your Standard conversation to share a wallet.");
-  if (thread.sharedVerifiedWallet?.address === wallet.address) return;
-  const next = { ...thread, sharedVerifiedWallet: wallet, revision: thread.revision + 1 };
+  const wallets = conversationWallets(thread);
+  const now = Date.now();
+  // A removed address stays out of the visible record. Keep only the scoped hash
+  // through the last possible expiry of a proof issued before the unlink.
+  const unlinks = Object.fromEntries(Object.entries(thread.walletUnlinks ?? {})
+    .filter(([, at]) => now - at <= NONCE_TTL + WALLET_SHARE_RECEIPT_TTL));
+  if (unlink) {
+    const index = wallets.findIndex(wallet => wallet.address === body.address);
+    if (index < 0) return;
+    const [removed] = wallets.splice(index, 1);
+    unlinks[await sha256Hex(thread.id + "/" + removed.address)] = now;
+  } else {
+    const wallet = parseWidgetWallet(body);
+    if (!wallet) throw new HttpError(403, "Invalid wallet proof for this conversation.");
+    if (wallets.some(item => item.address === wallet.address)) return;
+    const removedAt = unlinks[await sha256Hex(thread.id + "/" + wallet.address)];
+    if (removedAt !== undefined &&
+      (typeof body.proofIssuedAt !== "number" || body.proofIssuedAt <= removedAt))
+      throw new HttpError(403, "Verify again to add this wallet.");
+    // A workspace that has never enabled wallet lists keeps its existing
+    // single-address behavior. A rollback must preserve lists already saved.
+    if (body.multiple !== true) {
+      if (wallets.length > 1) throw new HttpError(409, "This workspace does not accept more wallets.");
+      wallets.length = 0;
+    }
+    const limit = wallet.network === "evm" ? ACCOUNT_METHOD_LIMITS.wallets : ACCOUNT_METHOD_LIMITS.solanaWallets;
+    if (wallets.filter(item => item.network === wallet.network).length >= limit)
+      throw new HttpError(400, "Remove a verified wallet from this network before adding another.");
+    wallets.push(wallet);
+  }
+  const next: TeamConversationRecord = { ...thread, sharedVerifiedWallets: wallets, revision: thread.revision + 1 };
+  delete next.sharedVerifiedWallet;
+  if (wallets[0]) next.sharedVerifiedWallet = wallets[0];
+  if (Object.keys(unlinks).length) next.walletUnlinks = unlinks;
+  else delete next.walletUnlinks;
   await save(storage, next);
   pending.push({
     type: "conversation.updated",

@@ -1,3 +1,4 @@
+import { followTranscript } from "./support-widget-transcript-scroll";
 import { transactionExample } from "./standalone-trial-example";
 import { widgetMessageId as requestId } from "./support-widget-message-id";
 import { widgetErrorMessage } from "./support-widget-error";
@@ -92,6 +93,8 @@ export type SupportWidgetOptions = {
   /** The page's wallet. Leave it out on a page without one, and visitors
    * can still write as guests. Call setWallet() when it changes. */
   wallet?: SupportWallet | null;
+  /** An optional wallet family for sharing a proof without changing the guest session. */
+  walletForNetwork?(network: "evm" | "solana"): SupportWallet | null;
   /** The same as wallet: { evm: provider }. Pass one or the other. */
   provider?: SupportWalletProvider;
   apiUrl?: string;
@@ -116,6 +119,7 @@ export type SupportWidgetOptions = {
   decorateOwnMenu?(host: TailHost, actions: HTMLElement): () => void;
   /** The frame adapter receives public display settings only. */
   appearanceChanged?(value: SupportWidgetAppearance): void;
+  accountWalletRequired?(required: boolean): void;
   /** Up to four common questions, shown as buttons before a visitor's first
    * message. A click sends the question. Each is at most 80 characters. */
   prompts?: string[];
@@ -421,12 +425,12 @@ export function createSupportClient(
   };
   /** The wallet's family chunk, loaded once per wallet. */
   let kit: [SupportWallet, Promise<WalletKit>] | undefined;
-  const walletKit = () => {
-    if (!wallet)
+  const walletKit = (provider = wallet) => {
+    if (!provider)
       return Promise.reject(new Error("Connect a wallet."));
-    if (kit?.[0] !== wallet) {
-      const loading = loadKit(wallet, runtime.load);
-      kit = [wallet, loading];
+    if (kit?.[0] !== provider) {
+      const loading = loadKit(provider, runtime.load);
+      kit = [provider, loading];
       // A failed load is tried again on the next use.
       loading.catch(() => {
         if (kit?.[1] === loading) kit = undefined;
@@ -688,6 +692,8 @@ export function createSupportClient(
         aiReplyExpected?: boolean;
         supportProfiles?: VisitorSupportProfiles;
         solanaSignIn?: boolean;
+        walletIdentification?: WalletRules.WalletIdentification;
+        chatMode?: "standard" | "encrypted";
         walletFallback?: boolean;
         askPerson?: boolean;
         hosted?: boolean;
@@ -852,7 +858,7 @@ export function createSupportClient(
         ended = false;
         publishSession();
       } else if (next === false) endSession();
-      return [session, call, walletKit, base, origin] as const;
+      return [session, call, walletKit, base, origin, wallet] as const;
     },
     onSessionChange(listener: () => void) {
       listeners.add(listener);
@@ -1085,6 +1091,7 @@ export type WidgetMessages = {
       | "revision"
       | "verifiedWalletAddress"
       | "formerMembers"
+      | "verifiedWalletAddresses"
       | "state"
       | "handoff"
       | "confirmation"
@@ -1130,6 +1137,9 @@ export type WidgetClient = {
     minimumLevel: string;
     aiReplyExpected?: boolean;
     supportProfiles?: VisitorSupportProfiles;
+    solanaSignIn?: boolean;
+    walletIdentification?: WalletRules.WalletIdentification;
+    chatMode?: "standard" | "encrypted";
     walletFallback?: boolean;
     askPerson?: boolean;
     replyEmail?: boolean;
@@ -1306,6 +1316,7 @@ export function mountSupportDemo(
     },
     appearancePreview ? {
       container,
+      fixedOpen: true,
       style: PREVIEW_FRAME_STYLE,
     } : {
       container,
@@ -1370,23 +1381,25 @@ export function mountSupportDemo(
   return widget;
 }
 
-// Constrain the real floating chat and launcher to the Settings frame. All
-// conversation chrome, message styles and interaction states come from the widget.
+// The editor shows both the open conversation and a sample of the launcher color.
 const PREVIEW_FRAME_STYLE = `:host{position:relative;display:block;width:100%;height:100%}
-.panel,:host([data-position=left]) .panel{position:absolute;inset:auto 0 72px auto;max-width:100%;max-height:calc(100% - 72px)}
+:host .panel,:host([data-position=left]) .panel{position:absolute;inset:auto 0 72px auto;max-width:100%;max-height:calc(100% - 72px);box-shadow:none}
 :host([data-position=left]) .panel{left:0;right:auto}
-.launcher,:host([data-position=left]) .launcher{position:absolute;bottom:8px}
+:host .panel .head :is(button,details,[role=button]){display:none!important}
+:host .launcher[aria-expanded],:host([data-position=left]) .launcher{position:absolute;bottom:8px;display:flex;pointer-events:none;box-shadow:none}
 .launcher{right:8px}:host([data-position=left]) .launcher{left:8px;right:auto}
-@media(max-width:480px){.panel,:host([data-position=left]) .panel{inset:0 0 auto;width:100%;height:100%;max-height:100%}}`;
+@media(max-width:480px){:host .panel,:host([data-position=left]) .panel{inset:0 0 72px;width:100%;height:auto}}`;
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 /** One-path outline glyphs, built as DOM so host pages with Trusted Types work. */
 const ICONS = {
   chat: "M4 5h16v11H10l-5 4v-4H4z",
   close: "M6 6l12 12M18 6L6 18",
+  minus: "M5 12h14",
   send: "M4 12l16-8-6 16-3-7zM11 13l9-9",
   wallet: "M3 7h18v12H3zM3 7l3-3h11v3M16 13h2",
   lock: "M6 11h12v9H6zM8 11V8a4 4 0 0 1 8 0v3",
+  people: "M8 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8M2 21v-2a5 5 0 0 1 5-5h2a5 5 0 0 1 5 5v2m3-17a4 4 0 0 1 0 8m1 3a5 5 0 0 1 4 5v1",
   check: "M5 12l5 5 9-10",
 } as const;
 function icon(name: keyof typeof ICONS) {
@@ -1520,6 +1533,7 @@ const loadBranding = (): Promise<typeof import("./support-widget-art")> =>
     : import("./support-widget-art");
 
 export type TailHost = {
+  transcript?: ReturnType<typeof followTranscript>;
   lifetime?: AbortSignal;
   options: SupportWidgetOptions;
   /** Used only for visual grouping. Never copy a private sender ID into the DOM. */
@@ -1555,6 +1569,8 @@ export type TailHost = {
   emailButton?: HTMLButtonElement;
   thread?(): string | null;
   verifiedWallet?(): string | undefined;
+  walletName?(address: `0x${string}`): Promise<string | undefined>;
+  walletCase?(): WidgetMessages["conversation"];
   draftingConversation?(): boolean;
   showCase?(id: string): Promise<void>;
   replyNotices?: boolean;
@@ -1587,6 +1603,8 @@ export type TailHost = {
     aiReplyExpected?: boolean;
     supportProfiles?: VisitorSupportProfiles;
     minimumLevel?: string;
+    solanaSignIn?: boolean;
+    walletIdentification?: WalletRules.WalletIdentification;
     walletFallback?: boolean;
     askPerson?: boolean;
     replyEmail?: boolean;
@@ -2581,6 +2599,7 @@ export function solanaKit(
 type DemoSetup = {
   container: HTMLElement;
   readOnly?: boolean;
+  fixedOpen?: boolean;
   style: string;
   decorate?(parts: {
     header: HTMLElement;
@@ -2594,11 +2613,13 @@ type DemoSetup = {
 function renderSupportWidget(
   options: Omit<SupportWidgetOptions, "provider" | "wallet">,
   client: WidgetClient,
-  demo?: DemoSetup,
+  sample?: DemoSetup,
 ) {
+  const demo = typeof __TEMPL_WIDGET_BUILD__ === "undefined" ? sample : undefined;
   const chunkFailed = (step: string, route = "widget") =>
     console.warn("TEMPL_SUPPORT_FAILURE", { route, step, cause: "chunk-load" });
-  const demoContainer = typeof __TEMPL_WIDGET_BUILD__ === "undefined" && demo?.decorate ? demo.container : undefined;
+  const demoContainer = demo?.decorate ? demo.container : undefined;
+  const fixedPreview = demo?.fixedOpen === true;
   const host = document.createElement("div");
   host.setAttribute("data-templ-support", "");
   let appearance = options.appearance ?? {};
@@ -2650,12 +2671,13 @@ function renderSupportWidget(
   launcher.type = "button";
   launcher.append(icon("chat"), document.createTextNode(label));
   launcher.hidden = !!options.container || options.showLauncher === false;
+  if (fixedPreview) launcher.inert = true;
   launcher.setAttribute("aria-expanded", "false");
   const panel = el("section", undefined, "panel");
   panel.hidden = true;
   panel.setAttribute(
     "role",
-    demoContainer || options.container ? "region" : "dialog",
+    fixedPreview || demoContainer || options.container ? "region" : "dialog",
   );
   panel.setAttribute("aria-label", label);
   const header = el("div", undefined, "head");
@@ -2670,7 +2692,7 @@ function renderSupportWidget(
   close.type = "button";
   close.setAttribute("aria-label", "Close");
   close.append(icon("close"));
-  close.hidden = !!demoContainer || !!options.container && !options.onClose;
+  close.hidden = fixedPreview || !!demoContainer || !!options.container && !options.onClose;
   header.append(close);
   const body = el("div", undefined, "body");
   // The welcome block's words come with the extras; its button shows at once.
@@ -2910,8 +2932,11 @@ function renderSupportWidget(
     (message.clientId === attempt.id ||
       (!!attempt.serverId && message.id === attempt.serverId));
   const lifetime = new AbortController();
+  const transcript = typeof __TEMPL_WIDGET_BUILD__ === "undefined" && options.container && !demoContainer
+    ? followTranscript(body, form, lifetime.signal) : undefined;
   const messageAuthors = new WeakMap<HTMLElement, string>();
   const tailHost: TailHost = {
+    transcript,
     lifetime: lifetime.signal,
     messageAuthors,
     options,
@@ -2941,8 +2966,8 @@ function renderSupportWidget(
       return consent!.review(text, send, details);
     },
   };
-  tailHost.verifiedWallet = () =>
-    info?.id === conversation && !newCaseFrom ? info.verifiedWalletAddress : undefined;
+  tailHost.walletCase = () => info?.id === conversation && !newCaseFrom ? info : undefined;
+  tailHost.verifiedWallet = () => tailHost.walletCase?.()?.verifiedWalletAddress;
   function setAttachOpen(open: boolean) {
     attach.hidden = !open || !!demoContainer;
     attachToggle.setAttribute("aria-expanded", String(open));
@@ -3239,6 +3264,7 @@ function renderSupportWidget(
    * Nodes are kept by message, so a poll or a typing mark only adds or removes
    * what changed and earlier bubbles don't animate again. */
   function render(prepended = false) {
+    const restorePosition = typeof __TEMPL_WIDGET_BUILD__ === "undefined" ? transcript?.beforeRender() : undefined;
     const next = new Map<string, { node: HTMLElement; sig: string }>();
     const add = (
       key: string,
@@ -3366,11 +3392,12 @@ function renderSupportWidget(
       const first = !rendered;
       rendered = digest;
       changedAt = Date.now();
-      if (!prepended)
+      if (!prepended && (typeof __TEMPL_WIDGET_BUILD__ !== "undefined" || !transcript))
         body.scrollTop = demoContainer && first ? 0 : body.scrollHeight;
     }
     setStarter();
     tailHost.leadState?.(busy || !!pending, !!info?.handoff);
+    if (typeof __TEMPL_WIDGET_BUILD__ === "undefined") restorePosition?.();
   }
   function display(data: WidgetMessages, prepend = false) {
     if (error.textContent === UNAVAILABLE) error.textContent = "";
@@ -3497,6 +3524,7 @@ function renderSupportWidget(
                   () => {},
                 );
               tailHost.policy = policy;
+              options.accountWalletRequired?.(policy.chatMode === "encrypted" || policy.minimumLevel !== "anyone");
               attachToggle.hidden = tx.hidden && !policy.diagnostics;
               if (
                 options.templLeadCapture &&
@@ -3942,6 +3970,7 @@ function renderSupportWidget(
   }
   function queueMessage(text: string, wallet?: Selected) {
     if (!active || pending || busy) return;
+    if (typeof __TEMPL_WIDGET_BUILD__ === "undefined") transcript?.latest();
     pending = {
       id: requestId(),
       text,
@@ -4035,7 +4064,7 @@ function renderSupportWidget(
       .then(() => more?.ready());
   };
   const shut = () => {
-    if (demoContainer || (options.container && !options.onClose)) return;
+    if (fixedPreview || demoContainer || (options.container && !options.onClose)) return;
     panel.hidden = true;
     options.onClose?.();
     launcher.setAttribute("aria-expanded", "false");

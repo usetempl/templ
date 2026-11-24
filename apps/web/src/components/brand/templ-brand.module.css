@@ -9,26 +9,9 @@
   height: auto;
   object-fit: contain;
 }
+.light {
+  display: var(--templ-light-logo-display, block);
+}
 .dark {
-  display: none;
-}
-:global([data-theme="dark"]) .light {
-  display: none;
-}
-:global([data-theme="dark"]) .dark {
-  display: block;
-}
-@media (prefers-color-scheme: dark) {
-  .light {
-    display: none;
-  }
-  .dark {
-    display: block;
-  }
-  :global([data-theme="light"]) .light {
-    display: block;
-  }
-  :global([data-theme="light"]) .dark {
-    display: none;
-  }
+  display: var(--templ-dark-logo-display, none);
 }

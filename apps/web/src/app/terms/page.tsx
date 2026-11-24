@@ -35,7 +35,25 @@ export default async function TermsPage() {
       title="Terms"
       description="Templ helps teams answer support cases. Customers pay agreed software fees. Users ask their team for help. Your manager controls team access. You control your wallet. These terms cover payments, data, service limits and disputes."
       active="terms"
+      updated="24 November 2026"
     >
+      <PolicySection title="Report brand impersonation" id="impersonation">
+        <p>
+          Is a hosted Templ line passing itself off as your brand?{" "}
+          <a href={SITE.origin + "/#support"}>Message Templ Support</a> or{" "}
+          <a href={`mailto:${OPERATOR.legalContact}?subject=Brand%20impersonation`}>email the team</a>{" "}
+          with your official domain and the Templ link or name. Our team will give
+          you a one-time code to publish on your website or in a DNS TXT record.
+          A person checks your proof of domain control and reviews the reported line.
+        </p>
+        <p>
+          If we confirm intentional impersonation, we take down the hosted line
+          and end the offending workspace’s access. Its fees and unused paid
+          credit are nonrefundable, except where a signed agreement or mandatory
+          law requires a refund. You can <Link href="/safety">appeal through Safety</Link>.
+          For existing customers, the notice rules in section 18 apply.
+        </p>
+      </PolicySection>
       <PolicySection title="1. Who agrees">
         <p>Customers buy the service. Users ask their team for help.</p>
         <p>
@@ -153,7 +171,9 @@ export default async function TermsPage() {
           create no customer charge. Monthly allowances do not roll over. Cash
           credit stays available after a month ends. Ask through Templ&apos;s
           widget to request a refund of unused cash credit. Refunds require
-          manual review. Unsupported transfers receive no automatic credit or
+          manual review and are subject to the{" "}
+          <Link href="#impersonation">brand impersonation rule</Link>.
+          Unsupported transfers receive no automatic credit or
           recovery promise. Existing grants, access periods and signed
           agreements keep their recorded terms. Safety restrictions and
           operational and provider limits still apply.
@@ -551,7 +571,8 @@ export default async function TermsPage() {
           balance. Refunds cover paid top-ups younger than{" "}
           {PRODUCT_TOP_UP.refundWindowDays} days. Templ subtracts valid charges
           waiting to become final. Refunds return to the paying address on the
-          same network. Bonus and grant credit are never refunded.
+          same network. The <Link href="#impersonation">brand impersonation rule</Link>{" "}
+          also applies. Bonus and grant credit are never refunded.
         </p>
         <p>
           Final service fees are not refundable unless a billing correction,

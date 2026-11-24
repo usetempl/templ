@@ -190,6 +190,8 @@ export function describeActivity(
       return access("changed the widget websites");
     case "widget.level":
       return access("changed who can start a case");
+    case "widget.wallet-identification":
+      return access("changed which wallets visitors can verify");
     case "widget.wallet-fallback":
       return access(
         field(entry.after, "walletFallback") === true

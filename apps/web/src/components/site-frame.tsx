@@ -5,7 +5,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { TemplLogo } from "@/components/brand/templ-mark";
 import { TalkToTempl } from "@/components/talk-to-templ";
-import { TemplSupportLink } from "@/components/templ-support";
 import { SITE } from "@/lib/release-public";
 import styles from "./site-frame.module.css";
 
@@ -20,7 +19,6 @@ export function SiteHeader({ brandOnly = false }: { brandOnly?: boolean }) {
         </Link>
         {brandOnly && (
           <div className={`${styles.headerActions} ${styles.landingActions}`}>
-            <TemplSupportLink className={styles.landingApp}>Talk to us</TemplSupportLink>
             <Link href="/inbox" className={styles.landingApp}>
               Open app
             </Link>

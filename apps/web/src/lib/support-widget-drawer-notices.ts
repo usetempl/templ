@@ -8,15 +8,9 @@ export function drawerNotices(host: TailHost, menu: HTMLElement, signal: AbortSi
   host.style.append(document.createTextNode(`
 .shared-chat .drawer-section-body label{display:grid;gap:4px;font-size:13px}
 .shared-chat .drawer-section-body input{box-sizing:border-box;width:100%;min-width:0;padding:8px;border:1px solid var(--b2);border-radius:8px;color:var(--t);background:var(--s);font:inherit;font-size:16px}
-.shared-chat .drawer-form-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
-.shared-chat .drawer-section-body .drawer-primary{background:var(--a);color:var(--oa)}
-.shared-chat .drawer-section-body .drawer-primary:hover:enabled{background:var(--ah);color:var(--oh)}
-.shared-chat .drawer-section-body .drawer-primary:active:enabled{background:var(--aa);color:var(--op)}
-.shared-chat .drawer-section-body .drawer-primary:disabled{background:var(--s);color:var(--m)}
-.shared-chat .drawer-section-body .drawer-stop{background:var(--s2);color:light-dark(#9e3024,#ffaea3)}
 `));
   const client = host.client as ReturnType<typeof createSupportClient>;
-  const section = el("section", undefined, "drawer-section");
+  const section = el("section", undefined, "drawer-section drawer-notices");
   const heading = el("h3", "Reply notifications");
   const icon = host.icon("chat");
   icon.querySelector("path")!.setAttribute("d", "M4 5h16v14H4zM4 5l8 7 8-7");
@@ -29,9 +23,10 @@ export function drawerNotices(host: TailHost, menu: HTMLElement, signal: AbortSi
   input.required = true;
   input.maxLength = 254;
   label.append(input);
-  const hint = el("p", "Confirm your address by email to get replies to this chat. The team cannot see your email address.");
-  const controls = el("div", undefined, "drawer-form-actions");
-  const save = el("button", "Use this address", "drawer-primary");
+  const hint = el("div");
+  hint.append(el("p", "Confirm your email to get reply notifications."), el("p", "The team cannot see your email address."));
+  const controls = el("div", undefined, "drawer-actions");
+  const save = el("button", "Use this email", "drawer-primary");
   save.type = "submit";
   const cancel = el("button", "Cancel", "quiet");
   cancel.type = "button";

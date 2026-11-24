@@ -447,7 +447,7 @@ export class AuthRecord {
           (grant.shareConversation !== "next" && grant.shareConversation !== conversation))
           throw new HttpError(403, "Verify your wallet again for this conversation.");
         if (grant.shareConversation === "next") await storage.put(key, { ...grant, shareConversation: conversation });
-        return json(grant.sharedWallet);
+        return json({ ...grant.sharedWallet, proofIssuedAt: grant.authenticatedAt ?? 0 });
       });
     }
     if (path === "/consume" || path === "/read") {

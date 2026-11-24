@@ -36,6 +36,7 @@ export function HostedSupportChat({
   const widget = useRef<ReturnType<typeof mountSupportWidget> | null>(null);
   const [state, setState] = useState<"loading" | "ready" | "failed">("loading");
   const [retry, setRetry] = useState(false);
+  const [accountWalletRequired, setAccountWalletRequired] = useState(false);
   const [network, setNetwork] = useState(WIDGET_SIGN_IN_NETWORKS[0]);
   const currentNetwork = useRef(network);
   useEffect(() => {
@@ -60,6 +61,8 @@ export function HostedSupportChat({
         apiUrl: SITE.community,
         container: container.current,
         wallet: supportPageWallet(currentNetwork.current),
+        walletForNetwork: family => widgetSignInNetworks(release).includes(family) ? supportPageWallet(family) : null,
+        accountWalletRequired: setAccountWalletRequired,
         styleNonce: nonce,
         appearanceChanged: (saved) => setAccent(saved.accent),
         label: name,
@@ -93,7 +96,7 @@ export function HostedSupportChat({
       mounted?.destroy();
       widget.current = null;
     };
-  }, [workspace, name, nonce, frameRequired, retry, release.templSupport?.workspaceId]);
+  }, [workspace, name, nonce, frameRequired, retry, release]);
   return (
     <SupportChatFrame workspace={workspace} accent={accent} label={`Support for ${name}`} siteAppearance={workspace === release.templSupport?.workspaceId}>
       {state === "ready" && <details className={styles.channelInfo}>
@@ -101,7 +104,7 @@ export function HostedSupportChat({
         {verifiedSites.length ? <p>Verified sites: {verifiedSites.map(site => <a key={site} href={site} rel="noreferrer">{new URL(site).hostname} </a>)}</p>
           : <p>Templ has not verified a website for this workspace.</p>}
       </details>}
-      {state === "ready" && WIDGET_SIGN_IN_NETWORKS.length > 1 && (
+      {state === "ready" && (frameRequired || accountWalletRequired) && WIDGET_SIGN_IN_NETWORKS.length > 1 && (
         <div
           className={styles.network}
           role="group"

@@ -12,8 +12,8 @@ export function startInstallPrompt(hosts: InstallHosts = SITE): string {
 Ask whether I want an embedded widget, a standalone support link, or both.
 Help me create a workspace at ${hosts.origin}/create or use one I manage.
 Start with the visitor link in Your support chat. Open it in a separate browser, send a test question, then answer from Cases. A self-hosted team uses its own domain.
-For an existing workspace without a support link, open Settings → Widget → Guest support, select Host a support page on Templ and Save guest support. Use Copy support link for the saved URL. Link-only setup needs no widget code.
-For the widget, ask me to copy its public workspace ID from Settings → Widget. It is not a credential.
+For an existing workspace without a support link, open Settings → Chat → Guest support, select Host a support page on Templ and Save guest support. Use Copy support link for the saved URL. Link-only setup needs no widget code.
+For the widget, ask me to copy its public workspace ID from Settings → Chat. It is not a credential.
 Use Connect's wallet confirmation only when current availability says Connect is open.
 Use free integration mode: ${PRODUCT_LIMITS.freeSupportTickets} lifetime test tickets, with ${PRODUCT_LIMITS.freeTeamRepliesPerTicket} team replies per ticket. Templ AI stays off.
 Preserve existing paid access, grants, team roles and AI settings.
@@ -21,7 +21,7 @@ For an embed, reuse the app’s wallet connection and use the workspace install 
 Check current availability. Keep unavailable features off.
 Never request passwords, private keys, recovery phrases or staff tokens.
 Test a guest question and a team reply. Tell me what needs attention.
-Stop before payment. When I want a hosted name, show me how to reserve it under Your support chat and choose a monthly plan. Payment is in USDC and renewals are manual.`;
+Stop before payment. When I want a hosted name, open Choose a hosted name under Your support chat, then show me how to reserve it and choose a monthly plan. Payment is in USDC and renewals are manual.`;
 }
 
 /** The hosts a prompt names. Every build uses its own `SITE`; tests and the
@@ -57,7 +57,7 @@ export function installConnectSteps(hosts: InstallHosts = SITE): string {
    - For approved, check workspaceId is a UUID. Save only workspaceId in the app's public config, then continue.
    - If Connect fails, report the error and offer the manual setup below. Never invent an ID.
    Manual setup:
-   - Ask me to create a workspace at ${hosts.origin}/create, then paste its ID from the Widget tab.
+   - Ask me to create a workspace at ${hosts.origin}/create, then paste its ID from Settings → Chat.
    - Check the ID is a UUID. Save only that ID in the app's public config, then continue.
    - Keep support off until a valid ID is configured and support.widgetVerified is true.`;
 }
@@ -231,9 +231,9 @@ export function closeSupport() {
 `;
 }
 
-/** The one install prompt: the landing page, the workspace's Widget tab,
+/** The one install prompt: the landing page, the workspace’s Chat settings,
  * the docs and /agents.md all show it. One prompt covers EVM and Solana
- * apps; the coding tool finds the wallet library. The Widget tab passes its
+ * apps; the coding tool finds the wallet library. The Chat settings page passes its
  * workspace ID. */
 export function installPrompt({
   release,
@@ -267,7 +267,7 @@ export function installPrompt({
   return `Add Templ support chat to this app.
 Start at ${origin} and read ${origin}/llms.txt for the install guide.
 Ask whether I want the widget, a standalone chat link, or both.
-New teams can test the visitor link under Your support chat before installing anything. To turn it on in an existing workspace, open Settings → Widget → Guest support. Select Host a support page on Templ and Save guest support. Use Copy support link${id ? ` and check that the saved address is ${supportUrl ?? `${origin}/help/${id}`}` : " to get this workspace’s address"}. Link to it from the app’s official Help or Support entry. For link only, stop after verifying the page. No widget code is needed.
+New teams can test the visitor link under Your support chat before installing anything. To turn it on in an existing workspace, open Settings → Chat → Guest support. Select Host a support page on Templ and Save guest support. Use Copy support link${id ? ` and check that the saved address is ${supportUrl ?? `${origin}/help/${id}`}` : " to get this workspace’s address"}. Link to it from the app’s official Help or Support entry. For link only, stop after verifying the page. No widget code is needed.
 For an embed or both, follow the widget steps below. Reuse the wallet connection the app already has.
 
 Templ loads from a hosted ES module. There is no npm package. Don't install one or copy the hosted module into the repo.

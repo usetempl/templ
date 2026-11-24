@@ -2,7 +2,7 @@ import type { memberConversations } from "./support-widget-conversations";
 import type { TailHost } from "./support-widget";
 type Controls = {
   disclosure: HTMLDetailsElement;
-  people: HTMLDetailsElement;
+  people?: HTMLDetailsElement;
   feedback: HTMLElement;
   note: HTMLElement;
   title?: HTMLElement;
@@ -33,6 +33,7 @@ export function chatFirstControls(
 ) {
   const enabled =
     host.options.chatFirst === true && (host.policy?.chatFirst === true || host.policy?.singleConversation === true);
+  const transcript = host.transcript;
   let state = controls.get(host);
 
   if (!enabled) {
@@ -42,7 +43,7 @@ export function chatFirstControls(
       for (const node of panel?.querySelectorAll(".chat-empty,.chat-day,.delivery-status") ?? [])
         node.remove();
       if (state.title) {
-        state.people.before(state.title);
+        (state.people ?? state.disclosure).before(state.title);
         if (state.subtitle) state.title.append(state.subtitle);
       }
       state.disclosure.before(tools);
@@ -53,7 +54,7 @@ export function chatFirstControls(
         host.draft.before(state.shareDetails);
       }
       state.disclosure.remove();
-      state.people.remove();
+      state.people?.remove();
       state.feedback.remove();
       host.draft.placeholder = state.placeholder;
     }
@@ -63,39 +64,51 @@ export function chatFirstControls(
     host.style.textContent += style;
     const disclosure = host.el("details", undefined, "chat-options"),
       more = host.el("summary", "Menu");
-    more.setAttribute("aria-label", "Chat options");
+    const shared = host.options.conversationDrawers === true;
+    more.setAttribute("aria-label", shared ? "Menu" : "Chat options");
     const menu = host.el("div", undefined, "chat-menu");
     menu.setAttribute("role", "group");
     menu.setAttribute("aria-label", "Conversation options");
-    const people = host.el("details", undefined, "chat-people"),
-      summary = host.el("summary");
+    const people = shared ? undefined : host.el("details", undefined, "chat-people");
     const panel = tools.closest(".panel");
     const drawer = host.showCase && listModule?.conversationDrawer(host);
     const history = drawer?.history;
-    summary.setAttribute("aria-label", "Conversation participants");
-    const roster = host.el("div", undefined, "chat-roster"),
-      peopleMenu = host.el("div", undefined, "chat-people-menu");
+    const roster = host.el("div", undefined, "chat-roster");
+    const peopleMenu = shared ? host.el("section", undefined, "drawer-section drawer-people") : host.el("div", undefined, "chat-people-menu");
+    peopleMenu.append(roster);
     const avatars = host.el("span", undefined, "chat-avatars");
     avatars.setAttribute("aria-hidden", "true");
-    peopleMenu.setAttribute("aria-label", "Participants");
+    if (people) {
+      const summary = host.el("summary");
+      summary.setAttribute("aria-label", "Conversation participants");
+      peopleMenu.setAttribute("aria-label", "Participants");
+      people.append(summary, peopleMenu);
+    } else {
+      const menuIcon = host.icon("chat");
+      menuIcon.querySelector("path")!.setAttribute("d", "M4 6h16M4 12h16M4 18h16");
+      more.replaceChildren(avatars, menuIcon);
+      more.setAttribute("aria-description", "People and conversation settings");
+      const heading = host.el("h3", "People");
+      heading.prepend(host.icon("people"));
+      peopleMenu.prepend(heading);
+      menu.append(peopleMenu);
+    }
     const note = host.el("p", undefined, "options-note"),
       feedback = host.el("p", undefined, "chat-feedback");
     feedback.setAttribute("role", "status");
     feedback.hidden = true;
-    const close = () => {
-      disclosure.open = people.open = false;
-      if (history) history.open = false;
-      host.draft.focus();
-    };
-    for (const details of [disclosure, people, ...(history ? [history] : [])]) {
-      if (!host.options.conversationDrawers) {
+    const disclosures = [disclosure, people, history].filter((item): item is HTMLDetailsElement => !!item);
+    const closeDisclosures = () => { for (const details of disclosures) details.open = false; };
+    const close = () => { closeDisclosures(); host.draft.focus(); };
+    for (const details of disclosures) {
+      if (!shared) {
         const back = host.el("button", "Back to chat", "return-chat");
         back.type = "button";
         back.addEventListener("click", close);
         (details === disclosure ? menu : peopleMenu).append(back);
       }
       details.addEventListener("keydown", (event) => {
-        if (event.key === "Escape") {
+        if (event.key === "Escape" && !panel?.classList.contains("shared-chat")) {
           event.preventDefault();
           event.stopPropagation();
           close();
@@ -103,15 +116,13 @@ export function chatFirstControls(
       });
       details.addEventListener("toggle", () => {
         if (!details.open) return;
-        if (details === people && host.policy?.supportProfiles) peopleView.refreshContacts(host);
-        for (const other of [disclosure, people, history])
-          if (other && other !== details) other.open = false;
+        if (details === (people ?? disclosure) && host.policy?.supportProfiles) peopleView.refreshContacts(host);
+        for (const other of disclosures)
+          if (other !== details) other.open = false;
       });
     }
-    peopleMenu.prepend(roster);
     menu.prepend(note);
     disclosure.append(more, menu);
-    people.append(summary, peopleMenu);
     const threadList = drawer && listModule?.bindMemberHistory(host, tools, drawer.history, drawer.trigger, true);
     state = {
       disclosure,
@@ -146,28 +157,26 @@ export function chatFirstControls(
     panel?.addEventListener("pointerdown", (event) => {
       if (
         !disclosure.contains(event.target as Node) &&
-        !people.contains(event.target as Node) &&
+        !people?.contains(event.target as Node) &&
         !history?.contains(event.target as Node)
       ) {
-        disclosure.open = people.open = false;
-        if (history) history.open = false;
+        closeDisclosures();
       }
     });
   }
   if (!state.disclosure.isConnected) {
     const header = tools.parentElement!,
-      title = header.querySelector<HTMLElement>(".titles"),
-      summary = state.people.querySelector("summary")!;
+      title = header.querySelector<HTMLElement>(".titles");
     state.title = title ?? undefined;
     state.subtitle = title?.querySelector<HTMLElement>(".sub") ?? undefined;
-    if (state.subtitle)
-      state.people.querySelector(".chat-people-menu")!.append(state.subtitle);
-    summary.replaceChildren(state.avatars);
-    if (!host.options.conversationDrawers)
-      summary.append(title ?? host.el("strong", host.options.label ?? "Support"));
-    tools.before(state.people, state.disclosure);
+    if (state.people) {
+      if (state.subtitle) state.people.querySelector(".chat-people-menu")!.append(state.subtitle);
+      state.people.querySelector("summary")!.replaceChildren(state.avatars, title ?? host.el("strong", host.options.label ?? "Support"));
+      tools.before(state.people);
+    } else state.subtitle?.remove();
+    tools.before(state.disclosure);
     state.disclosure.querySelector(".chat-menu")!.prepend(tools);
-    if (state.history) state.people.before(state.history);
+    if (state.history) (state.people ?? state.disclosure).before(state.history);
     else if (state.conversations)
       tools.after(state.conversations.list);
     if (state.shareDetails) tools.prepend(state.shareDetails);
@@ -255,8 +264,10 @@ export function chatFirstControls(
   state.feedback.hidden = !busy || !state.action;
   const log = panel?.querySelector(".messages"),
     body = panel?.querySelector<HTMLElement>(".body");
+  // Day headings are added after the message render. Keep the same row through this layout pass too.
+  const restorePosition = transcript?.beforeRender();
   const nearEnd =
-    body && body.scrollHeight - body.scrollTop - body.clientHeight < 72;
+    !transcript && body && body.scrollHeight - body.scrollTop - body.clientHeight < 72;
   for (const node of log?.querySelectorAll(".chat-day") ?? []) node.remove();
   let previous = "",
     previousSender: string | undefined,
@@ -305,5 +316,6 @@ export function chatFirstControls(
   const shown = host.thread?.();
   if (shown) state.conversations?.read(shown, lastReplyAt);
   if (nearEnd) body.scrollTop = body.scrollHeight;
+  restorePosition?.();
   return true;
 }

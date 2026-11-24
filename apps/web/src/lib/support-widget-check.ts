@@ -1,5 +1,5 @@
 /** "Check my install": the six checks a manager runs on their own site from
- * the Widget tab. Loaded by the ops chunk only for `#templ-check=<token>`.
+ * Settings → Chat. Loaded by the ops chunk only for `#templ-check=<token>`.
  * Results hold fixed ids, times and pass or fail; no page text leaves the
  * page. */
 import { widgetMessageId } from "./support-widget-message-id";
@@ -239,7 +239,7 @@ export function check(host: CheckHost) {
     show();
     if (!tries) {
       await result("outage", false);
-      return say("The Help button never opened support during the check. Start it again from the Widget tab.");
+      return say("The Help button never opened support during the check. Start it again from Settings → Chat.");
     }
     say("Did your page keep working while support was down?");
     for (const [label, works] of [["My page still works", true], ["My page broke", false]] as const) {
@@ -248,13 +248,13 @@ export function check(host: CheckHost) {
       answer.onclick = () =>
         void result("outage", works && !uncaught).then(
           () => say("Install check saved."),
-          () => say("The install check could not be saved. Start it again from the Widget tab."),
+          () => say("The install check could not be saved. Start it again from Settings → Chat."),
         );
       status.append(" ", answer);
     }
   }
 
-  const failed = () => say("The install check could not finish. Start it again from the Widget tab.");
+  const failed = () => say("The install check could not finish. Start it again from Settings → Chat.");
   const token = new URLSearchParams(location.hash.slice(1)).get("templ-check");
   if (token) void install(token).catch(failed);
   return {

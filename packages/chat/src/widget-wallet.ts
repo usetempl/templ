@@ -23,6 +23,16 @@ import { isSolanaAddress } from "./solana";
 
 export const WIDGET_WALLET_NETWORKS = ["evm", "solana"] as const;
 export type WidgetWalletNetwork = (typeof WIDGET_WALLET_NETWORKS)[number];
+
+export type WalletIdentification = { enabled: boolean; evm: boolean; solana: boolean };
+export const DEFAULT_WALLET_IDENTIFICATION: WalletIdentification = { enabled: true, evm: true, solana: true };
+
+export function readWalletIdentification(value: unknown): WalletIdentification | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const { enabled, evm, solana } = value as Record<string, unknown>;
+  return Object.keys(value).length === 3 && typeof enabled === "boolean" &&
+    typeof evm === "boolean" && typeof solana === "boolean" ? { enabled, evm, solana } : null;
+}
 export type EvmWidgetWallet = {
   network: "evm";
   /** Lowercase, never the zero address. */

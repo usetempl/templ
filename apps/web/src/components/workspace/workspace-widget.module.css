@@ -95,6 +95,12 @@
   color: var(--templ-danger-text);
   font-size: var(--templ-text-small);
 }
+.section .contrastWarning {
+  padding: var(--templ-space-2) var(--templ-space-3);
+  border-radius: var(--templ-radius-control);
+  color: var(--templ-warning-text);
+  background: var(--templ-warning-soft);
+}
 .swatches {
   display: grid;
   grid-template-columns: repeat(9, minmax(0, 1fr));

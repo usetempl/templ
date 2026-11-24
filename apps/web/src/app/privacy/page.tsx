@@ -3,6 +3,8 @@ import { CORPUS_LIMITS, PRODUCT_LIMITS } from "@templ/chat/plans";
 import { EVAL_LIMITS } from "@templ/chat/support-eval";
 import { PolicyPage, PolicySection } from "@/components/policy-page";
 import { TalkToTempl } from "@/components/talk-to-templ";
+import { SITE } from "@/lib/release-public";
+import { OPERATOR } from "@/lib/operator";
 import { getRelease } from "@/lib/config";
 import { capabilityVerified } from "@/lib/support-availability";
 import {
@@ -32,13 +34,29 @@ export default async function PrivacyPage() {
       title="Privacy"
       description="How Templ uses and keeps the information you share."
       active="privacy"
-      updated="20 November 2026"
+      updated="24 November 2026"
     >
       <p>
         {
           "Your protocol team controls your support case. Templ runs support for that team. We also use account, billing and security data. Enabled AI may read your case. Improvement copies have separate rules and time limits. You can ask about your data for free."
         }
       </p>
+      <PolicySection title="Report brand impersonation" id="impersonation">
+        <p>
+          If a Templ line impersonates your brand,{" "}
+          <a href={SITE.origin + "/#support"}>message Templ Support</a> or{" "}
+          <a href={`mailto:${OPERATOR.legalContact}?subject=Brand%20impersonation`}>email the team</a>{" "}
+          with your official domain and the reported Templ link or name. We will
+          give you a one-time code to publish on your website or in a DNS TXT record.
+        </p>
+        <p>
+          Templ uses those details and the public proof to verify domain control,
+          investigate the report and handle any appeal. A person decides the
+          outcome. Our <Link href="#retention">retention periods</Link> apply to
+          the support and enforcement records. See the{" "}
+          <Link href="/terms#impersonation">hosted line takedown and refund terms</Link>.
+        </p>
+      </PolicySection>
       <PolicySection title="1. Who operates Templ" id="operator">
         <p>
           {

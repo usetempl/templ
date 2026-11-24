@@ -7,17 +7,20 @@ import styles from "./landing-pricing.module.css";
 export function LandingPricing() {
   return (
     <section id="pricing" className={styles.plans} aria-labelledby="pricing-title">
-      <h2 id="pricing-title">Try it free. Pay to claim your name.</h2>
+      <h2 id="pricing-title">Claim your <span>/brand</span> support line.</h2>
       <div className={styles.choices}>
-        <section id="install" aria-labelledby="trial-title">
-          <h3 id="trial-title">Your free test</h3>
-          <p>Try your own chat link and team inbox. You get {PRODUCT_LIMITS.freeSupportTickets} tickets with up to {PRODUCT_LIMITS.freeTeamRepliesPerTicket} staff replies each. Templ AI is off during the trial.</p>
-          <p>You can add a widget to your site later.</p>
+        <section id="install" className={styles.trial} aria-labelledby="trial-title">
+          <h3 id="trial-title">Start with a free chat</h3>
+          <p>Open your visitor link, send a question and reply from your team inbox.</p>
           <LandingActions id="start-install" />
+          <p className={styles.allowance}>Try {PRODUCT_LIMITS.freeSupportTickets} tickets with up to {PRODUCT_LIMITS.freeTeamRepliesPerTicket} staff replies each. Templ AI is off during the trial.</p>
         </section>
         <section className={styles.hosted} aria-labelledby="hosted-title">
           <h3 id="hosted-title">Templ Hosted</h3>
-          <p>Pay monthly in USDC to claim an available hosted name. Chat, storage and all team seats are included. Renew manually.</p>
+          <p>
+            When you’re ready, choose an available name and pay for a month in USDC.
+            Both plans include hosting, storage and all team seats. Renew manually.
+          </p>
           <table aria-label="Templ Hosted monthly plans">
             <thead><tr><th scope="col">Plan</th><th scope="col">Starter</th><th scope="col">Plus</th></tr></thead>
             <tbody>
@@ -27,10 +30,10 @@ export function LandingPricing() {
               <tr><th scope="row">Templ AI credit</th><td>{dollars(STARTER.includedAiCreditUsdCents)}</td><td>{dollars(PLUS.includedAiCreditUsdCents)}</td></tr>
             </tbody>
           </table>
-          <p>AI is optional. Connect your provider or prepay for Templ AI with a spending limit.</p>
-          <a href={SITE.docs + "/pricing"} data-templ-conversion="pricing_rules_clicked">Compare plan details</a>
+          <p className={styles.allowance}>Bring your own AI provider or prepay for Templ AI with a spending limit.</p>
         </section>
       </div>
+      <small className={styles.footnote}><a href={SITE.docs + "/pricing"} data-templ-conversion="pricing_rules_clicked">Full pricing details</a></small>
     </section>
   );
 }

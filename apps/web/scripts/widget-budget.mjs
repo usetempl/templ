@@ -61,6 +61,8 @@ export const WIDGET_CHUNKS = Object.freeze([
   "drawer",
   "drawer-style",
   "drawer-notices",
+  "wallet-view",
+  "wallet-style",
   "drawer-wallet",
   "conversations",
   "welcome",

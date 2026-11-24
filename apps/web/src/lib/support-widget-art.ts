@@ -72,14 +72,6 @@ export function bindWidgetBranding(
     );
     property("--b", color(palette?.border));
     property("--b2", color(palette?.border));
-    const accent =
-      typeof appearance.accent === "string"
-        ? appearance.accent
-        : appearance.accent?.[mode];
-    if (background) {
-      property("--at", readable(accent));
-      property("--af", readable(accent));
-    }
     const font =
       appearance.font &&
       Object.hasOwn(FONTS, appearance.font) &&

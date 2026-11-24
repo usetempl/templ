@@ -71,6 +71,7 @@ export type ChatAuditAction =
   | "widget.origins"
   | "widget.level"
   | "widget.wallet-fallback"
+  | "widget.wallet-identification"
   | "widget.ask-person"
   | "widget.hosted-page"
   // Remembered widget sign-in turned on or off ({remember}), every member
@@ -230,6 +231,7 @@ const ACCESS_ACTIONS: ReadonlySet<ChatAuditAction> = new Set<ChatAuditAction>([
   "widget.origins",
   "widget.level",
   "widget.wallet-fallback",
+  "widget.wallet-identification",
   "widget.ask-person",
   "widget.hosted-page",
   "widget.remember",

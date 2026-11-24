@@ -124,14 +124,21 @@ textarea::placeholder {
   --templ-select-chevron-dark: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23f2f2f2' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6l6 -6'/%3E%3C/svg%3E");
   --templ-select-chevron: var(--templ-select-chevron-light);
 }
+:root,
 [data-theme="light"] {
+  --templ-light-logo-display: block;
+  --templ-dark-logo-display: none;
   --templ-select-chevron: var(--templ-select-chevron-light);
 }
 [data-theme="dark"] {
+  --templ-light-logo-display: none;
+  --templ-dark-logo-display: block;
   --templ-select-chevron: var(--templ-select-chevron-dark);
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme]) {
+    --templ-light-logo-display: none;
+    --templ-dark-logo-display: block;
     --templ-select-chevron: var(--templ-select-chevron-dark);
   }
 }

@@ -48,7 +48,7 @@ Transaction checks appear only when enabled. Feature status appears below.
 
 ## Start
 
-Create a workspace at ${SITE.origin}/create. Copy the visitor link under Your support chat and try a reply in Cases. Self-hosted teams use their own domain. To add the embedded widget or enable a link in an existing workspace, open Settings → Widget. Under Guest support, select Host a support page on Templ and Save guest support, then use Copy support link. The page accepts guests. The public link grants no access to another visitor’s cases. Both entries reach the same workspace inbox.
+Create a workspace at ${SITE.origin}/create. Copy the visitor link under Your support chat and try a reply in Cases. Self-hosted teams use their own domain. To add the embedded widget or enable a link in an existing workspace, open Settings → Chat. Under Guest support, select Host a support page on Templ and Save guest support, then use Copy support link. The page accepts guests. The public link grants no access to another visitor’s cases. Both entries reach the same workspace inbox.
 For the widget, copy the install prompt from ${SITE.docs}/install into your AI coding tool.
 ${
   release.support.connectVerified

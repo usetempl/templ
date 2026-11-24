@@ -1,8 +1,8 @@
 import type { TailHost } from "./support-widget";
 
 /** Save only an explicit appearance choice, scoped to this site and workspace. */
-export function addVisitorThemeControl(host: TailHost, people: HTMLElement, signal: AbortSignal) {
-  const widget = (people.getRootNode() as ShadowRoot).host as HTMLElement;
+export function addVisitorThemeControl(host: TailHost, menu: HTMLElement, signal: AbortSignal) {
+  const widget = (menu.getRootNode() as ShadowRoot).host as HTMLElement;
   const key = `templ:chat-theme:${host.options.workspace}`;
   const siteAppearance = widget.closest("[data-templ-site-appearance]");
   const control = host.el("button", undefined, "visitor-theme");
@@ -44,7 +44,7 @@ export function addVisitorThemeControl(host: TailHost, people: HTMLElement, sign
   observer.observe(widget, { attributes: true, attributeFilter: ["data-theme"] });
   signal.addEventListener("abort", () => observer.disconnect(), { once: true });
   control.append(icon);
-  people.before(control);
+  menu.before(control);
   control.addEventListener("click", () => {
     const value = widget.dataset.theme === "dark" ? "light" : "dark";
     if (siteAppearance) {

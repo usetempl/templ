@@ -1066,6 +1066,15 @@
 .detailSection[data-tone="note"] h3 {
   color: var(--templ-text);
 }
+.verifiedWallets {
+  display: grid;
+  gap: var(--templ-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-wrap: anywhere;
+  font-size: var(--templ-text-small);
+}
 .detailText {
   color: var(--templ-muted);
   font-size: var(--templ-text-small);

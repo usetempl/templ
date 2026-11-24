@@ -6,30 +6,26 @@ declare const __TEMPL_WIDGET_DRAWER_NOTICES__: string | undefined;
 declare const __TEMPL_WIDGET_DRAWER_WALLET__: string | undefined;
 const refreshOptions = new WeakMap<TailHost, () => void>();
 
-/** Both header controls share the panel while the visitor keeps their place. */
+/** Menu and conversation history share this drawer without losing the visitor’s place. */
 export function bindSupportDrawer(host: TailHost, actions: HTMLElement, signal: AbortSignal) {
   const {el} = host;
+  host.style.append(document.createTextNode(`
+.shared-chat .drawer-section-body .drawer-actions{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}
+.shared-chat .drawer-section-body .drawer-stop{background:var(--s2);color:light-dark(#9e3024,#ffaea3)}
+.shared-chat .drawer-section-body .drawer-primary{width:100%;background:var(--a);color:var(--oa)}
+.shared-chat .drawer-section-body .drawer-primary:hover:enabled{background:var(--ah);color:var(--oh)}
+.shared-chat .drawer-section-body .drawer-primary:active:enabled{background:var(--aa);color:var(--op)}
+.shared-chat .drawer-section-body .drawer-primary:disabled{background:var(--s);color:var(--m)}
+`));
   const menu = actions.closest<HTMLElement>(".chat-menu")!;
   const disclosure = menu.closest("details")!;
   const trigger = disclosure.querySelector("summary")!;
   const header = disclosure.closest<HTMLElement>(".head")!;
-  const menuIcon = host.icon("chat");
-  menuIcon.querySelector("path")!.setAttribute("d", "M4 6h16M4 12h16M4 18h16");
-  trigger.replaceChildren(menuIcon);
-  trigger.setAttribute("aria-label", "Menu");
-  const people = header.querySelector<HTMLDetailsElement>(".chat-people")!;
-  const peopleTrigger = people.querySelector("summary")!;
-  const theme = addVisitorThemeControl(host, people, signal);
-  const peopleView = people.querySelector<HTMLElement>(".chat-people-menu")!;
-  peopleTrigger.setAttribute("aria-label", "People");
-
-  // The roster already identifies the visitor, including a verified wallet.
-  peopleView.querySelector(":scope > .sub")?.remove();
+  const theme = addVisitorThemeControl(host, disclosure, signal);
   const history = header.querySelector<HTMLDetailsElement>(".chat-history");
   const historyView = history?.querySelector<HTMLElement>(".member-conversations");
   const panes = [
-    {details: disclosure, control: trigger, content: menu, label: "Conversation options"},
-    {details: people, control: peopleTrigger, content: peopleView, label: "People"},
+    {details: disclosure, control: trigger, content: menu, label: "People and conversation settings"},
   ];
   if (history && historyView)
     panes.push({details: history, control: history.querySelector("summary")!, content: historyView, label: "Conversations"});
@@ -128,9 +124,9 @@ export function bindSupportDrawer(host: TailHost, actions: HTMLElement, signal: 
     if (active?.details === disclosure && !refreshWallet) {
       loadingWallet ??= (typeof __TEMPL_WIDGET_DRAWER_WALLET__ === "string"
         ? import(/* webpackIgnore: true */ /* turbopackIgnore: true */ new globalThis.URL(__TEMPL_WIDGET_DRAWER_WALLET__, import.meta.url).href)
-        : import("./support-widget-drawer-wallet")).then(module => {
-        if (!signal.aborted) refreshWallet = module.drawerWallet(host, menu, signal);
-      }).catch(() => { loadingWallet = undefined; });
+        : import("./support-widget-drawer-wallet")).then(module => module.drawerWallet(host, menu, signal))
+        .then(sync => { if (!signal.aborted) refreshWallet = sync; })
+        .catch(() => { loadingWallet = undefined; });
     }
     if (active?.details === disclosure && host.policy?.replyEmail && !refreshNotices) {
       loading ??= loadNotices().then(module => {
@@ -200,11 +196,16 @@ export function bindSupportDrawer(host: TailHost, actions: HTMLElement, signal: 
     event.stopPropagation();
     dismiss();
   }, {capture: true, signal});
-  header.ownerDocument.addEventListener("keydown", event => {
-    if (event.key !== "Escape" || !activePane()) return;
+  function escape(event: KeyboardEvent) {
+    if (event.key !== "Escape" || event.defaultPrevented || !activePane()) return;
     event.preventDefault();
     event.stopPropagation();
     dismiss();
+  }
+  // Nested controls can cancel their own operation before Escape closes the menu.
+  header.addEventListener("keydown", escape, {signal});
+  header.ownerDocument.addEventListener("keydown", event => {
+    if (!event.composedPath().includes(header)) escape(event);
   }, {capture: true, signal});
   panel.classList.add("shared-chat");
   return { menu, panel, disclosure, drawer, refreshMenu };

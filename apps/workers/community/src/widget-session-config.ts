@@ -1,4 +1,5 @@
 import { featureOn, type WorkspaceFlagEnv } from "./workspace-flags";
+import { readWalletIdentification } from "@templ/chat/widget-wallet";
 /** Templ's own switches for the widget sign-in features, read from worker
  * vars and secrets. Each one is off unless its var says "true" and what it
  * needs is configured; a missing secret never turns a feature on. A
@@ -61,6 +62,9 @@ export function widgetSessionSettings(
   body: Record<string, unknown>,
   env: WidgetSessionEnv,
 ) {
+  const identification = readWalletIdentification(body.walletIdentification);
+  if (body.walletIdentification !== undefined && !identification)
+    throw new HttpError(400, "Choose the wallet verification settings.");
   let appearance: WidgetAppearance | null | undefined;
   if (body.appearance !== undefined) {
     try {
@@ -100,6 +104,7 @@ export function widgetSessionSettings(
       ? {}
       : { appearance, appearanceRevision: body.appearanceRevision }),
     ...widgetIntroFields(body, featureOn(env, undefined, "widgetIntro")),
+    ...(identification ? { walletIdentification: identification } : {}),
     ...(body.hostedPage === undefined ? {} : { hostedPage: body.hostedPage }),
     hostedPageAvailable: hostedPageOffered(env),
     ...(body.walletFallback === undefined
@@ -122,6 +127,7 @@ export function widgetSessionSettings(
 }
 /** Whether a manager's save names any field this lane owns. */
 export const namesWidgetSessionSetting = (body: Record<string, unknown>) =>
+  body.walletIdentification !== undefined ||
   body.appearance !== undefined ||
   body.hostedPage !== undefined ||
   body.walletFallback !== undefined ||

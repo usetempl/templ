@@ -88,6 +88,8 @@ export const HEALTH_CHAIN_ID = DEFAULT_CHAT_AUTH_CHAIN_ID;
  * proven. */
 export { SMART_WALLET_AUTH_CHAIN_ID } from "@templ/chat/chains";
 export const NONCE_TTL = 5 * 60_000;
+/** An unused guest wallet proof can be attached to its first case for thirty minutes. */
+export const WALLET_SHARE_RECEIPT_TTL = 30 * 60_000;
 export const SESSION_TTL = 30 * 24 * 60 * 60_000;
 export const SESSION_RENEW_AFTER = 24 * 60 * 60_000;
 export const SESSION_COOKIE = "__Host-templ_session";

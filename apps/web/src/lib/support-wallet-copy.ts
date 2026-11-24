@@ -1,62 +1,69 @@
-import { getAddress, isAddress } from "viem";
+import { keccak_256 } from "@noble/hashes/sha3";
 import type { TailHost } from "./support-widget";
 
-/** Only a proof attached to the current case gives People an address to copy. */
+/** EIP-55 is a display convention. Requests still use the stored address. */
+export function displayWalletAddress(address: string) {
+  if (!/^0x[\da-f]{40}$/i.test(address)) return address;
+  const hex = address.slice(2).toLowerCase();
+  const digest = keccak_256(new TextEncoder().encode(hex));
+  return "0x" + Array.from(hex, (digit, i) => {
+    const half = i % 2 ? digest[i >> 1]! & 15 : digest[i >> 1]! >> 4;
+    return half >= 8 ? digit.toUpperCase() : digit;
+  }).join("");
+}
+
+export function verifiedAddress(host: TailHost, address: string) {
+  const label = host.el("span", undefined, "wallet-proof");
+  const value = host.el("bdi", displayWalletAddress(address));
+  value.dir = "ltr";
+  const tick = host.icon("check");
+  const verified = host.el("span", "Verified", "sr");
+  label.append(value, tick, verified);
+  return label;
+}
+
+/** Only proofs attached to this case give People addresses to show or copy. */
 export function walletRoster(host: TailHost, panel: HTMLElement, signal: AbortSignal) {
   const doc = panel.ownerDocument;
-  const people = panel.querySelector<HTMLDetailsElement>(".chat-people")!;
+  const menu = panel.querySelector<HTMLDetailsElement>(".chat-options")!;
   const toast = doc.createElement("div");
   toast.className = "wallet-toast";
   toast.setAttribute("role", "status");
   toast.setAttribute("aria-live", "polite");
   toast.setAttribute("aria-atomic", "true");
   panel.append(toast);
-  let button: HTMLButtonElement | undefined;
+  let owner: HTMLElement | null = null;
+  let fallback = "";
   let shown: string | undefined;
   let lifetime: AbortController | undefined;
   let timer: ReturnType<typeof setTimeout> | undefined;
   let lastAttempt = 0;
   function clearToast() {
+    ++lastAttempt;
     clearTimeout(timer);
     toast.replaceChildren();
   }
   signal.addEventListener("abort", () => { lifetime?.abort(); clearToast(); toast.remove(); }, { once: true });
-  people.addEventListener("toggle", () => { if (!people.open) { ++lastAttempt; clearToast(); } }, { signal });
-  return () => {
-    const cell = panel.querySelector<HTMLElement>(".chat-roster > div:first-child small");
-    const address = host.verifiedWallet?.();
-    if (address === shown && (!address || button?.parentElement === cell)) return;
-    lifetime?.abort();
-    clearToast();
-    if (button?.parentElement === cell && cell) cell.textContent = "Anon";
-    button = undefined;
-    shown = address;
-    if (!cell || !address) return;
-    const evm = isAddress(address, { strict: false }) ? getAddress(address) : undefined;
-    const canonical = evm ?? address;
-    const value = doc.createElement("bdi");
-    value.dir = "ltr";
-    value.textContent = canonical.slice(0, evm ? 6 : 4) + "…" + canonical.slice(-4);
-    const action = doc.createElement("span");
-    action.className = "sr";
-    action.textContent = "Copy full wallet address for ";
-    button = doc.createElement("button");
+  menu.addEventListener("toggle", () => { if (!menu.open) clearToast(); }, { signal });
+
+  function addressButton(address: string, row: AbortSignal) {
+    const label = verifiedAddress(host, address);
+    const canonical = label.querySelector("bdi")!.textContent!;
+    const button = doc.createElement("button");
     button.type = "button";
     button.className = "wallet-identity";
-    button.append(action, value);
-    cell.replaceChildren(button);
-    lifetime = new AbortController();
-    const row = lifetime.signal;
+    button.setAttribute("aria-label", "Copy verified wallet address " + canonical);
+    button.append(label);
     button.addEventListener("click", async () => {
-      const attempt = ++lastAttempt;
       clearToast();
+      const attempt = lastAttempt;
       try {
         await navigator.clipboard.writeText(canonical);
-        if (row.aborted || attempt !== lastAttempt) return;
+        if (row.aborted || attempt !== lastAttempt || !menu.open) return;
         toast.textContent = "Address copied";
         timer = setTimeout(clearToast, 3500);
       } catch {
-        if (row.aborted || attempt !== lastAttempt) return;
+        if (row.aborted || attempt !== lastAttempt || !menu.open) return;
         const full = doc.createElement("bdi");
         full.dir = "ltr";
         full.textContent = canonical;
@@ -68,21 +75,35 @@ export function walletRoster(host: TailHost, panel: HTMLElement, signal: AbortSi
         selection?.addRange(range);
       }
     }, { signal: row });
-    const provider = host.options.wallet?.evm;
-    if (evm && provider) {
+    if (host.walletName && /^0x[\da-f]{40}$/i.test(canonical)) {
       const resolve = () => {
-        if (!people.open) return;
-        people.removeEventListener("toggle", resolve);
-        void import("./support-wallet-name").then(module => row.aborted ? undefined : module.verifiedWalletName(evm, provider))
-          .then(name => {
-            if (!name || row.aborted) return;
-            value.className = "wallet-name";
-            value.textContent = name;
-          })
+        if (!menu.open) return;
+        menu.removeEventListener("toggle", resolve);
+        void host.walletName?.(canonical as `0x${string}`)
+          .then(name => { if (name && !row.aborted) button.title = name; })
           .catch(() => { /* Keep displaying the checksummed address. */ });
       };
-      people.addEventListener("toggle", resolve, { signal: row });
+      menu.addEventListener("toggle", resolve, { signal: row });
       resolve();
     }
+    return button;
+  }
+
+  return () => {
+    const cell = panel.querySelector<HTMLElement>(".chat-roster > div:first-child small");
+    const primary = host.verifiedWallet?.();
+    const addresses = host.walletCase?.()?.verifiedWalletAddresses ?? (primary ? [primary] : []);
+    const key = JSON.stringify([host.thread?.(), addresses]);
+    if (owner === cell && shown === key) return;
+    lifetime?.abort();
+    clearToast();
+    if (owner === cell && cell?.querySelector(".wallet-identity")) cell.textContent = fallback;
+    owner = cell;
+    shown = key;
+    if (!cell || !addresses.length) return;
+    fallback = cell.textContent ?? "";
+    lifetime = new AbortController();
+    const row = lifetime.signal;
+    cell.replaceChildren(...addresses.map(address => addressButton(address, row)));
   };
 }

@@ -51,6 +51,9 @@ import {
   formatCaip10,
   isLoopbackOrigin,
   parseWidgetWalletClaim,
+  DEFAULT_WALLET_IDENTIFICATION,
+  readWalletIdentification,
+  type WalletIdentification,
   readStoredWidgetWallet,
   WIDGET_SOLANA_SIGNATURE,
   widgetSignInResource,
@@ -178,6 +181,7 @@ import {
   legacyRecord,
   recordByHash,
   NONCE_TTL,
+  WALLET_SHARE_RECEIPT_TTL,
   randomToken,
   readJson,
   record,
@@ -209,6 +213,7 @@ const SESSION_MS = 60 * 60_000;
  * one widget scope and one account id, and grants nothing else. */
 const GUEST_TTL = 90 * 24 * 60 * 60_000;
 type WidgetSettings = {
+  walletIdentification?: WalletIdentification | null;
   appearance?: WidgetAppearance | null;
   appearanceRevision?: number;
   appearanceUnavailable?: boolean;
@@ -350,6 +355,11 @@ export type WidgetAuditEntry = {
       action: "widget.wallet-fallback";
       before: { walletFallback: boolean };
       after: { walletFallback: boolean };
+    }
+  | {
+      action: "widget.wallet-identification";
+      before: WalletIdentification | null;
+      after: WalletIdentification;
     }
   | {
       action: "widget.ask-person";
@@ -501,6 +511,11 @@ export function checkedWidgetAuditEntry(
           after: { hostedPage: after },
         }
       : null;
+  }
+  if (value.action === "widget.wallet-identification") {
+    const before = readWalletIdentification(value.before);
+    const after = readWalletIdentification(value.after);
+    return (before || value.before === null) && after ? { ...base, action: value.action, before, after } : null;
   }
   if (value.action === "widget.wallet-fallback") {
     const before = only(value.before, "walletFallback");
@@ -740,6 +755,7 @@ function widgetConfigTransaction(
         ? stored.minimumLevel!
         : "anyone",
       hostedPage: stored.hostedPage === true,
+      walletIdentification: stored.walletIdentification ?? null,
       walletFallback: stored.walletFallback !== false,
       askPerson: stored.askPerson !== false,
       remember: stored.remember !== false,
@@ -837,6 +853,8 @@ function widgetConfigTransaction(
       // Each field saves on its own; saving origins never resets the level.
       const next: Required<WidgetSettings> = {
         ...appearance,
+        walletIdentification: body.walletIdentification === undefined
+          ? current.walletIdentification : readWalletIdentification(body.walletIdentification),
         ...(updatedAppearance
           ? {
               appearance: updatedAppearance.appearance,
@@ -958,6 +976,10 @@ function widgetConfigTransaction(
           before: { hostedPage: current.hostedPage },
           after: { hostedPage: next.hostedPage },
         });
+      if (body.walletIdentification !== undefined && !next.walletIdentification)
+        throw new HttpError(400, "Choose the wallet verification settings.");
+      if (next.walletIdentification && JSON.stringify(current.walletIdentification) !== JSON.stringify(next.walletIdentification))
+        changes.push({ action: "widget.wallet-identification", before: current.walletIdentification, after: next.walletIdentification });
       if (current.walletFallback !== next.walletFallback)
         changes.push({
           action: "widget.wallet-fallback",
@@ -1116,6 +1138,7 @@ function widgetConfigTransaction(
 function shown(settings: Required<WidgetSettings>): WidgetSettings {
   const {
     appearance,
+    walletIdentification,
     appearanceRevision,
     appearanceUnavailable,
     hostedPage,
@@ -1134,6 +1157,7 @@ function shown(settings: Required<WidgetSettings>): WidgetSettings {
   } = settings;
   return {
     ...rest,
+    ...(walletIdentification ? { walletIdentification } : {}),
     ...(appearanceRevision > 0 ? { appearance, appearanceRevision } : {}),
     ...(appearanceUnavailable ? { appearanceUnavailable } : {}),
     ...(hostedPage ? { hostedPage } : {}),
@@ -1220,6 +1244,7 @@ export async function widgetConfig(
         minimumLevel?: unknown;
         hostedPage?: unknown;
         hostedPageAvailable?: boolean;
+        walletIdentification?: WalletIdentification;
         walletFallback?: unknown;
         askPerson?: unknown;
         /** Remembered sign-in, the sign-out-all action and the visitor
@@ -1821,6 +1846,7 @@ async function startWidgetReads(
           "/auth/nonce",
           "/auth/verify",
           "/auth/share-wallet",
+          "/auth/unlink-wallet",
           "/auth/resume",
           "/auth/forget",
           "/auth/logout",
@@ -1964,6 +1990,10 @@ export async function supportWidgetRoute(
         current.hostedPage === true &&
         origin === env.APP_ORIGIN;
       const minimumLevel = hosted ? "anyone" : current.minimumLevel;
+      const walletSettings = current.walletIdentification ?? DEFAULT_WALLET_IDENTIFICATION;
+      const allowsIdentification = (network: unknown) => walletSettings.enabled &&
+        ((network === "evm" && walletSettings.evm) ||
+        (network === "solana" && walletSettings.solana && featureOn(env, undefined, "solanaSignIn")));
       if (path === "/hosted" && request.method === "GET") {
         if (!hosted || closed)
           throw new HttpError(404, "Support page not found.");
@@ -2066,6 +2096,9 @@ export async function supportWidgetRoute(
         // The saved visitor requirement stays visible during an outage.
         response = json({
           minimumLevel,
+          ...(current.walletIdentification ? { walletIdentification: {
+            enabled: walletSettings.enabled, evm: allowsIdentification("evm"), solana: allowsIdentification("solana"),
+          } } : {}),
           ...(visitorReplyPolicy && typeof workspace?.aiReplyExpected === "boolean"
             ? { aiReplyExpected: chatMode !== "encrypted" && workspace.aiReplyExpected } : {}),
           ...(chatMode === "standard" || chatMode === "encrypted" ? { chatMode } : {}),
@@ -2432,6 +2465,17 @@ export async function supportWidgetRoute(
             body: await early.body!,
           }),
         );
+      } else if (path === "/auth/unlink-wallet" && request.method === "POST") {
+        const guest = await bearerSession(early.bearer, scope);
+        const body = await early.body!;
+        if (guest?.session.authMethod !== "guest" || typeof body.conversation !== "string" || !/^tc-[0-9a-f]{32}$/.test(body.conversation) ||
+          typeof body.address !== "string" || body.address.length > 64)
+          throw new HttpError(403, "Choose a wallet from your own conversation.");
+        const saved = await roomStub(env, room).fetch(internal("/private/support/unlink-wallet", {
+          guest: guest.session.principalId, conversation: body.conversation, address: body.address,
+        }));
+        if (!saved.ok) throw new HttpError(saved.status === 403 ? 403 : 503, "Could not remove this wallet.");
+        response = json({ removed: true });
       } else if (path === "/auth/share-wallet" && request.method === "POST") {
         const guest = await bearerSession(early.bearer, scope);
         const body = await early.body!;
@@ -2444,9 +2488,11 @@ export async function supportWidgetRoute(
           guest: guest.session.principalId, scope, conversation: body.conversation,
         }));
         if (!bound.ok) throw new HttpError(bound.status === 503 ? 503 : 403, "Verify your wallet again for this conversation.");
-        const wallet = await bound.json<WidgetWallet>();
+        const wallet = await bound.json<WidgetWallet & { proofIssuedAt?: number }>();
+        if (!allowsIdentification(wallet.network))
+          throw new HttpError(403, "This workspace has turned off verification for this wallet.");
         const saved = await roomStub(env, room).fetch(internal("/private/support/share-wallet", {
-          guest: guest.session.principalId, conversation: body.conversation, ...wallet,
+          ...wallet, guest: guest.session.principalId, conversation: body.conversation, multiple: current.walletIdentification?.enabled === true,
         }));
         if (!saved.ok) throw new HttpError(saved.status === 403 ? 403 : 503, "Could not share the address in this conversation.");
         response = json({ shared: true });
@@ -2466,6 +2512,8 @@ export async function supportWidgetRoute(
         // With Solana. Both challenges bind this site's domain and URI, a
         // single-use nonce, a five-minute expiry and this workspace.
         const network = body.network === undefined ? "evm" : body.network;
+        if (shareConversation !== undefined && !allowsIdentification(network))
+          throw new HttpError(403, "This workspace has turned off verification for this wallet.");
         // The guest session stays usable on a refusal, so the answer offers
         // writing on only where this website allows it.
         const unsupported = () =>
@@ -2678,15 +2726,18 @@ export async function supportWidgetRoute(
         )
           throw challengeMismatch();
         if (challenge.shareConversation) {
+          if (!allowsIdentification(proof.network))
+            throw new HttpError(403, "This workspace has turned off verification for this wallet.");
           if (!guest)
             throw challengeMismatch();
           let walletReceipt: string | undefined;
           let expiresAt: number | undefined;
           if (challenge.shareConversation === "next") {
             walletReceipt = randomToken();
-            expiresAt = Math.min(guest.session.expiresAt, Date.now() + 30 * 60_000);
+            expiresAt = Math.min(guest.session.expiresAt, Date.now() + WALLET_SHARE_RECEIPT_TTL);
             const created = await (await record(env, "nonce", walletReceipt)).fetch(internal("/create", {
               purpose: "widget-wallet-share", address: null, shareConversation: "next", sharedWallet: proof,
+              authenticatedAt: challenge.expiresAt - NONCE_TTL,
               guestPrincipal: guest.session.principalId, widgetScope: scope, expiresAt,
             } satisfies AuthData));
             if (!created.ok) throw new HttpError(503, "Could not save the wallet proof. Try again.");
@@ -2695,6 +2746,8 @@ export async function supportWidgetRoute(
               "/private/support/share-wallet", {
               guest: guest.session.principalId,
               conversation: challenge.shareConversation,
+              proofIssuedAt: challenge.expiresAt - NONCE_TTL,
+              multiple: current.walletIdentification?.enabled === true,
               ...proof,
             }));
             if (!saved.ok) {

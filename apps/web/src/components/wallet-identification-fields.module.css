@@ -1,0 +1,19 @@
+.group {
+  min-inline-size: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.group legend {
+  margin-block-end: 8px;
+  font-weight: 600;
+}
+.families {
+  display: grid;
+  gap: 6px;
+  margin-block-start: 6px;
+  padding-inline-start: 24px;
+}
+.families label:has(:disabled) {
+  color: var(--muted);
+}

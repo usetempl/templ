@@ -18,4 +18,4 @@ The conversation test starts the support worker under Workerd with temporary acc
 
 For your first workspace, use a visitor link on your own web domain. Where your release enables hosted support pages, the link uses `/help/<workspace-id>`. Copy it from your workspace settings. Your domain and hosting costs belong to your team.
 
-Open the link as a guest, send a question, answer from **Cases**, then reopen the original chat to read the reply. You can add an embedded widget for that same workspace later, under **Settings → Widget**. Use a private destination for test notifications. [Widget, standalone link, or both](../README.md#give-visitors-a-way-to-reach-you)
+Open the link as a guest, send a question, answer from **Cases**, then reopen the original chat to read the reply. You can add an embedded widget for that same workspace later, under **Settings → Chat**. Use a private destination for test notifications. [Widget, standalone link, or both](../README.md#give-visitors-a-way-to-reach-you)

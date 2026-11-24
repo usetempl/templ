@@ -13,14 +13,18 @@ import { Card, CopyInline, Spinner, ui } from "@/components/ui/ui";
 import type { WorkspaceContext } from "./support-workspace";
 import styles from "./workspace.module.css";
 import { UnsavedChanges } from "./unsaved-changes";
+import { DEFAULT_WALLET_IDENTIFICATION, type WalletIdentification } from "@templ/chat/widget-wallet";
+import { WalletIdentificationFields } from "../wallet-identification-fields";
 
 type Settings = {
+  walletIdentification: WalletIdentification;
   walletFallback: boolean;
   askPerson: boolean;
   hostedPage: boolean;
 };
 type ReadSettings = Partial<Settings> & { options?: { hostedPage?: boolean } };
 const checked = (data: ReadSettings): Settings => ({
+  walletIdentification: data.walletIdentification ?? DEFAULT_WALLET_IDENTIFICATION,
   walletFallback: data.walletFallback !== false,
   askPerson: data.askPerson !== false,
   hostedPage: data.hostedPage === true,
@@ -52,6 +56,7 @@ export function WidgetJourneySettings({
   const [draft, setDraft] = useState<Partial<Settings>>({});
   const [attempt, setAttempt] = useState(0);
   const [hostedAvailable, setHostedAvailable] = useState(false);
+  const [walletOptionsSaved, setWalletOptionsSaved] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -62,6 +67,7 @@ export function WidgetJourneySettings({
     setSettings(undefined);
     setDraft({});
     setHostedAvailable(false);
+    setWalletOptionsSaved(false);
     void communityFetch<ReadSettings>(
       roomPath(room, "widget"),
       undefined,
@@ -70,6 +76,7 @@ export function WidgetJourneySettings({
       .then((data) => {
         if (!controller.signal.aborted) {
           setSettings(checked(data));
+          setWalletOptionsSaved(Boolean(data.walletIdentification));
           setHostedAvailable(data.options?.hostedPage === true);
         }
       })
@@ -82,15 +89,16 @@ export function WidgetJourneySettings({
   const selected = settings ? { ...settings, ...draft } : undefined;
   const changed = settings
     ? (Object.keys(draft) as (keyof Settings)[]).filter(
-        (key) => draft[key] !== settings[key],
+        (key) => key === "walletIdentification"
+          ? !walletOptionsSaved || JSON.stringify(draft[key]) !== JSON.stringify(settings[key]) : draft[key] !== settings[key],
       )
     : [];
-  const edit = (key: keyof Settings, value: boolean) => {
+  const edit = <K extends keyof Settings,>(key: K, value: Settings[K]) => {
     setDraft((previous) => ({ ...previous, [key]: value }));
     setNotice("");
   };
-  async function save() {
-    if (!settings || !changed.length || busy) return;
+  async function save(saveWalletDefaults = false) {
+    if (!selected || (!changed.length && !saveWalletDefaults) || busy) return;
     setBusy(true);
     setNotice("");
     setError("");
@@ -100,14 +108,16 @@ export function WidgetJourneySettings({
         roomPath(room, "widget"),
         {
           ...Object.fromEntries(changed.map((key) => [key, draft[key]])),
+          ...(saveWalletDefaults ? { walletIdentification: selected.walletIdentification } : {}),
           confirmed: true,
         },
       );
       if (current.current !== scope) return;
       setSettings(checked(data));
+      setWalletOptionsSaved(Boolean(data.walletIdentification));
       setDraft({});
       setNotice("Saved.");
-      for (const key of changed)
+      for (const key of changed.filter(key => key !== "walletIdentification"))
         trackEvent(
           key === "hostedPage"
             ? "widget_hosted_page_saved"
@@ -161,6 +171,14 @@ export function WidgetJourneySettings({
               <p className={styles.small}>{detail}</p>
             </div>
           ))}
+        {selected && <WalletIdentificationFields value={selected.walletIdentification} disabled={busy}
+          onChange={value => edit("walletIdentification", value)} />}
+        {selected && !walletOptionsSaved && !changed.length && (
+          <div>
+            <p className={styles.small}>In Standard chat, guests can share one verified wallet. Save these options to let them add and remove wallets.</p>
+            <button type="button" className="button" disabled={busy} onClick={() => void save(true)}>Save wallet options</button>
+          </div>
+        )}
         {settings && (hostedAvailable || settings.hostedPage) && (
           <div>
             <label className={ui.check}>

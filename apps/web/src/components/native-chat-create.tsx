@@ -29,6 +29,8 @@ import {
 import { workspaceCreationEnabled } from "@/lib/release-public";
 import { RESOLVED_CASES_DOCS } from "@/lib/product-offer";
 import { PRODUCT_LIMITS } from "@templ/chat/plans";
+import { DEFAULT_WALLET_IDENTIFICATION, readWalletIdentification, type WalletIdentification } from "@templ/chat/widget-wallet";
+import { WalletIdentificationFields } from "./wallet-identification-fields";
 import { TalkToTempl } from "./talk-to-templ";
 import { trackEvent } from "@/lib/analytics";
 import { copy as t } from "@/lib/copy";
@@ -43,6 +45,7 @@ const SETUP: NativeRoomSetup = {
   roles: [],
 };
 const VISIBILITY: ChatVisibility = "public";
+type CreationDraft = NativeRoomDraft & { walletIdentification?: WalletIdentification };
 
 const NEXT_STEPS = [
   {
@@ -71,13 +74,19 @@ export function NativeChatCreate({
   const { show, toast } = useActionToast();
   const account = auth.session?.principalId;
   const router = useRouter();
-  const [name, setName] = useState("");
+  const nameInput = useRef<HTMLInputElement>(null);
+  const [hasName, setHasName] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [pending, setPending] = useState<NativeRoomDraft>();
+  const [pending, setPending] = useState<CreationDraft>();
+  const [walletIdentification, setWalletIdentification] = useState(DEFAULT_WALLET_IDENTIFICATION);
   const [error, setError] = useState("");
   const [createdRoom, setCreatedRoom] = useState<string>();
   const inFlight = useRef(false);
   const lifetime = useRef(true);
+  useEffect(() => {
+    // A visitor can type into the server-rendered field before React starts.
+    setHasName(Boolean(nameInput.current?.value.trim()));
+  }, [pending?.id]);
   useEffect(() => {
     lifetime.current = true;
     return () => {
@@ -92,7 +101,7 @@ export function NativeChatCreate({
     try {
       const saved = JSON.parse(
         sessionStorage.getItem(pendingKey(account)) ?? "null",
-      ) as NativeRoomDraft | null;
+      ) as CreationDraft | null;
       if (
         saved &&
         isNativeRoomId(saved.id) &&
@@ -105,7 +114,7 @@ export function NativeChatCreate({
         Object.keys(saved.setup).every((key) => key === "roles")
       ) {
         setPending(saved);
-        setName(saved.name);
+        setWalletIdentification(readWalletIdentification(saved.walletIdentification) ?? DEFAULT_WALLET_IDENTIFICATION);
       }
     } catch {
       /* A saved draft never authorizes creation on its own. */
@@ -125,7 +134,8 @@ export function NativeChatCreate({
       show(t("shell.create.unavailable"));
       return;
     }
-    if (inFlight.current || (!pending && !name.trim())) return;
+    const name = nameInput.current?.value.trim() ?? "";
+    if (inFlight.current || (!pending && !name)) return;
     inFlight.current = true;
     setBusy(true);
     setError("");
@@ -137,11 +147,12 @@ export function NativeChatCreate({
       if (!draft) {
         draft = {
           id: newChatMessageId(),
-          name: name.trim(),
+          name,
           setup: SETUP,
           expectedPrincipalId: account,
           visibility: VISIBILITY,
           accentColor: DEFAULT_ACCENT,
+          walletIdentification,
         };
         // Keep the same intent after a lost response or page reload.
         try {
@@ -151,12 +162,14 @@ export function NativeChatCreate({
         }
         setPending(draft);
       }
-      const room = await createNativeRoom(draft);
+      const { walletIdentification: choices = DEFAULT_WALLET_IDENTIFICATION, ...roomDraft } = draft;
+      const room = await createNativeRoom(roomDraft);
       assertCurrent(account);
       setCreatedRoom(room.id);
       if (room.followed !== false) rememberCreatedRoomFollow(account, room);
       await chatMutation(account, roomPath(`room:${room.id}`, "widget"), {
         hostedPage: true,
+        walletIdentification: choices,
         initializeOnly: true,
         confirmed: true,
       });
@@ -200,15 +213,19 @@ export function NativeChatCreate({
           >
             <input
               className={`${ui.input} ${styles.nameInput}`}
-              value={name}
+              key={pending?.id ?? "new"}
+              ref={nameInput}
+              defaultValue={pending?.name ?? ""}
               disabled={busy || Boolean(pending)}
-              onChange={(event) => setName(event.target.value)}
+              onChange={(event) => setHasName(Boolean(event.currentTarget.value.trim()))}
               maxLength={80}
               required
               autoComplete="off"
               placeholder="Your protocol"
             />
           </Field>
+          <WalletIdentificationFields value={walletIdentification} onChange={setWalletIdentification}
+            disabled={!available || busy || !!pending} />
           {error && (
             <Callout tone="danger" role="alert">
               {error} {createdRoom && <a href={`/inbox/${createdRoom}?tab=home`}>Open your workspace</a>}
@@ -218,7 +235,7 @@ export function NativeChatCreate({
             type="submit"
             className={`button large ${styles.submit}`}
             disabled={
-              !available || busy || auth.restoring || (!pending && !name.trim())
+              !available || busy || auth.restoring || (!pending && !hasName)
             }
             aria-disabled={!available || undefined}
             aria-describedby={!available ? "create-unavailable" : undefined}

@@ -1,6 +1,7 @@
 "use client";
 
 import { type ReactNode, useEffect, useRef, useState } from "react";
+import { transactionExampleAuthors } from "@/lib/standalone-trial-example";
 import { CONVERSATION_STYLE } from "@/lib/support-widget-chat-style";
 import { drawerStyle } from "@/lib/support-widget-drawer-style";
 import type {
@@ -152,8 +153,8 @@ export function SupportWidgetDemo({
             const visitor = root.querySelector(".message.own small");
             const team = root.querySelector(".message:not(.own,.tail) small");
             if (!visitor || !team) return;
-            visitor.textContent = "Visitor chat";
-            team.textContent = "Team inbox";
+            visitor.textContent = transactionExampleAuthors.visitor;
+            team.textContent = transactionExampleAuthors.team;
             authorObserver?.disconnect();
             setStatus("ready");
           };

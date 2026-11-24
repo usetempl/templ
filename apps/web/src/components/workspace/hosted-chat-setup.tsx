@@ -1,14 +1,15 @@
 "use client";
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import { IconArrowUpRight, IconChevronDown, IconCode, IconInbox } from "@tabler/icons-react";
 import { PRODUCT_STARTER_PRICES } from "@templ/chat/plans";
 import { formatUsdCents } from "@templ/chat/resolution-copy";
 import { chatMutation } from "@/lib/chat-api";
 import { communityFetch, roomPath } from "@/lib/community-client";
 import { SITE } from "@/lib/site-environment";
-import { Card, CopyInline } from "@/components/ui/ui";
+import { CopyButton, ui } from "@/components/ui/ui";
 import type { WorkspaceContext } from "./support-workspace";
-import styles from "./workspace.module.css";
+import styles from "./hosted-chat-setup.module.css";
 
 type NameHold = { slug: string; expiresAt: number };
 
@@ -72,20 +73,65 @@ export function HostedChatSetup({ context, paid }: { context: WorkspaceContext; 
       setBusy(false);
     }
   }
-  return <Card title="Your support chat">
-    <p>Open your visitor link to send a test question. Answer it from Cases in this workspace.</p>
-    <p><a href={link} target="_blank" rel="noopener noreferrer">{link}</a>{" "}<CopyInline value={link} label="Copy link" /></p>
-    <button type="button" className="button" onClick={() => go("inbox")}>Open inbox</button>
-    {managed && !claimed && <form onSubmit={chooseName}>
-      <label>Hosted name
-        <input value={name} onChange={event => setName(event.target.value)} required minLength={3}
-          maxLength={32} pattern="[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9]" autoCapitalize="none" autoComplete="off" />
-      </label>
-      <p>{hold ? `We reserved /${hold.slug} until ${new Date(hold.expiresAt).toLocaleString()}. ` : ""}
-        {paid ? "Your active plan includes your chat, inbox and hosted name." : `Each payment covers one month. Renew manually. Hosted plans start at ${formatUsdCents(PRODUCT_STARTER_PRICES.workspaceMonthlyUsdCents)}/month, paid in USDC.`}</p>
-      <button className="button secondary" disabled={busy}>{busy ? "Checking availability…" : paid ? "Claim name" : "Reserve name and choose a plan"}</button>
-    </form>}
-    {message && <p role="status">{message}</p>}
-    <p className={styles.muted}>To add the same chat to your site, open <button type="button" className="button quiet" onClick={() => go("widget")}>Widget settings</button>.</p>
-  </Card>;
+  return (
+    <section className={styles.setup} aria-labelledby="hosted-chat-title">
+      <header className={styles.intro}>
+        <h2 id="hosted-chat-title">Your support chat</h2>
+        <p>Try a conversation before you share your link.</p>
+      </header>
+      <ol className={styles.steps}>
+        <li>
+          <span className={styles.number} aria-hidden="true">1</span>
+          <div className={styles.task}>
+            <h3>Send a test question</h3>
+            <a className="button" href={link} target="_blank" rel="noopener noreferrer">Open visitor chat <IconArrowUpRight aria-hidden="true" /></a>
+          </div>
+          <div className={styles.linkRow}>
+            <code>{link}</code><CopyButton value={link} label="Copy link" />
+          </div>
+        </li>
+        <li>
+          <span className={styles.number} aria-hidden="true">2</span>
+          <div className={styles.task}>
+            <h3>Reply from Cases</h3>
+            <button type="button" className="button secondary" onClick={() => go("inbox")}>
+              <IconInbox aria-hidden="true" /> Open inbox
+            </button>
+          </div>
+        </li>
+      </ol>
+      <div className={styles.options}>
+        {managed && !claimed && (
+          <details className={styles.nameChoice} open={Boolean(hold) || undefined}>
+            <summary>
+              <span>Choose a hosted name</span>
+              <small>{paid ? "Included in your plan" : `From ${formatUsdCents(PRODUCT_STARTER_PRICES.workspaceMonthlyUsdCents)}/month`}</small>
+              <IconChevronDown aria-hidden="true" />
+            </summary>
+            <form className={styles.nameForm} onSubmit={chooseName}>
+              <label htmlFor="trial-hosted-name">Hosted name</label>
+              <div className={styles.nameRow}>
+                <div className={styles.nameField}>
+                  <span aria-hidden="true">{new URL(SITE.origin).host}/</span>
+                  <input id="trial-hosted-name" className={ui.input} value={name} placeholder="your-team"
+                    onChange={event => setName(event.target.value)} required minLength={3} maxLength={32}
+                    pattern="[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9]" autoCapitalize="none" autoCorrect="off"
+                    autoComplete="off" spellCheck={false} aria-describedby="hosted-name-terms" />
+                </div>
+                <button className="button secondary" disabled={busy}>
+                  {busy ? "Checking availability…" : paid ? "Claim name" : "Reserve name and choose a plan"}
+                </button>
+              </div>
+              <p id="hosted-name-terms">{paid ? "Your plan includes a hosted name." : "Pay in USDC for one month. Renew manually."}</p>
+              {hold && <p>We reserved /{hold.slug} until {new Date(hold.expiresAt).toLocaleString()}.</p>}
+            </form>
+          </details>
+        )}
+        {message && <p role="status" className={styles.notice}>{message}</p>}
+        <button type="button" className={styles.widgetLink} onClick={() => go("widget")}>
+          <IconCode aria-hidden="true" /> Add the chat to your site
+        </button>
+      </div>
+    </section>
+  );
 }

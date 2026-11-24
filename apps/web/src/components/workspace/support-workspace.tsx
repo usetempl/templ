@@ -213,7 +213,7 @@ const TITLES: Record<WorkspaceTab, string> = {
   quality: "Reports",
   knowledge: "AI",
   "follow-ups": "Follow-ups",
-  widget: "Widget",
+  widget: "Chat",
   team: "Team",
   activity: "Activity",
   settings: "Settings",
@@ -788,7 +788,7 @@ function Workspace({ id, supportUrl }: WorkspaceEntry) {
               <>
                 <RailNavItem
                   icon={IconCode}
-                  label="Widget"
+                  label="Chat"
                   active={visible === "widget"}
                   onClick={() => go("widget")}
                 />

@@ -165,7 +165,7 @@ export function WorkspaceWidget({
           setReadError(
             reason instanceof Error && reason.message
               ? reason.message
-              : "Could not load widget settings.",
+              : "Could not load chat settings.",
           );
       });
     return () => {
@@ -282,7 +282,7 @@ const support = mountSupportWidget({
   return (
     <div className={styles.page}>
       <PageHeader
-        eyebrow="Widget"
+        eyebrow="Chat"
         title="Set up visitor chat"
         description="Embed chat in your app, share a standalone support page, or use both with this workspace."
         actions={
@@ -375,7 +375,7 @@ const support = mountSupportWidget({
               }}
             />
           ) : readError ? (
-            <p className={styles.error}>Widget appearance could not load.</p>
+            <p className={styles.error}>Chat appearance could not load.</p>
           ) : (
             <Skeleton />
           )}

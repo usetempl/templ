@@ -225,6 +225,8 @@ export type TeamConversation = {
    * wallet in the same widget session; the earlier principals are listed in
    * `formerMembers`, and their messages are the member's own. */
   member: ChatPrincipalId;
+  /** Wallets proved and shared in this Standard conversation, in the order added. */
+  verifiedWalletAddresses?: string[];
   formerMembers?: ChatPrincipalId[];
   /** Team view only: threads the same verified wallet also holds here. */
   linkedConversations?: string[];

@@ -3404,6 +3404,16 @@ function ConversationView({
       {teamView && toast.toast}
       {conversation && !revoked && (
         <PhoneDetails className={styles.threadAside} label="Case details">
+          {teamView && (conversation.verifiedWalletAddresses?.length ?? 0) > 1 && (
+            <section className={styles.detailSection} aria-label="Verified wallets">
+              <h3>Verified wallets</h3>
+              <ul className={styles.verifiedWallets}>
+                {conversation.verifiedWalletAddresses?.map((address) => (
+                  <li key={address}><code>{address}</code></li>
+                ))}
+              </ul>
+            </section>
+          )}
           {timeSpentField && (
             <div className={styles.detailSection}>{timeSpentField}</div>
           )}

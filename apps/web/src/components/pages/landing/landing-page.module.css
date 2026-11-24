@@ -7,14 +7,18 @@
   --lp-accent: #99ff00;
   --surface-0: var(--templ-bg);
   --surface-1: var(--templ-surface);
+  --surface-2: var(--templ-raised);
   --border: var(--templ-line);
   --fg: var(--templ-text);
   --fg-2: var(--templ-muted);
+  --fg-3: var(--templ-muted);
+  color-scheme: only light;
   min-height: 100dvh;
   background: var(--surface-0);
   color: var(--fg);
   font-size: 18px;
 }
+:global(body):has(.page) { background-color: var(--templ-p-neutral-light-1); }
 .page h1, .page h2, .page h3 {
   color: var(--fg);
   font-family: var(--font-display-stack);
@@ -50,13 +54,18 @@
   text-wrap: balance;
 }
 .heroCopy { grid-column: 1 / 5; align-self: start; padding-top: 30px; }
-.subline { max-width: 35ch; margin: 0; font-size: clamp(18px,1.65vw,22px); line-height: 1.5; }
-.close { padding-block: var(--lp-space); border-top: 1px solid var(--border); }
+.subline { max-width: 35ch; margin: 0; font-size: clamp(18px,1.65vw,22px); line-height: 1.5; text-wrap: pretty; }
+.close { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(220px, .8fr); align-items: center; gap: clamp(20px, 5vw, 72px); padding-block: var(--lp-space); border-top: 1px solid var(--border); }
 .close h2 { max-width: 19ch; margin: 0; font-size: clamp(30px,4.8vw,58px); line-height: 1.05; }
 .close p { margin: 14px 0; }
 .close nav { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 24px; }
 .close a { display: inline-flex; align-items: center; min-height: 44px; color: var(--fg); text-underline-offset: 4px; }
 .helpLink { white-space: nowrap; }
+.homeServer { justify-self: center; width: min(100%, 330px); height: auto; }
+.homeServer text { font-size: 15px; font-weight: 550; }
+.serverPaper { fill: var(--surface-0); }
+.serverLight { fill: var(--lp-accent); }
+.serverShoe { fill: color-mix(in srgb, var(--lp-accent) 23%, var(--surface-0)); }
 .preview { margin: 0; padding: 12px 24px; text-align: center; background: var(--lp-accent); color: #17241a; }
 @media (max-width:1023px) {
   .hero { min-height: auto; padding-block: clamp(32px,6vw,56px) 48px; }
@@ -67,3 +76,4 @@
   .subline { max-width: 44ch; font-size: 17px; }
 }
 @media (max-width:480px) { .heroInner { gap: 20px; } .page .heroTitle { font-size: clamp(32px,8.75vw,40px); } }
+@media (max-width: 700px) { .close { grid-template-columns: 1fr; } .homeServer { width: min(78%, 270px); } }

@@ -90,12 +90,19 @@ const prepareTemplSupport = () =>
 export function TemplSupportLink({
   className,
   children,
+  anchorRef,
+  hidden,
 }: {
   className: string;
   children: ReactNode;
+  anchorRef?: RefObject<HTMLAnchorElement | null>;
+  hidden?: boolean;
 }) {
   return (
     <a
+      ref={anchorRef}
+      hidden={hidden}
+      aria-controls="support"
       className={className}
       href={SUPPORT_HASH}
       onPointerEnter={prepareTemplSupport}
@@ -222,7 +229,7 @@ export function TemplSupport({ showLauncher = false }: { showLauncher?: boolean 
   const openedFromHash = useRef(false);
   const [topic, setTopic] = useState<TemplSupportTopic>();
   const retryRequest = useRef<SupportOpenRequest | undefined>(undefined);
-  const launcher = useRef<HTMLButtonElement>(null);
+  const launcher = useRef<HTMLAnchorElement>(null);
   const standardPanel = useRef<HTMLElement>(null);
   const standardContent = useRef<HTMLDivElement>(null);
   const cancelOpening = useRef<(() => void) | undefined>(undefined);
@@ -365,7 +372,7 @@ export function TemplSupport({ showLauncher = false }: { showLauncher?: boolean 
             container, chatFirst: true, conversationDrawers: true, showLauncher: false,
             appearance: { theme: "auto", radius: "soft", logo: "/art/brand/templ-square.svg" },
             intro: TEMPL_SUPPORT_INTRO, transactionField: false,
-            ...(location.pathname === "/" ? { wallet: supportPageWallet(network), decorateOwnMenu: addOwnChatMenu } : {}),
+            ...(location.pathname === "/" ? { wallet: supportPageWallet(network), walletForNetwork: (family: "evm" | "solana") => networks.includes(family) ? supportPageWallet(family) : null, decorateOwnMenu: addOwnChatMenu } : {}),
             onClose: () => {
               hidePanel();
               restoreFocus();
@@ -490,18 +497,15 @@ export function TemplSupport({ showLauncher = false }: { showLauncher?: boolean 
         )}
         <div ref={standardContent} data-templ-site-appearance="" className={styles.chatContent} inert={startup || opening} />
       </section>
-      {showLauncher && available && (
-        <TemplSupportButton
+      {showLauncher && (available ?? !!templSupportWorkspace(RELEASE, SITE.origin, SITE.origin)) && (
+        <TemplSupportLink
           className={styles.launcher}
-          buttonRef={launcher}
+          anchorRef={launcher}
           hidden={view !== null}
-          label="Talk to us"
-          icon={false}
-          conversion="talk_to_us_clicked"
         >
           <TemplMark className={styles.launcherMark} decorative />
           <span>Talk to us</span>
-        </TemplSupportButton>
+        </TemplSupportLink>
       )}
       {status && (
         <div className={styles.notice} role="alert">

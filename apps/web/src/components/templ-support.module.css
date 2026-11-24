@@ -40,6 +40,7 @@
   padding: 0 var(--site-action-padding-inline);
   border: var(--site-action-border-width) solid var(--af, var(--templ-action-border));
   border-radius: var(--site-action-radius);
+  text-decoration: none;
   font-size: var(--site-action-font-size);
   font-weight: var(--site-action-weight);
   line-height: var(--site-action-line);
@@ -47,6 +48,7 @@
 .launcher:hover { background: var(--ah, var(--templ-accent-hover)); color: var(--oh, var(--templ-on-accent)); }
 .launcher:active { background: var(--aa, var(--templ-accent-active)); color: var(--op, var(--templ-on-accent)); }
 .launcher[hidden] { display: none; }
+:global(html[data-templ-open-support]) .launcher { visibility: hidden; }
 .launcherMark {
   flex: none;
   width: 20px;

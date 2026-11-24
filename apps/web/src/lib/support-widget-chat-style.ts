@@ -21,8 +21,9 @@ export const CONVERSATION_STYLE = `
 .chat-options [data-unread]::after{content:"";display:inline-block;width:7px;height:7px;margin-left:7px;border-radius:50%;background:var(--af);vertical-align:middle}
 .chat-menu .options-note,.chat-people-menu>.sub{font-size:12px;color:var(--m);padding:8px 12px;white-space:normal}
 .chat-feedback{padding:6px 12px;font-size:12px;color:var(--m);background:var(--s)}
-.chat-roster{display:grid;padding:4px 8px}
+.chat-roster{display:grid;grid-template-columns:minmax(0,1fr);padding:4px 8px}
 .chat-roster div{display:flex;align-items:center;gap:12px;min-height:52px}
+.chat-roster>div>span{flex:1;min-width:0}
 .chat-roster i{font-style:normal;display:grid;place-items:center;flex:0 0 36px;height:36px;border-radius:50%;background:var(--s);font-size:12px}
 .chat-roster b,.chat-roster small{display:block;font-size:14px;font-weight:500}
 .chat-roster small{font-size:12px;color:var(--m);font-weight:400}

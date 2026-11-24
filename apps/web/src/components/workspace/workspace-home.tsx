@@ -61,6 +61,7 @@ import {
 } from "@/components/ui/ui";
 import { InboxAlertsNudge } from "./inbox-alerts";
 import { HostedChatSetup } from "./hosted-chat-setup";
+import { OnboardingSource } from "./onboarding-source";
 import { AppApprovalRequestButton } from "@/components/app-approval-request";
 import type { WorkspaceContext, WorkspaceTab } from "./support-workspace";
 import {
@@ -70,6 +71,7 @@ import {
   type WorkspaceSetup,
 } from "./workspace-reads";
 import styles from "./workspace.module.css";
+import setupStyles from "./hosted-chat-setup.module.css";
 
 type Setup = Omit<WorkspaceSetup, "failed"> & {
   scope: string;
@@ -266,13 +268,34 @@ export function WorkspaceHome({
       : undefined;
   const retryReport = () =>
     period ? setPeriodAttempt((value) => value + 1) : retrySetup();
+  const [overviewRoom, setOverviewRoom] = useState<string>();
+  const trial = manager && standard?.status === "demo" && !approvedUsage;
+  const hostedSetup = manager && current?.hostedPage ? (
+    <HostedChatSetup key={`${room}:${account}`} context={context} paid={Boolean(approvedUsage)} />
+  ) : null;
+  if (trial && !current) {
+    return <div className={styles.page} aria-busy="true"><Card title="Your support chat"><Skeleton height={116} /></Card></div>;
+  }
+  const trialSetup = trial && hostedSetup && failedReads.length === 0;
+  if (trialSetup && overviewRoom !== room) {
+    return (
+      <div className={styles.page}>
+        {hostedSetup}
+        <button className={`button quiet ${setupStyles.overviewToggle}`} type="button"
+          onClick={() => setOverviewRoom(room)}>Workspace overview</button>
+      </div>
+    );
+  }
 
   return (
     <div className={styles.page}>
       <div className={styles.stack}>
-        {manager && current?.hostedPage && <HostedChatSetup
-          key={`${room}:${account}`} context={context}
-          paid={Boolean(approvedUsage)} />}
+        {trialSetup ? (
+          <button type="button" className="button secondary" onClick={() => setOverviewRoom(undefined)}>Back to chat setup</button>
+        ) : hostedSetup}
+        {manager && hasSupportKnowledge(context.state?.features) && (
+          <OnboardingSource key={`sources:${room}:${account}`} context={context} />
+        )}
         <section className={styles.welcome} aria-labelledby="home-title">
           <TemplMark className={styles.welcomeStamp} decorative />
           <h1 id="home-title">
@@ -359,20 +382,6 @@ export function WorkspaceHome({
             </Card>
           ))}
 
-        {manager && hasSupportKnowledge(context.state?.features) && (
-          <Card
-            title="AI knowledge"
-            description="Add the docs and files your support AI can use. Unclear answers go to your team."
-          >
-            <button
-              type="button"
-              className="button secondary"
-              onClick={() => go("knowledge")}
-            >
-              Add AI sources
-            </button>
-          </Card>
-        )}
 
         {manager && failedReads.length > 0 && (
           <div>

@@ -5,15 +5,12 @@ import {
   WIDGET_DARK_SURFACES,
   WIDGET_FRAME_COLORS,
 } from "./support-widget-theme";
+import type { SupportWidgetAppearance } from "./support-widget";
 
 export type WidgetTheme = "light" | "dark";
 export type WidgetAccent = string | { light: string; dark: string };
-export type WidgetAppearance = {
-  theme?: WidgetTheme | "auto";
-  accent?: WidgetAccent;
-  radius?: "square" | "soft" | "round";
-  position?: "right" | "left";
-};
+export type WidgetAppearance = Pick<SupportWidgetAppearance, "theme" | "accent" | "radius" | "position" | "colors">;
+type Palette = NonNullable<WidgetAppearance["colors"]>[WidgetTheme];
 export type WidgetDisplay = { theme: WidgetTheme; font: string };
 export const WIDGET_DEFAULT_ACCENT = {
   light: WIDGET_LIGHT_ACCENT,
@@ -61,10 +58,19 @@ function channels([L, a, b]: number[]) {
 }
 const css = ([L, a, b]: number[]) =>
   `oklch(${L.toFixed(5)} ${Math.hypot(a, b).toFixed(5)} ${((Math.atan2(b, a) * 180) / Math.PI).toFixed(3)})`;
-/** Only lightness changes. CSS maps any out-of-gamut color to the display. */
-export function resolveWidgetAccent(
+export function widgetSurfaces(mode: WidgetTheme, palette?: Palette) {
+  const defaults = mode === "light" ? WIDGET_LIGHT_SURFACES : WIDGET_DARK_SURFACES;
+  return defaults.map((fallback, i) => {
+    const value = i === 0 ? palette?.background : palette?.surface;
+    return value && HEX.test(value) ? value : fallback;
+  });
+}
+
+/** Keep the fill exact. Adjust the lightness of accent text and focus against the chat surfaces. */
+export function widgetAccentTokens(
   accent: WidgetAccent | undefined,
   mode: WidgetTheme,
+  palette?: Palette,
 ) {
   const candidate = typeof accent === "string" ? accent : accent?.[mode];
   const brand =
@@ -72,10 +78,8 @@ export function resolveWidgetAccent(
       ? candidate
       : WIDGET_DEFAULT_ACCENT[mode];
   const base = lab(brand);
-  const surfaces = (
-    mode === "light" ? WIDGET_LIGHT_SURFACES : WIDGET_DARK_SURFACES
-  ).map((color) => luminance(rgb(color)));
-  const direction = mode === "light" ? -1 : 1;
+  const surfaces = widgetSurfaces(mode, palette).map((color) => luminance(rgb(color)));
+  const direction = ratio(0, Math.min(...surfaces)) > ratio(1, Math.max(...surfaces)) ? -1 : 1;
   const readableOnSurfaces = (level: number, minimum: number) => surfaces.every((bg) => ratio(level, bg) >= minimum);
   const adjusted = (minimum: number) => {
     if (readableOnSurfaces(luminance(rgb(brand)), minimum))
@@ -98,30 +102,12 @@ export function resolveWidgetAccent(
     value[0] = Number(clamp(base[0] + way * step).toFixed(5));
     return { color: css(value), ink: contrastingInk(luminance(channels(value))) };
   };
-  const text = adjusted(4.5),
-    focus = adjusted(3);
   const hover = state(0.035),
     pressed = state(0.07);
   return {
-    brand,
-    hover: hover.color,
-    pressed: pressed.color,
-    ink: accentInk(brand),
-    text,
-    focus,
-    hoverInk: hover.ink,
-    pressedInk: pressed.ink,
-    textAdjusted: text !== brand,
-    focusAdjusted: focus !== brand,
-  };
-}
-
-export function widgetAccentTokens(value: WidgetAccent | undefined, mode: WidgetTheme) {
-  const accent = resolveWidgetAccent(value, mode);
-  return {
-    "--a": accent.brand, "--ah": accent.hover, "--aa": accent.pressed,
-    "--oa": accent.ink, "--oh": accent.hoverInk, "--op": accent.pressedInk,
-    "--at": accent.text, "--af": accent.focus,
+    "--a": brand, "--ah": hover.color, "--aa": pressed.color,
+    "--oa": accentInk(brand), "--oh": hover.ink, "--op": pressed.ink,
+    "--at": adjusted(4.5), "--af": adjusted(3),
   };
 }
 
@@ -229,7 +215,7 @@ export function bindWidgetAppearance(
     style.dataset.appearance = "";
     style.nonce = root.querySelector("style")?.nonce ?? "";
     style.textContent =
-      ".loading-case{display:flex;align-items:center;justify-content:center;gap:12px;min-height:96px}.loading-case::before{content:'';width:24px;height:24px;border:2px solid var(--b2);border-top-color:var(--a);border-radius:50%;animation:spin .8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}.head button[aria-label]{position:relative}.head button[aria-label]:is(:hover,:focus-visible)::after{content:attr(aria-label);position:absolute;top:calc(100% + 6px);right:0;z-index:2;width:max-content;max-width:200px;padding:5px 8px;background:var(--t);color:var(--bg);font-size:12px;font-weight:500;line-height:1.4;pointer-events:none}";
+      ".loading-case{display:flex;align-items:center;justify-content:center;gap:12px;min-height:96px}.loading-case::before{content:'';width:24px;height:24px;border:2px solid var(--b2);border-top-color:var(--a);border-radius:50%;animation:spin .8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}.head>button[aria-label]{position:relative}.head>button[aria-label]:is(:hover,:focus-visible)::after{content:attr(aria-label);position:absolute;top:calc(100% + 6px);right:0;z-index:2;width:max-content;max-width:200px;padding:5px 8px;background:var(--t);color:var(--bg);font-size:12px;font-weight:500;line-height:1.4;pointer-events:none}";
     root.append(style);
   }
   let appearance = initial;
@@ -256,7 +242,7 @@ export function bindWidgetAppearance(
     ["--rp", "--rb", "--rc", "--rl"].forEach((key, i) =>
       host.style.setProperty(key, `${radius[i]}px`),
     );
-    for (const [key, value] of Object.entries(widgetAccentTokens(appearance.accent, mode)))
+    for (const [key, value] of Object.entries(widgetAccentTokens(appearance.accent, mode, appearance.colors?.[mode])))
       host.style.setProperty(key, value);
     const font = getComputedStyle(parent).fontFamily.slice(0, 300);
     if (font) host.style.fontFamily = font;

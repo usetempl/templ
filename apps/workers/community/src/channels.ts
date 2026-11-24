@@ -1183,12 +1183,13 @@ export class ChannelRoom {
         });
         return json({ available: true });
       }
-      if (url.pathname === "/private/support/share-wallet" && request.method === "POST") {
+      if (["/private/support/share-wallet", "/private/support/unlink-wallet"].includes(url.pathname) && request.method === "POST") {
         const body = await readJson(request);
         const committed = await this.state.storage.transaction(async (local) => {
           const storage = await supportStorage(local, env, this.state.id?.toString() ?? "");
           const pending: PendingEvent[] = [];
-          await shareGuestWalletProof(storage, body, pending);
+          await shareGuestWalletProof(storage, body, pending,
+            url.pathname === "/private/support/unlink-wallet");
           return pending.length ? appendEvents(storage, pending, Date.now()) : [];
         });
         this.afterCommit(committed);
