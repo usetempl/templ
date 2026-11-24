@@ -192,6 +192,48 @@ export const guest = {
   },
 };
 
+/** Draw the host's waiting frame. Session data and messages stay in the actual iframe. */
+export function frameLoading(
+  root: ShadowRoot, note: HTMLElement, label: string, embedded: boolean, close: () => void,
+) {
+  const shell = document.createElement("section");
+  shell.className = "viewport opening";
+  const header = document.createElement("header");
+  header.textContent = label;
+  if (!embedded) {
+    const dismiss = document.createElement("button");
+    dismiss.type = "button";
+    dismiss.textContent = "×";
+    dismiss.setAttribute("aria-label", "Close support");
+    const leave = () => {
+      close();
+      root.querySelector<HTMLButtonElement>("button[aria-expanded]")?.focus();
+    };
+    dismiss.addEventListener("click", leave);
+    header.append(dismiss);
+    shell.addEventListener("keydown", event => { if (event.key === "Escape") leave(); });
+  }
+  const composer = document.createElement("div");
+  composer.className = "waiting-input";
+  composer.setAttribute("aria-hidden", "true");
+  const style = document.createElement("style");
+  style.nonce = root.querySelector("style")?.nonce ?? "";
+  style.textContent = `
+.opening.viewport{display:grid;grid-template-rows:56px 1fr 60px;overflow:hidden;background:var(--bg);color:var(--t)}
+.opening:has(p[hidden]){display:none}
+.opening header{display:flex;align-items:center;gap:8px;padding:0 12px;border-bottom:1px solid var(--b2,#808080)}
+.opening header::before{content:"";width:32px;height:32px;border:2px solid currentColor;border-radius:50%;opacity:.65}
+.opening header button{position:static;margin-left:auto;width:36px;height:36px;padding:0;justify-content:center;border:0;background:transparent;color:inherit;font-size:24px}
+.opening p{position:static;align-self:center;justify-self:center;margin:0;color:inherit;text-align:center}
+.waiting-input{display:grid;grid-template-columns:1fr 44px;gap:8px;padding:8px 12px}
+.opening:has([data-error]) .waiting-input{visibility:hidden}
+.waiting-input::before,.waiting-input::after{content:"";box-sizing:border-box;border:2px solid currentColor;border-radius:22px;opacity:.65}
+`;
+  root.append(style);
+  note.before(shell);
+  shell.append(header, note, composer);
+}
+
 /** @public Frame page state shares this lazy chunk with guest notices. */
 export function framePage(workspace: string) {
   let held = false;

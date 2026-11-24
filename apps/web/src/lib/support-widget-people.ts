@@ -1,5 +1,18 @@
 import type { TailHost } from "./support-widget";
 
+/** Initials reserve the portrait while a workspace image loads, including on a failed read. */
+export function participantBadge(host: TailHost, initial: string, photo?: string | null) {
+  const badge = host.el("i", initial);
+  if (photo) {
+    const image = host.el("img");
+    image.alt = "";
+    image.referrerPolicy = "no-referrer";
+    image.onload = () => badge.replaceChildren(image);
+    image.src = photo;
+  }
+  return badge;
+}
+
 export function renderPeople(
   host: TailHost,
   roster: HTMLElement,
@@ -9,23 +22,12 @@ export function renderPeople(
   roster.replaceChildren();
   avatars?.replaceChildren();
   for (const [name, detail, initial, photo] of people) {
-    const badge = () => {
-      const icon = host.el("i", photo ? undefined : initial);
-      if (photo) {
-        const image = host.el("img");
-        image.alt = "";
-        image.referrerPolicy = "no-referrer";
-        image.src = photo;
-        icon.append(image);
-      }
-      return icon;
-    };
     const row = host.el("div"),
       label = host.el("span");
     label.append(host.el("b", name), host.el("small", detail));
-    row.append(badge(), label);
+    row.append(participantBadge(host, initial, photo), label);
     roster.append(row);
-    avatars?.append(badge());
+    avatars?.append(participantBadge(host, initial, photo));
   }
 }
 

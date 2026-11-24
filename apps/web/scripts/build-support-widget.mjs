@@ -134,7 +134,7 @@ export const card = (widget) => contextCard(widget, rules);`,
   media: 'export { button, media } from "./support-widget-media";',
   // Optional reply notices load before the member lines that may offer them.
   guest:
-    'export { guest, framePage, replyEmail } from "./support-widget-guest";',
+    'export { guest, framePage, frameLoading, replyEmail } from "./support-widget-guest";',
   // The wait, follow-up, sources and shared details under a thread.
   member: 'export { member } from "./support-widget-member";',
   // The install check, which the ops chunk loads only on a check link.

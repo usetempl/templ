@@ -58,7 +58,9 @@ export function mountOwnSupportWidget(options: {
     title.textContent = "Templ";
     indicator.dataset.openingIndicator = ""; indicator.setAttribute("aria-hidden", "true");
     header.append(logo, title, indicator);
-    loading.replaceChildren(header);
+    const status = document.createElement("p");
+    status.textContent = "Connecting to secure support…";
+    loading.replaceChildren(header, status);
   };
   opening();
   close.type = "button";
@@ -158,7 +160,7 @@ export function mountOwnSupportWidget(options: {
             loading.querySelector("[data-opening-indicator]")?.remove();
             const failure = document.createElement("p");
             failure.textContent = "Support is taking longer to open. Close and try again.";
-            loading.append(failure);
+            loading.querySelector("p")?.replaceWith(failure);
           }
         }, 15_000);
       }

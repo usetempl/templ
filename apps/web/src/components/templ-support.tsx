@@ -11,6 +11,7 @@ import {
   type RefObject,
 } from "react";
 import { IconHelpCircle } from "@tabler/icons-react";
+import { ChatLoading } from "./chat-loading";
 import { TemplMark } from "./brand/templ-mark";
 import { SITE } from "@/lib/release-public";
 import { supportPageWallet } from "@/lib/support-page-wallet";
@@ -29,7 +30,6 @@ import {
 } from "@/lib/own-support-widget";
 import type { SupportContextInput } from "@templ/chat/support";
 import type { SupportForm } from "@/lib/support-widget-form";
-import { setPageChatAccent, type WidgetAccent } from "@/lib/support-widget-appearance";
 import styles from "./templ-support.module.css";
 import panelStyles from "@/lib/own-support-widget.module.css";
 
@@ -249,7 +249,6 @@ export function TemplSupport({ showLauncher = false }: { showLauncher?: boolean 
   useEffect(() => {
     let widget: ReturnType<typeof mountOwnSupportWidget> | undefined;
     let standard: ReturnType<Awaited<ReturnType<typeof loadTemplSupportWidget>>["mountSupportWidget"]> | undefined;
-    let disposed = false;
     let openRevision = 0;
     const policyMaxAge = 3_000;
     let policyRead: {
@@ -285,9 +284,7 @@ export function TemplSupport({ showLauncher = false }: { showLauncher?: boolean 
             signal: AbortSignal.timeout(8_000),
           }).then(async response => {
             if (!response.ok) return;
-            const { chatMode, appearance }: { chatMode?: unknown; appearance?: { accent?: WidgetAccent } } = await response.clone().json();
-            if (!disposed && launcher.current && policyRead === read)
-              setPageChatAccent(launcher.current, appearance?.accent);
+            const { chatMode }: { chatMode?: unknown } = await response.clone().json();
             if (chatMode === "standard" || chatMode === "encrypted")
               return { response, mode: chatMode } as const;
           }).catch(() => undefined),
@@ -441,7 +438,6 @@ export function TemplSupport({ showLauncher = false }: { showLauncher?: boolean 
     window.dispatchEvent(new Event("templ:support-listening"));
     setListening(true);
     return () => {
-      disposed = true;
       clearTimeout(expiryTimer);
       cancelOpening.current = undefined;
       openedFromHash.current = false;
@@ -480,19 +476,14 @@ export function TemplSupport({ showLauncher = false }: { showLauncher?: boolean 
       >
         {(startup || opening) && (
           <div className={styles.opening}>
-            <header>
-              <TemplMark decorative className={styles.launcherMark} />
-              <strong>Templ support</strong>
-              {startup ? (
-                <a href="#main-content" aria-label="Close support">×</a>
-              ) : (
-                <button type="button" aria-label="Close support" onClick={() => cancelOpening.current?.()}>×</button>
-              )}
-            </header>
-            <div className={styles.openingStatus} role="status">
-              <span className={styles.spinner} aria-hidden="true" />
-              {startup ? "Opening chat…" : view === "settings" ? "Checking chat settings…" : "Loading conversation…"}
-            </div>
+            <ChatLoading
+              name="Templ support"
+              logo="/art/brand/templ-square.svg"
+              status={startup ? "Opening chat…" : view === "settings" ? "Checking chat settings…" : "Loading conversation…"}
+              closeControl={startup
+                ? <a href="#main-content" aria-label="Close support">×</a>
+                : <button type="button" aria-label="Close support" onClick={() => cancelOpening.current?.()}>×</button>}
+            />
           </div>
         )}
         <div ref={standardContent} data-templ-site-appearance="" className={styles.chatContent} inert={startup || opening} />

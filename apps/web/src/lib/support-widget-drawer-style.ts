@@ -67,11 +67,9 @@ ${outgoingBubbleStyle}
 .shared-chat :is(.head button,.head summary,.chat-menu button,.member-conversations button)${enabledControl}:hover,
 .shared-chat .head details[open]>summary,.shared-chat .member-conversations button[aria-current]{background:var(--s2);color:var(--at)}
 .shared-chat :is(.head button,.head summary,.chat-menu button)${enabledControl}:active{background:var(--s);color:var(--at)}
-.shared-chat .chat-history>summary{position:relative}
-.shared-chat .member-conversations button[data-thread]{position:relative;padding-inline-end:28px}
-.shared-chat .chat-history [data-unread]::after{content:"";position:absolute;display:block;width:8px;height:8px;padding:0;margin:0;border-radius:50%;background:var(--d);outline:2px solid var(--bg)}
-.shared-chat .chat-history>summary[data-unread]::after{inset:6px 5px auto auto}
-.shared-chat .member-conversations button[data-unread]::after{inset:calc(50% - 4px) 10px auto auto}
+.drawer-loading{order:1;padding:10px 12px;color:var(--m);font-size:13px}
+.drawer-loading[data-loading]::before,[data-notice-loading]::before,.shared-chat .body>.loading-case:not([hidden])::before{content:"";display:block;width:5rem;height:4px;margin-block-end:8px;border-radius:2px;background:var(--m)}
+.shared-chat .body>.loading-case:not([hidden]){display:grid;justify-items:center;border:0;background:none;color:var(--m)}
 .shared-chat .flex-drawer>.chat-menu{display:flex;flex-direction:column;align-items:stretch;gap:0}
 .shared-chat .flex-drawer>.chat-menu>*{flex-shrink:0}
 @container conversation (width < 768px){

@@ -94,7 +94,6 @@ export function mountSupportWidget(options: SupportWidgetOptions) {
     );
   let wallet: SupportWallet | null =
     options.wallet ?? (options.provider ? { evm: options.provider } : null);
-  const page = loadPage().then((module) => module.framePage(workspace));
 
   const el = <T extends keyof HTMLElementTagNameMap>(tag: T) =>
     document.createElement(tag);
@@ -140,6 +139,7 @@ export function mountSupportWidget(options: SupportWidgetOptions) {
   note.setAttribute("role", "status");
   note.hidden = true;
   const frame = el("iframe");
+  frame.className = "viewport";
   frame.title = "Support chat";
   frame.setAttribute("referrerpolicy", "no-referrer");
   frame.setAttribute("loading", "eager");
@@ -170,6 +170,10 @@ export function mountSupportWidget(options: SupportWidgetOptions) {
         >
       | undefined,
     unwatch = () => {};
+  const page = loadPage().then(module => {
+    if (!destroyed) module.frameLoading(root, note, label, !!options.container, close);
+    return module.framePage(workspace);
+  });
   const post = (message: Record<string, unknown>) =>
     destroyed || port?.postMessage(message);
   let requestedForm: import("./support-widget-form").SupportForm | undefined;
@@ -234,7 +238,7 @@ export function mountSupportWidget(options: SupportWidgetOptions) {
     .then((module) => {
       if (destroyed) return;
       style.textContent = module.FRAME_STYLE + (options.container
-        ? ":host{display:block;height:100%}button{display:none!important}iframe{position:static;inset:auto;width:100%;height:100%;border-radius:0;box-shadow:none}"
+        ? ":host{display:block;height:100%}button{display:none!important}.viewport{position:static;inset:auto;width:100%;height:100%;border-radius:0;box-shadow:none}"
         : "");
       const bound = (boundColors = module.bindWidgetAppearance(
         host,
@@ -251,6 +255,7 @@ export function mountSupportWidget(options: SupportWidgetOptions) {
       style.textContent =
         ":host{font-family:inherit}button,iframe{display:none}";
       failedAt = Date.now();
+      note.setAttribute("data-error", "");
       note.textContent = "Support chat didn't load. Reload to try again.";
       note.hidden = false;
     });
@@ -334,7 +339,13 @@ export function mountSupportWidget(options: SupportWidgetOptions) {
       [channel.port2],
     );
     clearTimeout(readyTimer);
-    readyTimer = setTimeout(() => (failedAt = Date.now()), 15_000);
+    readyTimer = setTimeout(() => {
+      failedAt = Date.now();
+      if (wanted) {
+        note.setAttribute("data-error", "");
+        note.textContent = "Support chat didn't load. Close and try again.";
+      }
+    }, 15_000);
     const pageState = await page;
     await colors;
     if (destroyed) return;
@@ -354,6 +365,8 @@ export function mountSupportWidget(options: SupportWidgetOptions) {
       // Still loading: say so, and open once the frame is ready. A frame
       // that never answered gets the fallback line and loads again at most
       // every 30 seconds.
+      note.toggleAttribute("data-error", !!failedAt);
+      launcher.setAttribute("aria-expanded", "true");
       note.textContent = failedAt
         ? "Support chat didn't load. Reload to try again."
         : "Loading the chat…";
@@ -378,7 +391,7 @@ export function mountSupportWidget(options: SupportWidgetOptions) {
     post({ k: "close" });
     show(false);
   }
-  launcher.addEventListener("click", () => (frame.hidden ? open() : close()));
+  launcher.addEventListener("click", () => (frame.hidden && !wanted ? open() : close()));
   return {
     open,
     openForm(form: import("./support-widget-form").SupportForm) {

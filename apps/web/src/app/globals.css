@@ -78,8 +78,8 @@
   --site-action-height: 48px;
   --site-action-padding-inline: 22px;
   --site-action-gap: var(--templ-space-2);
-  --site-action-radius: var(--site-corner-radius);
-  --site-action-border-width: var(--templ-border-width);
+  --site-action-radius: 0;
+  --site-action-border-width: 2px;
   --site-action-font-size: 16px;
   --site-action-weight: var(--templ-weight-label);
   --site-action-line: 1.25;

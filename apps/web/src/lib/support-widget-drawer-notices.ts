@@ -1,3 +1,4 @@
+import { drawerActionsStyle } from "./support-widget-drawer-actions-style";
 import type { TailHost, createSupportClient } from "./support-widget";
 
 type Notices = { enabled: boolean; pending?: boolean };
@@ -5,7 +6,7 @@ type Notices = { enabled: boolean; pending?: boolean };
 /** A guest's email and choice to subscribe belong to one conversation. */
 export function drawerNotices(host: TailHost, menu: HTMLElement, signal: AbortSignal) {
   const { el } = host;
-  host.style.append(document.createTextNode(`
+  host.style.append(document.createTextNode(`${drawerActionsStyle}
 .shared-chat .drawer-section-body label{display:grid;gap:4px;font-size:13px}
 .shared-chat .drawer-section-body input{box-sizing:border-box;width:100%;min-width:0;padding:8px;border:1px solid var(--b2);border-radius:8px;color:var(--t);background:var(--s);font:inherit;font-size:16px}
 `));
@@ -50,14 +51,16 @@ export function drawerNotices(host: TailHost, menu: HTMLElement, signal: AbortSi
   let lastRead: string | undefined;
   let scope: string | undefined;
   let busy = false;
+  let readFailed = false;
   let epoch = 0;
 
   function render() {
     const signed = client.session?.level === "signed";
     const hasNotices = !!(current?.enabled || current?.pending);
+    const unknown = !!currentThread() && !!client.session?.principalId && !signed && !current;
     section.hidden = !allowed();
-    label.hidden = hint.hidden = save.hidden = signed || hasNotices || !!pending;
-    cancel.hidden = signed || hasNotices;
+    label.hidden = hint.hidden = save.hidden = signed || unknown || hasNotices || !!pending;
+    cancel.hidden = signed || unknown || hasNotices;
     off.hidden = signed || !hasNotices;
     manage.hidden = !signed;
     input.disabled = label.hidden || busy;
@@ -78,22 +81,28 @@ export function drawerNotices(host: TailHost, menu: HTMLElement, signal: AbortSi
       epoch++;
       current = undefined;
       lastRead = undefined;
-      busy = false;
+      busy = readFailed = false;
+      status.removeAttribute("data-notice-loading");
       status.textContent = input.value = "";
       if (pending && (pending.principal !== principal || id)) pending = undefined;
     }
+    if (!open && readFailed) { lastRead = undefined; readFailed = false; }
     if (!allowed()) pending = undefined;
     render();
     if (!open || !id || !principal || !allowed() || client.session?.level === "signed" || busy || lastRead === next) return;
     lastRead = next;
+    status.toggleAttribute("data-notice-loading", true);
+    status.textContent = "Checking reply notifications…";
     const started = epoch;
     void request()<Notices>(path(id)).then(value => {
       if (started !== epoch || signal.aborted) return;
+      status.removeAttribute("data-notice-loading");
       display(value);
       render();
     }, () => {
-      if (started === epoch) {
-        lastRead = undefined;
+      if (started === epoch && !signal.aborted) {
+        status.removeAttribute("data-notice-loading");
+        readFailed = true;
         status.textContent = "Could not read reply notifications. Open Menu to try again.";
       }
     });
@@ -102,6 +111,7 @@ export function drawerNotices(host: TailHost, menu: HTMLElement, signal: AbortSi
     if (!allowed() || client.session?.principalId !== principal || signal.aborted) return;
     const started = ++epoch;
     busy = true;
+    status.removeAttribute("data-notice-loading");
     render();
     status.textContent = email ? "Requesting your confirmation email…" : "Turning off notifications…";
     try {

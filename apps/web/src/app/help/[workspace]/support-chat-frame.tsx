@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { useEffect, useLayoutEffect, useRef, type ReactNode } from "react";
 import { setPageChatAccent, type WidgetAccent } from "@/lib/support-widget-appearance";
 import styles from "./help.module.css";
@@ -62,52 +61,4 @@ export function SupportChatFrame({ children, label, accent, workspace, siteAppea
   );
 }
 
-export function SupportChatLoading({
-  name, logo, href,
-  loadingHistory = false,
-  unavailable = false,
-  retryLink = false,
-  retry,
-}: {
-  name: string; logo?: string; href?: string;
-  loadingHistory?: boolean;
-  unavailable?: boolean;
-  retryLink?: boolean;
-  retry?: () => void;
-}) {
-  const connecting = !retry && !unavailable;
-  return (
-    <div className={styles.loadingChat}>
-      <header className={styles.loadingTitle}>
-        {logo && <Image
-          src={logo}
-          alt=""
-          width={36}
-          height={36}
-          loading="eager"
-          unoptimized
-        />}
-        <h1>{name}</h1>
-      </header>
-      <div className={styles.loadingBody}>
-        {retry || unavailable ? (
-          <>
-            <p role="alert">This chat could not load.</p>
-            {retry && <button type="button" className="button quiet" onClick={retry}>Try again</button>}
-            {retryLink && <a className="button quiet" href={href}>Try again</a>}
-          </>
-        ) : (
-          <p role="status">
-            {loadingHistory
-              ? "Loading your conversation…"
-              : `Connecting to ${name}…`}
-          </p>
-        )}
-      </div>
-      <div className={styles.loadingComposer}>
-        <textarea aria-label="Message to the support team" disabled rows={1} placeholder={connecting ? "Loading..." : "Chat unavailable"} />
-        <button type="button" aria-label="Send" aria-busy={connecting} disabled />
-      </div>
-    </div>
-  );
-}
+export { ChatLoading as SupportChatLoading } from "@/components/chat-loading";

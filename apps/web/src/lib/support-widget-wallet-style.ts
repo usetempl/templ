@@ -1,5 +1,7 @@
+import { drawerActionsStyle } from "./support-widget-drawer-actions-style";
+
 /** The drawer owns its width. An address can use the full row on a small screen. */
-export const walletStyle = `
+export const walletStyle = `${drawerActionsStyle}
 .shared-chat .flex-drawer{container:wallet-menu / inline-size}
 .wallet-list,.wallet-families{display:flex;gap:8px}
 .wallet-list{flex-direction:column}

@@ -71,7 +71,7 @@ export function SiteFooter() {
         <div>
           <p>Company</p>
           <a href={SITE.blog}>Blog</a>
-          <Link href="/chief">Chief setup</Link>
+          {!landing && <Link href="/chief">Chief setup</Link>}
           {!landing && (
             <TalkToTempl className={styles.footerButton} label="Talk to us">
               Talk to us

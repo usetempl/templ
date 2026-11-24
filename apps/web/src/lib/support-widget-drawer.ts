@@ -9,14 +9,6 @@ const refreshOptions = new WeakMap<TailHost, () => void>();
 /** Menu and conversation history share this drawer without losing the visitor’s place. */
 export function bindSupportDrawer(host: TailHost, actions: HTMLElement, signal: AbortSignal) {
   const {el} = host;
-  host.style.append(document.createTextNode(`
-.shared-chat .drawer-section-body .drawer-actions{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}
-.shared-chat .drawer-section-body .drawer-stop{background:var(--s2);color:light-dark(#9e3024,#ffaea3)}
-.shared-chat .drawer-section-body .drawer-primary{width:100%;background:var(--a);color:var(--oa)}
-.shared-chat .drawer-section-body .drawer-primary:hover:enabled{background:var(--ah);color:var(--oh)}
-.shared-chat .drawer-section-body .drawer-primary:active:enabled{background:var(--aa);color:var(--op)}
-.shared-chat .drawer-section-body .drawer-primary:disabled{background:var(--s);color:var(--m)}
-`));
   const menu = actions.closest<HTMLElement>(".chat-menu")!;
   const disclosure = menu.closest("details")!;
   const trigger = disclosure.querySelector("summary")!;
@@ -33,7 +25,20 @@ export function bindSupportDrawer(host: TailHost, actions: HTMLElement, signal: 
   const activePane = () => panes.find(pane => pane.details.open);
   let refreshNotices: ((menuOpen: boolean) => void) | undefined;
   let refreshWallet: (() => void) | undefined;
-  const refreshMenu = () => { updateTeamLink(); refreshWallet?.(); refreshNotices?.(activePane()?.details === disclosure); };
+  const progress = el("p", "Loading settings…", "drawer-loading");
+  progress.setAttribute("role", "status");
+  progress.hidden = true;
+  menu.append(progress);
+  let failed = false;
+  const refreshMenu = () => {
+    updateTeamLink();
+    refreshWallet?.();
+    const open = activePane()?.details === disclosure;
+    refreshNotices?.(open);
+    progress.hidden = !open || (!failed && !(loadingWallet && !refreshWallet) && !(loading && !refreshNotices));
+    progress.textContent = failed ? "Some settings could not load. Reopen Menu to try again." : "Loading settings…";
+    progress.toggleAttribute("data-loading", !failed);
+  };
   refreshOptions.set(host, refreshMenu);
   const loadNotices = () => typeof __TEMPL_WIDGET_DRAWER_NOTICES__ === "string"
     ? import(/* webpackIgnore: true */ /* turbopackIgnore: true */ new globalThis.URL(__TEMPL_WIDGET_DRAWER_NOTICES__, import.meta.url).href)
@@ -121,12 +126,13 @@ export function bindSupportDrawer(host: TailHost, actions: HTMLElement, signal: 
 
   function syncDrawer() {
     const active = activePane();
-    if (active?.details === disclosure && !refreshWallet) {
-      loadingWallet ??= (typeof __TEMPL_WIDGET_DRAWER_WALLET__ === "string"
+    if (!active) failed = false;
+    if (active?.details === disclosure && !refreshWallet && !loadingWallet) {
+      loadingWallet = (typeof __TEMPL_WIDGET_DRAWER_WALLET__ === "string"
         ? import(/* webpackIgnore: true */ /* turbopackIgnore: true */ new globalThis.URL(__TEMPL_WIDGET_DRAWER_WALLET__, import.meta.url).href)
         : import("./support-widget-drawer-wallet")).then(module => module.drawerWallet(host, menu, signal))
-        .then(sync => { if (!signal.aborted) refreshWallet = sync; })
-        .catch(() => { loadingWallet = undefined; });
+        .then(sync => { if (!signal.aborted) { refreshWallet = sync; refreshMenu(); } })
+        .catch(() => { loadingWallet = undefined; failed = true; refreshMenu(); });
     }
     if (active?.details === disclosure && host.policy?.replyEmail && !refreshNotices) {
       loading ??= loadNotices().then(module => {
@@ -134,7 +140,7 @@ export function bindSupportDrawer(host: TailHost, actions: HTMLElement, signal: 
           refreshNotices = module.drawerNotices(host, menu, signal);
           refreshMenu();
         }
-      }).catch(() => { loading = undefined; });
+      }).catch(() => { loading = undefined; failed = true; refreshMenu(); });
     }
     refreshMenu();
     // Inactive content goes back under its own disclosure. The roster and

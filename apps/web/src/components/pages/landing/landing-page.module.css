@@ -58,9 +58,9 @@
 .close { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(220px, .8fr); align-items: center; gap: clamp(20px, 5vw, 72px); padding-block: var(--lp-space); border-top: 1px solid var(--border); }
 .close h2 { max-width: 19ch; margin: 0; font-size: clamp(30px,4.8vw,58px); line-height: 1.05; }
 .close p { margin: 14px 0; }
-.close nav { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 24px; }
-.close a { display: inline-flex; align-items: center; min-height: 44px; color: var(--fg); text-underline-offset: 4px; }
-.helpLink { white-space: nowrap; }
+.close nav { display: flex; align-items: center; flex-wrap: wrap; gap: 12px 24px; }
+.close nav > a:not(.helpLink) { display: inline-flex; align-items: center; min-height: 44px; color: var(--fg); text-underline-offset: 4px; }
+.helpLink { composes: action from "../../ui/site-action.module.css"; }
 .homeServer { justify-self: center; width: min(100%, 330px); height: auto; }
 .homeServer text { font-size: 15px; font-weight: 550; }
 .serverPaper { fill: var(--surface-0); }

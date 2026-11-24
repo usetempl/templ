@@ -6,6 +6,13 @@ export const memberConversationsPath = (cursor?: string) =>
   (cursor ? `&cursor=${encodeURIComponent(cursor)}` : "");
 
 export function conversationDrawer(host: TailHost) {
+  host.style.append(document.createTextNode(`
+.shared-chat .chat-history>summary{position:relative}
+.shared-chat .member-conversations button[data-thread]{position:relative;padding-inline-end:28px}
+.shared-chat .chat-history [data-unread]::after{content:"";position:absolute;display:block;width:8px;height:8px;padding:0;margin:0;border-radius:50%;background:var(--d);outline:2px solid var(--bg)}
+.shared-chat .chat-history>summary[data-unread]::after{inset:6px 5px auto auto}
+.shared-chat .member-conversations button[data-unread]::after{inset:calc(50% - 4px) 10px auto auto}
+`));
   const history = host.el("details", undefined, "chat-history");
   history.hidden = true;
   const trigger = host.el("summary");
