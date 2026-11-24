@@ -24,7 +24,7 @@ import {
 import { formatUsd } from "@/lib/product-format";
 import { communitySessionRevision } from "@/lib/community-auth";
 import { useChatAuth } from "@/lib/chat-auth";
-import { useWallet } from "@/lib/wallet";
+import { useWallet, walletError } from "@/lib/wallet";
 import {
   prepareProductPayment,
   submitProductReceipt,
@@ -70,7 +70,7 @@ type CheckoutProps = {
   room: ChatRoomId;
   usage?: ProductUsage;
   assertCurrent: () => void;
-  onConfirmed: () => void;
+  onConfirmed: (payment: ProductPaymentIntent) => void;
   purpose?: "period" | "credit";
 };
 export function ProductCheckout(props: CheckoutProps) {
@@ -252,7 +252,7 @@ function Checkout({
     setStatusError("");
     setPhase("");
     trackEvent("payment_confirmed");
-    onConfirmed();
+    onConfirmed(intent);
   }, [intent, onConfirmed]);
   const enabled = productCheckoutAvailable(
     intent?.chainId ?? chainId,
@@ -262,6 +262,11 @@ function Checkout({
   const saved = intent ? pendingProductPayment(intent) : null;
   const expired = intent ? Date.parse(intent.expiresAt) <= Date.now() : false;
   const amountLeft = intent ? productPaymentAmount(intent).usdCents : 0;
+  const needsWallet =
+    intent?.kind === "evm" &&
+    (wallet.walletChoiceRequired ||
+      !wallet.account ||
+      wallet.account.toLowerCase() !== intent.payer.toLowerCase());
   const paymentId = intent?.id;
   const standardPayment = intent?.settlement === "standard-prepaid";
   const resumeHash =
@@ -446,7 +451,7 @@ function Checkout({
     assertCurrent,
   ]);
   async function run(
-    step: "prepare" | "send" | "submit" | "check",
+    step: "prepare" | "connect" | "send" | "submit" | "check",
     work: (check: () => void) => Promise<void>,
   ) {
     if (running.current) return;
@@ -492,9 +497,11 @@ function Checkout({
                 ["TimeoutError", "AbortError"].includes(reason.name))) &&
               (step === "check" || step === "submit")
               ? "Payment checks are temporarily unavailable. We’ll retry automatically. Do not send another transfer."
-              : reason instanceof Error
-                ? reason.message
-                : "The payment could not be checked.",
+              : step === "connect"
+                ? walletError(reason)
+                : reason instanceof Error
+                  ? reason.message
+                  : "The payment could not be checked.",
           );
           trackEvent("payment_failed");
           console.warn("TEMPL_SUPPORT_FAILURE", {
@@ -575,11 +582,13 @@ function Checkout({
     setRevision((v) => v + 1);
   }
   const locked = busy || Boolean(intent);
+  const choosingPlan = purpose === "period" && standardPurpose === "period";
+  const NetworkOptions = choosingPlan ? "details" : "div";
   return (
     <div className={styles.checkout}>
       {!intent && (
         <>
-          {standard && standard.status !== "paid" && (
+          {standard && standard.status !== "paid" && !choosingPlan && (
             <label>
               Payment type
               <select
@@ -627,15 +636,8 @@ function Checkout({
                   </select>
                 </label>
               )}
-              <p>
-                Pay {formatUsd(monthlyPrices.workspaceMonthlyUsdCents)} USDC for one month. Renew manually when you want another month.
-                Includes all seats and {monthlyPrices.includedAnsweredCasesPerMonth} answered cases.
-                Extra cases cost {formatUsd(monthlyPrices.additionalAnsweredCaseUsdCents)} each.
-              </p>
               <p className={styles.note}>
-                {monthlyPlan === "starter"
-                  ? "Add prepaid credit and set a limit to use Templ AI. You can also use your own AI."
-                  : `Includes ${formatUsd(monthlyPrices.includedAiCreditUsdCents)} in monthly Templ AI credit.`}
+                One month · {monthlyPrices.includedAnsweredCasesPerMonth} answered cases · All seats
               </p>
             </>
           ) : (
@@ -686,7 +688,7 @@ function Checkout({
               </p>
             </fieldset>
           )}
-          <p id="support-purchase-total" className={styles.total}>
+          {!choosingPlan && <p id="support-purchase-total" className={styles.total}>
             {usdCents === null ? (
               standardPurpose ? (
                 `Enter $0.01 to ${formatUsd(PRODUCT_TOP_UP.maxUsdCents)}.`
@@ -713,7 +715,9 @@ function Checkout({
                 )}
               </>
             )}
-          </p>
+          </p>}
+          <NetworkOptions className={choosingPlan ? styles.options : undefined}>
+            {choosingPlan && <summary>Pay with USDC on {paymentNetworkName(chainId)}</summary>}
           <label>
             Network{" "}
             <select
@@ -747,11 +751,11 @@ function Checkout({
                 ))}
             </select>
           </label>
-          {standardPurpose ? (
+          {standardPurpose ? (!choosingPlan && (
             <p>
               Token: {getProductPaymentAsset(chainId, "USDC")?.label ?? "USDC"}
             </p>
-          ) : (
+          )) : (
             <label>
               Token{" "}
               <select
@@ -783,8 +787,10 @@ function Checkout({
               </select>
             </label>
           )}
+          </NetworkOptions>
           {enabled && (
             <CheckoutPaymentPayer
+              compact={choosingPlan}
               principal={auth.session?.principalId}
               network={chainId === "solana" ? "solana" : "evm"}
               value={payer}
@@ -792,7 +798,7 @@ function Checkout({
               disabled={busy}
             />
           )}
-          {enabled ? (
+          {enabled ? ((!choosingPlan || payer) && (
             <button
               type="button"
               className={styles.primary}
@@ -864,9 +870,9 @@ function Checkout({
                 })
               }
             >
-              {busy ? "Preparing…" : "Review payment"}
+              {busy ? "Preparing…" : choosingPlan ? "Continue to payment" : "Review payment"}
             </button>
-          ) : (
+          )) : (
             <p className={styles.note}>
               Payments are not open on this network.{" "}
               <Link href="/availability">View availability</Link>.
@@ -899,6 +905,153 @@ function Checkout({
               intent.status === "open" && !intent.submittedTx && saved?.hash
                 ? { ...intent, submittedTx: saved.hash }
                 : intent
+            }
+            recoveryRequired={Boolean(saved?.uncertain)}
+            checkoutAction={
+              enabled &&
+              intent.status === "open" &&
+              amountLeft > 0 &&
+              !intent.submittedTx &&
+              !intent.verificationReviewRequired &&
+              !saved?.hash && (
+                <button
+                  type="button"
+                  className={styles.primary}
+                  disabled={
+                    busy ||
+                    Boolean(saved?.uncertain) ||
+                    expired ||
+                    (intent.kind === "evm" && wallet.restoring)
+                  }
+                  onClick={() => {
+                    if (needsWallet && intent.kind === "evm") {
+                      void run("connect", async (check) => {
+                        const address = await wallet.connect({
+                          selectAccount: Boolean(
+                            wallet.account &&
+                            wallet.account.toLowerCase() !==
+                              intent.payer.toLowerCase(),
+                          ),
+                        });
+                        check();
+                        if (
+                          address.toLowerCase() !== intent.payer.toLowerCase()
+                        )
+                          throw new Error(
+                            `Select the payment address ${intent.payer.slice(0, 6)}…${intent.payer.slice(-4)} in your wallet.`,
+                          );
+                      });
+                      return;
+                    }
+                    void run("send", async (check) => {
+                      const progress = (message: string) => {
+                        check();
+                        setPhase(message);
+                      };
+                      const payable =
+                        intent.kind === "solana"
+                          ? (
+                              await refreshProductPaymentTransaction(
+                                auth.session?.principalId,
+                                room,
+                                intent.id,
+                                check,
+                              )
+                            ).intent
+                          : intent;
+                      check();
+                      if (
+                        payable.id !== intent.id ||
+                        payable.kind !== intent.kind
+                      )
+                        throw new Error("The payment request changed.");
+                      const tx =
+                        payable.kind === "solana"
+                          ? await sendSolanaProductPayment({
+                              features,
+                              room,
+                              intent: payable,
+                              payer: payable.payer,
+                              assertCurrent: check,
+                              progress,
+                            })
+                          : await sendProductPayment({
+                              features,
+                              room,
+                              intent: payable,
+                              wallet,
+                              assertCurrent: check,
+                              progress,
+                            });
+                      check();
+                      setHash(tx);
+                      trackEvent("payment_sent");
+                      await submit(check, tx);
+                    });
+                  }}
+                >
+                  {needsWallet
+                    ? wallet.account
+                      ? "Select payment wallet"
+                      : "Connect payment wallet"
+                    : `Pay ${amountLeft / 100} ${intent.asset.symbol}`}
+                </button>
+              )
+            }
+            recoveryActions={
+              <>
+                {["open", "seen"].includes(intent.status) &&
+                  !expired &&
+                  !intent.submittedTx &&
+                  !saved?.hash &&
+                  !intent.verificationReviewRequired && (
+                    <details className={styles.manual}>
+                      <summary>Enter a transfer manually</summary>
+                      <label>
+                        {intent.kind === "solana"
+                          ? "Transaction signature"
+                          : "Transaction hash"}
+                        <input
+                          value={hash}
+                          disabled={busy}
+                          onChange={(event) => setHash(event.target.value)}
+                          autoComplete="off"
+                          spellCheck={false}
+                        />
+                      </label>
+                      <button
+                        type="button"
+                        className={styles.secondary}
+                        disabled={
+                          busy || !validProductTransactionHash(intent, hash)
+                        }
+                        onClick={() =>
+                          void run("submit", (check) => {
+                            trackEvent("payment_hash_submitted");
+                            return submit(check, hash);
+                          })
+                        }
+                      >
+                        Check transfer
+                      </button>
+                    </details>
+                  )}
+                {!intent.submittedTx &&
+                  !saved?.hash &&
+                  intent.status === "open" && (
+                    <button
+                      type="button"
+                      className={styles.back}
+                      disabled={busy}
+                      onClick={() => {
+                        setIntent(undefined);
+                        setHash("");
+                      }}
+                    >
+                      Change payment
+                    </button>
+                  )}
+              </>
             }
             busy={busy}
             onCheck={() =>
@@ -947,120 +1100,6 @@ function Checkout({
               })
             }
           />
-          {enabled &&
-            intent.status === "open" &&
-            amountLeft > 0 &&
-            !intent.submittedTx &&
-            !intent.verificationReviewRequired &&
-            !saved?.hash && (
-              <button
-                type="button"
-                className={styles.primary}
-                disabled={busy || Boolean(saved?.uncertain) || expired}
-                onClick={() =>
-                  void run("send", async (check) => {
-                    const progress = (message: string) => {
-                      check();
-                      setPhase(message);
-                    };
-                    const payable =
-                      intent.kind === "solana"
-                        ? (
-                            await refreshProductPaymentTransaction(
-                              auth.session?.principalId,
-                              room,
-                              intent.id,
-                              check,
-                            )
-                          ).intent
-                        : intent;
-                    check();
-                    if (
-                      payable.id !== intent.id ||
-                      payable.kind !== intent.kind
-                    )
-                      throw new Error("The payment request changed.");
-                    const tx =
-                      payable.kind === "solana"
-                        ? await sendSolanaProductPayment({
-                            features,
-                            room,
-                            intent: payable,
-                            payer: payable.payer,
-                            assertCurrent: check,
-                            progress,
-                          })
-                        : await sendProductPayment({
-                            features,
-                            room,
-                            intent: payable,
-                            wallet,
-                            assertCurrent: check,
-                            progress,
-                          });
-                    check();
-                    setHash(tx);
-                    trackEvent("payment_sent");
-                    await submit(check, tx);
-                  })
-                }
-              >
-                Pay {formatUsd(amountLeft)}
-              </button>
-            )}
-          {saved?.uncertain && (
-            <p role="status">
-              The wallet response is unknown. Check its history and enter the
-              transaction below.
-            </p>
-          )}
-          {["open", "seen"].includes(intent.status) &&
-            !expired &&
-            !intent.submittedTx &&
-            !saved?.hash &&
-            !intent.verificationReviewRequired && (
-              <details className={styles.manual}>
-                <summary>Enter a transfer manually</summary>
-                <label>
-                  {intent.kind === "solana"
-                    ? "Transaction signature"
-                    : "Transaction hash"}
-                  <input
-                    value={hash}
-                    disabled={busy}
-                    onChange={(event) => setHash(event.target.value)}
-                    autoComplete="off"
-                    spellCheck={false}
-                  />
-                </label>
-                <button
-                  type="button"
-                  className={styles.secondary}
-                  disabled={busy || !validProductTransactionHash(intent, hash)}
-                  onClick={() =>
-                    void run("submit", (check) => {
-                      trackEvent("payment_hash_submitted");
-                      return submit(check, hash);
-                    })
-                  }
-                >
-                  Check transfer
-                </button>
-              </details>
-            )}
-          {!intent.submittedTx && !saved?.hash && intent.status === "open" && (
-            <button
-              type="button"
-              className={styles.back}
-              disabled={busy}
-              onClick={() => {
-                setIntent(undefined);
-                setHash("");
-              }}
-            >
-              Change payment
-            </button>
-          )}
         </>
       )}
       {phase && intent?.status !== "credited" && (

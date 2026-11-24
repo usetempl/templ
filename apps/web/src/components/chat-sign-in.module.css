@@ -16,37 +16,15 @@
 }
 .header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: var(--templ-space-2);
-}
-.titleBlock {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--templ-space-3);
-}
-.mark {
-  display: grid;
-  place-items: center;
-  width: 38px;
-  height: 38px;
-  flex: none;
-  border: var(--templ-border-width) solid var(--templ-action-border);
-  border-radius: var(--templ-radius-surface);
-  background: var(--templ-accent-soft);
-  color: var(--templ-accent-text);
 }
 .header h2 {
   margin: 0;
   font-size: var(--templ-text-h3);
   font-weight: var(--templ-weight-heading);
   letter-spacing: var(--templ-tracking-heading);
-}
-.dialog .subtitle {
-  margin: var(--templ-space-1) 0 0;
-  color: var(--templ-muted);
-  font-size: var(--templ-text-small);
-  line-height: var(--templ-line-body);
 }
 .close {
   composes: button quiet icon from global;
@@ -119,48 +97,11 @@
 .walletOption {
   composes: button secondary large from global;
   width: 100%;
-  min-height: 64px;
+  min-height: 44px;
   justify-content: flex-start;
   gap: var(--templ-space-3);
   text-align: left;
 }
-.walletOption[aria-pressed="true"] {
-  border-color: var(--templ-action-border);
-  background: var(--templ-accent-soft);
-}
-.walletOption > svg {
-  flex: none;
-}
-.walletName {
-  display: grid;
-  flex: 1;
-  min-width: 0;
-  gap: var(--templ-space-1);
-  font-size: var(--templ-text-body);
-  font-weight: var(--templ-weight-heading);
-}
-.address {
-  overflow: hidden;
-  color: var(--templ-muted);
-  font-family: var(--templ-font-mono);
-  font-size: var(--templ-text-small);
-  font-weight: var(--templ-weight-body);
-  text-overflow: ellipsis;
-}
-.walletHint,
-.walletAction {
-  color: var(--templ-muted);
-  font-size: var(--templ-text-small);
-  font-weight: var(--templ-weight-body);
-}
-.walletAction {
-  flex: none;
-  white-space: nowrap;
-}
-.dialog .signInHint {
-  margin: var(--templ-space-4) 0 var(--templ-space-3);
-}
-
 .dialog .hint {
   margin: var(--templ-space-2) 0 0;
   color: var(--templ-text);
@@ -173,19 +114,6 @@
   margin-top: var(--templ-space-4);
 }
 
-.methods {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--templ-space-2);
-  margin-top: var(--templ-space-4);
-}
-.methods button {
-  justify-content: center !important;
-}
-.methods [aria-pressed="true"] {
-  border-color: var(--templ-action-border);
-  background: var(--templ-accent-soft);
-}
 .emailForm {
   display: grid;
   gap: var(--templ-space-3);
@@ -212,3 +140,6 @@
   font-size: var(--templ-text-small);
   font-weight: var(--templ-weight-label);
 }
+
+.dialog .account { margin: 0; font-variant-numeric: tabular-nums; }
+.textButton { composes: button quiet from global; justify-self: center; font-size: var(--templ-text-small); }

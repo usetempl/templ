@@ -1,8 +1,10 @@
 "use client";
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import { useChatAuth } from "@/lib/chat-auth";
+import { connectSolanaWallet } from "@/lib/solana-wallet";
+import { walletError } from "@/lib/wallet";
 import type { ChatPrincipalId } from "@templ/chat/principal";
-import { readAccountMethods } from "@/lib/account-methods";
+import { addSolanaWallet, readAccountMethods } from "@/lib/account-methods";
 
 /** The identity store supplies the choices; the worker checks proof again. */
 export function CheckoutPaymentPayer({
@@ -11,13 +13,18 @@ export function CheckoutPaymentPayer({
   value,
   onChange,
   disabled,
+  compact = false,
 }: {
   principal: ChatPrincipalId | undefined;
   network: "evm" | "solana";
   value: string | undefined;
   onChange: (address: string | undefined) => void;
   disabled: boolean;
+  compact?: boolean;
 }) {
+  const auth = useChatAuth();
+  const [linking, setLinking] = useState(false);
+  const [linkError, setLinkError] = useState("");
   const [loaded, setLoaded] = useState<{
     key: string;
     wallets?: string[];
@@ -69,11 +76,33 @@ export function CheckoutPaymentPayer({
     );
   if (!current.wallets?.length)
     return (
-      <p>
-        Link a wallet to pay on this network.{" "}
-        <Link href="/settings/wallets">Manage wallets</Link>
-      </p>
+      <div>
+        <button
+          type="button"
+          className="button large"
+          disabled={!principal || disabled || linking}
+          onClick={async () => {
+            if (!principal || linking) return;
+            setLinking(true);
+            setLinkError("");
+            try {
+              if (network === "solana")
+                await addSolanaWallet(principal, connectSolanaWallet);
+              else await auth.connectWallet();
+              setAttempt((previous) => previous + 1);
+            } catch (reason) {
+              setLinkError(walletError(reason));
+            } finally {
+              setLinking(false);
+            }
+          }}
+        >
+          {linking ? "Connecting…" : "Connect payment wallet"}
+        </button>
+        {linkError && <p role="alert">{linkError}</p>}
+      </div>
     );
+  if (compact && current.wallets.length === 1) return null;
   return (
     <label>
       Pay from{" "}

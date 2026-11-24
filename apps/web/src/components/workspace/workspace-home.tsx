@@ -281,7 +281,7 @@ export function WorkspaceHome({
     return (
       <div className={styles.page}>
         {hostedSetup}
-        <button className={`button quiet ${setupStyles.overviewToggle}`} type="button"
+        <button className={setupStyles.overviewToggle} type="button"
           onClick={() => setOverviewRoom(room)}>Workspace overview</button>
       </div>
     );

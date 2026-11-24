@@ -41,7 +41,7 @@ export function AddBalanceDialog({
     error?: string;
   }>();
   const [refresh, setRefresh] = useState(0);
-  const [verified, setVerified] = useState<string | null>(null);
+  const [verified, setVerified] = useState<{ key: string; period: boolean }>();
   const usage = result?.key === usageKey ? result.usage : undefined;
   const error = result?.key === usageKey ? result.error : undefined;
   const standard =
@@ -110,10 +110,11 @@ export function AddBalanceDialog({
           </p>
         )}
         {!usage && !error && <p role="status">Loading your plan…</p>}
-        {verified === usageKey && !standard && (
-          <p role="status">
-            Payment verified. Check your plan for access dates and credit.
-          </p>
+        {verified?.key === usageKey && (
+          <div className={styles.confirmed} role="status">
+            <strong>{verified.period && standard?.status === "paid" ? "Your hosted plan is active." : "Payment verified."}</strong>
+            <button type="button" className={styles.primary} onClick={onClose}>Back to workspace</button>
+          </div>
         )}
         {usage && !standard && (
           <p className={styles.note}>
@@ -122,20 +123,20 @@ export function AddBalanceDialog({
               : `${pricingLine()} ${RESOLUTION_DEFINITION}`}
           </p>
         )}
-        {usage && (
+        {usage && verified?.key !== usageKey && (
           <ProductCheckout
             room={room}
             usage={usage}
             purpose={purpose}
             assertCurrent={assertCurrent}
-            onConfirmed={() => {
-              setVerified(usageKey);
+            onConfirmed={payment => {
+              setVerified({ key: usageKey, period: payment.standard?.purpose === "period" });
               setRefresh((value) => value + 1);
               onConfirmed();
             }}
           />
         )}
-        <p className={styles.help}>
+        {!standard && <p className={styles.help}>
           {usage && !standard && CUSTOM_PRICING_LINE.replace("Talk to us.", "")}
           <button
             type="button"
@@ -148,7 +149,7 @@ export function AddBalanceDialog({
           >
             Chat with Templ
           </button>
-        </p>
+        </p>}
       </div>
     </dialog>
   );

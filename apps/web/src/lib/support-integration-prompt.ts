@@ -21,7 +21,7 @@ For an embed, reuse the app’s wallet connection and use the workspace install 
 Check current availability. Keep unavailable features off.
 Never request passwords, private keys, recovery phrases or staff tokens.
 Test a guest question and a team reply. Tell me what needs attention.
-Stop before payment. When I want a hosted name, open Choose a hosted name under Your support chat, then show me how to reserve it and choose a monthly plan. Payment is in USDC and renewals are manual.`;
+Stop before payment. When I want a hosted name, use the Hosted name field under Your support chat to reserve it and choose a monthly plan. Payment is in USDC and renewals are manual.`;
 }
 
 /** The hosts a prompt names. Every build uses its own `SITE`; tests and the

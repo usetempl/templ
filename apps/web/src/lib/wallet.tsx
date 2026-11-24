@@ -168,14 +168,12 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     ++current.read;
     if (current.account !== next) {
       ++current.revision;
-      // Keep the browser cookie, but require a fresh identity check for a new selection.
-      // A Solana session is the only non-EVM case left: its EVM wallet is a
-      // proven wallet on the account, not the browser's selection, so a
-      // switch leaves it alone.
       const session = peekCommunitySession();
-      if (session && session.authMethod !== "wallet") {
-        /* The account and its wallets are unchanged. */
-      } else if (current.account !== undefined || session)
+      // Restoring the wallet that authenticated this session is the same identity.
+      // A switch or disconnect still invalidates the previous wallet session.
+      const restoringSameWallet = !current.account && next && session?.address?.toLowerCase() === next.toLowerCase();
+      if ((!session || session.authMethod === "wallet") &&
+          (current.account || session) && !restoringSameWallet)
         invalidateCommunitySession();
     }
     current.account = next;

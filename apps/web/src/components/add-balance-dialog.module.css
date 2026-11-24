@@ -231,3 +231,8 @@
 .topUp:disabled .amount {
   cursor: default;
 }
+
+.confirmed { display: grid; gap: var(--templ-space-5); padding-block: var(--templ-space-3); }
+
+.options summary { cursor: pointer; color: var(--templ-muted); font-size: var(--templ-text-small); }
+.options[open] summary { margin-bottom: var(--templ-space-2); }

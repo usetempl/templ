@@ -9,7 +9,6 @@ export const walletStyle = `${drawerActionsStyle}
 .wallet-list>div{display:flex;align-items:center;justify-content:space-between;gap:4px;min-width:0}
 .wallet-proof{display:inline-flex;align-items:center;gap:4px;min-width:0;max-width:100%;font-size:12px;font-weight:400;line-height:1.4}
 .wallet-proof bdi{min-width:0;white-space:nowrap;overflow-x:auto;scrollbar-width:thin}
-.wallet-proof svg{width:14px;height:14px;flex:none;color:light-dark(#28643c,#93ce9d)}
 .shared-chat .wallet-list .wallet-remove{display:grid;place-items:center;width:44px;height:44px;padding:0;color:var(--m)}
 .wallet-remove svg{width:16px;height:16px}
 .wallet-remove span{display:none}

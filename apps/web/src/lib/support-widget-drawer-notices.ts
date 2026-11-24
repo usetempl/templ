@@ -24,8 +24,6 @@ export function drawerNotices(host: TailHost, menu: HTMLElement, signal: AbortSi
   input.required = true;
   input.maxLength = 254;
   label.append(input);
-  const hint = el("div");
-  hint.append(el("p", "Confirm your email to get reply notifications."), el("p", "The team cannot see your email address."));
   const controls = el("div", undefined, "drawer-actions");
   const save = el("button", "Use this email", "drawer-primary");
   save.type = "submit";
@@ -38,7 +36,7 @@ export function drawerNotices(host: TailHost, menu: HTMLElement, signal: AbortSi
   const status = el("p");
   status.setAttribute("role", "status");
   controls.append(save, cancel, off, manage);
-  form.append(label, hint, controls, status);
+  form.append(label, controls, status);
   section.append(heading, form);
   menu.append(section);
 
@@ -59,7 +57,7 @@ export function drawerNotices(host: TailHost, menu: HTMLElement, signal: AbortSi
     const hasNotices = !!(current?.enabled || current?.pending);
     const unknown = !!currentThread() && !!client.session?.principalId && !signed && !current;
     section.hidden = !allowed();
-    label.hidden = hint.hidden = save.hidden = signed || unknown || hasNotices || !!pending;
+    label.hidden = save.hidden = signed || unknown || hasNotices || !!pending;
     cancel.hidden = signed || unknown || hasNotices;
     off.hidden = signed || !hasNotices;
     manage.hidden = !signed;

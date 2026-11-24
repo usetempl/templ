@@ -16,9 +16,8 @@ export function verifiedAddress(host: TailHost, address: string) {
   const label = host.el("span", undefined, "wallet-proof");
   const value = host.el("bdi", displayWalletAddress(address));
   value.dir = "ltr";
-  const tick = host.icon("check");
   const verified = host.el("span", "Verified", "sr");
-  label.append(value, tick, verified);
+  label.append(value, verified);
   return label;
 }
 

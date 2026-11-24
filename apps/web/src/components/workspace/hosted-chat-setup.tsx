@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { IconArrowUpRight, IconChevronDown, IconCode, IconInbox } from "@tabler/icons-react";
+import { IconArrowUpRight, IconCode, IconInbox } from "@tabler/icons-react";
 import { PRODUCT_STARTER_PRICES } from "@templ/chat/plans";
 import { formatUsdCents } from "@templ/chat/resolution-copy";
 import { chatMutation } from "@/lib/chat-api";
@@ -84,7 +84,7 @@ export function HostedChatSetup({ context, paid }: { context: WorkspaceContext; 
           <span className={styles.number} aria-hidden="true">1</span>
           <div className={styles.task}>
             <h3>Send a test question</h3>
-            <a className="button" href={link} target="_blank" rel="noopener noreferrer">Open visitor chat <IconArrowUpRight aria-hidden="true" /></a>
+            <a className="button secondary" href={link} target="_blank" rel="noopener noreferrer">Open visitor chat <IconArrowUpRight aria-hidden="true" /></a>
           </div>
           <div className={styles.linkRow}>
             <code>{link}</code><CopyButton value={link} label="Copy link" />
@@ -102,12 +102,11 @@ export function HostedChatSetup({ context, paid }: { context: WorkspaceContext; 
       </ol>
       <div className={styles.options}>
         {managed && !claimed && (
-          <details className={styles.nameChoice} open={Boolean(hold) || undefined}>
-            <summary>
-              <span>Choose a hosted name</span>
+          <section className={styles.nameChoice} aria-labelledby="choose-hosted-name">
+            <header>
+              <h3 id="choose-hosted-name">Choose a hosted name</h3>
               <small>{paid ? "Included in your plan" : `From ${formatUsdCents(PRODUCT_STARTER_PRICES.workspaceMonthlyUsdCents)}/month`}</small>
-              <IconChevronDown aria-hidden="true" />
-            </summary>
+            </header>
             <form className={styles.nameForm} onSubmit={chooseName}>
               <label htmlFor="trial-hosted-name">Hosted name</label>
               <div className={styles.nameRow}>
@@ -118,14 +117,14 @@ export function HostedChatSetup({ context, paid }: { context: WorkspaceContext; 
                     pattern="[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9]" autoCapitalize="none" autoCorrect="off"
                     autoComplete="off" spellCheck={false} aria-describedby="hosted-name-terms" />
                 </div>
-                <button className="button secondary" disabled={busy}>
+                <button className="button" disabled={busy}>
                   {busy ? "Checking availability…" : paid ? "Claim name" : "Reserve name and choose a plan"}
                 </button>
               </div>
               <p id="hosted-name-terms">{paid ? "Your plan includes a hosted name." : "Pay in USDC for one month. Renew manually."}</p>
               {hold && <p>We reserved /{hold.slug} until {new Date(hold.expiresAt).toLocaleString()}.</p>}
             </form>
-          </details>
+          </section>
         )}
         {message && <p role="status" className={styles.notice}>{message}</p>}
         <button type="button" className={styles.widgetLink} onClick={() => go("widget")}>

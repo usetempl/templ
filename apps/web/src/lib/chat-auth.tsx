@@ -11,7 +11,7 @@ import {
   useSyncExternalStore,
   type ReactNode,
 } from "react";
-import { IconLock, IconX, IconWallet } from "@tabler/icons-react";
+import { IconMail, IconX, IconWallet } from "@tabler/icons-react";
 import { useWallet, walletError } from "./wallet";
 import { ChatSignInCanceledError } from "./chat-auth-cancellation";
 import {
@@ -328,7 +328,8 @@ function SignInDialog({
   const busy = activeAction !== null;
   const selectedMethodEnabled =
     connected?.method === "solana" ? solanaEnabled : walletEnabled;
-  const [lastMethod, setLastMethod] = useState<SignInMethod | null>(null);
+  const [chooseExtension, setChooseExtension] = useState(false);
+  const [changingMethod, setChangingMethod] = useState(false);
   const [error, setError] = useState("");
   const alive = useRef(true);
   const checkMethods = useCallback(
@@ -351,7 +352,6 @@ function SignInDialog({
   );
   useEffect(() => {
     alive.current = true;
-    setLastMethod(readLastSignInMethod());
     const element = dialog.current;
     const previous = document.activeElement as HTMLElement | null;
     element?.showModal();
@@ -431,6 +431,13 @@ function SignInDialog({
   }
   const anyMethod = walletEnabled || solanaEnabled || emailEnabled;
   const usingEmail = emailEnabled && method === "email";
+  const connectedAddress =
+    connected?.method === "wallet"
+      ? connected.address
+      : connected?.signer.address;
+  const connectedLabel =
+    connectedAddress &&
+    `${connectedAddress.slice(0, connected?.method === "solana" ? 4 : 6)}…${connectedAddress.slice(-4)}`;
   const dismiss = useDismissDialog(() => onComplete(), { disabled: busy });
   return (
     <dialog
@@ -440,17 +447,7 @@ function SignInDialog({
       {...dismiss}
     >
       <header className={styles.header}>
-        <div className={styles.titleBlock}>
-          <span className={styles.mark} aria-hidden="true">
-            <IconLock size={18} />
-          </span>
-          <div>
-            <h2 id="chat-sign-in-title">{t("shell.signIn.title")}</h2>
-            <p className={styles.subtitle}>
-              Templ never asks for your recovery phrase or private key.
-            </p>
-          </div>
-        </div>
+        <h2 id="chat-sign-in-title">{t("shell.signIn.title")}</h2>
         <button
           type="button"
           className={styles.close}
@@ -471,34 +468,6 @@ function SignInDialog({
         <p className={styles.hint}>
           Sign in to review this app. You choose its workspace in the next step.
         </p>
-      )}
-      {emailEnabled && (
-        <div className={styles.methods} aria-label="Sign-in method">
-          <button
-            type="button"
-            className={styles.secondary}
-            aria-pressed={usingEmail}
-            disabled={busy}
-            onClick={() => {
-              setMethod("email");
-              setError("");
-            }}
-          >
-            Email
-          </button>
-          <button
-            type="button"
-            className={styles.secondary}
-            aria-pressed={!usingEmail}
-            disabled={busy}
-            onClick={() => {
-              setMethod("wallet");
-              setError("");
-            }}
-          >
-            Wallet
-          </button>
-        </div>
       )}
       {usingEmail ? (
         <form
@@ -530,7 +499,7 @@ function SignInDialog({
         >
           {emailChallenge ? (
             <>
-              <p>Check your email for a code. It expires in 5 minutes.</p>
+              <p>Enter the code sent to {email}.</p>
               <label htmlFor="chat-email-code">Email code</label>
               <input
                 className={styles.emailInput}
@@ -575,14 +544,8 @@ function SignInDialog({
                   });
                 }}
               >
-                {activeAction === "email-start" && <LoadingSpinner />}Send a new
-                code
+                {resendSeconds ? `Resend in ${resendSeconds}s` : "Resend code"}
               </button>
-              {resendSeconds > 0 && (
-                <p className={styles.hint}>
-                  New code in {resendSeconds} seconds.
-                </p>
-              )}
               <button
                 className={styles.secondary}
                 type="button"
@@ -625,156 +588,197 @@ function SignInDialog({
               </button>
             </>
           )}
+          {(walletEnabled || solanaEnabled) && (
+            <button
+              type="button"
+              className={styles.textButton}
+              disabled={busy}
+              onClick={() => {
+                setMethod("wallet");
+                setChangingMethod(true);
+                setError("");
+              }}
+            >
+              Use a wallet instead
+            </button>
+          )}
         </form>
       ) : (
         <>
-          {walletEnabled && (wallet.wallets?.length ?? 0) > 1 && (
-            <div className={styles.walletPicker}>
-              <label htmlFor="chat-ethereum-wallet">Ethereum wallet</label>
-              <select
-                id="chat-ethereum-wallet"
-                className={styles.emailInput}
+          {connected &&
+          selectedMethodEnabled &&
+          !changingMethod &&
+          !chooseExtension ? (
+            <div className={styles.wallets}>
+              <p className={styles.account}>
+                {connected.method === "wallet" ? "Ethereum" : "Solana"} ·{" "}
+                <span title={connectedAddress}>{connectedLabel}</span>
+              </p>
+              <button
+                type="button"
+                className={styles.primary}
                 disabled={busy}
-                value={
-                  wallet.walletChoiceRequired
-                    ? ""
-                    : (wallet.selectedWallet ?? "")
+                aria-busy={activeAction === "sign"}
+                onClick={() =>
+                  void perform("sign", async () => {
+                    if (connected.method === "solana") {
+                      const value = await signInWithSolana(
+                        async () => connected.signer,
+                        connectCode,
+                      );
+                      completeSignIn("solana", value);
+                    } else {
+                      await signInCommunity(
+                        connected.address,
+                        wallet.signingReady ?? wallet.ready,
+                        strongOnly,
+                        connectCode,
+                      );
+                      completeSignIn(
+                        "wallet",
+                        verifiedWalletSession(connected.address),
+                      );
+                    }
+                  })
                 }
-                onChange={(event) => {
-                  wallet.selectWallet?.(event.target.value);
-                  setConnected(null);
+              >
+                {activeAction === "sign" && <LoadingSpinner />}
+                {activeAction === "sign" ? "Check your wallet…" : "Sign in"}
+              </button>
+              <button
+                type="button"
+                className={styles.textButton}
+                disabled={busy}
+                onClick={() => {
+                  setChangingMethod(true);
                   setError("");
                 }}
               >
-                <option value="" disabled>
-                  Choose your wallet
-                </option>
-                {wallet.wallets?.map((entry) => (
-                  <option key={entry.id} value={entry.id}>
-                    {entry.name}
-                  </option>
-                ))}
-              </select>
+                Use another sign-in method
+              </button>
+            </div>
+          ) : (
+            <div className={styles.wallets} aria-label="Sign-in methods">
+              {chooseExtension && walletEnabled && (
+                <label className={styles.walletPicker}>
+                  Ethereum wallet
+                  <select
+                    className={styles.emailInput}
+                    value={
+                      wallet.walletChoiceRequired
+                        ? ""
+                        : (wallet.selectedWallet ?? "")
+                    }
+                    disabled={busy}
+                    onChange={(event) => {
+                      wallet.selectWallet?.(event.target.value);
+                      setError("");
+                    }}
+                  >
+                    <option value="" disabled>
+                      Choose your wallet
+                    </option>
+                    {wallet.wallets?.map((entry) => (
+                      <option key={entry.id} value={entry.id}>
+                        {entry.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+              {walletEnabled && (
+                <button
+                  type="button"
+                  className={styles.walletOption}
+                  disabled={
+                    busy || (chooseExtension && !!wallet.walletChoiceRequired)
+                  }
+                  aria-busy={activeAction === "wallet"}
+                  onClick={() => {
+                    if (
+                      (wallet.wallets?.length ?? 0) > 1 &&
+                      !chooseExtension &&
+                      (wallet.walletChoiceRequired || changingMethod)
+                    ) {
+                      setChooseExtension(true);
+                      return;
+                    }
+                    void perform("wallet", async () => {
+                      const address = await wallet.connect({
+                        selectAccount:
+                          changingMethod && connected?.method === "wallet",
+                      });
+                      if (alive.current) {
+                        setConnected({ method: "wallet", address });
+                        setChangingMethod(false);
+                        setChooseExtension(false);
+                      }
+                    });
+                  }}
+                >
+                  {activeAction === "wallet" ? (
+                    <LoadingSpinner />
+                  ) : (
+                    <IconWallet size={19} aria-hidden="true" />
+                  )}
+                  {chooseExtension
+                    ? "Connect wallet"
+                    : "Continue with Ethereum"}
+                </button>
+              )}
+              {solanaEnabled && !chooseExtension && (
+                <button
+                  type="button"
+                  className={styles.walletOption}
+                  disabled={busy}
+                  aria-busy={activeAction === "solana"}
+                  onClick={() =>
+                    void perform("solana", async () => {
+                      const signer = await connectSolanaWallet();
+                      if (alive.current) {
+                        setConnected({ method: "solana", signer });
+                        setChangingMethod(false);
+                      }
+                    })
+                  }
+                >
+                  {activeAction === "solana" ? (
+                    <LoadingSpinner />
+                  ) : (
+                    <IconWallet size={19} aria-hidden="true" />
+                  )}
+                  Continue with Solana
+                </button>
+              )}
+              {emailEnabled && !chooseExtension && (
+                <button
+                  type="button"
+                  className={styles.walletOption}
+                  disabled={busy}
+                  onClick={() => {
+                    setMethod("email");
+                    setError("");
+                  }}
+                >
+                  <IconMail size={19} aria-hidden="true" />
+                  Continue with email
+                </button>
+              )}
+              {chooseExtension && (
+                <button
+                  type="button"
+                  className={styles.textButton}
+                  disabled={busy}
+                  onClick={() => {
+                    setChooseExtension(false);
+                    setError("");
+                  }}
+                >
+                  Back
+                </button>
+              )}
             </div>
           )}
-          <div className={styles.wallets} aria-label="Choose a wallet">
-            {walletEnabled && (
-              <button
-                type="button"
-                className={styles.walletOption}
-                disabled={busy}
-                aria-label={
-                  connected?.method === "wallet"
-                    ? "Change Ethereum wallet"
-                    : "Connect Ethereum wallet"
-                }
-                aria-pressed={connected?.method === "wallet"}
-                aria-describedby={
-                  connected?.method === "wallet"
-                    ? "chat-evm-address"
-                    : undefined
-                }
-                aria-busy={activeAction === "wallet"}
-                onClick={() =>
-                  void perform("wallet", async () => {
-                    const address = await wallet.connect({
-                      selectAccount: connected?.method === "wallet",
-                    });
-                    if (alive.current)
-                      setConnected({ method: "wallet", address });
-                  })
-                }
-              >
-                {activeAction === "wallet" ? (
-                  <LoadingSpinner />
-                ) : (
-                  <IconWallet size={22} aria-hidden="true" />
-                )}
-                <span className={styles.walletName}>
-                  <span>Ethereum</span>
-                  {connected?.method === "wallet" ? (
-                    <span
-                      id="chat-evm-address"
-                      className={styles.address}
-                      title={connected.address}
-                    >
-                      {connected.address.slice(0, 6)}…
-                      {connected.address.slice(-4)}
-                    </span>
-                  ) : (
-                    lastMethod === "wallet" &&
-                    !strongOnly && (
-                      <span className={styles.walletHint}>Last used</span>
-                    )
-                  )}
-                </span>
-                <span className={styles.walletAction}>
-                  {activeAction === "wallet"
-                    ? "Connecting…"
-                    : connected?.method === "wallet"
-                      ? "Change wallet"
-                      : "Connect"}
-                </span>
-              </button>
-            )}
-            {solanaEnabled && (
-              <button
-                type="button"
-                className={styles.walletOption}
-                disabled={busy}
-                aria-label={
-                  connected?.method === "solana"
-                    ? "Change Solana wallet"
-                    : "Connect Solana wallet"
-                }
-                aria-pressed={connected?.method === "solana"}
-                aria-describedby={
-                  connected?.method === "solana"
-                    ? "chat-solana-address"
-                    : undefined
-                }
-                aria-busy={activeAction === "solana"}
-                onClick={() =>
-                  void perform("solana", async () => {
-                    const signer = await connectSolanaWallet();
-                    if (alive.current)
-                      setConnected({ method: "solana", signer });
-                  })
-                }
-              >
-                {activeAction === "solana" ? (
-                  <LoadingSpinner />
-                ) : (
-                  <IconWallet size={22} aria-hidden="true" />
-                )}
-                <span className={styles.walletName}>
-                  <span>Solana</span>
-                  {connected?.method === "solana" ? (
-                    <span
-                      id="chat-solana-address"
-                      className={styles.address}
-                      title={connected.signer.address}
-                    >
-                      {connected.signer.address.slice(0, 4)}…
-                      {connected.signer.address.slice(-4)}
-                    </span>
-                  ) : (
-                    lastMethod === "solana" &&
-                    !strongOnly && (
-                      <span className={styles.walletHint}>Last used</span>
-                    )
-                  )}
-                </span>
-                <span className={styles.walletAction}>
-                  {activeAction === "solana"
-                    ? "Connecting…"
-                    : connected?.method === "solana"
-                      ? "Change wallet"
-                      : "Connect"}
-                </span>
-              </button>
-            )}
-          </div>
           {(methodsAvailability === "failed" ||
             (methodsAvailability === "ready" && !anyMethod)) && (
             <div className={styles.methodRetry}>
@@ -798,41 +802,6 @@ function SignInDialog({
               </button>
             </div>
           )}
-          <p className={styles.signInHint}>
-            {connected
-              ? "Approve a sign-in message. No transaction or gas fee."
-              : "Connect your wallet, then approve a sign-in message."}
-          </p>
-          <button
-            type="button"
-            className={styles.primary}
-            disabled={!connected || !selectedMethodEnabled || busy}
-            aria-busy={activeAction === "sign"}
-            onClick={() => {
-              if (!connected || !selectedMethodEnabled) return;
-              void perform("sign", async () => {
-                if (connected.method === "solana") {
-                  const value = await signInWithSolana(
-                    async () => connected.signer,
-                    connectCode,
-                  );
-                  completeSignIn("solana", value);
-                } else {
-                  await signInCommunity(
-                    connected.address,
-                    wallet.signingReady ?? wallet.ready,
-                    strongOnly,
-                    connectCode,
-                  );
-                  const value = verifiedWalletSession(connected.address);
-                  completeSignIn("wallet", value);
-                }
-              });
-            }}
-          >
-            {activeAction === "sign" && <LoadingSpinner />}
-            {activeAction === "sign" ? "Check your wallet…" : "Sign in"}
-          </button>
         </>
       )}
       <p className={styles.policies}>

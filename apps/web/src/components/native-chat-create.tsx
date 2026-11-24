@@ -2,14 +2,17 @@
 
 import { useRelease } from "@/lib/release-context";
 
-import { useEffect, useRef, useState, type FormEvent } from "react";
-import { useRouter } from "next/navigation";
 import {
-  IconArrowRight,
-  IconCode,
-  IconInbox,
-  IconSparkles,
-} from "@tabler/icons-react";
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type FormEvent,
+} from "react";
+import { useRouter } from "next/navigation";
+import { IconArrowRight } from "@tabler/icons-react";
 import type { ChatPrincipalId, ChatVisibility } from "@templ/chat/principal";
 import { DEFAULT_ACCENT } from "@templ/chat/appearance";
 import { useChatAuth } from "@/lib/chat-auth";
@@ -27,11 +30,13 @@ import {
   type NativeRoomSetup,
 } from "@/lib/native-room";
 import { workspaceCreationEnabled } from "@/lib/release-public";
-import { RESOLVED_CASES_DOCS } from "@/lib/product-offer";
 import { PRODUCT_LIMITS } from "@templ/chat/plans";
-import { DEFAULT_WALLET_IDENTIFICATION, readWalletIdentification, type WalletIdentification } from "@templ/chat/widget-wallet";
+import {
+  DEFAULT_WALLET_IDENTIFICATION,
+  readWalletIdentification,
+  type WalletIdentification,
+} from "@templ/chat/widget-wallet";
 import { WalletIdentificationFields } from "./wallet-identification-fields";
-import { TalkToTempl } from "./talk-to-templ";
 import { trackEvent } from "@/lib/analytics";
 import { copy as t } from "@/lib/copy";
 import { Callout, Field, Spinner, ui } from "./ui/ui";
@@ -45,20 +50,52 @@ const SETUP: NativeRoomSetup = {
   roles: [],
 };
 const VISIBILITY: ChatVisibility = "public";
-type CreationDraft = NativeRoomDraft & { walletIdentification?: WalletIdentification };
+type CreationDraft = NativeRoomDraft & {
+  walletIdentification?: WalletIdentification;
+};
 
-const NEXT_STEPS = [
-  {
-    icon: IconCode,
-    title: "Open your team's chat",
-    body: "Send a test question from your shareable link. You can add the widget to your site later.",
-  },
-  {
-    icon: IconInbox,
-    title: "Answer from your inbox",
-    body: "Every case lands in one private inbox for your team.",
-  },
-];
+const NEW_WORKSPACE_WALLETS: WalletIdentification = {
+  enabled: false,
+  evm: true,
+  solana: true,
+};
+
+function savedDraft(account?: string) {
+  if (!account) return null;
+  try {
+    return sessionStorage.getItem(pendingKey(account));
+  } catch {
+    return null;
+  }
+}
+function parseDraft(
+  raw: string | null,
+  account?: string,
+): CreationDraft | undefined {
+  if (!raw || !account) return;
+  try {
+    const draft: CreationDraft = JSON.parse(raw);
+    if (
+      draft &&
+      isNativeRoomId(draft.id) &&
+      draft.expectedPrincipalId?.toLowerCase() === account.toLowerCase() &&
+      draft.visibility === VISIBILITY &&
+      typeof draft.name === "string" &&
+      draft.name.length <= 80 &&
+      Array.isArray(draft.setup?.roles) &&
+      draft.setup.roles.length === 0 &&
+      Object.keys(draft.setup).every((key) => key === "roles")
+    )
+      return draft;
+  } catch {
+    /* Ignore incomplete saved drafts. */
+  }
+}
+function subscribeDraft(onChange: () => void) {
+  window.addEventListener("storage", onChange);
+  return () => window.removeEventListener("storage", onChange);
+}
+const noSavedDraft = () => null;
 
 export function NativeChatCreate({
   available: suppliedAvailable,
@@ -77,49 +114,47 @@ export function NativeChatCreate({
   const nameInput = useRef<HTMLInputElement>(null);
   const [hasName, setHasName] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [pending, setPending] = useState<CreationDraft>();
-  const [walletIdentification, setWalletIdentification] = useState(DEFAULT_WALLET_IDENTIFICATION);
+  const [activeDraft, setPending] = useState<CreationDraft>();
+  const stored = useSyncExternalStore(
+    subscribeDraft,
+    () => savedDraft(account),
+    noSavedDraft,
+  );
+  const restored = useMemo(
+    () => parseDraft(stored, account),
+    [stored, account],
+  );
+  const pending =
+    activeDraft && activeDraft.expectedPrincipalId === account
+      ? activeDraft
+      : restored;
+  const [walletIdentification, setWalletIdentification] = useState(
+    NEW_WORKSPACE_WALLETS,
+  );
   const [error, setError] = useState("");
   const [createdRoom, setCreatedRoom] = useState<string>();
   const inFlight = useRef(false);
   const lifetime = useRef(true);
-  useEffect(() => {
-    // A visitor can type into the server-rendered field before React starts.
-    setHasName(Boolean(nameInput.current?.value.trim()));
-  }, [pending?.id]);
+  const [draftOwner, setDraftOwner] = useState(account);
+  if (draftOwner !== account) {
+    setDraftOwner(account);
+    if (draftOwner) {
+      setWalletIdentification(NEW_WORKSPACE_WALLETS);
+      setPending(undefined);
+    }
+    setCreatedRoom(undefined);
+    setError("");
+  }
+  const attachNameInput = useCallback((node: HTMLInputElement | null) => {
+    nameInput.current = node;
+    if (node) setHasName(Boolean(node.value.trim()));
+  }, []);
   useEffect(() => {
     lifetime.current = true;
     return () => {
       lifetime.current = false;
     };
   }, []);
-  useEffect(() => {
-    setPending(undefined);
-    setCreatedRoom(undefined);
-    setError("");
-    if (!account) return;
-    try {
-      const saved = JSON.parse(
-        sessionStorage.getItem(pendingKey(account)) ?? "null",
-      ) as CreationDraft | null;
-      if (
-        saved &&
-        isNativeRoomId(saved.id) &&
-        saved.expectedPrincipalId?.toLowerCase() === account.toLowerCase() &&
-        saved.visibility === VISIBILITY &&
-        typeof saved.name === "string" &&
-        saved.name.length <= 80 &&
-        Array.isArray(saved.setup?.roles) &&
-        saved.setup.roles.length === 0 &&
-        Object.keys(saved.setup).every((key) => key === "roles")
-      ) {
-        setPending(saved);
-        setWalletIdentification(readWalletIdentification(saved.walletIdentification) ?? DEFAULT_WALLET_IDENTIFICATION);
-      }
-    } catch {
-      /* A saved draft never authorizes creation on its own. */
-    }
-  }, [account]);
   function assertCurrent(account: ChatPrincipalId) {
     if (
       !lifetime.current ||
@@ -143,7 +178,10 @@ export function NativeChatCreate({
     try {
       const { principalId: account } = await auth.signIn();
       assertCurrent(account);
-      let draft = pending;
+      let draft =
+        pending?.expectedPrincipalId === account
+          ? pending
+          : parseDraft(savedDraft(account), account);
       if (!draft) {
         draft = {
           id: newChatMessageId(),
@@ -162,7 +200,10 @@ export function NativeChatCreate({
         }
         setPending(draft);
       }
-      const { walletIdentification: choices = DEFAULT_WALLET_IDENTIFICATION, ...roomDraft } = draft;
+      const {
+        walletIdentification: choices = DEFAULT_WALLET_IDENTIFICATION,
+        ...roomDraft
+      } = draft;
       const room = await createNativeRoom(roomDraft);
       assertCurrent(account);
       setCreatedRoom(room.id);
@@ -180,25 +221,22 @@ export function NativeChatCreate({
       } catch {
         /* Creation is already confirmed. */
       }
-      router.push(`/inbox/${room.id}?tab=${showPlanAfterCreate ? "plan" : "home"}`);
+      router.push(
+        `/inbox/${room.id}?tab=${showPlanAfterCreate ? "plan" : "home"}`,
+      );
     } catch (reason) {
+      inFlight.current = false;
+      if (lifetime.current) setBusy(false);
       trackEvent("create_failed");
       if (lifetime.current && !isChatSignInCanceled(reason))
         setError(walletError(reason) || t("shell.create.failed"));
-    } finally {
-      inFlight.current = false;
-      if (lifetime.current) setBusy(false);
     }
   }
   return (
     <div className={styles.page}>
       <section className={styles.main} aria-labelledby="create-title">
-        <p className={styles.eyebrow}>
-          <IconSparkles aria-hidden="true" /> New workspace
-        </p>
         <h1 id="create-title">Create your team’s chat</h1>
         <p className={styles.lede}>
-          Choose a team name to open your trial inbox and a support link.
           Anyone with the link can start a private conversation with your team.
         </p>
         {!available && (
@@ -207,28 +245,40 @@ export function NativeChatCreate({
           </div>
         )}
         <form onSubmit={(event) => void submit(event)} className={styles.form}>
-          <Field
-            label={t("shell.create.name")}
-            hint="Visitors see it in your support chat. You can change it later."
-          >
+          <Field label={t("shell.create.name")}>
             <input
               className={`${ui.input} ${styles.nameInput}`}
               key={pending?.id ?? "new"}
-              ref={nameInput}
+              ref={attachNameInput}
               defaultValue={pending?.name ?? ""}
               disabled={busy || Boolean(pending)}
-              onChange={(event) => setHasName(Boolean(event.currentTarget.value.trim()))}
+              onChange={(event) =>
+                setHasName(Boolean(event.currentTarget.value.trim()))
+              }
               maxLength={80}
               required
               autoComplete="off"
-              placeholder="Your protocol"
             />
           </Field>
-          <WalletIdentificationFields value={walletIdentification} onChange={setWalletIdentification}
-            disabled={!available || busy || !!pending} />
+          <WalletIdentificationFields
+            onboarding
+            value={
+              pending
+                ? (readWalletIdentification(pending.walletIdentification) ??
+                  DEFAULT_WALLET_IDENTIFICATION)
+                : walletIdentification
+            }
+            onChange={setWalletIdentification}
+            disabled={!available || busy || !!pending}
+          />
           {error && (
             <Callout tone="danger" role="alert">
-              {error} {createdRoom && <a href={`/inbox/${createdRoom}?tab=home`}>Open your workspace</a>}
+              {error}{" "}
+              {createdRoom && (
+                <a href={`/inbox/${createdRoom}?tab=home`}>
+                  Open your workspace
+                </a>
+              )}
             </Callout>
           )}
           <button
@@ -250,9 +300,11 @@ export function NativeChatCreate({
             {busy && <Spinner />}
             {busy
               ? t("shell.create.creating")
-              : pending
+              : pending && error
                 ? t("shell.create.retry")
-                : "Create your chat"}
+                : pending
+                  ? "Continue creating"
+                  : "Create your chat"}
             {!busy && <IconArrowRight aria-hidden="true" />}
           </button>
           {!account && !auth.restoring && (
@@ -264,29 +316,9 @@ export function NativeChatCreate({
         <p className={styles.terms}>
           Test {PRODUCT_LIMITS.freeSupportTickets} tickets free, with{" "}
           {PRODUCT_LIMITS.freeTeamRepliesPerTicket} team replies per ticket.
-          Templ AI is off during free tests.{" "}
-          <a href={RESOLVED_CASES_DOCS}>What counts as an answered case</a>
+          Templ AI is off during free tests.
         </p>
-        <TalkToTempl label="Chat with Templ">Chat with Templ</TalkToTempl>
       </section>
-      <aside className={styles.next} aria-labelledby="create-next-title">
-        <h2 id="create-next-title">After you create it</h2>
-        <ol>
-          {NEXT_STEPS.map(({ icon: Icon, title, body }, index) => (
-            <li key={title}>
-              <span className={styles.stepIcon}>
-                <Icon aria-hidden="true" />
-              </span>
-              <div>
-                <strong>
-                  {index + 1}. {title}
-                </strong>
-                <p>{body}</p>
-              </div>
-            </li>
-          ))}
-        </ol>
-      </aside>
       {toast}
     </div>
   );

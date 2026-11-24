@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { formatUnits } from "viem";
 import { getChatChain } from "@templ/chat/chains";
@@ -84,10 +84,16 @@ export function ProductPaymentRequestDetails({
   request,
   onCheck,
   busy = false,
+  checkoutAction,
+  recoveryActions,
+  recoveryRequired = false,
 }: {
   request: ProductPaymentIntent;
   onCheck?: () => void;
   busy?: boolean;
+  checkoutAction?: ReactNode;
+  recoveryActions?: ReactNode;
+  recoveryRequired?: boolean;
 }) {
   const [now, setNow] = useState(Date.now());
   const next = request.verificationReviewRequired
@@ -121,6 +127,11 @@ export function ProductPaymentRequestDetails({
           : request.submittedTx
             ? 1
             : 0;
+  const reviewing =
+    !closed &&
+    !request.verificationReviewRequired &&
+    !request.submittedTx &&
+    completedSteps === 0;
   const network = paymentNetworkName(request.chainId);
   const transactionUrl = request.submittedTx
     ? `${request.kind === "solana" ? "https://explorer.solana.com" : getChatChain(request.chainId).explorer}/tx/${request.submittedTx}`
@@ -133,6 +144,26 @@ export function ProductPaymentRequestDetails({
     request.expectedFinalitySeconds < 60
       ? `${request.expectedFinalitySeconds} seconds`
       : `${finalityMinutes} ${finalityMinutes === 1 ? "minute" : "minutes"}`;
+  const checkAgain = onCheck &&
+    !closed &&
+    !request.verificationReviewRequired && (
+      <>
+        <button
+          type="button"
+          className={styles.check}
+          disabled={busy || (request.checkAgainAt ?? 0) > now}
+          onClick={onCheck}
+        >
+          Check again
+        </button>
+        {(request.checkAgainAt ?? 0) > now && (
+          <p className={styles.note}>
+            Check again at{" "}
+            {new Date(request.checkAgainAt!).toLocaleTimeString()}.
+          </p>
+        )}
+      </>
+    );
   return (
     <section aria-label="Payment request" className={styles.request}>
       {request.orderFormId && (
@@ -146,13 +177,15 @@ export function ProductPaymentRequestDetails({
           </p>
         </>
       )}
-      <p
-        role="status"
-        className={styles.status}
-        data-verified={request.status === "credited"}
-      >
-        {state}
-      </p>
+      {(!reviewing || recoveryActions === undefined) && (
+        <p
+          role="status"
+          className={styles.status}
+          data-verified={request.status === "credited"}
+        >
+          {state}
+        </p>
+      )}
       <div className={styles.amount}>
         <span>
           {request.standard?.purpose === "period"
@@ -165,40 +198,24 @@ export function ProductPaymentRequestDetails({
           {formatUnits(BigInt(amount.amountRaw), request.asset.decimals)}{" "}
           {request.asset.symbol}
         </strong>
-        {request.standard && (
-          <span>
-            {request.standard.purpose === "period"
-              ? "Your month starts after payment is verified."
-              : "Pays recorded charges first. The rest stays as credit. This does not renew monthly access."}
-          </span>
+        <span>On {network}</span>
+        {request.standard?.purpose === "credit" && (
+          <span>Pays recorded charges first. The rest stays as credit. This does not renew monthly access.</span>
         )}
       </div>
-      <dl className={styles.values}>
-        <CopyValue
-          label="Network"
-          value={paymentNetworkName(request.chainId)}
-        />
-        <CopyValue label="Recipient" value={request.recipient} />
-        {request.orderFormId && (
-          <>
-            <CopyValue
-              label="Invoice amount"
-              value={formatUsd(request.usdCents)}
-            />
-            <CopyValue
-              label="Credited"
-              value={formatUsd(request.creditedCents ?? 0)}
-            />
-            <CopyValue label="Amount left" value={formatUsd(amount.usdCents)} />
-          </>
-        )}
-      </dl>
       {request.kind === "solana" && !closed && !request.submittedTx && (
         <p className={styles.note}>
           A new recipient token account needs a rent deposit in SOL. Your wallet
           shows it before you confirm.
         </p>
       )}
+      {recoveryRequired && (
+        <p role="status">
+          The wallet response is unknown. Check your wallet history and enter
+          the transfer in Payment details.
+        </p>
+      )}
+      {checkoutAction}
       {completedSteps > 0 && (!closed || request.status === "credited") && (
         <div className={styles.progress}>
           <ol className={styles.stages} aria-label="Payment progress">
@@ -313,8 +330,31 @@ export function ProductPaymentRequestDetails({
             &amp; usage. Do not send another transfer.
           </p>
         )}
-      <details className={styles.details}>
-        <summary>Transfer details</summary>
+      <details className={styles.details} open={recoveryRequired || undefined}>
+        <summary>Payment details</summary>
+        <dl className={styles.values}>
+          <CopyValue
+            label="Network"
+            value={paymentNetworkName(request.chainId)}
+          />
+          <CopyValue label="Recipient" value={request.recipient} />
+          {request.orderFormId && (
+            <>
+              <CopyValue
+                label="Invoice amount"
+                value={formatUsd(request.usdCents)}
+              />
+              <CopyValue
+                label="Credited"
+                value={formatUsd(request.creditedCents ?? 0)}
+              />
+              <CopyValue
+                label="Amount left"
+                value={formatUsd(amount.usdCents)}
+              />
+            </>
+          )}
+        </dl>
         <dl className={styles.values}>
           <CopyValue
             label="Token"
@@ -330,52 +370,37 @@ export function ProductPaymentRequestDetails({
             <CopyValue label="Transaction" value={request.submittedTx} />
           )}
         </dl>
-      </details>
-      {request.standard && (
-        <details className={styles.details}>
-          <summary>Plan terms</summary>
-          <p>
-            {request.standard.purpose === "period"
-              ? `One month from verified activation. Includes ${request.standard.includedAnsweredCases} answered cases and ${formatUsd(request.standard.includedAiCreditCents)} in AI credit.`
-              : "Pays this workspace’s recorded charges first. Any remainder stays as prepaid credit. This does not renew monthly access."}
-          </p>
-          {request.standard.purpose === "period" ? (
+        {request.standard && (
+          <div className={styles.terms}>
+            <strong>Plan terms</strong>
             <p>
-              Extra answered cases cost{" "}
-              {formatUsd(request.standard.additionalAnsweredCaseCents)} each. AI
-              use costs {formatStandardAiRate(request.standard)}× the GPT-6.1
-              Sol standard API rates recorded for this period.
+              {request.standard.purpose === "period"
+                ? `One month from verified activation. Includes ${request.standard.includedAnsweredCases} answered cases and ${formatUsd(request.standard.includedAiCreditCents)} in AI credit.`
+                : "Pays this workspace’s recorded charges first. Any remainder stays as prepaid credit. This does not renew monthly access."}
             </p>
-          ) : (
-            <p>Your workspace’s accepted terms set case and AI prices.</p>
-          )}
-          <p>No automatic renewal.</p>
-        </details>
-      )}
-      <div className={styles.footer}>
-        {!closed && (
-          <span>Expires {new Date(request.expiresAt).toLocaleString()}</span>
+            {request.standard.purpose === "period" ? (
+              <p>
+                Extra answered cases cost{" "}
+                {formatUsd(request.standard.additionalAnsweredCaseCents)} each.
+                AI use costs {formatStandardAiRate(request.standard)}× the
+                GPT-6.1 Sol standard API rates recorded for this period.
+              </p>
+            ) : (
+              <p>Your workspace’s accepted terms set case and AI prices.</p>
+            )}
+            <p>No automatic renewal.</p>
+          </div>
         )}
-        <Link href="/terms">Payment terms</Link>
-      </div>
-      {onCheck && !closed && !request.verificationReviewRequired && (
-        <>
-          <button
-            type="button"
-            className={styles.check}
-            disabled={busy || (request.checkAgainAt ?? 0) > now}
-            onClick={onCheck}
-          >
-            Check again
-          </button>
-          {(request.checkAgainAt ?? 0) > now && (
-            <p className={styles.note}>
-              Check again at{" "}
-              {new Date(request.checkAgainAt!).toLocaleTimeString()}.
-            </p>
+        <div className={styles.footer}>
+          {!closed && (
+            <span>Expires {new Date(request.expiresAt).toLocaleString()}</span>
           )}
-        </>
-      )}
+          <Link href="/terms">Payment terms</Link>
+        </div>
+        {reviewing && checkAgain}
+        {recoveryActions}
+      </details>
+      {!reviewing && checkAgain}
     </section>
   );
 }

@@ -23,7 +23,7 @@ export const shell = {
   "shell.create.title": "Set up support",
   "shell.create.unavailable": "Workspace creation isn’t available yet.",
   "shell.create.failed": "Couldn’t create the workspace. Try again.",
-  "shell.create.name": "Protocol name",
+  "shell.create.name": "App name",
   "shell.create.creating": "Creating…",
   "shell.create.retry": "Retry creating",
   // TokenImageCrop
