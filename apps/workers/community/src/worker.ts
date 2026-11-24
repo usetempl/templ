@@ -4137,6 +4137,10 @@ async function route(
       )
         throw error;
       unavailable = error.status === 503;
+      // These reads decide whether to open Cases or the visitor conversation.
+      // A failed identity lookup cannot establish either role.
+      if (unavailable && (path === "/channels" || path === "/conversations/status"))
+        throw error;
     }
     const supportUpload =
       request.method === "POST" && isSupportUpload(path, request);

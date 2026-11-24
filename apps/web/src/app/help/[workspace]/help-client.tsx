@@ -95,7 +95,7 @@ export function HostedSupportChat({
     };
   }, [workspace, name, nonce, frameRequired, retry, release.templSupport?.workspaceId]);
   return (
-    <SupportChatFrame accent={accent} label={`Support for ${name}`} siteAppearance={workspace === release.templSupport?.workspaceId}>
+    <SupportChatFrame workspace={workspace} accent={accent} label={`Support for ${name}`} siteAppearance={workspace === release.templSupport?.workspaceId}>
       {state === "ready" && <details className={styles.channelInfo}>
         <summary>About this support link</summary>
         {verifiedSites.length ? <p>Verified sites: {verifiedSites.map(site => <a key={site} href={site} rel="noreferrer">{new URL(site).hostname} </a>)}</p>

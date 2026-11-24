@@ -1,15 +1,18 @@
-import type { CSSProperties } from "react";
+import { IconInbox, IconMessage, IconMessageReply } from "@tabler/icons-react";
 import { SupportWidgetDemo } from "@/components/support-widget-demo";
 import { TemplMark } from "@/components/brand/templ-mark";
 import { transactionExample } from "@/lib/standalone-trial-example";
 import styles from "./landing-story.module.css";
 
-const readers = ["The visitor", "Authorized staff", "The server operator", "A permitted AI responder"];
+const readers = [
+  { name: "The visitor", access: "Sends and reads the message.", icon: IconMessage },
+  { name: "Authorized staff and the server operator", access: "Can read the message text.", icon: IconInbox },
+  { name: "An AI responder", access: "Can read it if the workspace and the case allow it.", icon: IconMessageReply },
+];
 
 export function LandingStory() {
   return (
     <figure id="how" className={styles.stage} aria-label="Example conversation">
-      <figcaption>Example</figcaption>
       <div id="story" className={styles.transcript}>
         <div className={styles.markLine} aria-hidden="true"><TemplMark decorative className={styles.mark} /><span /></div>
         <SupportWidgetDemo className={styles.widget} scenario="shared-transaction" presentation
@@ -32,11 +35,19 @@ export function StandardReaders() {
         <h2 id="readers-title">Who can read a Standard chat</h2>
         <div className={styles.track}>
           <div className={styles.rail} aria-hidden="true"><span className={styles.traveller}>My deposit failed.</span></div>
-          <ul>
-            {readers.map((reader, i) => <li key={reader} style={{ "--station-end": (5 + 30 * i) + "%", "--station-start": (30 * i) + "%" } as CSSProperties}>{reader}</li>)}
-          </ul>
+          <ol>
+            {readers.map(({ name, access, icon: Icon }) => (
+              <li key={name}>
+                <span className={styles.square} aria-hidden="true" />
+                <h3>{name}</h3>
+                <div className={styles.step}>
+                  <span className={styles.stamp} aria-hidden="true"><Icon stroke={1.75} /></span>
+                  <span>{access}</span>
+                </div>
+              </li>
+            ))}
+          </ol>
         </div>
-        <p>AI can read messages when the workspace and the case allow it. If a visitor shares a public transaction, it may reveal their wallet onchain.</p>
       </div>
     </section>
   );

@@ -7,6 +7,8 @@ export const outgoingBubbleStyle = `
 .panel .message.own :is(time,a){color:inherit}
 `;
 
+const enabledControl = ":where(:not(:disabled,.drawer-primary,.drawer-stop,.flex-menu-backdrop))";
+
 export const drawerStyle = `
 .conversation-drawers .head{position:static}
 .conversation-drawers .chat-people{flex:none}
@@ -63,10 +65,10 @@ ${outgoingBubbleStyle}
 .shared-chat .drawer-section-body p:empty{display:none}
 .shared-chat .drawer-section-body button{display:inline-flex;align-items:center;justify-content:center;width:auto;min-height:44px;margin:0;padding:6px 12px;border-radius:8px;font-weight:600}
 .shared-chat .drawer-section [hidden]{display:none!important}
-.shared-chat :is(.head button,.head summary,.drawer-section-body .quiet,.member-conversations button):where(:not(:disabled,.drawer-primary,.drawer-stop,.flex-menu-backdrop)){color:var(--at)}
-.shared-chat :is(.head button,.head summary,.chat-menu button,.member-conversations button):where(:not(.drawer-primary,.drawer-stop,.flex-menu-backdrop):not(:disabled)):hover,
-.shared-chat .head details[open]>summary,.shared-chat .member-conversations button[aria-current]{background:color-mix(in srgb,var(--a) 12%,var(--bg));color:var(--at)}
-.shared-chat :is(.head button,.head summary,.chat-menu button):where(:not(.drawer-primary,.drawer-stop,.flex-menu-backdrop):not(:disabled)):active{background:color-mix(in srgb,var(--a) 20%,var(--bg));color:var(--t)}
+.shared-chat :is(.head button,.head summary,.drawer-section-body .quiet,.member-conversations button)${enabledControl}{color:light-dark(var(--at),var(--t))}
+.shared-chat :is(.head button,.head summary,.chat-menu button,.member-conversations button)${enabledControl}:hover,
+.shared-chat .head details[open]>summary,.shared-chat .member-conversations button[aria-current]{background:light-dark(color-mix(in srgb,var(--a) 12%,var(--bg)),var(--s2));color:light-dark(var(--at),var(--t))}
+.shared-chat :is(.head button,.head summary,.chat-menu button)${enabledControl}:active{background:light-dark(color-mix(in srgb,var(--a) 20%,var(--bg)),var(--s));color:var(--t)}
 .shared-chat .chat-history>summary{position:relative}
 .shared-chat .member-conversations button[data-thread]{position:relative;padding-inline-end:28px}
 .shared-chat .chat-history [data-unread]::after{content:"";position:absolute;display:block;width:8px;height:8px;padding:0;margin:0;border-radius:50%;background:var(--d);outline:2px solid var(--bg)}

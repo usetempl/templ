@@ -74,7 +74,11 @@ export function walletRoster(host: TailHost, panel: HTMLElement, signal: AbortSi
         if (!people.open) return;
         people.removeEventListener("toggle", resolve);
         void import("./support-wallet-name").then(module => row.aborted ? undefined : module.verifiedWalletName(evm, provider))
-          .then(name => { if (name && !row.aborted) value.textContent = name; })
+          .then(name => {
+            if (!name || row.aborted) return;
+            value.className = "wallet-name";
+            value.textContent = name;
+          })
           .catch(() => { /* Keep displaying the checksummed address. */ });
       };
       people.addEventListener("toggle", resolve, { signal: row });

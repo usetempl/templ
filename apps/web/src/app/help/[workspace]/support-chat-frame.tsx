@@ -1,11 +1,36 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, type ReactNode } from "react";
 import { setPageChatAccent, type WidgetAccent } from "@/lib/support-widget-appearance";
 import styles from "./help.module.css";
 
-export function SupportChatFrame({ children, label, accent, siteAppearance = false }: { children: ReactNode; label?: string; accent?: WidgetAccent; siteAppearance?: boolean }) {
+// This element stays mounted while the server replaces the initial loading frame.
+const restoreChatTheme = `try{const s=document.currentScript.parentElement;s.dataset.connectingTheme=localStorage.getItem("templ:chat-theme:"+s.dataset.chatThemeScope)==="dark"?"dark":"light"}catch{}`;
+
+export function SupportChatThemeScope({ children, workspace, nonce }: {
+  children: ReactNode; workspace: string; nonce?: string;
+}) {
+  const scope = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    // Client-side navigation creates the element without executing its inline script.
+    if (!scope.current) return;
+    try {
+      scope.current.dataset.connectingTheme =
+        localStorage.getItem("templ:chat-theme:" + workspace) === "dark" ? "dark" : "light";
+    } catch { /* The first-visit theme also works when storage is unavailable. */ }
+  }, [workspace]);
+  return (
+    <div className={styles.themeScope} data-chat-theme-scope={workspace} ref={scope} suppressHydrationWarning>
+      <script nonce={nonce} dangerouslySetInnerHTML={{__html: restoreChatTheme}} />
+      {children}
+    </div>
+  );
+}
+
+export function SupportChatFrame({ children, label, accent, workspace, siteAppearance = false }: {
+  children: ReactNode; label?: string; accent?: WidgetAccent; workspace?: string; siteAppearance?: boolean;
+}) {
   const page = useRef<HTMLElement>(null);
   useEffect(() => {
     if (page.current) setPageChatAccent(page.current, accent);
@@ -31,7 +56,7 @@ export function SupportChatFrame({ children, label, accent, siteAppearance = fal
     };
   }, []);
   return (
-    <main id="main-content" data-templ-site-appearance={siteAppearance ? "" : undefined} aria-label={label} tabIndex={-1} ref={page} className={styles.fullPage}>
+    <main id="main-content" data-chat-workspace={workspace} data-templ-site-appearance={siteAppearance ? "" : undefined} aria-label={label} tabIndex={-1} ref={page} className={styles.fullPage}>
       {children}
     </main>
   );

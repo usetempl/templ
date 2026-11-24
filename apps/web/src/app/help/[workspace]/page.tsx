@@ -5,6 +5,7 @@ import { readHostedSupport } from "@/lib/hosted-support";
 import { supportPageWorkspace } from "@/lib/support-page-config";
 import { TemplMark } from "@/components/brand/templ-mark";
 import { HostedSupportChat } from "./help-client";
+import { SupportChatThemeScope } from "./support-chat-frame";
 import styles from "./help.module.css";
 export const metadata: Metadata = {
   title: "Support",
@@ -32,6 +33,10 @@ export default async function HostedSupportPage({
     );
   if (!support || support.workspace !== workspace) notFound();
   const nonce = (await headers()).get("x-nonce") ?? undefined;
-  return <HostedSupportChat workspace={workspace} name={support.name}
-    frameRequired={support.frameRequired} nonce={nonce} verifiedSites={support.verifiedSites} />;
+  return (
+    <SupportChatThemeScope workspace={workspace} nonce={nonce}>
+      <HostedSupportChat workspace={workspace} name={support.name}
+        frameRequired={support.frameRequired} nonce={nonce} verifiedSites={support.verifiedSites} />
+    </SupportChatThemeScope>
+  );
 }

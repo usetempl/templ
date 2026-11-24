@@ -79,6 +79,10 @@
   min-height: 0;
 }
 
+.themeScope {
+  display: contents;
+}
+
 html:has(.fullPage) {
   --flex-chat-canvas: #eee;
   --chat-scheme: light;
@@ -86,8 +90,9 @@ html:has(.fullPage) {
 
 /* Templ's own line follows the site. A customer line owns its first-visit theme. */
 html[data-theme="dark"]:has(.fullPage[data-templ-site-appearance]),
+html:has(.themeScope[data-connecting-theme="dark"] .fullPage:not([data-templ-site-appearance]) .loadingChat),
 html:has(.fullPage:not([data-templ-site-appearance]) [data-templ-support][data-theme="dark"]) {
-  --flex-chat-canvas: #1b201d;
+  --flex-chat-canvas: #1e1e1e;
   --chat-scheme: dark;
 }
 
@@ -108,7 +113,7 @@ body:has(.fullPage),
   box-sizing: border-box;
   height: var(--chat-height, 100dvh);
   overflow: hidden;
-  color: light-dark(#181818, #e5ede4);
+  color: light-dark(#181818, #f2f2f2);
   font-family: var(--font-sans), sans-serif;
   padding-inline: env(safe-area-inset-left) env(safe-area-inset-right);
   padding-top: env(safe-area-inset-top);
@@ -133,8 +138,8 @@ body:has(.fullPage),
   gap: 6px;
   min-height: 56px;
   padding: 8px 12px;
-  border-bottom: 1px solid light-dark(#e4e4e4, #3c4741);
-  background: light-dark(#f5f5f5, #242b27);
+  border-bottom: 1px solid light-dark(#e4e4e4, #424242);
+  background: light-dark(#f5f5f5, #161616);
 }
 
 .loadingTitle h1 {
@@ -155,7 +160,7 @@ body:has(.fullPage),
   justify-content: center;
   gap: 8px;
   background: var(--flex-chat-canvas);
-  color: light-dark(#454545, #c4d0c8);
+  color: light-dark(#454545, #b8b8b8);
   font-size: 14px;
 }
 
@@ -182,14 +187,14 @@ body:has(.fullPage),
   padding: 11px 16px;
   resize: none;
   border-radius: 22px;
-  background: light-dark(#fcfcfc, #29332e);
+  background: light-dark(#fcfcfc, #303030);
   box-shadow: inset 0 0 0 1px #808080;
   font-size: 16px;
   line-height: 22px;
 }
 
 .loadingComposer textarea::placeholder {
-  color: light-dark(#595959, #bacbbf);
+  color: light-dark(#595959, #b8b8b8);
   opacity: 1;
 }
 
@@ -198,7 +203,7 @@ body:has(.fullPage),
   place-items: center;
   padding: 0;
   border-radius: 50%;
-  background: light-dark(#ddd, #38433c);
+  background: light-dark(#ddd, #424242);
 }
 
 .loadingComposer button[aria-busy="true"]::before {

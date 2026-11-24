@@ -1208,14 +1208,15 @@ export function mountSupportDemo(
   const id = "demo";
   const failedTransaction = demo.scenario === "failed-transaction";
   const sharedTransaction = demo.scenario === "shared-transaction";
-  const conversationDemo = demo.scenario === "conversation" || sharedTransaction;
+  const appearancePreview = demo.previewLauncher === true;
+  const conversationDemo = demo.scenario === "conversation" || sharedTransaction || appearancePreview;
   const session = {
     address: failedTransaction
       ? "0x71C400000000000000000000000000000000a42f"
       : "",
     principalId: "demo-member",
     expiresAt: Number.MAX_SAFE_INTEGER,
-    ...(failedTransaction ? { level: "signed" as const } : {}),
+    ...(failedTransaction ? { level: "signed" as const } : appearancePreview ? { level: "anonymous" as const } : {}),
   };
   let next = conversationDemo ? 4 : 3;
   const messages: WidgetMessage[] = [
@@ -1239,15 +1240,16 @@ export function mountSupportDemo(
     {id:"1",author:"demo-member",text:"Can I get help without connecting my wallet?",createdAt:new Date().toISOString()},
     {id:"2",author:"demo-ai",text:"Yes. Share only the details you want us to see.",createdAt:new Date().toISOString()},
     {id:"3",author:"demo-team",teamName:"Founder",text:"And you can talk to me in this same chat.",createdAt:new Date().toISOString()});
-  if (sharedTransaction) {
+  if (sharedTransaction || appearancePreview) {
     const now = new Date().toISOString();
     messages.splice(0, messages.length,
-      { id: "1", author: "demo-member", text: transactionExample.question, createdAt: now },
+      { id: "1", ...(appearancePreview ? { clientId: "example-send" } : {}), author: "demo-member", text: transactionExample.question, createdAt: now },
       { id: "2", author: "demo-team", teamName: "Support team", text: transactionExample.reply, createdAt: now });
   }
   const sent = new Set<string>();
   const answer = (text: string) =>
-    conversationDemo ? "This is an example. Try the chat to talk to Templ." : text === "What happens next?"
+    appearancePreview ? "This is a preview reply. Your message stays here."
+    : conversationDemo ? "This is an example. Try the chat to talk to Templ." : text === "What happens next?"
       ? "The team replies in this chat. Come back here to read it."
       : text === "Who can see this?"
         ? `${demo.label ?? "Vault support"}'s support team, including people who answer for them`
@@ -1256,9 +1258,10 @@ export function mountSupportDemo(
     if (clientId && sent.has(clientId)) return { conversation: { id } };
     if (clientId) sent.add(clientId);
     const reply = answer(text);
+    const timestamp = appearancePreview ? { createdAt: new Date().toISOString() } : {};
     messages.push(
-      { id: String(next++), clientId, author: "demo-member", text },
-      { id: String(next++), author: "demo-team", ...(conversationDemo ? {teamName:"Founder"} : {}), text: reply },
+      { id: String(next++), clientId, author: "demo-member", text, ...timestamp },
+      { id: String(next++), author: "demo-team", ...(conversationDemo ? {teamName:"Founder"} : {}), text: reply, ...timestamp },
     );
     if (messages.length > 40) messages.splice(0, messages.length - 40);
     demo.onMessage?.({ from: "member", text });
@@ -1269,6 +1272,7 @@ export function mountSupportDemo(
     {
       workspace: "demo",
       chatFirst: conversationDemo,
+      conversationDrawers: appearancePreview,
       label: sharedTransaction ? "Protocol support" : failedTransaction
         ? "Sample case"
         : (demo.label ?? "Vault support"),
@@ -1300,7 +1304,10 @@ export function mountSupportDemo(
         sent.clear();
       },
     },
-    {
+    appearancePreview ? {
+      container,
+      style: PREVIEW_FRAME_STYLE,
+    } : {
       container,
       readOnly: failedTransaction || sharedTransaction,
       style: DEMO_STYLE,
@@ -1315,7 +1322,6 @@ export function mountSupportDemo(
             },
             () => {},
           );
-        if (demo.previewLauncher) panel.style.height = "calc(100% - 72px)";
         if (!failedTransaction) {
           const label = document.createElement("span");
           label.className = "demo-label";
@@ -1363,6 +1369,15 @@ export function mountSupportDemo(
   widget.open(false);
   return widget;
 }
+
+// Constrain the real floating chat and launcher to the Settings frame. All
+// conversation chrome, message styles and interaction states come from the widget.
+const PREVIEW_FRAME_STYLE = `:host{position:relative;display:block;width:100%;height:100%}
+.panel,:host([data-position=left]) .panel{position:absolute;inset:auto 0 72px auto;max-width:100%;max-height:calc(100% - 72px)}
+:host([data-position=left]) .panel{left:0;right:auto}
+.launcher,:host([data-position=left]) .launcher{position:absolute;bottom:8px}
+.launcher{right:8px}:host([data-position=left]) .launcher{left:8px;right:auto}
+@media(max-width:480px){.panel,:host([data-position=left]) .panel{inset:0 0 auto;width:100%;height:100%;max-height:100%}}`;
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 /** One-path outline glyphs, built as DOM so host pages with Trusted Types work. */
@@ -2567,7 +2582,7 @@ type DemoSetup = {
   container: HTMLElement;
   readOnly?: boolean;
   style: string;
-  decorate(parts: {
+  decorate?(parts: {
     header: HTMLElement;
     close: HTMLElement;
     body: HTMLElement;
@@ -2583,7 +2598,7 @@ function renderSupportWidget(
 ) {
   const chunkFailed = (step: string, route = "widget") =>
     console.warn("TEMPL_SUPPORT_FAILURE", { route, step, cause: "chunk-load" });
-  const demoContainer = demo?.container;
+  const demoContainer = typeof __TEMPL_WIDGET_BUILD__ === "undefined" && demo?.decorate ? demo.container : undefined;
   const host = document.createElement("div");
   host.setAttribute("data-templ-support", "");
   let appearance = options.appearance ?? {};
@@ -2756,7 +2771,7 @@ function renderSupportWidget(
   );
   body.prepend(warning);
   panel.append(header, body, error, form);
-  demo?.decorate({ header, close, body, starter, panel, draft });
+  demo?.decorate?.({ header, close, body, starter, panel, draft });
   root.append(fullStyle, style, launcher, panel);
   let branding:
     | ReturnType<typeof import("./support-widget-art").bindWidgetBranding>
@@ -2778,7 +2793,7 @@ function renderSupportWidget(
       );
   };
   paintBranding();
-  (demoContainer ?? options.container ?? document.body).append(host);
+  (demo?.container ?? options.container ?? document.body).append(host);
   // The page's latest context; a later setContext replaces every row.
   let hostContext = options.context,
     captureRevision = 0,
@@ -3603,7 +3618,7 @@ function renderSupportWidget(
     const closed = panel.hidden;
     if (
       !active ||
-      demoContainer ||
+      demo ||
       (closed && (!waiting || unread || !conversation))
     )
       return;
@@ -3715,7 +3730,7 @@ function renderSupportWidget(
   // or the visitor waits; `pulse(1)` marks the visitor waiting and reads now.
   let booting: Promise<unknown> | null | undefined;
   const goLive = () =>
-    demoContainer
+    demo
       ? Promise.resolve()
       : (booting ||= loadLive()
           .then((module) => {

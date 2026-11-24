@@ -13,11 +13,11 @@
   min-width: 0;
   margin: 0;
 }
-.stage figcaption { position: absolute; inset: 0 0 auto auto; font-size: 13px; color: var(--fg-2); }
 .transcript { position: relative; }
 .markLine { position: absolute; inset: var(--line-y) 0 auto; height: var(--line-weight); pointer-events: none; }
-.markLine .mark { position: absolute; left: 0; width: var(--mark-size); height: var(--mark-size); top: calc(var(--mark-size) * -.6); }
-.markLine > span:last-child { position: absolute; inset: 0 0 0 calc(var(--mark-size) * .88); background: var(--fg); transform-origin: left; }
+/* The founder mark has a 56.889-unit horizontal stroke centered at 640 in a 1024-unit viewBox. */
+.markLine .mark { position: absolute; z-index: 1; left: 0; width: var(--mark-size); height: var(--mark-size); top: calc(var(--line-weight) / 2 - var(--mark-size) * .625); }
+.markLine > span:last-child { position: absolute; inset: 0 0 0 calc(var(--mark-size) - 1px); background: linear-gradient(to right, #000 1px, var(--fg) 24px); transform-origin: left; }
 .widget { height: calc(var(--example-first) + var(--example-gap) + 94px); }
 .firstPaint { position: absolute; inset: 0; display: grid; grid-template-rows: var(--example-first) auto; gap: var(--example-gap); padding: 0 0 0 var(--example-inset); margin: 0; list-style: none; align-content: start; }
 .firstPaint li { box-sizing: border-box; width: fit-content; max-width: 100%; padding: 10px 14px; font-size: 16px; line-height: 1.4; color: var(--example-ink); }
@@ -37,49 +37,73 @@
   padding-block: var(--lp-space);
 }
 .readers h2 { max-width: 21ch; margin: 0; font-size: clamp(32px,4.8vw,58px); line-height: 1.05; }
-.readers p { max-width: 59ch; line-height: 1.55; margin: 32px 0 0; }
-.track { position: relative; margin-top: 92px; }
-.track ul { list-style: none; display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); margin: 0; padding: 0; }
-.track li { position: relative; padding: 24px 12px 0 0; font-size: clamp(16px,1.6vw,21px); line-height: 1.3; font-weight: 600; }
-.track li::before { content: ""; position: absolute; width: 16px; height: 16px; top: -4px; left: 0; box-sizing: border-box; border: 2px solid var(--fg); background: var(--lp-accent); }
-.rail { position: absolute; inset: 0 0 auto; height: 8px; background: var(--fg); }
+.track { position: relative; margin-top: 80px; }
+.track ol { list-style: none; display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); margin: 0; padding: 0; }
+.track li { --from: 0%; --to: 14%; position: relative; min-width: 0; padding: 28px 20px 0 0; }
+.track li:nth-child(2) { --from: 44%; --to: 58%; }
+.track li:last-child { --from: 86%; --to: 100%; padding-inline-end: 0; }
+.track h3 { margin: 0; max-width: 24ch; font-size: clamp(17px,1.6vw,22px); font-weight: 600; line-height: 1.2; }
+.square { position: absolute; top: -4px; left: 0; width: 16px; height: 16px; box-sizing: border-box; border: 2px solid var(--fg); background: var(--lp-accent); }
+.rail { position: absolute; inset: 0 auto auto 0; width: calc(200% / 3 + 8px); height: 8px; background: var(--fg); }
 .traveller { position: absolute; bottom: 100%; padding: 6px 10px; background: var(--lp-accent); color: #17241a; font-size: 14px; font-weight: 600; white-space: nowrap; }
+.step { display: flex; align-items: center; gap: 9px; max-width: 32ch; margin-top: 12px; color: var(--fg-2); font-size: 15px; line-height: 1.4; }
+.stamp { position: relative; flex: 0 0 32px; height: 32px; display: grid; place-items: center; color: var(--fg); }
+.stamp::before { content: ""; position: absolute; inset: 0; background: var(--surface-1); border-radius: 8px; }
+.stamp svg { position: relative; width: 20px; height: 20px; }
+
 @media (prefers-reduced-motion:no-preference) {
   .markLine > span:last-child { animation: draw-line .5s cubic-bezier(.2,.8,.2,1) .2s backwards; }
   .payoff { animation: show-payoff .3s ease-out 1.3s backwards; }
 }
 @keyframes draw-line { from { transform: scaleX(0); } }
 @keyframes show-payoff { from { opacity: 0; } }
+
+@media (max-width:1023px) {
+  .stage { grid-column: 1; width: min(100%,680px); justify-self: end; --mark-size: 88px; }
+  .readersInner { padding-block: 56px; }
+  .track { margin-top: 34px; }
+  .track ol { grid-template-columns: 1fr; grid-auto-rows: 1fr; }
+  .track li, .track li:last-child { padding: 0 0 24px 34px; }
+  .track h3 { max-width: none; }
+  .square { top: 3px; }
+  .rail { inset: 11px auto auto 6px; width: 4px; height: calc(200% / 3); }
+  .traveller { display: none; }
+  .step { margin-top: 6px; }
+}
 @supports (animation-timeline: view()) {
   @media (min-width:1024px) and (min-height:560px) and (prefers-reduced-motion:no-preference) {
     .readers { min-height: 190svh; }
     .readersInner { position: sticky; top: 0; min-height: 100svh; display: flex; flex-direction: column; justify-content: center; box-sizing: border-box; }
-    .track { container-type: inline-size; }
+    .track { container-type: inline-size; --journey: --readers; --phase: contain; }
     .traveller { animation: travel linear both; animation-timeline: --readers; animation-range: contain 0% contain 100%; }
-    .track li::before { animation: arrival linear both; animation-timeline: --readers; animation-range: contain var(--station-start) contain var(--station-end); }
-    @keyframes travel { from { transform: translateX(0); } to { transform: translateX(calc(100cqw - 100%)); } }
-    @keyframes arrival { from { background-color: var(--surface-0); } to { background-color: var(--lp-accent); } }
+    @keyframes travel {
+      0%, 14% { transform: translateX(0); }
+      44%, 58% { transform: translateX(calc(100cqw / 3)); }
+      86%, 100% { transform: translateX(calc(200cqw / 3)); }
+    }
   }
-}
-@media (max-width:1023px) {
-  .stage { grid-column: 1; width: min(100%,680px); justify-self: end; --mark-size: 88px; }
-  .readersInner { padding-block: 56px; }
-  .track { margin-top: 32px; }
-  .track ul { grid-template-columns: 1fr; }
-  .track li { display: flex; align-items: center; min-height: 54px; padding: 0 0 0 38px; }
-  .track li::before { top: calc(50% - 8px); }
-  .rail { inset: 26px auto 26px 6px; height: auto; width: 4px; }
-  .traveller { display: none; }
-}
-@supports (animation-timeline: view()) {
   @media (max-width:1023px) and (prefers-reduced-motion:no-preference) {
-    .track li::before { animation: mobile-arrival linear both; animation-timeline: view(); animation-range: entry 15% entry 85%; }
-    @keyframes mobile-arrival { from { background-color: var(--surface-0); } }
+    .track { view-timeline: --phone-readers block; view-timeline-inset: 25% 20%; --journey: --phone-readers; --phase: cover; }
+    .rail::after { content: ""; position: absolute; inset: 0; background: var(--lp-accent); transform-origin: top; animation: phone-travel linear both; animation-timeline: --phone-readers; animation-range: cover 0% cover 100%; }
+    @keyframes phone-travel {
+      0%, 14% { transform: scaleY(0); }
+      44%, 58% { transform: scaleY(.5); }
+      86%, 100% { transform: scaleY(1); }
+    }
+  }
+  @media (prefers-reduced-motion:no-preference) and (max-width:1023px), (prefers-reduced-motion:no-preference) and (min-height:560px) {
+    .square { animation: arrival linear both; }
+    .stamp::before { animation: unfold ease-out both; }
+    .stamp svg { animation: reveal-reader ease-out both; }
+    .track :is(.square,.stamp svg), .track .stamp::before { animation-timeline: var(--journey); animation-range: var(--phase) var(--from) var(--phase) var(--to); }
+    @keyframes arrival { from { background: var(--surface-0); } 28%, to { background: var(--lp-accent); } }
+    @keyframes unfold { from { transform: scale(.34); border-radius: 0; background: var(--fg); } 48% { transform: scale(1.08); border-radius: 5px; background: var(--lp-accent); } to { transform: none; } }
+    @keyframes reveal-reader { 0%, 25% { opacity: 0; transform: translateY(3px) scale(.8); } to { opacity: 1; transform: none; } }
   }
 }
 @media (max-width:600px) {
   .stage { --mark-size: 68px; --line-y: 132px; --example-first: 84px; --example-gap: 84px; --example-inset: 0px; }
-  .stage figcaption { position: static; margin-bottom: 4px; }
+
   .widget { height: calc(var(--example-first) + var(--example-gap) + 92px); }
   .markLine > span:last-child { animation-delay: 0s; animation-duration: .4s; }
   .payoff { animation-delay: .6s; animation-duration: .2s; }
