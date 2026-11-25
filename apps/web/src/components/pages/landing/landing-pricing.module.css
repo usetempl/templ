@@ -1,6 +1,5 @@
 .plans { width: min(calc(100% - 2 * var(--lp-gutter)), var(--lp-width)); margin: auto; padding: var(--lp-space) 0; scroll-margin-top: 72px; }
 .plans h2 { max-width: 21ch; font-size: clamp(32px,4.8vw,58px); line-height: 1.05; margin: 0 0 clamp(24px,3.5vw,44px); text-wrap: balance; }
-.plans h2 span { font-family: var(--font-mono), monospace; font-size: .9em; white-space: nowrap; }
 .choices { display: grid; grid-template-columns: minmax(0,4.5fr) minmax(0,6.5fr); gap: clamp(20px,3vw,48px); }
 .choices section { scroll-margin-top: 80px; }
 .plans h3 { font-size: clamp(22px,2.3vw,29px); line-height: 1.2; margin: 0; }

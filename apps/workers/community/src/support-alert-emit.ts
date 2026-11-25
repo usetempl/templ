@@ -254,7 +254,8 @@ export async function emitCaseAlerts(
       case: { thread: record.id, seq: transition.seq },
       ...(test ? { test: true as const } : {}),
     };
-    if (transition.handoffOpened && event.kind === "handoff")
+    // A visitor can ask for a person before the first message opens the case.
+    if (transition.handoffOpened)
       await enqueueNativeTelegramHandoff(storage, context, record);
     if (alertsEnabled(env)) {
       if (transition.reopened)
