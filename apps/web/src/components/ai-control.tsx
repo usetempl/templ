@@ -22,7 +22,6 @@ import {
   type SupportAiModeCause,
   type SupportAiView,
   type SupportHandoffReason,
-  type SupportNote,
 } from "@templ/chat/support";
 import { copy as t, type MessageKey } from "@/lib/copy";
 import { aiDraftModeLabel } from "@/lib/copy/room";
@@ -444,42 +443,10 @@ export function HandOffMenu({
   );
 }
 
-/** The AI agent writes its summary note just before it hands off, so the
- * banner takes notes from a little before the handoff time too. */
-const NOTE_BEFORE_HANDOFF_MS = 2 * 60_000;
-/** The newest note the registered AI agent wrote for this handoff. Notes
- * come newest first. */
-export function handoffAgentNote(
-  handoff: TeamConversation["handoff"],
-  notes: readonly SupportNote[] | undefined,
-): SupportNote | null {
-  if (!handoff || !notes) return null;
-  const from = Date.parse(handoff.at) - NOTE_BEFORE_HANDOFF_MS;
-  return (
-    [...notes]
-      .filter((note) => note.byAgent && Date.parse(note.at) >= from)
-      .sort((a, b) => Date.parse(b.at) - Date.parse(a.at))[0] ?? null
-  );
-}
-const NOTE_PREVIEW = 280;
-
-/** Pinned above the messages while a person is asked to answer. Its first
- * line uses the inbox's chip words: "Human requested", "AI handed off:
- * Quote" or "Handed off: Quote". */
 export function HandoffBanner({
   handoff,
-  note,
-  showTakeOver,
-  busy,
-  onTakeOver,
-  onShowNote,
 }: {
   handoff: NonNullable<TeamConversation["handoff"]>;
-  note: SupportNote | null;
-  showTakeOver: boolean;
-  busy: boolean;
-  onTakeOver: () => void;
-  onShowNote: (note: SupportNote) => void;
 }) {
   const titleId = useId();
   const time = sinceText(handoff.at);
@@ -489,10 +456,6 @@ export function HandoffBanner({
       : handoff.by === "agent"
         ? t("room.handoff.byAgent", { time })
         : t("room.handoff.byPerson", { time });
-  const preview =
-    note && note.text.length > NOTE_PREVIEW
-      ? `${note.text.slice(0, NOTE_PREVIEW).trimEnd()}…`
-      : note?.text;
   return (
     <section className={styles.banner} aria-labelledby={titleId}>
       <div className={styles.bannerText}>
@@ -505,29 +468,7 @@ export function HandoffBanner({
             {byline}
           </time>
         </span>
-        {note && (
-          <p className={styles.bannerNote}>
-            {t("room.handoff.note", { text: preview ?? "" })}{" "}
-            <button
-              type="button"
-              className={styles.link}
-              onClick={() => onShowNote(note)}
-            >
-              {t("room.handoff.showNote")}
-            </button>
-          </p>
-        )}
       </div>
-      {showTakeOver && (
-        <button
-          type="button"
-          className={`button small ${styles.primary}`}
-          disabled={busy}
-          onClick={onTakeOver}
-        >
-          <IconHandStop size={16} aria-hidden="true" /> {t("room.ai.takeOver")}
-        </button>
-      )}
     </section>
   );
 }

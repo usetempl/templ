@@ -12,6 +12,7 @@ import { widgetSignInNetworks } from "@/lib/support-availability";
 import { trackEvent } from "@/lib/analytics";
 import { SupportChatFrame, SupportChatLoading } from "./support-chat-frame";
 import type { WidgetAccent } from "@/lib/support-widget-appearance";
+import { useHostedComposerFocus } from "./use-hosted-composer-focus";
 import styles from "./help.module.css";
 
 type WidgetModule = { mountSupportWidget: typeof mountSupportWidget };
@@ -35,6 +36,7 @@ export function HostedSupportChat({
   const container = useRef<HTMLDivElement>(null);
   const widget = useRef<ReturnType<typeof mountSupportWidget> | null>(null);
   const [state, setState] = useState<"loading" | "ready" | "failed">("loading");
+  useHostedComposerFocus(container, state === "ready", frameRequired ? widget : undefined);
   const [retry, setRetry] = useState(false);
   const [accountWalletRequired, setAccountWalletRequired] = useState(false);
   const [network, setNetwork] = useState(WIDGET_SIGN_IN_NETWORKS[0]);

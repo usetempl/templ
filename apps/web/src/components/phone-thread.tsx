@@ -15,15 +15,10 @@ import {
 import {
   IconArrowLeft,
   IconDotsVertical,
-  IconLayoutSidebarRight,
+  IconInfoCircle,
 } from "@tabler/icons-react";
 import { copy as t } from "@/lib/copy";
 import styles from "./team-conversations.module.css";
-
-/** The open conversation at phone width (<= 900 px): the request details sit
- * behind a Details button as a full-height sheet, and at <= 480 px the thread
- * actions collapse into one Actions menu. Wider screens keep the columns;
- * the buttons these components add are hidden there by the CSS module. */
 
 const NARROW_PHONE_WIDTH = "(max-width: 480px)";
 const CATEGORY_REQUIRED = "templ-case-category-required";
@@ -52,6 +47,7 @@ function useMediaQuery(query: string) {
 
 type Details = {
   available: boolean;
+  modal: boolean;
   open: boolean;
   sheetId: string;
   toggleId: string;
@@ -59,8 +55,7 @@ type Details = {
 };
 const DetailsContext = createContext<Details | null>(null);
 
-/** The split conversation's grid. `details` says whether the details column
- * exists; `resetKey` closes the sheet when another conversation opens. */
+/** Keep case details tied to the open conversation across viewport sizes. */
 export function PhoneConversation({
   className,
   viewer,
@@ -84,7 +79,7 @@ export function PhoneConversation({
   );
   return (
     <DetailsContext.Provider
-      value={{ available: details, open, sheetId, toggleId, setOpen }}
+      value={{ available: details, modal: viewer === "team", open, sheetId, toggleId, setOpen }}
     >
       <div
         className={className}
@@ -97,7 +92,7 @@ export function PhoneConversation({
   );
 }
 
-/** The Details button in the thread header (phone width only). */
+/** Open the case details from the conversation header. */
 export function PhoneDetailsButton() {
   const details = useContext(DetailsContext);
   if (!details?.available) return null;
@@ -106,14 +101,20 @@ export function PhoneDetailsButton() {
       id={details.toggleId}
       type="button"
       className={styles.detailsToggle}
+      aria-label="Case details"
       aria-expanded={details.open}
       aria-controls={details.sheetId}
       onClick={() => details.setOpen(!details.open)}
     >
-      <IconLayoutSidebarRight size={18} aria-hidden="true" />
+      <IconInfoCircle size={18} aria-hidden="true" />
       <span>{t("phone.details.open")}</span>
     </button>
   );
+}
+
+export function CaseDetailsExtras({ children }: { children: ReactNode }) {
+  const details = useContext(DetailsContext);
+  return details?.modal && !details.open ? null : children;
 }
 
 /** Opens the details sheet and focuses the shared facts on any screen size. */
@@ -154,8 +155,7 @@ export function PhoneDetailsLink({
   );
 }
 
-/** The details column; at phone width, the sheet the Details button opens,
- * with a way back to the conversation. Escape closes it too. */
+/** A dialog for staff and narrow screens, with a details column for wider member views. */
 export function PhoneDetails({
   className,
   label,
@@ -172,6 +172,7 @@ export function PhoneDetails({
   const wasOpen = useRef(false);
   const sheet = useRef<HTMLDialogElement>(null);
   const phone = useMediaQuery("(max-width: 900px)");
+  const modal = phone || details?.modal === true;
   const [categoryRequest, setCategoryRequest] = useState(0);
   const focusedCategory = useRef(0);
   useEffect(() => {
@@ -185,7 +186,7 @@ export function PhoneDetails({
   useEffect(() => {
     const element = sheet.current;
     if (!element) return;
-    if (phone && open) {
+    if (modal && open) {
       if (!element.matches(":modal")) {
         if (element.open) element.close();
         element.showModal();
@@ -193,12 +194,12 @@ export function PhoneDetails({
       back.current?.focus();
     } else {
       if (element.matches(":modal")) element.close();
-      element.open = !phone;
+      element.open = !modal;
     }
     if (!open && wasOpen.current && toggleId)
       document.getElementById(toggleId)?.focus();
     wasOpen.current = open;
-  }, [open, toggleId, phone]);
+  }, [open, toggleId, modal]);
   useEffect(() => {
     const element = sheet.current;
     return () => element?.close();
@@ -228,8 +229,9 @@ export function PhoneDetails({
       ref={sheet}
       id={details?.sheetId}
       className={className}
-      open={!phone}
-      role={phone ? undefined : "complementary"}
+      open={!modal}
+      data-case-details-dialog={details?.modal ? "" : undefined}
+      role={modal ? undefined : "complementary"}
       aria-label={label}
       onCancel={(event) => {
         event.preventDefault();
@@ -241,7 +243,7 @@ export function PhoneDetails({
           event.stopPropagation();
           details?.setOpen(false);
         }
-        if (phone && open && event.key === "Tab") {
+        if (modal && open && event.key === "Tab") {
           const controls = [
             ...event.currentTarget.querySelectorAll<HTMLElement>(
               'button:not(:disabled), a[href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), summary, [tabindex]:not([tabindex="-1"])',

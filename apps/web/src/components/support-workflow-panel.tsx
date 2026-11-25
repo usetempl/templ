@@ -14,7 +14,6 @@ import {
   type SupportAiMode,
   type SupportAiModeCause,
   type SupportContext,
-  type SupportNote,
   type SupportTimeSpent,
   type SupportWorkflow,
   type SupportState,
@@ -58,7 +57,6 @@ import { MemberIdentity } from "./member-identity";
 import { Badge } from "./ui/ui";
 import { useMemberProfiles } from "@/lib/member-profiles";
 import { copy as t, type MessageKey } from "@/lib/copy";
-import { SupportAccountOptions } from "./support-account-options";
 import type { SupportCaseActivityAction } from "@templ/chat/support-drafts";
 import {
   FOLLOW_UP_ACTIVITY,
@@ -108,9 +106,7 @@ export function SupportWorkflowPanel({
   draftsEnabled = false,
   priorityEnabled = false,
   composing,
-  replyText = "",
   messagesShown = true,
-  notesInThread = false,
   onReply,
   onChanged,
   onPriorityChanged,
@@ -130,11 +126,9 @@ export function SupportWorkflowPanel({
   /** The person typed a reply since opening the thread. */
   composing: boolean;
   /** What the reply box holds now, typed or restored. */
-  replyText?: string;
   /** False until the thread's messages are on screen. The read receipt and
    * presence writes wait for it, so they never hold up the first read. */
   messagesShown?: boolean;
-  notesInThread?: boolean;
   onReply: (text: string) => void;
   onChanged: () => void;
   /** Refresh the queue after a background deposit check. */
@@ -158,12 +152,6 @@ export function SupportWorkflowPanel({
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [savingAction, setSavingAction] = useState<string | null>(null);
-  const [assignment, setAssignment] = useState(
-    conversation.assignment?.principalId ?? "",
-  );
-  useEffect(() => {
-    setAssignment(conversation.assignment?.principalId ?? "");
-  }, [scope, conversation.assignment?.principalId]);
   const [activityOpen, setActivityOpen] = useState(false);
   const [note, setNoteValue] = useState("");
   const [mentions, setMentionsValue] = useState<string[]>([]);
@@ -201,7 +189,6 @@ export function SupportWorkflowPanel({
   const [contextError, setContextError] = useState("");
   const [consent, setConsent] = useState(false);
   /** An AI agent note waiting for "Replace" or "Add below". */
-  const [copyingNote, setCopyingNote] = useState<string | null>(null);
   const [screenshots, setScreenshots] = useState<Record<string, string>>({});
   const noteAttempt = useRef<{ text: string; id: string } | null>(null);
   const team = conversation.viewer === "team";
@@ -396,7 +383,6 @@ export function SupportWorkflowPanel({
     mutationVersion.current += 1;
     const access = accessRevision.current;
     const previous = workflow;
-    const previousAssignment = assignment;
     if (body.action === "status" && workflow && String(body.state) in states) {
       setLoaded({
         scope,
@@ -406,9 +392,6 @@ export function SupportWorkflowPanel({
         },
       });
       setSavingAction("Saving status…");
-    } else if (body.action === "assign") {
-      setAssignment((body.principalId as ChatPrincipalId | null) ?? "");
-      setSavingAction("Saving assignment…");
     } else if (body.action === "tags") {
       setSavingAction("Saving tags…");
     } else if (body.action === "note") {
@@ -438,7 +421,6 @@ export function SupportWorkflowPanel({
         ) {
           clearAccess();
         } else if (previous) setLoaded({ scope, workflow: previous });
-        setAssignment(previousAssignment);
         setError(
           reason instanceof Error
             ? reason.message
@@ -990,24 +972,6 @@ export function SupportWorkflowPanel({
                 ))}
               </select>
             </label>
-            {workflow.canManage && (
-              <label className={styles.detailField}>
-                Assign to
-                <select
-                  value={assignment}
-                  disabled={!enabled || busy || actionBusy}
-                  onChange={(event) =>
-                    void mutate({
-                      action: "assign",
-                      principalId: event.target.value || null,
-                    })
-                  }
-                >
-                  <option value="">Unassigned</option>
-                  <SupportAccountOptions ids={workflow.staff ?? []} />
-                </select>
-              </label>
-            )}
           </div>
           <section key={`${scope}:tags`} className={detailStyles.disclosure}>
             <header className={detailStyles.summary}>
@@ -1106,7 +1070,7 @@ export function SupportWorkflowPanel({
                 Only staff with support access can read these notes. Users never
                 receive them.
               </p>
-              {!notesInThread && notes.length > 0 && (
+              {notes.length > 0 && (
                 <ul className={styles.noteList}>
                   {notes.map((item) => (
                     <li
@@ -1127,15 +1091,6 @@ export function SupportWorkflowPanel({
                         </time>
                       </div>
                       <p className={styles.text}>{item.text}</p>
-                      {item.byAgent && (
-                        <AgentNoteCopy
-                          note={item}
-                          replyText={replyText}
-                          confirming={copyingNote === item.id}
-                          onConfirm={setCopyingNote}
-                          onReply={onReply}
-                        />
-                      )}
                     </li>
                   ))}
                 </ul>
@@ -1695,73 +1650,6 @@ function ActivityItems({
 }
 const shortAccount = (id: string) =>
   id.length > 24 ? `${id.slice(0, 16)}…${id.slice(-6)}` : id;
-/** "Copy to reply" on a note the AI agent wrote. With text already in the
- * reply box, a person picks Replace, Add below or Cancel first. */
-export function AgentNoteCopy({
-  note,
-  replyText,
-  confirming,
-  onConfirm,
-  onReply,
-}: {
-  note: SupportNote;
-  replyText: string;
-  confirming: boolean;
-  onConfirm: (id: string | null) => void;
-  onReply: (text: string) => void;
-}) {
-  if (!confirming)
-    return (
-      <button
-        type="button"
-        className={styles.linkButton}
-        onClick={() => {
-          if (replyText.trim()) onConfirm(note.id);
-          else onReply(note.text);
-        }}
-      >
-        {t("room.notes.copyToReply")}
-      </button>
-    );
-  return (
-    <div
-      className={styles.noteConfirm}
-      role="group"
-      aria-label={t("room.notes.replaceConfirm")}
-    >
-      <p>{t("room.notes.replaceConfirm")}</p>
-      <div>
-        <button
-          type="button"
-          className="button small"
-          onClick={() => {
-            onConfirm(null);
-            onReply(note.text);
-          }}
-        >
-          {t("room.notes.replace")}
-        </button>
-        <button
-          type="button"
-          className="button small secondary"
-          onClick={() => {
-            onConfirm(null);
-            onReply(`${replyText.trimEnd()}\n\n${note.text}`);
-          }}
-        >
-          {t("room.notes.addBelow")}
-        </button>
-        <button
-          type="button"
-          className="button small quiet"
-          onClick={() => onConfirm(null)}
-        >
-          {t("room.notes.cancel")}
-        </button>
-      </div>
-    </div>
-  );
-}
 
 /** Checkbox list with readable labels; values stay canonical account IDs. */
 function StaffCheckboxes({

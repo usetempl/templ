@@ -35,7 +35,7 @@ export function InboxCaseRow({
       <span className={styles.rowBody}>
         <span className={styles.rowTop}>
           <strong>
-            {label}
+            {label || preview}
             {verified && (
               <IconCheck
                 className={styles.verifiedMark}
@@ -46,7 +46,7 @@ export function InboxCaseRow({
           </strong>
           {time}
         </span>
-        {preview && (
+        {label && preview && (
           <span className={styles.rowPreview}>
             <span className={styles.srOnly}>Latest user message: </span>
             {preview}

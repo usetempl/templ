@@ -4,6 +4,7 @@ import { CustomerEncryptedSupport } from "./customer-encrypted-support";
 import { threadIdentityLabel } from "@templ/chat/support-identity-label";
 import { PRIORITY_COPY, type PriorityFeed } from "@templ/chat/support-priority";
 import { InboxCaseRow } from "./inbox-case-row";
+import { useReplyDraft } from "./use-reply-draft";
 import { PriorityReasons } from "./support-priority-reasons";
 import { readPriorities } from "@/lib/support-priority-client";
 import {
@@ -26,6 +27,7 @@ import Link from "next/link";
 import {
   IconArrowLeft,
   IconCheck,
+  IconListCheck,
   IconCopy,
   IconFilter,
   IconMessageCircle,
@@ -33,8 +35,8 @@ import {
   IconLoader2,
   IconRefresh,
   IconSend,
+  IconSparkles,
   IconShieldLock,
-  IconUserCheck,
 } from "@tabler/icons-react";
 import type {
   ChatMessage,
@@ -52,7 +54,6 @@ import {
   type SupportAiMode,
   type SupportHandoffBy,
   type SupportHandoffReason,
-  type SupportNote,
   type SupportTimeSpent,
   type SupportWorkflow,
 } from "@templ/chat/support";
@@ -67,6 +68,7 @@ import {
 import { pacedSupportRequest } from "@/lib/support-request-pacing";
 import { readCaseList, readSupport } from "@/lib/support-read";
 import type { EarlyCasePage } from "./workspace/workspace-reads";
+import { useInboxPreviews } from "@/lib/use-inbox-previews";
 import { isChatSignInCanceled } from "@/lib/chat-auth-cancellation";
 import {
   newChatMessageId,
@@ -84,7 +86,6 @@ import { memberLabel, useMemberProfiles } from "@/lib/member-profiles";
 import {
   askPerson,
   askTeam,
-  claimConversation,
   conversationErrorMessage,
   conversationErrorReason,
   handOffConversation,
@@ -92,10 +93,10 @@ import {
   markTeamTyping,
   readConversationMessages,
   readConversationStatus,
-  releaseConversationClaim,
   resolveConversation,
   setAiMode,
   generateAppAnswer,
+  updateSupportWorkflow,
   stopTeamMessages,
 } from "@/lib/team-conversations-client";
 import { copy as t, type MessageKey } from "@/lib/copy";
@@ -125,12 +126,11 @@ import { Badge } from "./ui/ui";
 import { StateLine } from "./state-line";
 import { Identicon } from "./ui/identicon";
 import styles from "./team-conversations.module.css";
-import { SupportWorkflowPanel, noteElementId } from "./support-workflow-panel";
+import { SupportWorkflowPanel } from "./support-workflow-panel";
 import {
   AiControl,
   HandOffMenu,
   HandoffBanner,
-  handoffAgentNote,
 } from "./ai-control";
 import { useActionToast } from "./action-toast";
 import { SupportInboxSearch } from "./support-inbox-search";
@@ -145,18 +145,13 @@ import { CasePanels } from "./case-frame-panels";
 import { FollowUpsSection } from "./follow-ups-section";
 import { diagnosisPanelAllowed, DiagnosisPanel } from "./diagnosis-panel";
 import {
-  answerChip,
-  repliedChip,
   turnChip,
-  nextStep,
   turnLine,
   waitAge,
-  waitTone,
 } from "@/lib/inbox-turn";
 import {
   InboxViews,
   agentOfflineLine,
-  inboxViewLabel,
   needsReadyViews,
   useInboxCounts,
 } from "./inbox-views";
@@ -165,6 +160,7 @@ import {
   PhoneConversation,
   requestCaseCategory,
   PhoneDetails,
+  CaseDetailsExtras,
   PhoneDetailsButton,
 } from "./phone-thread";
 import {
@@ -172,9 +168,7 @@ import {
   readLinkedInboxView,
 } from "@/lib/inbox-link-view";
 import { ThreadCopyPanel } from "./workspace/improvement-copy";
-import { inboxOwner } from "@/lib/inbox-facts";
 import {
-  InboxNote,
   InboxSystemLine,
   SharedDetailsMarker,
   inboxThreadItems,
@@ -189,12 +183,6 @@ import {
  * staff-endorsed transaction. Authority badges come from the worker's facts,
  * never from a chosen name. */
 export const ACCOUNT_SETTINGS_PATH = "/settings/account";
-/** The keys behind TEAM_LABELS, for the rendered filter and row state. */
-const TEAM_LABEL_KEYS: Record<"open" | "resolved" | "all", MessageKey> = {
-  open: "room.team.filterOpen",
-  resolved: "room.team.filterResolved",
-  all: "room.team.filterAll",
-};
 /** Each empty view names the cases it contains. */
 const EMPTY_KEYS: Partial<Record<TeamConversationFilter, MessageKey>> = {
   "needs-you": "shell.inbox.emptyNeedsYou",
@@ -397,6 +385,8 @@ function ScopedTeamConversationsBody({
     },
     [room, account],
   );
+  const openCase = useRef(selected);
+  openCase.current = selected;
   const seed = selectedRow?.id === selected ? selectedRow : null;
   const team = status?.team === true && view === "team";
   // Stable handlers: the thread's loader depends on them, and a new function
@@ -465,6 +455,12 @@ function ScopedTeamConversationsBody({
             room={room}
             revision={revision}
             available={status.available}
+            bulkAvailable={status.available && status.supportWorkflowAvailable === true}
+            onBulkChanged={(ids) => {
+              const current = openCase.current;
+              if (current && ids.includes(current)) selectConversation(null);
+              onQueueChange();
+            }}
             needsReplyReady={status.needsReplyReady === true}
             onOpen={selectConversation}
             selected={selected}
@@ -544,6 +540,8 @@ function TeamQueue({
   room,
   revision,
   available,
+  bulkAvailable,
+  onBulkChanged,
   needsReplyReady = false,
   onOpen,
   selected = null,
@@ -556,6 +554,8 @@ function TeamQueue({
   room: ChatRoomId;
   revision: number;
   available: boolean;
+  bulkAvailable: boolean;
+  onBulkChanged: (ids: string[]) => void;
   /** The service says its case ledger and views are ready: the queue opens
    * on Needs you. */
   needsReplyReady?: boolean;
@@ -592,6 +592,7 @@ function TeamQueue({
   // The service's preparing answer holds for the rest of this visit, so
   // picking another view keeps the earlier bar.
   const setFilter = (value: TeamConversationFilter) => {
+    setSelection(null);
     setPriorityView(false);
     clearLinkedInboxView();
     setFilterValue(value);
@@ -604,13 +605,14 @@ function TeamQueue({
     category: "",
     ...(savedInbox.filters ?? {
       member: "",
-      assignee: "",
       tag: "",
       after: "",
       before: "",
     }),
+    assignee: "",
   });
   const setFilters = (value: typeof filters) => {
+    setSelection(null);
     setFiltersValue(value);
     writeSupportInboxState(room, account, { filters: value });
   };
@@ -649,12 +651,55 @@ function TeamQueue({
     seenNudge.current = nudge;
     rereadQueue.current();
   }, [nudge]);
-  const profiles = useMemberProfiles(
-    rows?.flatMap((row) => [
-      row.member,
-      ...(row.assignment ? [row.assignment.principalId] : []),
-    ]) ?? [],
-  );
+  const profiles = useMemberProfiles(rows?.map(row => row.member) ?? []);
+  const listScroll = useRef<HTMLDivElement>(null);
+  const previewFor = useInboxPreviews(room, rows, listScroll, cache);
+  const [selection, setSelection] = useState<{ query: string; ids: string[] } | null>(null);
+  const selectionActive = selection?.query === query && bulkAvailable;
+  const candidates = rows?.filter(row =>
+    row.viewer === "team" && !row.encryption && !row.support?.archivedAt &&
+    row.support?.state !== "spam" && !pendingCases?.[row.id],
+  ) ?? [];
+  const selectable = new Set(candidates.map(row => row.id));
+  const checked = selectionActive ? selection.ids.filter(id => selectable.has(id)) : [];
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [bulkStatus, setBulkStatus] = useState<{ text: string; failed: boolean } | null>(null);
+  const bulkRequest = useRef<AbortController | null>(null);
+  useEffect(() => () => bulkRequest.current?.abort(), []);
+
+  async function markSpam() {
+    if (!account || bulkRequest.current || !checked.length) return;
+    const action = new AbortController();
+    bulkRequest.current = action;
+    setBulkStatus(null);
+    setBulkBusy(true);
+    const done: string[] = [];
+    const failed: string[] = [];
+    try {
+      for (const id of checked) {
+        if (action.signal.aborted) return;
+        try {
+          const result = await updateSupportWorkflow(account, room, id, { action: "status", state: "spam" });
+          if (result.workflow.summary.state === "spam") done.push(id);
+          else failed.push(id);
+        } catch {
+          failed.push(id);
+        }
+      }
+      if (action.signal.aborted) return;
+      setSelection(failed.length ? { query, ids: failed } : null);
+      setBulkStatus({
+        text: failed.length
+          ? `${done.length} marked as spam. ${failed.length} couldn’t be updated.`
+          : `${done.length} marked as spam.`,
+        failed: Boolean(failed.length),
+      });
+      if (done.length) onBulkChanged(done);
+    } finally {
+      bulkRequest.current = null;
+      if (!action.signal.aborted) setBulkBusy(false);
+    }
+  }
   useEffect(() => {
     const controller = new AbortController();
     let visiblePage = cache.queue(query);
@@ -798,13 +843,12 @@ function TeamQueue({
       }}
     >
       {(
-        ["member", "assignee", "tag", "category", "after", "before"] as const
+        ["member", "tag", "category", "after", "before"] as const
       ).map((name) => (
         <label key={name}>
           {
             {
               member: "User",
-              assignee: "Assigned staff",
               tag: "Tag",
               category: "Category",
               after: "Created after",
@@ -814,7 +858,7 @@ function TeamQueue({
           <input
             type={name === "after" || name === "before" ? "date" : "text"}
             list={
-              ["member", "assignee", "tag", "category"].includes(name)
+              ["member", "tag", "category"].includes(name)
                 ? `${filterId}-${name}`
                 : undefined
             }
@@ -827,7 +871,7 @@ function TeamQueue({
             }
             maxLength={150}
             placeholder={
-              name === "member" || name === "assignee"
+              name === "member"
                 ? "Account ID"
                 : name === "tag"
                   ? "deposit"
@@ -838,15 +882,6 @@ function TeamQueue({
       ))}
       <datalist id={`${filterId}-member`}>
         <SupportAccountOptions ids={rows?.map((row) => row.member) ?? []} />
-      </datalist>
-      <datalist id={`${filterId}-assignee`}>
-        <SupportAccountOptions
-          ids={
-            rows?.flatMap((row) =>
-              row.assignment ? [row.assignment.principalId] : [],
-            ) ?? []
-          }
-        />
       </datalist>
       <datalist id={`${filterId}-tag`}>
         {[
@@ -899,6 +934,23 @@ function TeamQueue({
       <div className={styles.queueHead}>
         <h1>{t("room.team.list")}</h1>
         <div className={styles.queueHeadActions}>
+          {bulkAvailable && candidates.length > 0 && (
+            <button
+              type="button"
+              className={styles.iconButton}
+              aria-label={selectionActive ? "Cancel selection" : "Select cases"}
+              title={selectionActive ? "Cancel selection" : "Select cases"}
+              aria-pressed={selectionActive}
+              disabled={bulkBusy}
+              onClick={() => {
+                setBulkStatus(null);
+                setSelection(selectionActive ? null : { query, ids: [] });
+              }}
+            >
+              <IconListCheck size={17} aria-hidden="true" />
+            </button>
+          )}
+
           <button
             type="button"
             className={styles.iconButton}
@@ -968,6 +1020,7 @@ function TeamQueue({
             ? {
                 selected: prioritiesShown,
                 onSelect: () => {
+                  setSelection(null);
                   clearLinkedInboxView();
                   setPriorityView(true);
                 },
@@ -976,6 +1029,34 @@ function TeamQueue({
         }
       />
 
+      {selectionActive && (
+        <div className={styles.bulkBar} aria-label="Selected cases">
+          <label>
+            <input
+              type="checkbox"
+              checked={selectable.size > 0 && checked.length === selectable.size}
+              disabled={!selectable.size || bulkBusy}
+              onChange={(event) =>
+                setSelection({ query, ids: event.target.checked ? [...selectable] : [] })
+              }
+            />
+            Select shown
+          </label>
+          <button
+            type="button"
+            className="button small"
+            disabled={bulkBusy || !checked.length}
+            onClick={() => void markSpam()}
+          >
+            {bulkBusy ? "Marking spam…" : checked.length ? `Mark ${checked.length} as spam` : "Mark as spam"}
+          </button>
+        </div>
+      )}
+      {bulkStatus && (
+        <p className={styles.bulkStatus} role={bulkStatus.failed ? "alert" : "status"}>
+          {bulkStatus.text}
+        </p>
+      )}
       {current?.pending === "retry" && (
         <p role="status">Reconnecting to cases…</p>
       )}
@@ -995,6 +1076,7 @@ function TeamQueue({
         <p className={styles.note} role="status">Trying the case list again…</p>
       )}
       <div
+        ref={listScroll}
         className={styles.listScroll}
         data-view={prioritiesShown ? "priorities" : filter}
       >
@@ -1068,100 +1150,59 @@ function TeamQueue({
                     (item) => item.thread === row.id,
                   )
                 : undefined;
-              const label = memberLabel(profiles.get(row.member), row.member);
-              const state = row.support?.state ?? row.state;
-              const assignee = row.assignment
-                ? row.assignment.teamName ||
-                  memberLabel(
-                    profiles.get(row.assignment.principalId),
-                    row.assignment.principalId,
-                  )
-                : null;
-              const turn = row.support?.turn;
-              // A request waiting on the team shows how long it waited; the
-              // rest show when someone last wrote.
-              const waitSince =
-                turn !== "member" ? row.support?.waitingSince : undefined;
-              const at =
-                row.support?.lastAt ??
-                row.support?.lastMemberMessageAt ??
-                row.lastMessageAt ??
-                row.createdAt;
-              const chip = turnChip(row, undefined, draftsEnabled);
-              const next = nextStep(row);
-              const showJourney =
-                !prioritiesShown &&
-                (filter === "needs-you" ||
-                  Boolean(next && row.support?.journey));
-              const why =
-                chip?.text ??
-                t(
-                  turn === "member"
-                    ? "room.inbox.waitingOnMember"
-                    : turn === "ai"
-                      ? "room.inbox.aiHandling"
-                      : "room.turn.line.person",
-                );
-              const answer = answerChip(row);
-              // Waiting on user says who the member is answering.
-              const replied =
-                filter === "waiting-on-member" && turn === "member"
-                  ? repliedChip(row.support)
-                  : null;
-              // The view already says whose turn it is in Needs you and
-              // Waiting on user; elsewhere the turn leads the line.
-              const pill =
-                turn && filter !== "needs-you" && filter !== "waiting-on-member"
-                  ? turn
-                  : null;
+              const profile = profiles.get(row.member);
+              const preview = previewFor(row);
+              const name = profile?.displayName?.trim();
+              const label = name || (preview ? "" : row.encryption ? "Encrypted conversation" : "Guest");
+              const waitSince = row.support?.turn !== "member" ? row.support?.waitingSince : undefined;
+              const at = row.support?.lastAt ?? row.lastMessageAt ?? row.createdAt;
+              const chip = row.handoff ? turnChip(row, undefined, draftsEnabled) : null;
+              const statusLabel = row.support?.state === "spam" ? "Spam"
+                : row.state === "resolved" && filter === "all" ? "Resolved" : null;
               return (
-                <li key={row.id}>
+                <li
+                  key={row.id}
+                  data-inbox-case={row.id}
+                  className={selectionActive ? styles.selectableRow : undefined}
+                >
+                  {selectionActive && (
+                    <input
+                      type="checkbox"
+                      className={styles.selectCase}
+                      aria-label={`Select case: ${preview || name || "Guest"}`}
+                      checked={checked.includes(row.id)}
+                      disabled={bulkBusy || !selectable.has(row.id)}
+                      onChange={(event) =>
+                        setSelection({
+                          query,
+                          ids: event.target.checked
+                            ? [...checked, row.id]
+                            : checked.filter(id => id !== row.id),
+                        })
+                      }
+                    />
+                  )}
                   <InboxCaseRow
                     label={label}
+                    requestPreview={preview}
                     avatar={
                       <Identicon
                         seed={row.member}
-                        profile={profiles.get(row.member)}
-                        size={34}
+                        profile={profile}
+                        size={32}
                         radius={10}
                       />
                     }
                     time={
-                      waitSince ? (
-                        <span
-                          className={styles.waitAge}
-                          data-tone={waitTone(waitSince)}
-                        >
-                          <time
-                            dateTime={waitSince}
-                            title={new Date(waitSince).toLocaleString()}
-                            aria-hidden="true"
-                          >
-                            {waitAge(waitSince)}
-                          </time>
-                          <span className={styles.srOnly}>
-                            {t("room.team.waiting", {
-                              age: waitAge(waitSince),
-                            })}
-                          </span>
-                        </span>
-                      ) : (
-                        at && (
-                          <time
-                            dateTime={at}
-                            title={new Date(at).toLocaleString()}
-                          >
-                            {relativeTime(at)}
-                          </time>
-                        )
-                      )
+                      <time dateTime={waitSince ?? at} title={new Date(waitSince ?? at).toLocaleString()}>
+                        {waitSince ? waitAge(waitSince) : relativeTime(at)}
+                      </time>
                     }
-                    verified={row.support?.access === "signed"}
                     selected={row.id === selected}
                     unread={row.support?.unread === true}
                     busy={Boolean(pendingCases?.[row.id])}
                     humanRequest={
-                      state === "open" &&
+                      row.state === "open" &&
                       (row.support?.turnReason === "asked" ||
                         (!row.support?.turn &&
                           (row.handoff?.reason === "person" ||
@@ -1173,137 +1214,12 @@ function TeamQueue({
                       <PriorityReasons value={priority} />
                     ) : (
                       <span className={styles.rowMeta}>
-                        {pill ? (
-                          <span className={styles.turnPill} data-turn={pill}>
-                            {pill === "ai" && (
-                              <i
-                                className={styles.turnDot}
-                                aria-hidden="true"
-                              />
-                            )}
-                            {inboxViewLabel(
-                              pill === "person"
-                                ? "needs-you"
-                                : pill === "ai"
-                                  ? "ai-handling"
-                                  : "waiting-on-member",
-                            )}
-                          </span>
-                        ) : (
-                          !turn && (
-                            <span className={styles.state} data-state={state}>
-                              {state === "resolved" && (
-                                <IconCheck size={14} aria-hidden="true" />
-                              )}
-                              {row.support
-                                ? // Case state labels.
-                                  // Current case access and author permissions apply.
-                                  caseStateLabel(row.support)
-                                : t(TEAM_LABEL_KEYS[row.state])}
-                            </span>
-                          )
-                        )}
-                        {chip && !showJourney && (
-                          <span
-                            className={styles.reasonChip}
-                            data-tone={chip.tone}
-                          >
-                            {chip.text}
-                          </span>
-                        )}
-                        {replied && (
-                          <span className={styles.rowFlag}>{replied}</span>
-                        )}
-                        {answer && (
-                          <span className={styles.rowFlag} data-flag="answer">
-                            {answer}
-                          </span>
-                        )}
-                        {row.support?.unread && (
-                          <span className={styles.srOnly}>Unread</span>
-                        )}
-                        {row.support?.access && (
-                          <span
-                            className={styles.srOnly}
-                            data-access={row.support.access}
-                            data-identity-label="true"
-                            title={
-                              row.support.identityLabel ??
-                              SUPPORT_IDENTITY_LABELS[
-                                identityOf({ level: row.support.access })
-                              ]
-                            }
-                          >
-                            {row.support.access === "signed" && (
-                              <IconCheck size={14} aria-hidden="true" />
-                            )}
-                            <span>
-                              {row.support.identityLabel ??
-                                SUPPORT_IDENTITY_LABELS[
-                                  identityOf({ level: row.support.access })
-                                ]}
-                            </span>
-                          </span>
-                        )}
-                        {row.staffMessagesStopped && (
-                          <span className={styles.rowFlag}>
-                            {t("room.team.rowStopped")}
-                          </span>
-                        )}
-                        {row.support?.test && (
-                          <span className={styles.rowFlag} data-flag="test">
-                            {t("room.turn.test")}
-                          </span>
-                        )}
-                        {/* One tag: two make most rows wrap. */}
-                        {row.support?.tags.slice(0, 1).map((tag) => (
-                          <span key={tag} className={styles.tag}>
-                            {tag}
-                          </span>
-                        ))}
-                      </span>
-                    )}
-                    {showJourney && (
-                      <span
-                        className={styles.rowJourney}
-                        data-journey="next-step"
-                      >
-                        <span
-                          className={styles.journeyWhy}
-                          data-tone={chip?.tone}
-                          title={why}
-                        >
-                          {why}
-                        </span>
-                        {assignee && (
-                          <span
-                            className={styles.journeyOwner}
-                            title={t("room.team.claimedBy", {
-                              name: assignee,
-                            })}
-                          >
-                            {row.assignment?.principalId === account
-                              ? "You"
-                              : assignee}
-                          </span>
-                        )}
-                        {next && next !== t("room.nextStep.reply") && (
-                          <span className={styles.journeyNext} title={next}>
-                            {next}
-                          </span>
-                        )}
-                      </span>
-                    )}
-                    {row.support?.walletUnavailable && (
-                      <span className={styles.rowFlag}>
-                        {"Wallet wouldn't connect"}
-                      </span>
-                    )}
-                    {!showJourney && row.assignment && (
-                      <span className={styles.rowAssignee}>
-                        {row.assignment?.principalId === account
-                          ? "You"
-                          : (assignee ?? t("room.team.unclaimed"))}
+                        {chip && <span className={styles.tag} title={chip.text}>{chip.text}</span>}
+                        {statusLabel && <span className={styles.tag}>{statusLabel}</span>}
+                        {row.staffMessagesStopped && <span className={styles.tag}>{t("room.team.rowStopped")}</span>}
+                        {row.support?.test && <span className={styles.tag}>{t("room.turn.test")}</span>}
+                        {row.support?.tags.map((tag) => <span key={tag} className={styles.tag}>{tag}</span>)}
+                        {row.support?.unread && <span className={styles.srOnly}>Unread</span>}
                       </span>
                     )}
                   </InboxCaseRow>
@@ -1485,13 +1401,14 @@ function ConversationView({
   /** The member tapped "Talk to a person" and the request is on its way. */
   const [asking, setAsking] = useState<string | null>(null);
   const [timeSpent, setTimeSpent] = useState<SupportTimeSpent | "">("");
-  /** The details panel's latest workflow read, for the AI note and presence. */
+  /** The details panel’s latest workflow read. */
   const [panelWorkflow, setPanelWorkflow] = useState<{
     thread: string;
     workflow: SupportWorkflow;
   } | null>(null);
   const [workflowRevision, setWorkflowRevision] = useState(0);
   const composer = useRef<HTMLTextAreaElement>(null);
+  const draftHint = useId();
   const toast = useActionToast();
   const draftTicket = conversationId ?? "new";
   const restoredDraft = useRef<string | null>(null);
@@ -2382,127 +2299,8 @@ function ConversationView({
       setAsking(null);
     }
   }
-  function showNote(note: SupportNote) {
-    const element = document.getElementById(noteElementId(note.id));
-    element?.scrollIntoView({ block: "nearest" });
-    element?.focus({ preventScroll: true });
-  }
-  async function changeClaim(action: "claim" | "release" | "takeover") {
-    if (!conversation || !account) return;
-    const previous = conversation;
-    const id = previous.id;
-    const optimistic: TeamConversation = {
-      ...previous,
-      assignment:
-        action === "release"
-          ? null
-          : { principalId: account, claimedAt: new Date().toISOString() },
-      canClaim: action === "release",
-      canRelease: action !== "release",
-      canTakeover: false,
-    };
-    const mutation = beginCaseMutation(
-      optimistic,
-      action === "release" ? "Unassigning…" : "Assigning…",
-    );
-    if (!mutation) return;
-    try {
-      const result =
-        action === "release"
-          ? await releaseConversationClaim(account, room, id)
-          : await claimConversation(account, room, id, action === "takeover");
-      if (caseMutations.current.get(id) !== mutation) return;
-      setConversation((current) =>
-        current?.id === id ? result.conversation : current,
-      );
-      onQueueChange?.();
-    } catch (reason) {
-      if (caseMutations.current.get(id) !== mutation) return;
-      const code = conversationErrorReason(reason);
-      mutation.conversation = previous;
-      setConversation((current) => (current?.id === id ? previous : current));
-      if (activeConversation.current === id) {
-        pendingMutation.current = null;
-        await refreshThread.current();
-        if (
-          activeConversation.current !== id ||
-          caseMutations.current.get(id) !== mutation
-        )
-          return;
-        setError(
-          code === "claimed"
-            ? t("room.team.claimConflict")
-            : code === "not-verified"
-              ? t("room.team.claimTesting")
-              : code === "paid-plan-required"
-                ? t("room.team.claimPlan")
-                : code === "manager-only" ||
-                    code === "claim-owner-required" ||
-                    code === "team-only"
-                  ? t("room.team.claimPermissionChanged")
-                  : conversationErrorMessage(reason, t, "team"),
-        );
-      } else toast.show("Could not update the case. Open it to try again.");
-    } finally {
-      endCaseMutation(id, mutation);
-    }
-  }
   const blocked = conversation?.postBlockedReason ?? null;
   const replyBlocked = teamView ? (conversation?.replyBlocked ?? null) : null;
-  const assignmentLabel = conversation?.assignment
-    ? t("room.team.claimedBy", {
-        name:
-          conversation.assignment.teamName ||
-          memberLabel(
-            profiles.get(conversation.assignment.principalId),
-            conversation.assignment.principalId,
-          ),
-      })
-    : t("room.team.unclaimed");
-  const claimButtons = conversation && conversation.viewer === "team" && (
-    <>
-      {status.supportWorkflowAvailable &&
-        status.canClaim &&
-        conversation.canClaim &&
-        !conversation.assignment && (
-          <button
-            type="button"
-            className="button small secondary"
-            disabled={busy}
-            onClick={() => void changeClaim("claim")}
-          >
-            <IconUserCheck aria-hidden="true" /> {t("room.team.claim")}
-          </button>
-        )}
-      {conversation.canRelease && (
-        <button
-          type="button"
-          className="button small secondary"
-          disabled={busy}
-          onClick={() => void changeClaim("release")}
-        >
-          {t("room.team.releaseClaim")}
-        </button>
-      )}
-      {status.supportWorkflowAvailable &&
-        status.canClaim &&
-        conversation.canTakeover && (
-          <button
-            type="button"
-            className="button small secondary"
-            disabled={busy}
-            onClick={() => void changeClaim("takeover")}
-          >
-            {t("room.team.takeoverClaim")}
-          </button>
-        )}
-    </>
-  );
-  const claimHint = !status.supportWorkflowAvailable
-    ? t("room.team.claimTesting")
-    : !status.canClaim
-      ? t("room.team.claimPlan")
-      : t("room.team.claimHint");
   const timeSpentField = conversation?.viewer === "team" &&
     conversation.state === "open" && (
       <label className={styles.timeSpent}>
@@ -2583,6 +2381,28 @@ function ConversationView({
   const hasMemberRequest =
     Boolean(conversation?.support?.lastMemberMessageAt) ||
     messages.some((message) => !teamSideOf(message));
+  const latestVisitorMessage = shownThread === conversation?.id
+    ? messages.findLast(message => !teamSideOf(message))
+    : undefined;
+  const draftMessage = useMemo(
+    () => latestVisitorMessage ? { id: latestVisitorMessage.id, revision: latestVisitorMessage.revision ?? 1 } : undefined,
+    [latestVisitorMessage],
+  );
+  const replyDraft = useReplyDraft({
+    room,
+    account,
+    thread: conversation?.id ?? null,
+    enabled: teamView && workflowEnabled && !revoked && !conversation?.encryption && openRequest &&
+      features?.aiDrafts === true && ai?.agentRegistered === true && ai.mode !== "off" && hasMemberRequest,
+    latest: draftMessage,
+    refreshKey: workflowRevision,
+    text,
+    onUse(value) {
+      setText(value);
+      composer.current?.focus({ preventScroll: true });
+    },
+    onError: toast.show,
+  });
   const canHandOff =
     teamView &&
     workflowEnabled &&
@@ -2631,14 +2451,7 @@ function ConversationView({
     );
   const banner = teamView && conversation && handoff && (
     <div className={styles.handoffSlot}>
-      <HandoffBanner
-        handoff={handoff}
-        note={handoffAgentNote(handoff, workflowNow?.notes)}
-        showTakeOver={false}
-        busy={busy}
-        onTakeOver={() => void chooseAiMode("drafts", true)}
-        onShowNote={showNote}
-      />
+      <HandoffBanner handoff={handoff} />
     </div>
   );
   // Who acts next, for the header: from the thread read, else the details
@@ -2678,8 +2491,7 @@ function ConversationView({
       : thread.state === "resolved"
         ? "Resolved"
         : "Open",
-    detail:
-      thread.assignment || status.canClaim === true ? assignmentLabel : "",
+    detail: "",
   });
   // What happens next, under the latest message. The member sees who
   // answers next; the team sees who is typing. Nothing here is a message.
@@ -2797,8 +2609,6 @@ function ConversationView({
           : (conversation.support?.identityLabel ??
             SUPPORT_IDENTITY_LABELS[caseIdentity])}
       </span>
-      <span>{inboxOwner(conversation.assignment, account, labelFor)}</span>
-      {!conversation.encryption && <span>Standard</span>}
     </span>
   );
   const secure = conversation?.encryption ?? (!conversationId && !conversation ? status.encryption : undefined);
@@ -2854,7 +2664,6 @@ function ConversationView({
             </div>
             <PhoneDetailsButton />
             <PhoneActions className={styles.threadActions}>
-              {claimButtons}
               {resolveButton}
               {stopButton}
             </PhoneActions>
@@ -2902,12 +2711,6 @@ function ConversationView({
           {t("room.team.revokedNote")}
         </p>
       )}
-      {teamView &&
-        conversation &&
-        !conversation.assignment &&
-        status.canClaim !== true && (
-          <p className={styles.hintBar}>{claimHint}</p>
-        )}
       <div
         ref={list}
         className={styles.messages}
@@ -2963,15 +2766,6 @@ function ConversationView({
             </div>
           )}
         {timeline.map((item, index) => {
-          if (item.kind === "note")
-            return (
-              <InboxNote
-                key={item.id}
-                note={item.note}
-                replyText={text}
-                onReply={setText}
-              />
-            );
           if (item.kind === "event")
             return (
               <InboxSystemLine
@@ -3234,11 +3028,12 @@ function ConversationView({
             value={text}
             maxLength={4000}
             rows={2}
+            aria-describedby={replyDraft.suggestion && !text.trim() ? draftHint : undefined}
             placeholder={
               canWrite
-                ? teamView
+                ? replyDraft.suggestion?.text ?? (teamView
                   ? "Write a reply…"
-                  : t("room.team.placeholderWrite")
+                  : t("room.team.placeholderWrite"))
                 : replyBlocked === "paused"
                   ? t("room.team.placeholderPaused")
                   : replyBlocked === "message-limit"
@@ -3274,6 +3069,13 @@ function ConversationView({
               noteTyping(event.target.value);
             }}
             onKeyDown={(event) => {
+              if (event.key === "Tab" && !event.shiftKey && !event.altKey &&
+                  !event.ctrlKey && !event.metaKey && !event.nativeEvent.isComposing &&
+                  !imeComposing.current && !text.trim() && replyDraft.suggestion) {
+                event.preventDefault();
+                replyDraft.useSuggestion();
+                return;
+              }
               if (
                 event.key === "Enter" &&
                 !event.shiftKey &&
@@ -3286,8 +3088,25 @@ function ConversationView({
               }
             }}
           />
+          {replyDraft.suggestion && !text.trim() && (
+            <span id={draftHint} className={styles.srOnly}>Press Tab to use the AI draft.</span>
+          )}
           <div className={styles.composerBar}>
             {aiBar}
+            {(replyDraft.canRequest || replyDraft.requesting) && (
+              <button
+                type="button"
+                className="button small secondary"
+                disabled={busy || !canWrite || Boolean(text.trim()) || replyDraft.requesting}
+                aria-busy={replyDraft.requesting}
+                onClick={() => void replyDraft.openDraft()}
+              >
+                {replyDraft.requesting
+                  ? <IconLoader2 size={16} className={styles.spinning} aria-hidden="true" />
+                  : <IconSparkles size={16} aria-hidden="true" />}
+                {replyDraft.requesting ? "Drafting…" : replyDraft.suggestion ? "Use AI draft" : "Draft reply"}
+              </button>
+            )}
             {teamView && conversation?.answerIntentRequired && (
               <button
                 type="button"
@@ -3317,11 +3136,6 @@ function ConversationView({
               </span>
             </button>
           </div>
-          <span className={styles.composerHint}>
-            {teamView && conversation?.answerIntentRequired
-              ? "Enter sends an answer. Send update requests details or shares progress. Shift+Enter adds a new line."
-              : "Enter sends. Shift+Enter adds a new line."}
-          </span>
         </form>
       )}
     </div>
@@ -3430,8 +3244,6 @@ function ConversationView({
               // Current case access and author permissions apply.
               typedSinceOpen && composeActivity.active && Boolean(text.trim())
             }
-            replyText={text}
-            notesInThread={teamView}
             messagesShown={shownThread === conversation.id}
             onReply={setText}
             onChanged={panelChanged}
@@ -3463,7 +3275,7 @@ function ConversationView({
             conversationId={conversation.id}
             viewer={conversation.viewer}
           />
-          {featurePanels}
+          <CaseDetailsExtras>{featurePanels}</CaseDetailsExtras>
         </PhoneDetails>
       )}
     </PhoneConversation>

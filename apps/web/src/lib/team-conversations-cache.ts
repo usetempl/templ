@@ -41,7 +41,8 @@ type QueuePage = {
 const statuses = new BoundedCache<TeamConversationStatus>(12, 60_000);
 const queues = new BoundedCache<QueuePage>(24, 60_000);
 const threads = new BoundedCache<TeamConversationMessages>(24, 60_000);
-for (const cache of [statuses, queues, threads])
+const previews = new BoundedCache<string | null>(100, 60_000);
+for (const cache of [statuses, queues, threads, previews])
   registerPrivateChatCache(cache);
 export function teamPresentationCache(
   room: ChatRoomId,
@@ -69,6 +70,11 @@ export function teamPresentationCache(
     },
     thread: (id: string) =>
       current() ? threads.get(`${key}:${id}`) : undefined,
+    preview: (id: string) =>
+      current() ? previews.get(`${key}:${id}`) : undefined,
+    rememberPreview: (id: string, value: string | null) => {
+      if (current()) previews.set(`${key}:${id}`, value);
+    },
     rememberThread: (id: string, value: TeamConversationMessages) => {
       if (!current()) return;
       const messages = value.messages.slice(-200);

@@ -568,7 +568,7 @@
   min-width: 0;
   min-height: 0;
 }
-.conversation[data-details="open"] {
+.conversation[data-viewer="member"][data-details="open"] {
   grid-template-columns: minmax(0, 1fr) 320px;
 }
 .conversation[data-details="closed"] > .threadAside {
@@ -863,14 +863,6 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--templ-space-2);
-}
-.composerHint {
-  display: none;
-  color: var(--templ-muted);
-  font-size: var(--templ-text-small);
-}
-.composer:focus-within .composerHint {
-  display: block;
 }
 .primary {
   composes: button primary from "./ui/design-system.module.css";
@@ -1293,7 +1285,7 @@
   .conversation[data-details="open"] {
     grid-template-columns: minmax(0, 1fr);
   }
-  .conversation[data-details="open"] > .threadAside {
+  .conversation[data-details="open"] > .threadAside:not([data-case-details-dialog]) {
     position: absolute;
     z-index: var(--templ-z-overlay);
     inset: 0 0 0 auto;
@@ -1425,7 +1417,7 @@
   .conversation > .threadAside {
     display: none;
   }
-  .conversation[data-details="open"] > .threadAside {
+  .conversation[data-details="open"] > .threadAside:not([data-case-details-dialog]) {
     position: fixed;
     inset: 0;
     width: 100%;
@@ -1788,5 +1780,88 @@
   }
   .threadTitle {
     min-width: 0;
+  }
+}
+
+.conversation[data-viewer="team"] .detailsToggle {
+  border-color: transparent;
+}
+
+.conversation > .threadAside[data-case-details-dialog] {
+  position: fixed;
+  inset: 0;
+  margin: auto;
+  width: min(42rem, calc(100% - 2rem));
+  height: fit-content;
+  max-height: min(85dvh, 54rem);
+  border: var(--templ-border-width) solid var(--templ-line);
+  border-radius: var(--templ-radius-surface);
+  box-shadow: var(--templ-shadow-lg);
+}
+
+.conversation > .threadAside[data-case-details-dialog]:modal {
+  display: block;
+}
+
+.threadAside[data-case-details-dialog]::backdrop {
+  background: rgb(0 0 0 / 42%);
+}
+
+.conversation[data-viewer="team"] .messageBody {
+  border-color: transparent;
+}
+
+.conversation[data-viewer="team"] .message[data-side="member"] .messageBody {
+  background: var(--templ-surface);
+}
+
+.conversation[data-viewer="team"] .threadTitle {
+  gap: var(--templ-space-1);
+}
+
+.bulkBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--templ-space-2);
+  padding: var(--templ-space-2) var(--templ-space-3);
+  border-bottom: var(--templ-border-width) solid var(--templ-line);
+  background: var(--templ-surface);
+}
+
+.bulkBar label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--templ-space-2);
+  min-height: 36px;
+  font-size: var(--templ-text-small);
+}
+
+.bulkStatus {
+  margin: 0;
+  padding: var(--templ-space-2) var(--templ-space-3);
+  color: var(--templ-muted);
+  font-size: var(--templ-text-small);
+}
+
+.selectableRow {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  align-items: center;
+}
+
+.selectCase {
+  justify-self: center;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  cursor: pointer;
+}
+
+@media (max-width: 480px) {
+  .conversation > .threadAside[data-case-details-dialog] {
+    width: calc(100% - 1rem);
+    max-height: calc(100dvh - 1rem);
   }
 }
