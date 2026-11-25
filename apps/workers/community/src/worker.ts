@@ -3435,8 +3435,8 @@ async function route(
       false,
       deps.verifySessionAuthority,
     );
-    if (session.authMethod === "email")
-      throw new HttpError(403, "Sign in with a wallet to create a workspace.");
+    if (session.authMethod === "guest")
+      throw new HttpError(403, "Sign in to create a workspace.");
     const body = await readJson(request, 24_000);
     requireExpectedPrincipal(body, session);
     const id = nativeRoomId(body.id);
@@ -3712,11 +3712,18 @@ async function route(
       if (request.method === "POST") {
         const body = await readJson(request);
         requireExpectedPrincipal(body, session);
-        const authenticatedAt = requireWorkspaceAdminAuth(
-          session,
-          sessionPrincipals(session).includes(context.record.room.manager),
-          body.confirmed,
-        );
+        const owner = sessionPrincipals(session).includes(context.record.room.manager);
+        // The creation form initializes the hosted link once. Later settings
+        // changes still use the workspace's normal privileged authorization.
+        const emailCreatorSetup = session.authMethod === "email" &&
+          session.principalId === context.record.room.creator && owner &&
+          body.initializeOnly === true && body.hostedPage === true &&
+          Object.keys(body).every(key =>
+            ["initializeOnly", "hostedPage", "walletIdentification", "confirmed", "expectedPrincipalId"].includes(key),
+          );
+        const authenticatedAt = emailCreatorSetup
+          ? requireTeamInvitationAuth(session, body.confirmed)
+          : requireWorkspaceAdminAuth(session, owner, body.confirmed);
         if (context.record.room.visibility !== "public")
           throw new HttpError(
             400,

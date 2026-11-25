@@ -1,4 +1,3 @@
-import { brandAsset } from "./brand-assets";
 import { restoreSiteAppearanceScript, savedSiteAppearance, saveSiteAppearance } from "./site-appearance";
 
 export type AppTheme = "system" | "light" | "dark";
@@ -34,13 +33,6 @@ function applyAppTheme(choice = readAppTheme()) {
           ? "dark"
           : "light"
         : choice;
-  const icon = document.getElementById("templ-theme-icon");
-  icon?.setAttribute(
-    "href",
-    document.documentElement.dataset.theme === "dark"
-      ? brandAsset("/favicon-dark.svg")
-      : brandAsset("/favicon.svg"),
-  );
 }
 
 export function setAppTheme(choice: AppTheme) {
@@ -89,4 +81,4 @@ export function subscribeAppTheme(onChange: () => void) {
 }
 
 /** Set the saved appearance before the browser paints the page. */
-export const APP_THEME_SCRIPT = `${restoreSiteAppearanceScript(APP_THEME_KEY)};(()=>{let t="system";try{t=localStorage.getItem("${APP_THEME_KEY}")||t}catch{}if(t!=="light"&&t!=="dark")t="system";const h=document.documentElement;h.dataset.appearance=t;h.dataset.theme=t==="system"?(matchMedia("${SYSTEM_QUERY}").matches?"dark":"light"):t;document.getElementById("templ-theme-icon")?.setAttribute("href",h.dataset.theme==="dark"?"${brandAsset("/favicon-dark.svg")}":"${brandAsset("/favicon.svg")}")})()`;
+export const APP_THEME_SCRIPT = `${restoreSiteAppearanceScript(APP_THEME_KEY)};(()=>{let t="system";try{t=localStorage.getItem("${APP_THEME_KEY}")||t}catch{}if(t!=="light"&&t!=="dark")t="system";const h=document.documentElement;h.dataset.appearance=t;h.dataset.theme=t==="system"?(matchMedia("${SYSTEM_QUERY}").matches?"dark":"light"):t})()`;

@@ -5,9 +5,13 @@ import { addVisitorThemeControl } from "./support-widget-visitor-theme";
 declare const __TEMPL_WIDGET_DRAWER_NOTICES__: string | undefined;
 declare const __TEMPL_WIDGET_DRAWER_WALLET__: string | undefined;
 const refreshOptions = new WeakMap<TailHost, () => void>();
+const loadNotices = () => typeof __TEMPL_WIDGET_DRAWER_NOTICES__ === "string"
+  ? import(/* webpackIgnore: true */ /* turbopackIgnore: true */ new globalThis.URL(__TEMPL_WIDGET_DRAWER_NOTICES__, import.meta.url).href)
+  : import("./support-widget-drawer-notices");
+type NoticeControls = typeof import("./support-widget-drawer-notices").drawerNotices;
 
 /** Menu and conversation history share this drawer without losing the visitor’s place. */
-export function bindSupportDrawer(host: TailHost, actions: HTMLElement, signal: AbortSignal) {
+export function bindSupportDrawer(host: TailHost, actions: HTMLElement, signal: AbortSignal, notices?: NoticeControls) {
   const {el} = host;
   const menu = actions.closest<HTMLElement>(".chat-menu")!;
   const disclosure = menu.closest("details")!;
@@ -23,9 +27,9 @@ export function bindSupportDrawer(host: TailHost, actions: HTMLElement, signal: 
     panes.push({details: history, control: history.querySelector("summary")!, content: historyView, label: "Conversations"});
 
   const activePane = () => panes.find(pane => pane.details.open);
-  let refreshNotices: ((menuOpen: boolean) => void) | undefined;
+  let refreshNotices = notices?.(host, menu, signal);
   let refreshWallet: (() => void) | undefined;
-  const progress = el("p", "Loading settings…", "drawer-loading");
+  const progress = el("p", "Some settings could not load. Reopen Menu to try again.", "drawer-error");
   progress.setAttribute("role", "status");
   progress.hidden = true;
   menu.append(progress);
@@ -35,14 +39,9 @@ export function bindSupportDrawer(host: TailHost, actions: HTMLElement, signal: 
     refreshWallet?.();
     const open = activePane()?.details === disclosure;
     refreshNotices?.(open);
-    progress.hidden = !open || (!failed && !(loadingWallet && !refreshWallet) && !(loading && !refreshNotices));
-    progress.textContent = failed ? "Some settings could not load. Reopen Menu to try again." : "Loading settings…";
-    progress.toggleAttribute("data-loading", !failed);
+    progress.hidden = !open || !failed;
   };
   refreshOptions.set(host, refreshMenu);
-  const loadNotices = () => typeof __TEMPL_WIDGET_DRAWER_NOTICES__ === "string"
-    ? import(/* webpackIgnore: true */ /* turbopackIgnore: true */ new globalThis.URL(__TEMPL_WIDGET_DRAWER_NOTICES__, import.meta.url).href)
-    : import("./support-widget-drawer-notices");
   let loading: Promise<unknown> | undefined;
   let loadingWallet: Promise<unknown> | undefined;
   const drawer = el("div", undefined, "flex-drawer");
@@ -229,10 +228,10 @@ export function prepareDrawer(host: TailHost, actions: HTMLElement) {
   const style = typeof __TEMPL_WIDGET_DRAWER_STYLE__ === "string"
     ? import(/* webpackIgnore: true */ /* turbopackIgnore: true */ new globalThis.URL(__TEMPL_WIDGET_DRAWER_STYLE__, import.meta.url).href)
     : import("./support-widget-drawer-style");
-  void style.then(module => {
+  void Promise.all([style, loadNotices().catch(() => undefined)]).then(([module, notices]) => {
     if (signal.aborted || !actions.isConnected) return;
     host.style.textContent += module.drawerStyle;
-    const { menu } = bindSupportDrawer(host, actions, signal);
+    const { menu } = bindSupportDrawer(host, actions, signal, notices?.drawerNotices);
     menu.classList.add("shared-options");
   }).catch(() => configured.delete(host));
 }

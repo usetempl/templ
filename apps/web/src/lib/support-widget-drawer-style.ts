@@ -71,8 +71,8 @@ ${outgoingBubbleStyle}
 .shared-chat :is(.chat-menu button,.member-conversations button)${enabledControl}:hover,
 .shared-chat .member-conversations button[aria-current]{background:var(--s2);color:var(--at)}
 .shared-chat .chat-menu button${enabledControl}:active{background:var(--s);color:var(--at)}
-.drawer-loading{order:1;padding:10px 12px;color:var(--m);font-size:13px}
-.drawer-loading[data-loading]::before,[data-notice-loading]::before,.shared-chat .body>.loading-case:not([hidden])::before{content:"";display:block;width:5rem;height:4px;margin-block-end:8px;border-radius:2px;background:var(--m)}
+.drawer-error{order:1;padding:10px 12px;color:var(--m);font-size:13px}
+.shared-chat .body>.loading-case:not([hidden])::before{content:"";display:block;width:5rem;height:4px;margin-block-end:8px;border-radius:2px;background:var(--m)}
 .shared-chat .body>.loading-case:not([hidden]){display:grid;justify-items:center;border:0;background:none;color:var(--m)}
 .shared-chat .flex-drawer>.chat-menu{display:flex;flex-direction:column;align-items:stretch;gap:0}
 .shared-chat .flex-drawer>.chat-menu>*{flex-shrink:0}

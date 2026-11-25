@@ -1,3 +1,4 @@
+import { brandAsset } from "./brand-assets";
 import type { TeamConversation } from "@templ/chat/index";
 import type { InboxCounts } from "./inbox-counts";
 import type { SupportPulseRead } from "./support-insights-client";
@@ -591,51 +592,10 @@ export function watchInboxAttention(options: {
   };
 }
 
-const ORIGINAL = "data-templ-icon";
-let faviconToken = 0;
-/** Draws the count on the tab icon, or restores the icon for null. Browsers
- * without a canvas keep the plain icon. */
+/** The tab keeps its normal mark until a case needs staff attention. */
 export function badgeFavicon(count: string | null, doc: Document = document) {
-  const token = ++faviconToken;
-  const links = [...doc.querySelectorAll<HTMLLinkElement>('link[rel~="icon"]')];
-  for (const link of links)
-    if (!link.hasAttribute(ORIGINAL))
-      link.setAttribute(ORIGINAL, link.getAttribute("href") ?? "");
-  if (!count) {
-    for (const link of links) link.href = link.getAttribute(ORIGINAL)!;
-    return;
-  }
-  const source = links[0]?.getAttribute(ORIGINAL);
-  if (!source) return;
-  const image = new Image();
-  image.onload = () => {
-    if (token !== faviconToken) return;
-    const canvas = doc.createElement("canvas");
-    canvas.width = 64;
-    canvas.height = 64;
-    const context = canvas.getContext("2d");
-    if (!context) return;
-    context.drawImage(image, 0, 0, 64, 64);
-    const brand =
-      getComputedStyle(doc.documentElement)
-        .getPropertyValue("--templ-brand")
-        .trim() || "#99ff00";
-    const label = /^\d$/.test(count) ? count : "9+";
-    context.fillStyle = brand;
-    context.beginPath();
-    context.arc(44, 20, 20, 0, Math.PI * 2);
-    context.fill();
-    context.fillStyle = "#000";
-    context.font = `bold ${label.length > 1 ? 22 : 28}px sans-serif`;
-    context.textAlign = "center";
-    context.textBaseline = "middle";
-    context.fillText(label, 44, 21);
-    try {
-      const url = canvas.toDataURL("image/png");
-      for (const link of links) link.href = url;
-    } catch {
-      // A tainted canvas keeps the plain icon.
-    }
-  };
-  image.src = source;
+  doc.getElementById("templ-theme-icon")?.setAttribute(
+    "href",
+    brandAsset(count ? "/favicon-unread.svg" : "/favicon.svg"),
+  );
 }

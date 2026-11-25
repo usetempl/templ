@@ -1,10 +1,11 @@
 import type { TailHost } from "./support-widget";
 import { bindSupportDrawer } from "./support-widget-drawer";
+import { drawerNotices } from "./support-widget-drawer-notices";
 import { drawerStyle } from "./support-widget-drawer-style";
 
 /** Wallet verification and reply notifications for the configured support chat. */
 export function visitorMenu(host: TailHost, actions: HTMLElement, signal: AbortSignal) {
-  const { menu, panel, refreshMenu } = bindSupportDrawer(host, actions, signal);
+  const { menu, panel, refreshMenu } = bindSupportDrawer(host, actions, signal, drawerNotices);
   host.style.textContent += drawerStyle + `
 .shared-chat .flex-options>.options-note,.shared-chat .flex-options>.tools{display:none}
 `;

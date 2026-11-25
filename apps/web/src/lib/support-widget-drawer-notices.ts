@@ -46,8 +46,11 @@ export function drawerNotices(host: TailHost, menu: HTMLElement, signal: AbortSi
   const request = () => client.adopt()[1];
   let pending: { principal: string; email: string } | undefined;
   let current: Notices | undefined;
-  let lastRead: string | undefined;
-  let scope: string | undefined;
+  let reading: Promise<void> | undefined;
+  let submitting: object | undefined;
+  let account: string | undefined;
+  let thread: string | undefined;
+  let member = false;
   let busy = false;
   let readFailed = false;
   let epoch = 0;
@@ -55,14 +58,15 @@ export function drawerNotices(host: TailHost, menu: HTMLElement, signal: AbortSi
   function render() {
     const signed = client.session?.level === "signed";
     const hasNotices = !!(current?.enabled || current?.pending);
-    const unknown = !!currentThread() && !!client.session?.principalId && !signed && !current;
     section.hidden = !allowed();
-    label.hidden = save.hidden = signed || unknown || hasNotices || !!pending;
-    cancel.hidden = signed || unknown || hasNotices;
+    label.hidden = save.hidden = signed || hasNotices || !!pending;
+    cancel.hidden = signed || hasNotices;
     off.hidden = signed || !hasNotices;
     manage.hidden = !signed;
     input.disabled = label.hidden || busy;
-    save.disabled = off.disabled = cancel.disabled = busy;
+    input.readOnly = !!submitting;
+    save.disabled = busy || !!submitting;
+    off.disabled = cancel.disabled = busy;
     if (host.emailButton) host.emailButton.hidden = true;
   }
   function display(value: Notices) {
@@ -70,81 +74,109 @@ export function drawerNotices(host: TailHost, menu: HTMLElement, signal: AbortSi
     status.textContent = value.enabled ? "Reply notifications are on."
       : value.pending ? "Check your email for the confirmation link." : "";
   }
+  function active(id: string, principal: string) {
+    return !signal.aborted && allowed() && currentThread() === id &&
+      client.session?.principalId === principal && client.session.level !== "signed";
+  }
+  function read(id: string, principal: string) {
+    if (!current && !reading) {
+      const started = epoch;
+      reading = request()<Notices>(path(id)).then(value => {
+        if (started === epoch && active(id, principal)) {
+          display(value);
+          render();
+        }
+      }, () => {
+        if (started === epoch && active(id, principal)) {
+          readFailed = true;
+          status.textContent = "Could not check notifications. Try again.";
+        }
+      });
+    }
+    return reading;
+  }
   function sync(open: boolean) {
     const id = currentThread();
     const principal = client.session?.principalId;
-    const next = principal + "/" + (id ?? "");
-    if (scope !== next) {
-      scope = next;
+    const signed = client.session?.level === "signed";
+    if (principal !== account || id !== thread || signed !== member) {
+      const acquiredGuest = !account && !!principal && !signed && thread === id;
+      account = principal;
+      thread = id;
+      member = signed;
       epoch++;
       current = undefined;
-      lastRead = undefined;
+      reading = undefined;
       busy = readFailed = false;
-      status.removeAttribute("data-notice-loading");
-      status.textContent = input.value = "";
+      status.textContent = "";
+      if (!acquiredGuest) {
+        submitting = undefined;
+        input.value = "";
+      }
       if (pending && (pending.principal !== principal || id)) pending = undefined;
     }
-    if (!open && readFailed) { lastRead = undefined; readFailed = false; }
-    if (!allowed()) pending = undefined;
+    if (!open && readFailed) { reading = undefined; readFailed = false; }
+    if (!allowed()) { pending = undefined; submitting = undefined; }
     render();
-    if (!open || !id || !principal || !allowed() || client.session?.level === "signed" || busy || lastRead === next) return;
-    lastRead = next;
-    status.toggleAttribute("data-notice-loading", true);
-    status.textContent = "Checking reply notifications…";
-    const started = epoch;
-    void request()<Notices>(path(id)).then(value => {
-      if (started !== epoch || signal.aborted) return;
-      status.removeAttribute("data-notice-loading");
-      display(value);
-      render();
-    }, () => {
-      if (started === epoch && !signal.aborted) {
-        status.removeAttribute("data-notice-loading");
-        readFailed = true;
-        status.textContent = "Could not read reply notifications. Open Menu to try again.";
-      }
-    });
+    if (open && id && principal && !signed && allowed() && !busy) void read(id, principal);
   }
   async function change(id: string, principal: string, email?: string) {
-    if (!allowed() || client.session?.principalId !== principal || signal.aborted) return;
+    if (!active(id, principal)) return;
     const started = ++epoch;
     busy = true;
-    status.removeAttribute("data-notice-loading");
     render();
-    status.textContent = email ? "Requesting your confirmation email…" : "Turning off notifications…";
     try {
       const value = await request()<Notices>(path(id), email
         ? { email, path: host.options.guestPath ?? location.pathname } : { enabled: false });
-      if (started !== epoch || signal.aborted) return;
+      if (started !== epoch || !active(id, principal)) return;
       input.value = "";
       display(value);
       if (!email && !value.enabled && !value.pending) status.textContent = "Reply notifications are off.";
     } catch (error) {
-      if (started === epoch) {
-        lastRead = undefined;
+      if (started === epoch && active(id, principal)) {
+        reading = undefined;
+        current = undefined;
         status.textContent = host.errorText(error);
       }
     } finally {
       if (started === epoch) { busy = false; render(); }
     }
   }
-  form.addEventListener("submit", async event => {
-    event.preventDefault();
-    if (busy || !allowed() || !form.reportValidity()) return;
-    const email = input.value.trim();
+  async function subscribe(email: string) {
+    if (busy || submitting || !allowed()) return;
+    sync(false);
+    const intent = {};
+    submitting = intent;
+    const id = currentThread();
+    const previousAccount = client.session?.principalId;
+    render();
     try {
       await client.guest();
       const session = client.session;
-      if (!session || session.level === "signed" || signal.aborted || !allowed()) return;
-      const id = currentThread();
-      if (id) { await change(id, session.principalId, email); return; }
+      if (submitting !== intent || !session || session.level === "signed" || signal.aborted || !allowed() ||
+          (previousAccount && previousAccount !== session.principalId) || currentThread() !== id) return;
+      sync(false);
+      if (id) {
+        await read(id, session.principalId);
+        if (submitting === intent && active(id, session.principalId) && current && !current.enabled && !current.pending)
+          await change(id, session.principalId, email);
+        return;
+      }
       pending = { principal: session.principalId, email };
       input.value = "";
       status.textContent = "We’ll send the confirmation email after your first message.";
-      render();
-    } catch (error) { status.textContent = host.errorText(error); }
+    } catch (error) {
+      if (submitting === intent && !signal.aborted) status.textContent = host.errorText(error);
+    } finally {
+      if (submitting === intent) { submitting = undefined; render(); }
+    }
+  }
+  form.addEventListener("submit", event => {
+    event.preventDefault();
+    if (form.reportValidity()) void subscribe(input.value.trim());
   }, { signal });
   cancel.addEventListener("click", () => {
+    submitting = undefined;
     pending = undefined;
     input.value = status.textContent = "";
     render();
@@ -177,10 +209,10 @@ export function drawerNotices(host: TailHost, menu: HTMLElement, signal: AbortSi
     pending = undefined;
     if (queued?.principal !== principal) return;
     sync(false);
-    void change(id, principal, queued.email);
+    if (active(id, principal)) void subscribe(queued.email);
   };
   (host.firstMessageListeners ??= new Set()).add(firstMessage);
-  signal.addEventListener("abort", () => { pending = undefined; host.firstMessageListeners?.delete(firstMessage); }, { once: true });
+  signal.addEventListener("abort", () => { pending = undefined; submitting = undefined; host.firstMessageListeners?.delete(firstMessage); }, { once: true });
   sync(false);
   return sync;
 }

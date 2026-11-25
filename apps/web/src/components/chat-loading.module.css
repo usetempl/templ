@@ -19,7 +19,7 @@
   background: light-dark(#f5f5f5, #161616);
 }
 .title {
-  flex: 1;
+  flex: 0 1 auto;
   min-width: 0;
   margin: 0;
   overflow: hidden;
@@ -32,7 +32,7 @@
 .logo, .logoPlaceholder { flex: none; width: 36px; height: 36px; object-fit: contain; }
 .logoPlaceholder { border: 2px solid var(--placeholder); border-radius: 50%; }
 .controls, .menu { display: flex; flex: none; align-items: center; gap: 6px; }
-.theme { display: grid; flex: 0 0 44px; height: 44px; place-items: center; }
+.theme { display: grid; flex: 0 0 44px; height: 44px; margin-inline-end: auto; place-items: center; }
 .theme::before { content: ""; width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--placeholder); }
 .menu { height: 44px; padding-inline: 8px; }
 .people { display: flex; width: 44px; }
