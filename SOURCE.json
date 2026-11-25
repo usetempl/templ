@@ -2,8 +2,7 @@
   "licenseBasis": "a96c0d7ad57da7d605025b3cd98c1692d898bf02",
   "scope": "Templ web, support workers and shared chat and encryption code with self-host configuration.",
   "productionSources": {
-    "web": "079a83b8a647d9dbcc25d7acccbe3ce2d2aae587",
+    "web": "0e3458b37eb4522336e25f4b55dedb4a239024f5",
     "workers": "079a83b8a647d9dbcc25d7acccbe3ce2d2aae587"
-  },
-  "sourceRevision": "079a83b8a647d9dbcc25d7acccbe3ce2d2aae587"
+  }
 }
