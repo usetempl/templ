@@ -16,6 +16,8 @@ import { formatUsdCents } from "@templ/chat/resolution-copy";
 import { productTopUp, topUpBonusCents } from "@templ/chat/resolution-pricing";
 import { pilotUpfrontRequestCents } from "@templ/chat/pilot-pricing";
 import {
+  ANNUAL_PAYMENT_NETWORKS,
+  accessPaymentCents,
   getProductPaymentAsset,
   PRODUCT_RAILS,
   productPaymentRecipient,
@@ -300,9 +302,11 @@ export async function prepareProductPayment(
   const standardPurpose =
     input.body.purpose === "standard-period"
       ? "period"
-      : input.body.purpose === "standard-credit"
-        ? "credit"
-        : null;
+      : input.body.purpose === "standard-annual"
+        ? "annual"
+        : input.body.purpose === "standard-credit"
+          ? "credit"
+          : null;
   if (input.body.purpose !== undefined && !standardPurpose)
     throw new HttpError(400, "Choose a monthly payment or prepaid credit.");
   let standard;
@@ -320,7 +324,7 @@ export async function prepareProductPayment(
         "Read the current monthly period before paying.",
       );
     if (
-      standardPurpose === "period" &&
+      standardPurpose !== "credit" &&
       plan.period &&
       plan.period.endsAt > input.nowMs
     )
@@ -328,7 +332,9 @@ export async function prepareProductPayment(
     const selectedPlan = input.body.monthlyPlan;
     if (selectedPlan !== undefined && selectedPlan !== "starter" && selectedPlan !== "standard")
       throw new HttpError(400, "Choose Starter or Plus.");
-    if (selectedPlan !== undefined && standardPurpose !== "period")
+    if (standardPurpose === "annual" && (!plan.annualAvailable || !selectedPlan))
+      throw new HttpError(409, "Choose an available annual plan.");
+    if (selectedPlan !== undefined && standardPurpose === "credit")
       throw new HttpError(400, "Select a plan for a monthly payment.");
     if (selectedPlan === "starter" && !plan.starterAvailable)
       throw new HttpError(409, "Starter is available for new workspaces.");
@@ -387,6 +393,8 @@ export async function prepareProductPayment(
   const config = recipient(input.env, input.body.rail),
     rail = input.body.rail as ProductRailId,
     usdCents = input.body.usdCents;
+  if (standard?.purpose === "annual" && !ANNUAL_PAYMENT_NETWORKS.includes(PRODUCT_RAILS[rail].network))
+    throw new HttpError(400, "Choose Base, Ethereum or Solana for annual access.");
   if (standard && !["ethereum-usdc", "base-usdc", "bnb-usdc", "solana-usdc"].includes(rail))
     throw new HttpError(400, "Choose USDC on Ethereum, Base, BNB Chain or Solana.");
   if (
@@ -406,8 +414,7 @@ export async function prepareProductPayment(
       ? !Number.isSafeInteger(usdCents) ||
         usdCents <= 0 ||
         usdCents > PRODUCT_TOP_UP.maxUsdCents ||
-        (standard.purpose === "period" &&
-          usdCents !== standard.workspaceMonthlyCents)
+        (standard.purpose !== "credit" && usdCents !== accessPaymentCents(standard))
       : usageAgreement
         ? !Number.isSafeInteger(usdCents) ||
           usdCents <= 0 ||
@@ -1228,7 +1235,9 @@ export async function settleProductPayment(
   if (
     intent.settlement === "standard-prepaid" &&
     (!intent.standard ||
-      !["period", "credit"].includes(intent.standard.purpose) ||
+      !["period", "annual", "credit"].includes(intent.standard.purpose) ||
+      (intent.standard.purpose !== "credit" && verified.usdCents !== accessPaymentCents(intent.standard)) ||
+      (intent.standard.purpose === "annual" && !ANNUAL_PAYMENT_NETWORKS.includes(intent.network)) ||
       !["ethereum-usdc", "base-usdc", "bnb-usdc", "solana-usdc"].includes(intent.rail))
   )
     throw unavailable();
@@ -1278,7 +1287,7 @@ export async function settleProductPayment(
           at: input.nowMs,
         })
       : null;
-  if (prepaidPayment && intent.standard?.purpose === "period") {
+  if (prepaidPayment && intent.standard && intent.standard.purpose !== "credit") {
     try {
       activatedPeriodId = (
         await activateVerifiedStandardPeriod(storage, {

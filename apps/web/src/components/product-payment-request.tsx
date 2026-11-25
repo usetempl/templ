@@ -188,7 +188,7 @@ export function ProductPaymentRequestDetails({
       )}
       <div className={styles.amount}>
         <span>
-          {request.standard?.purpose === "period"
+          {request.standard?.purpose === "annual" ? "Annual access" : request.standard?.purpose === "period"
             ? "Monthly access"
             : request.standard?.purpose === "credit"
               ? "Prepaid credit"
@@ -374,11 +374,11 @@ export function ProductPaymentRequestDetails({
           <div className={styles.terms}>
             <strong>Plan terms</strong>
             <p>
-              {request.standard.purpose === "period"
-                ? `One month from verified activation. Includes ${request.standard.includedAnsweredCases} answered cases and ${formatUsd(request.standard.includedAiCreditCents)} in AI credit.`
+              {request.standard.purpose !== "credit"
+                ? `${request.standard.purpose === "annual" ? "Twelve months from verified activation. Each month includes" : "One month from verified activation. Includes"} ${request.standard.includedAnsweredCases} answered cases and ${formatUsd(request.standard.includedAiCreditCents)} in AI credit.`
                 : "Pays this workspace’s recorded charges first. Any remainder stays as prepaid credit. This does not renew monthly access."}
             </p>
-            {request.standard.purpose === "period" ? (
+            {request.standard.purpose !== "credit" ? (
               <p>
                 Extra answered cases cost{" "}
                 {formatUsd(request.standard.additionalAnsweredCaseCents)} each.

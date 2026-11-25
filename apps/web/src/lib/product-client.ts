@@ -36,7 +36,7 @@ export function prepareProductPayment(
     rail: ProductRailId;
     usdCents: number;
     payer: string;
-    purpose?: "standard-period" | "standard-credit";
+    purpose?: "standard-period" | "standard-annual" | "standard-credit";
     monthlyPlan?: MonthlySupportPlan;
     expectedPeriod?: string | null;
     confirmed?: true;

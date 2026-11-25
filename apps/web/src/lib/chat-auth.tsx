@@ -328,7 +328,6 @@ function SignInDialog({
   const busy = activeAction !== null;
   const selectedMethodEnabled =
     connected?.method === "solana" ? solanaEnabled : walletEnabled;
-  const [chooseExtension, setChooseExtension] = useState(false);
   const [changingMethod, setChangingMethod] = useState(false);
   const [error, setError] = useState("");
   const alive = useRef(true);
@@ -607,8 +606,7 @@ function SignInDialog({
         <>
           {connected &&
           selectedMethodEnabled &&
-          !changingMethod &&
-          !chooseExtension ? (
+          !changingMethod ? (
             <div className={styles.wallets}>
               <p className={styles.account}>
                 {connected.method === "wallet" ? "Ethereum" : "Solana"} ·{" "}
@@ -659,59 +657,36 @@ function SignInDialog({
             </div>
           ) : (
             <div className={styles.wallets} aria-label="Sign-in methods">
-              {chooseExtension && walletEnabled && (
-                <label className={styles.walletPicker}>
-                  Ethereum wallet
-                  <select
-                    className={styles.emailInput}
-                    value={
-                      wallet.walletChoiceRequired
-                        ? ""
-                        : (wallet.selectedWallet ?? "")
-                    }
-                    disabled={busy}
-                    onChange={(event) => {
-                      wallet.selectWallet?.(event.target.value);
-                      setError("");
-                    }}
-                  >
-                    <option value="" disabled>
-                      Choose your wallet
-                    </option>
-                    {wallet.wallets?.map((entry) => (
-                      <option key={entry.id} value={entry.id}>
-                        {entry.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+              {emailEnabled && (
+                <button
+                  type="button"
+                  className={styles.walletOption}
+                  disabled={busy}
+                  onClick={() => {
+                    setMethod("email");
+                    setError("");
+                  }}
+                >
+                  <IconMail size={19} aria-hidden="true" />
+                  Continue with Email
+                </button>
               )}
               {walletEnabled && (
                 <button
                   type="button"
                   className={styles.walletOption}
-                  disabled={
-                    busy || (chooseExtension && !!wallet.walletChoiceRequired)
-                  }
+                  disabled={busy}
                   aria-busy={activeAction === "wallet"}
                   onClick={() => {
-                    if (
-                      (wallet.wallets?.length ?? 0) > 1 &&
-                      !chooseExtension &&
-                      (wallet.walletChoiceRequired || changingMethod)
-                    ) {
-                      setChooseExtension(true);
-                      return;
-                    }
                     void perform("wallet", async () => {
                       const address = await wallet.connect({
+                        useDetectedWallet: true,
                         selectAccount:
                           changingMethod && connected?.method === "wallet",
                       });
                       if (alive.current) {
                         setConnected({ method: "wallet", address });
                         setChangingMethod(false);
-                        setChooseExtension(false);
                       }
                     });
                   }}
@@ -721,12 +696,10 @@ function SignInDialog({
                   ) : (
                     <IconWallet size={19} aria-hidden="true" />
                   )}
-                  {chooseExtension
-                    ? "Connect wallet"
-                    : "Continue with Ethereum"}
+                  Continue with Ethereum
                 </button>
               )}
-              {solanaEnabled && !chooseExtension && (
+              {solanaEnabled && (
                 <button
                   type="button"
                   className={styles.walletOption}
@@ -748,33 +721,6 @@ function SignInDialog({
                     <IconWallet size={19} aria-hidden="true" />
                   )}
                   Continue with Solana
-                </button>
-              )}
-              {emailEnabled && !chooseExtension && (
-                <button
-                  type="button"
-                  className={styles.walletOption}
-                  disabled={busy}
-                  onClick={() => {
-                    setMethod("email");
-                    setError("");
-                  }}
-                >
-                  <IconMail size={19} aria-hidden="true" />
-                  Continue with email
-                </button>
-              )}
-              {chooseExtension && (
-                <button
-                  type="button"
-                  className={styles.textButton}
-                  disabled={busy}
-                  onClick={() => {
-                    setChooseExtension(false);
-                    setError("");
-                  }}
-                >
-                  Back
                 </button>
               )}
             </div>

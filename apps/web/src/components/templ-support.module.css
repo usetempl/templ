@@ -64,7 +64,7 @@
   height: 24px;
   flex: none;
   border: 2px solid var(--templ-border-strong);
-  border-top-color: var(--templ-accent);
+  border-top-color: light-dark(#396f4d, #83b58c);
   border-radius: 50%;
   animation: support-spin 0.8s linear infinite;
 }

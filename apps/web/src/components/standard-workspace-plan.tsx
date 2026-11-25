@@ -60,7 +60,7 @@ export function StandardWorkspacePlan({
       actions={
         <Badge tone={paid ? "brand" : "neutral"}>
           {paid
-            ? "Active month"
+            ? (period?.annual ? "Active year" : "Active month")
             : period
               ? "Month inactive"
               : agreedBilling
@@ -90,10 +90,10 @@ export function StandardWorkspacePlan({
           {!paid && !agreedBilling && plan.starterAvailable && !period ? <span>From</span> : null}
           {formatUsd(
             period && (paid || agreedBilling)
-              ? period.workspaceMonthlyCents
+              ? (period.annual?.totalCents ?? period.workspaceMonthlyCents)
               : startingPrice.workspaceMonthlyUsdCents,
           )}
-          <span>/month per workspace</span>
+          <span>/{period?.annual ? "year" : "month"} per workspace</span>
         </p>
         <p className={styles.note}>
           Standard features are included where available. No seat fees.
@@ -101,7 +101,7 @@ export function StandardWorkspacePlan({
         <p className={styles.note}>Your own AI has no Templ AI usage charge.</p>
         {paid && (
           <p className={styles.access}>
-            {`Access through ${formatDay(new Date(period!.endsAt).toISOString())}.`}
+            {`Access through ${formatDay(new Date(plan.accessEndsAt ?? period!.endsAt).toISOString())}.`}
           </p>
         )}
       </div>
@@ -197,9 +197,7 @@ export function StandardWorkspacePlan({
               <h3>Renewal</h3>
               <p className={styles.note}>
                 Renew here after{" "}
-                {formatDay(new Date(period!.endsAt).toISOString())}. Early
-                renewal is not available. Added credit does not renew your
-                month.
+                {formatDay(new Date(plan.accessEndsAt ?? period!.endsAt).toISOString())}. Added credit does not renew your plan.
               </p>
             </div>
           )}
@@ -211,7 +209,7 @@ export function StandardWorkspacePlan({
               <h3>Included each month</h3>
               {plan.starterAvailable && (
                 <p className={styles.note}>
-                  Choose Starter or Plus when you pay for a month. Both include all seats.
+                  Choose Starter or Plus. Both include all seats.
                 </p>
               )}
               <div className={styles.stats}>

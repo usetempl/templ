@@ -53,8 +53,8 @@
   margin: 0;
   text-wrap: balance;
 }
-.heroCopy { grid-column: 1 / 5; align-self: start; padding-top: 30px; }
-.subline { max-width: 35ch; margin: 0; font-size: clamp(18px,1.65vw,22px); line-height: 1.5; text-wrap: pretty; }
+.heroCopy { grid-column: 1 / 7; align-self: start; padding-top: 30px; }
+.subline { margin: 0; font-size: clamp(18px,1.55vw,22px); line-height: 1.5; text-wrap: pretty; }
 .close { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(220px, .8fr); align-items: center; gap: clamp(20px, 5vw, 72px); padding-block: var(--lp-space); border-top: 1px solid var(--border); }
 .close h2 { max-width: 19ch; margin: 0; font-size: clamp(30px,4.8vw,58px); line-height: 1.05; }
 .close p { margin: 14px 0; }

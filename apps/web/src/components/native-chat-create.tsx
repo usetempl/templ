@@ -36,7 +36,7 @@ import {
   readWalletIdentification,
   type WalletIdentification,
 } from "@templ/chat/widget-wallet";
-import { WalletIdentificationFields } from "./wallet-identification-fields";
+import { OnboardingWalletFields } from "./wallet-identification-fields";
 import { trackEvent } from "@/lib/analytics";
 import { copy as t } from "@/lib/copy";
 import { Callout, Field, Spinner, ui } from "./ui/ui";
@@ -128,9 +128,6 @@ export function NativeChatCreate({
     activeDraft && activeDraft.expectedPrincipalId === account
       ? activeDraft
       : restored;
-  const [walletIdentification, setWalletIdentification] = useState(
-    NEW_WORKSPACE_WALLETS,
-  );
   const [error, setError] = useState("");
   const [createdRoom, setCreatedRoom] = useState<string>();
   const inFlight = useRef(false);
@@ -139,7 +136,6 @@ export function NativeChatCreate({
   if (draftOwner !== account) {
     setDraftOwner(account);
     if (draftOwner) {
-      setWalletIdentification(NEW_WORKSPACE_WALLETS);
       setPending(undefined);
     }
     setCreatedRoom(undefined);
@@ -163,7 +159,7 @@ export function NativeChatCreate({
     )
       throw new Error(t("shell.common.accountChanged"));
   }
-  async function submit(event: FormEvent) {
+  async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!available) {
       show(t("shell.create.unavailable"));
@@ -171,6 +167,10 @@ export function NativeChatCreate({
     }
     const name = nameInput.current?.value.trim() ?? "";
     if (inFlight.current || (!pending && !name)) return;
+    const fields = new FormData(event.currentTarget);
+    const walletIdentification = fields.has("visitorWallets")
+      ? { enabled: true, evm: fields.has("evm"), solana: fields.has("solana") }
+      : NEW_WORKSPACE_WALLETS;
     inFlight.current = true;
     setBusy(true);
     setError("");
@@ -260,15 +260,14 @@ export function NativeChatCreate({
               autoComplete="off"
             />
           </Field>
-          <WalletIdentificationFields
-            onboarding
+          <OnboardingWalletFields
+            key={pending?.id ?? draftOwner ?? "guest"}
             value={
               pending
                 ? (readWalletIdentification(pending.walletIdentification) ??
                   DEFAULT_WALLET_IDENTIFICATION)
-                : walletIdentification
+                : NEW_WORKSPACE_WALLETS
             }
-            onChange={setWalletIdentification}
             disabled={!available || busy || !!pending}
           />
           {error && (

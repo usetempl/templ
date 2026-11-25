@@ -2,7 +2,7 @@ import type { WorkspaceCostFinance } from "@templ/chat/workspace-costs";
 import { standardPlanRecords } from "./product-standard-plan";
 import { manualPostedMonth } from "./product-manual-billing";
 import { checkedCase, CASE_OPENED_PREFIX, CASE_PREFIX } from "./support-cases";
-import { PRODUCT_LIMITS } from "@templ/chat/plans";
+import { PRODUCT_ANNUAL_PRICES, PRODUCT_LIMITS } from "@templ/chat/plans";
 import { COST_MONTH } from "./workspace-cost-store";
 import { HttpError, sha256Hex } from "./common";
 import { PRODUCT_STATE_KEY } from "./product-entitlements";
@@ -56,7 +56,13 @@ export async function workspaceCostFinance(
   for (const period of records.periods) {
     if (period.source === "verified-payment") {
       const overlap = Math.max(0, Math.min(to, period.endsAt, period.revokedAt ?? Infinity) - Math.max(from, period.startsAt));
-      revenue += (BigInt(period.workspaceMonthlyCents) * CENT * BigInt(overlap)) / BigInt(period.endsAt - period.startsAt);
+      // Allocate the paid annual cents across service months without rounding away a cent.
+      const year = period.annual;
+      const months = PRODUCT_ANNUAL_PRICES.months;
+      const fee = year
+        ? Math.floor(year.totalCents * (year.month + 1) / months) - Math.floor(year.totalCents * year.month / months)
+        : period.workspaceMonthlyCents;
+      revenue += (BigInt(fee) * CENT * BigInt(overlap)) / BigInt(period.endsAt - period.startsAt);
       if (period.revokedAt !== null)
         missing.push("Refund or credit treatment for revoked access needs review.");
       continue;

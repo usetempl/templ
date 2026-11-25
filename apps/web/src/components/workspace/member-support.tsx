@@ -26,7 +26,7 @@ export function MemberSupportPage({
   signInError: string;
 }) {
   return (
-    <div className={styles.page}>
+    <div className={styles.page} data-templ-visitor-chat="">
       <header className={styles.top}>
         <div className={styles.identity}>
           <WorkspaceMark name={workspace.name} image={workspace.image} />

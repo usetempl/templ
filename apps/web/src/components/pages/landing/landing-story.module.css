@@ -1,5 +1,5 @@
 .stage {
-  grid-column: 6 / -1;
+  grid-column: 7 / -1;
   --mark-size: clamp(100px, 10vw, 144px);
   --line-y: 126px;
   --line-weight: calc(var(--mark-size) / 18);

@@ -21,7 +21,7 @@ import {
   productTopUp,
   type ResolutionPriceStep,
 } from "@templ/chat/resolution-pricing";
-import type { ProductPaymentIntent } from "@templ/chat/product-payment";
+import { ANNUAL_PAYMENT_NETWORKS, accessPaymentCents, type ProductPaymentIntent } from "@templ/chat/product-payment";
 import {
   captureStandardAiRate,
   checkedStandardAiRate,
@@ -325,8 +325,10 @@ export function checkTopUp(intent: ProductPaymentIntent) {
     if (
       !terms ||
       !prices ||
-      !["period", "credit"].includes(terms.purpose) ||
-      (prices === PRODUCT_STARTER_PRICES && terms.purpose !== "period") ||
+      !["period", "annual", "credit"].includes(terms.purpose) ||
+      (terms.purpose === "credit" && terms.annualPriceVersion !== undefined) ||
+      (terms.purpose === "annual" && !ANNUAL_PAYMENT_NETWORKS.includes(intent.network)) ||
+      (prices === PRODUCT_STARTER_PRICES && terms.purpose === "credit") ||
       !(
         terms.expectedPeriod === null || /^\d{16}$/.test(terms.expectedPeriod)
       ) ||
@@ -350,8 +352,7 @@ export function checkTopUp(intent: ProductPaymentIntent) {
       !Number.isSafeInteger(intent.usdCents) ||
       intent.usdCents <= 0 ||
       intent.usdCents > PRODUCT_TOP_UP.maxUsdCents ||
-      (terms.purpose === "period" &&
-        intent.usdCents !== terms.workspaceMonthlyCents) ||
+      (terms.purpose !== "credit" && intent.usdCents !== accessPaymentCents(terms)) ||
       intent.preview?.bonusCents !== 0
     )
       throw new Error(PAYMENT_MISMATCH);

@@ -63,6 +63,12 @@ export type StandardPlanPeriod = {
   paidCents: number;
   usage?: StandardUsagePeriod;
   paymentId?: string;
+  annual?: {
+    startsAt: number;
+    month: number;
+    priceVersion: string;
+    totalCents: number;
+  };
   /** Statement projection; monthly receivables have their own retained ledger. */
   monthlyDebt?: { chargedCents: number; paidCents: number };
 };
@@ -80,6 +86,8 @@ export type StandardPlanView = {
   dueCents: number;
   continuesOnDebt?: boolean;
   starterAvailable?: true;
+  annualAvailable?: true;
+  accessEndsAt?: number;
   starterAiLimitCents?: number;
   prepaid?: StandardPrepaidView;
 };

@@ -183,8 +183,7 @@ export function StatementDocument({
                 {day(new Date(period.endsAt).toISOString())}:{" "}
                 {period.usage ? (
                   <>
-                    {formatUsd(period.workspaceMonthlyCents)} per workspace per
-                    month. {period.usage.includedAnsweredCases} answered cases
+                    {period.annual ? `${formatUsd(period.annual.totalCents)} paid annually. Month ${period.annual.month + 1} of 12.` : `${formatUsd(period.workspaceMonthlyCents)} per workspace per month.`} {period.usage.includedAnsweredCases} answered cases
                     included. Additional answered cases cost{" "}
                     {formatUsd(period.usage.additionalAnsweredCaseCents)} each.
                   </>

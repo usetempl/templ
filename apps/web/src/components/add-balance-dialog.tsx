@@ -41,7 +41,7 @@ export function AddBalanceDialog({
     error?: string;
   }>();
   const [refresh, setRefresh] = useState(0);
-  const [verified, setVerified] = useState<{ key: string; period: boolean }>();
+  const [verified, setVerified] = useState<{ key: string; accessTransaction?: string }>();
   const usage = result?.key === usageKey ? result.usage : undefined;
   const error = result?.key === usageKey ? result.error : undefined;
   const standard =
@@ -112,7 +112,7 @@ export function AddBalanceDialog({
         {!usage && !error && <p role="status">Loading your plan…</p>}
         {verified?.key === usageKey && (
           <div className={styles.confirmed} role="status">
-            <strong>{verified.period && standard?.status === "paid" ? "Your hosted plan is active." : "Payment verified."}</strong>
+            <strong>{verified.accessTransaction && standard?.status === "paid" && standard.period?.paymentId?.split(":")[1] === verified.accessTransaction ? "Your hosted plan is active." : "Payment verified."}</strong>
             <button type="button" className={styles.primary} onClick={onClose}>Back to workspace</button>
           </div>
         )}
@@ -130,7 +130,9 @@ export function AddBalanceDialog({
             purpose={purpose}
             assertCurrent={assertCurrent}
             onConfirmed={payment => {
-              setVerified({ key: usageKey, period: payment.standard?.purpose === "period" });
+              setVerified({ key: usageKey, accessTransaction:
+                payment.standard && payment.standard.purpose !== "credit" && payment.processedTransaction?.outcome === "credited"
+                  ? payment.processedTransaction.tx : undefined });
               setRefresh((value) => value + 1);
               onConfirmed();
             }}

@@ -121,7 +121,7 @@ export function HostedChatSetup({ context, paid }: { context: WorkspaceContext; 
                   {busy ? "Checking availability…" : paid ? "Claim name" : "Reserve name and choose a plan"}
                 </button>
               </div>
-              <p id="hosted-name-terms">{paid ? "Your plan includes a hosted name." : "Pay in USDC for one month. Renew manually."}</p>
+              <p id="hosted-name-terms">{paid ? "Your plan includes a hosted name." : "Choose a plan and pay in USDC."}</p>
               {hold && <p>We reserved /{hold.slug} until {new Date(hold.expiresAt).toLocaleString()}.</p>}
             </form>
           </section>

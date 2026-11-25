@@ -69,6 +69,14 @@ export const PRODUCT_STARTER_PRICES = {
   // Same token rates. Older workers refuse Starter AI because they cannot enforce its limit.
   aiRateCardVersion: "2026-11-19",
 } as const;
+/** November 24, 2026. One verified USDC payment covers twelve monthly allowances. */
+export const PRODUCT_ANNUAL_PRICES = {
+  publishedOn: "2026-11-24",
+  months: 12,
+  starter: 29_000,
+  standard: 99_000,
+} as const;
+
 /** Captured offer used by existing accepted periods and pending payment intents. */
 export const PRODUCT_STANDARD_RECORDED_PRICES = {
   publishedOn: "2026-10-16",

@@ -106,6 +106,7 @@ type DiscoveredWallet = {
   name: string;
   provider: InjectedProvider;
 };
+type ConnectOptions = { selectAccount?: boolean; useDetectedWallet?: boolean };
 type Wallet = {
   wallets?: { id: string; name: string }[];
   selectedWallet?: string;
@@ -113,7 +114,7 @@ type Wallet = {
   selectWallet?: (id: string) => void;
   account?: Address;
   restoring?: boolean;
-  connect: (options?: { selectAccount?: boolean }) => Promise<Address>;
+  connect: (options?: ConnectOptions) => Promise<Address>;
   ready: (chainId?: ChatChainId) => Promise<ReturnType<typeof walletClient>>;
   signingReady?: () => Promise<ReturnType<typeof walletClient>>;
   disconnect: () => void;
@@ -256,9 +257,10 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       };
       discovered.current = [...discovered.current, entry];
       setWallets(discovered.current);
-      // Use the direct announced provider instead of a competing window.ethereum shim.
-      // With multiple wallets, connect/sign require the person's explicit selection.
-      if (discovered.current.length === 1 && !chosen.current)
+      // Prefer the browser's own default when it is one of the announced wallets.
+      // Keep the provider fixed once a connection has been requested.
+      const browserDefault = (window as unknown as { ethereum?: InjectedProvider }).ethereum;
+      if (!chosen.current && (discovered.current.length === 1 || announced === browserDefault))
         changeProvider(announced);
     };
     window.addEventListener("eip6963:announceProvider", announce);
@@ -336,8 +338,9 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   }, [provider, applyAccount]);
 
   const connect = useCallback(
-    async (options?: { selectAccount?: boolean }) => {
-      assertWalletChoice();
+    async (options?: ConnectOptions) => {
+      if (!options?.useDetectedWallet) assertWalletChoice();
+      if (provider !== activeProvider.current) throw accountChanged();
       if (!provider) return offerWallet();
       chosen.current = true;
       setWalletChosen(true);

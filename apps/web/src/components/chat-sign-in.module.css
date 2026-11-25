@@ -131,15 +131,5 @@
   margin: 0;
 }
 
-.walletPicker {
-  display: grid;
-  gap: var(--templ-space-2);
-  margin-top: var(--templ-space-4);
-}
-.walletPicker label {
-  font-size: var(--templ-text-small);
-  font-weight: var(--templ-weight-label);
-}
-
 .dialog .account { margin: 0; font-variant-numeric: tabular-nums; }
 .textButton { composes: button quiet from global; justify-self: center; font-size: var(--templ-text-small); }

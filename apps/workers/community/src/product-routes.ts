@@ -161,7 +161,7 @@ export async function productRoute(
       throw new HttpError(409, "Card payments are unavailable for this plan.");
     if (section === "crypto/prepare") {
       if (
-        !["standard-period", "standard-credit"].includes(
+        !["standard-period", "standard-annual", "standard-credit"].includes(
           String(input.body.purpose),
         )
       )

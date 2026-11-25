@@ -1,5 +1,6 @@
 import {
   PRODUCT_LIMITS,
+  PRODUCT_ANNUAL_PRICES,
   PRODUCT_STARTER_PRICES,
   PRODUCT_STANDARD_PRICES,
   PRODUCT_STANDARD_QUALIFICATION_PRICES,
@@ -26,7 +27,8 @@ import {
   captureStandardAiRate,
   applyStandardAiRateUsdNanos,
 } from "@templ/chat/standard-usage";
-import type { StandardPaymentTerms } from "@templ/chat/product-payment";
+import { accessPaymentCents, type StandardPaymentTerms } from "@templ/chat/product-payment";
+import { annualPeriodIdAt, billingMonthBoundary, STANDARD_ANNUAL_START } from "./product-annual-access";
 import {
   readPrepaidAccount,
   readPrepaidPeriod,
@@ -208,15 +210,7 @@ function checkedPlan(value: unknown): Plan {
   return value as Plan;
 }
 export function standardPeriodEnd(startsAt: number) {
-  const date = new Date(startsAt),
-    day = date.getUTCDate();
-  date.setUTCDate(1);
-  date.setUTCMonth(date.getUTCMonth() + 1);
-  const last = new Date(
-    Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0),
-  ).getUTCDate();
-  date.setUTCDate(Math.min(day, last));
-  return date.getTime();
+  return billingMonthBoundary(startsAt, 1);
 }
 function checkedUsage(
   value: unknown,
@@ -277,6 +271,20 @@ function checkedUsage(
     throw fail();
   return usage;
 }
+function matchesPeriodDates(value: Record<string, unknown>, startsAt: number) {
+  if (!Object.hasOwn(value, "annual")) return value.endsAt === standardPeriodEnd(startsAt);
+  const annual = value.annual;
+  if (!object(annual) || !exact(annual, ["startsAt", "month", "priceVersion", "totalCents"]) ||
+      !natural(annual.startsAt) || !natural(annual.month) || annual.month >= PRODUCT_ANNUAL_PRICES.months ||
+      annual.priceVersion !== PRODUCT_ANNUAL_PRICES.publishedOn || value.source !== "verified-payment" ||
+      !object(value.usage)) return false;
+  const prices = value.usage.priceVersion === PRODUCT_STARTER_PRICES.publishedOn ? PRODUCT_STARTER_PRICES :
+    value.usage.priceVersion === PRODUCT_STANDARD_PRICES.publishedOn ? PRODUCT_STANDARD_PRICES : null;
+  return prices !== null && value.workspaceMonthlyCents === prices.workspaceMonthlyUsdCents &&
+    annual.totalCents === (prices === PRODUCT_STARTER_PRICES ? PRODUCT_ANNUAL_PRICES.starter : PRODUCT_ANNUAL_PRICES.standard) &&
+    startsAt === billingMonthBoundary(annual.startsAt, annual.month) &&
+    value.endsAt === billingMonthBoundary(annual.startsAt, annual.month + 1);
+}
 function checkedPeriod(value: unknown): StandardPlanPeriod {
   if (
     !object(value) ||
@@ -298,10 +306,11 @@ function checkedPeriod(value: unknown): StandardPlanPeriod {
       "paidCents",
       ...(Object.hasOwn(value, "usage") ? ["usage"] : []),
       ...(Object.hasOwn(value, "paymentId") ? ["paymentId"] : []),
+      ...(Object.hasOwn(value, "annual") ? ["annual"] : []),
     ]) ||
     !natural(value.startsAt) ||
     value.id !== pad(value.startsAt) ||
-    value.endsAt !== standardPeriodEnd(value.startsAt) ||
+    !matchesPeriodDates(value, value.startsAt) ||
     !["manual-payment", "founder-approved", "verified-payment"].includes(
       String(value.source),
     ) ||
@@ -367,10 +376,10 @@ function checkedPeriod(value: unknown): StandardPlanPeriod {
     throw fail();
   return value as StandardPlanPeriod;
 }
-async function readPlan(storage: Reader) {
+async function readPlan(storage: Reader, at?: number) {
   const stored = await storage.get<unknown>(STANDARD_PLAN_KEY);
   // Retained workspaces need paid admission; missing lifetime history grants no fresh demo allowance.
-  return stored === undefined
+  const plan = stored === undefined
     ? {
         schema: 1 as const,
         tickets: PRODUCT_LIMITS.freeSupportTickets,
@@ -379,15 +388,51 @@ async function readPlan(storage: Reader) {
         paidCents: 0,
       }
     : checkedPlan(stored);
+  if (at !== undefined && plan.currentPeriod)
+    plan.currentPeriod = await annualPeriodIdAt(storage, plan.currentPeriod, at);
+  return plan;
+}
+// Old readers keep an ordinary monthly period. The annual record supplies the
+// anniversary and the extra days after short months to a term-aware reader.
+const ANNUAL_PAYMENT_REASON = "Verified prepaid annual payment.";
+const ANNUAL_MONTH = "product-standard-annual-month-v1:";
+async function savePeriod(storage: Writer, period: StandardPlanPeriod) {
+  if (!period.annual) {
+    await storage.put(STANDARD_PERIOD_PREFIX + period.id, period);
+    return;
+  }
+  checkedPeriod(period);
+  const { annual, ...monthly } = period;
+  const end = standardPeriodEnd(period.startsAt);
+  const through = period.usage!.aiReviewedThrough;
+  const extension = through !== null && through > end ? through : null;
+  const raw = {
+    ...monthly, endsAt: end,
+    usage: { ...period.usage!, aiReviewedThrough: extension === null ? through : end },
+  };
+  await storage.put(STANDARD_PERIOD_PREFIX + period.id, checkedPeriod(raw));
+  await storage.put(ANNUAL_MONTH + period.id, { terms: annual, extension });
+}
+async function storedPeriod(storage: Reader, value: unknown) {
+  const row = checkedPeriod(value);
+  if (row.annual) throw fail();
+  if (row.source !== "verified-payment" || row.reason !== ANNUAL_PAYMENT_REASON) return row;
+  const meta = await storage.get<{ terms: NonNullable<StandardPlanPeriod["annual"]>; extension: number | null }>(ANNUAL_MONTH + row.id);
+  if (!meta || !object(meta.terms) || !(meta.extension === null ||
+      (natural(meta.extension) && meta.extension > row.endsAt && row.usage?.aiReviewedThrough === row.endsAt))) throw fail();
+  return checkedPeriod({
+    ...row, annual: meta.terms, endsAt: billingMonthBoundary(meta.terms.startsAt, meta.terms.month + 1),
+    usage: { ...row.usage!, aiReviewedThrough: meta.extension ?? row.usage!.aiReviewedThrough },
+  });
 }
 async function readPeriod(storage: Reader, id: string) {
-  const period = checkedPeriod(await storage.get(STANDARD_PERIOD_PREFIX + id));
+  const period = await storedPeriod(storage, await storage.get(STANDARD_PERIOD_PREFIX + id));
   if (period.id !== id) throw fail();
   return period;
 }
 /** A ticket keeps the coverage it had when it opened. Later payments grant no earlier coverage. */
 export async function standardCoveredAt(
-  storage: Pick<DurableObjectTransaction, "list">,
+  storage: Reader & Pick<DurableObjectTransaction, "list">,
   openedAt: number,
 ) {
   if (!natural(openedAt) || !natural(openedAt + 1)) throw fail();
@@ -399,7 +444,7 @@ export async function standardCoveredAt(
   });
   if (!rows.size) return false;
   const [key, value] = [...rows][0],
-    period = checkedPeriod(value);
+    period = await storedPeriod(storage, value);
   if (key !== STANDARD_PERIOD_PREFIX + period.id) throw fail();
   return (
     period.startsAt <= openedAt &&
@@ -425,7 +470,7 @@ export async function standardPlanView(
   storage: Reader,
   now: number,
 ): Promise<StandardPlanView> {
-  const plan = await readPlan(storage);
+  const plan = await readPlan(storage, now);
   const period =
     plan.currentPeriod === null
       ? null
@@ -448,6 +493,7 @@ export async function standardPlanView(
     period.revokedAt === null;
   return {
     status: paid ? "paid" : "demo",
+    ...(paid && period.annual ? { accessEndsAt: billingMonthBoundary(period.annual.startsAt, PRODUCT_ANNUAL_PRICES.months) } : {}),
     ticketsUsed: plan.tickets,
     ticketsTotal: PRODUCT_LIMITS.freeSupportTickets,
     period: period ? await monthlyDebtPeriodView(storage, period) : null,
@@ -458,7 +504,7 @@ export async function standardPlanView(
     dueCents: chargedCents - paidCents,
     ...(continuesOnDebt ? { continuesOnDebt: true } : {}),
     ...(account.mode === "prepaid" && (await storage.get(STARTER_AVAILABLE)) === true
-      ? { starterAvailable: true as const }
+      ? { starterAvailable: true as const, annualAvailable: true as const }
       : {}),
     ...(paid && period.usage?.priceVersion === PRODUCT_STARTER_PRICES.publishedOn
       ? { starterAiLimitCents: await readStarterAiLimit(storage) }
@@ -556,7 +602,7 @@ export async function continueCustomerDebtAccess(
     checkedPeriod(next);
     if ((await storage.get(STANDARD_PERIOD_PREFIX + next.id)) !== undefined)
       throw fail();
-    await storage.put(STANDARD_PERIOD_PREFIX + next.id, next);
+    await savePeriod(storage, next);
     await postMonthlyDebt(storage, next);
     await storage.put(
       REFERENCE + next.referenceSha256,
@@ -678,7 +724,7 @@ export async function grantStandardPeriod(
       );
     return standardPlanView(storage, input.now);
   }
-  const plan = await readPlan(storage);
+  const plan = await readPlan(storage, input.now);
   if (plan.currentPeriod !== input.expectedPeriod)
     throw new HttpError(409, "Read the current plan before changing access.");
   if (
@@ -732,7 +778,7 @@ export async function grantStandardPeriod(
       : {}),
   };
   checkedPeriod(period);
-  await storage.put(STANDARD_PERIOD_PREFIX + period.id, period);
+  await savePeriod(storage, period);
   await storage.put(
     key,
     checkedReference({
@@ -751,13 +797,14 @@ export async function grantStandardPeriod(
 }
 
 export function standardPrepaidTerms(
-  purpose: "period" | "credit",
+  purpose: StandardPaymentTerms["purpose"],
   expectedPeriod: string | null,
   plan: MonthlySupportPlan = "standard",
 ): StandardPaymentTerms {
   const prices = plan === "starter" ? PRODUCT_STARTER_PRICES : PRODUCT_STANDARD_PRICES;
   return {
     purpose,
+    ...(purpose === "annual" ? { annualPriceVersion: PRODUCT_ANNUAL_PRICES.publishedOn } : {}),
     expectedPeriod,
     priceVersion: prices.publishedOn,
     workspaceMonthlyCents: prices.workspaceMonthlyUsdCents,
@@ -782,7 +829,8 @@ export async function activateVerifiedStandardPeriod(
   const { terms } = input;
   if (
     !natural(input.at) ||
-    terms.purpose !== "period" ||
+    !["period", "annual"].includes(terms.purpose) ||
+    accessPaymentCents(terms) === null ||
     !(terms.expectedPeriod === null || periodId(terms.expectedPeriod)) ||
     !/^(?:1|8453):0x[0-9a-f]{64}:[0-9]+$|^solana:[1-9A-HJ-NP-Za-km-z]{64,88}:[0-9]+$/.test(
       input.paymentId,
@@ -812,7 +860,7 @@ export async function activateVerifiedStandardPeriod(
       );
     return readPeriod(storage, previous.period);
   }
-  const plan = await readPlan(storage);
+  const plan = await readPlan(storage, input.at);
   if (
     plan.currentPeriod !== terms.expectedPeriod ||
     (plan.currentPeriod !== null &&
@@ -822,6 +870,18 @@ export async function activateVerifiedStandardPeriod(
       409,
       "Keep the current month. This payment remains prepaid credit.",
     );
+  const totalCents = accessPaymentCents(terms)!;
+  const annual = terms.purpose === "annual";
+  if (annual) {
+    // Annual access is offered only to eligible, self-serve prepaid workspaces.
+    const selected = terms.priceVersion === PRODUCT_STARTER_PRICES.publishedOn ? "starter" : "standard";
+    const offer = standardPrepaidTerms("annual", terms.expectedPeriod, selected);
+    if (Object.keys(offer).length !== Object.keys(terms).length ||
+        Object.entries(offer).some(([key, value]) => terms[key as keyof StandardPaymentTerms] !== value))
+      throw fail();
+    if (await storage.get(STARTER_AVAILABLE) !== true || (await readPrepaidAccount(storage)).mode !== "prepaid")
+      throw new HttpError(409, "Keep the workspace’s current billing arrangement.");
+  }
   const period: StandardPlanPeriod = {
     id: pad(input.at),
     startsAt: input.at,
@@ -831,7 +891,7 @@ export async function activateVerifiedStandardPeriod(
     referenceSha256,
     operator: null,
     approvedBy: null,
-    reason: "Verified prepaid monthly payment.",
+    reason: annual ? ANNUAL_PAYMENT_REASON : "Verified prepaid monthly payment.",
     revokedAt: null,
     workspaceMonthlyCents: terms.workspaceMonthlyCents,
     includedAiResolutions: 0,
@@ -854,30 +914,35 @@ export async function activateVerifiedStandardPeriod(
       aiReviewedThrough: null,
     },
   };
-  checkedPeriod(period);
+  const windows = Array.from({ length: annual ? PRODUCT_ANNUAL_PRICES.months : 1 }, (_, month) => {
+    const startsAt = billingMonthBoundary(input.at, month);
+    return checkedPeriod({
+      ...period, id: pad(startsAt), startsAt, endsAt: billingMonthBoundary(input.at, month + 1),
+      ...(annual ? { annual: { startsAt: input.at, month, totalCents, priceVersion: PRODUCT_ANNUAL_PRICES.publishedOn } } : {}),
+    });
+  });
+  for (const window of windows)
+    if (await storage.get(STANDARD_PERIOD_PREFIX + window.id) !== undefined)
+      throw new HttpError(409, "This payment overlaps an existing access period.");
   await debitPrepaid(storage, {
-    referenceId: "month:" + input.paymentId,
-    amountUsdNanos: (
-      BigInt(period.workspaceMonthlyCents) * 10_000_000n
-    ).toString(),
+    referenceId: (annual ? "year:" : "month:") + input.paymentId,
+    amountUsdNanos: (BigInt(totalCents) * 10_000_000n).toString(),
     at: input.at,
   });
-  await openPrepaidPeriod(storage, {
-    id: period.id,
-    startsAt: period.startsAt,
-    endsAt: period.endsAt,
-    priceVersion: terms.priceVersion,
-    ...captureStandardAiRate(terms),
-    aiRateCardVersion: terms.aiRateCardVersion,
-    includedAiCreditUsdNanos: (
-      BigInt(terms.includedAiCreditCents) * 10_000_000n
-    ).toString(),
-  });
-  await storage.put(STANDARD_PERIOD_PREFIX + period.id, period);
+  for (const window of windows) {
+    await openPrepaidPeriod(storage, {
+      id: window.id, startsAt: window.startsAt, endsAt: window.endsAt,
+      priceVersion: terms.priceVersion, ...captureStandardAiRate(terms),
+      aiRateCardVersion: terms.aiRateCardVersion,
+      includedAiCreditUsdNanos: (BigInt(terms.includedAiCreditCents) * 10_000_000n).toString(),
+    });
+    await savePeriod(storage, window);
+  }
+  if (annual) await storage.put(STANDARD_ANNUAL_START, input.at);
   plan.currentPeriod = period.id;
   await storage.put(STANDARD_PLAN_KEY, plan);
   await storage.put(key, { period: period.id, terms });
-  return period;
+  return windows[0];
 }
 
 /** Cash settles in the prepaid ledger. These cent totals are its monthly statement, not another debit. */
@@ -902,7 +967,7 @@ async function syncPrepaidStandardPeriod(
   )
     throw fail();
   const budget = await readPrepaidPeriod(storage, period.id),
-    plan = await readPlan(storage);
+    plan = await readPlan(storage, at);
   if (!budget || period.paidCents !== period.chargedCents) throw fail();
   const usage = {
     ...period.usage,
@@ -955,7 +1020,7 @@ async function syncPrepaidStandardPeriod(
       cents: delta,
     });
   }
-  await storage.put(STANDARD_PERIOD_PREFIX + period.id, period);
+  await savePeriod(storage, period);
   await storage.put(STANDARD_PLAN_KEY, plan);
   return period;
 }
@@ -978,7 +1043,7 @@ export async function recordPrepaidAnsweredCase(
   )
     throw fail();
   if (await sponsoredSupport(storage)) return { counted: false, chargedCents: 0 };
-  const plan = await readPlan(storage);
+  const plan = await readPlan(storage, input.at);
   if (plan.currentPeriod === null) return { counted: false, chargedCents: 0 };
   const period = await readPeriod(storage, plan.currentPeriod);
   if (
@@ -1282,7 +1347,7 @@ export async function reviewStandardUsage(
   checkedPeriod(period);
   checkedPlan(plan);
   await checkedUsageReview(row, period);
-  await storage.put(STANDARD_PERIOD_PREFIX + period.id, period);
+  await savePeriod(storage, period);
   await storage.put(STANDARD_PLAN_KEY, plan);
   await storage.put(key, row);
   await payStandardDebtFromCredit(storage, input.now);
@@ -1353,7 +1418,7 @@ export async function markStandardDebtPaid(
   const monthlyPaid = await payMonthlyDebt(storage, period.id, input.cents);
   period.paidCents += input.cents - monthlyPaid;
   plan.paidCents += input.cents - monthlyPaid;
-  await storage.put(STANDARD_PERIOD_PREFIX + period.id, period);
+  await savePeriod(storage, period);
   await storage.put(STANDARD_PLAN_KEY, plan);
   await storage.put(key, row);
   return standardPlanView(storage, input.now);
@@ -1382,7 +1447,7 @@ export async function payStandardDebtFromCredit(
   if (rows.size > 5_000) throw fail();
   let applied = 0;
   for (const [key, value] of rows) {
-    const period = checkedPeriod(value);
+    const period = await storedPeriod(storage, value);
     if (key !== STANDARD_PERIOD_PREFIX + period.id) throw fail();
     const monthly = await periodMonthlyDebt(storage, period);
     const due =
@@ -1406,7 +1471,7 @@ export async function payStandardDebtFromCredit(
     cash -= BigInt(cents);
     checkedPeriod(period);
     checkedPlan(plan);
-    await storage.put(STANDARD_PERIOD_PREFIX + period.id, period);
+    await savePeriod(storage, period);
     await storage.put(STANDARD_PLAN_KEY, plan);
     if (cash === 0n) break;
   }
@@ -1452,12 +1517,19 @@ export async function revokeStandardPeriod(
   id: unknown,
   now: number,
 ) {
-  const plan = await readPlan(storage);
+  const plan = await readPlan(storage, now);
   if (!periodId(id) || plan.currentPeriod !== id)
     throw new HttpError(409, "Read the current monthly period.");
   const period = await readPeriod(storage, id);
-  period.revokedAt ??= now;
-  await storage.put(STANDARD_PERIOD_PREFIX + id, period);
+  const firstMonth = period.annual?.month ?? 0;
+  const lastMonth = period.annual ? PRODUCT_ANNUAL_PRICES.months - 1 : 0;
+  for (let month = firstMonth; month <= lastMonth; month++) {
+    const window = month === firstMonth ? period :
+      await readPeriod(storage, pad(billingMonthBoundary(period.annual!.startsAt, month)));
+    if (window.paymentId !== period.paymentId) throw fail();
+    window.revokedAt ??= now;
+    await savePeriod(storage, window);
+  }
   return standardPlanView(storage, now);
 }
 type AiCase = {
@@ -1673,7 +1745,7 @@ export async function finalizeStandardAiCases(
     record.finalAt = now;
     record.countedAt = now;
     record.dueAt = null;
-    await storage.put(STANDARD_PERIOD_PREFIX + period.id, period);
+    await savePeriod(storage, period);
     await storage.put(STANDARD_PLAN_KEY, plan);
     await storage.put(CASE + ref, record);
   }
@@ -1711,11 +1783,11 @@ export async function standardPlanRecords(
     prefix: STANDARD_USAGE_REVIEW_PREFIX,
     limit: limit + 1,
   });
-  const periodRows = [...periods].slice(0, limit).map(([key, value]) => {
-    const row = checkedPeriod(value);
+  const periodRows = await Promise.all([...periods].slice(0, limit).map(async ([key, value]) => {
+    const row = await storedPeriod(storage, value);
     if (key !== STANDARD_PERIOD_PREFIX + row.id) throw fail();
     return row;
-  });
+  }));
   const periodById = new Map(periodRows.map((row) => [row.id, row]));
   const cashPayments = await storage.list({
     prefix: CASH_DEBT_DEBIT,
@@ -1789,7 +1861,7 @@ export async function standardDebtPeriods(
   return (
     await Promise.all(
       [...periods].map(async ([key, value]) => {
-        const period = checkedPeriod(value);
+        const period = await storedPeriod(storage, value);
         if (key !== STANDARD_PERIOD_PREFIX + period.id) throw fail();
         return monthlyDebtPeriodView(storage, period);
       }),
@@ -1823,9 +1895,9 @@ export async function standardDeletionSummary(storage: Storage, now: number) {
   while (await dropStandardPending(storage, now));
   return {
     plan: checkedPlan(await storage.get(STANDARD_PLAN_KEY)),
-    periods: [
+    periods: await Promise.all([
       ...(await storage.list({ prefix: STANDARD_PERIOD_PREFIX })).values(),
-    ].map(checkedPeriod),
+    ].map(value => storedPeriod(storage, value))),
     references: Object.fromEntries(await storage.list({ prefix: REFERENCE })),
     usageReviews: Object.fromEntries(
       await storage.list({ prefix: STANDARD_USAGE_REVIEW_PREFIX }),

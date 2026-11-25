@@ -64,16 +64,17 @@ The check runs the support worker locally in Workerd with temporary test account
 
 Run `pnpm build` to build the web app. For your deployment, set `NEXT_PUBLIC_TEMPL_SITE_ORIGIN` to your web origin and `NEXT_PUBLIC_TEMPL_API_ORIGIN` to your support worker. Set these values at build time. Your deployment also needs the worker's storage bindings and its own secrets. The public build starts with hosted features off. [Configure web origins, worker storage and chat access](docs/self-host.md)
 
-**Templ Hosted.** Templ runs your chat, inbox and message storage. The trial includes a working link, an inbox and 10 test tickets. To claim an available hosted name, open **Your support chat → Choose a hosted name**, enter the name and select **Reserve name and choose a plan**. Both monthly plans cover all seats. A case counts once when the visitor gets its first substantive answer.
+**Templ Hosted.** Templ runs your chat, inbox and message storage. The trial includes a working link, an inbox and 10 test tickets. To claim an available hosted name, open **Your support chat → Choose a hosted name**, enter the name and select **Reserve name and choose a plan**. Both plans cover all seats. A case counts once when the visitor gets its first substantive answer.
 
 | Per workspace | Starter | Plus |
 | --- | ---: | ---: |
 | Monthly price | $29 | $99 |
+| Annual price | 290 USDC | 990 USDC |
 | Answered cases included | 100 | 500 |
 | Each additional case | $0.20 | $0.19 |
 | Templ AI credit included | $0 | $20 |
 
-Choose Starter or Plus at checkout. Pay the USDC amount shown on one of the offered networks. Each confirmed payment covers one month. You renew manually. Bring your own AI provider or prepay for Templ AI. On Starter, set a monthly limit before using Templ AI. [Create a hosted workspace](https://usetempl.com/create) · [Pricing](https://docs.usetempl.com/pricing/) · [Stablecoin payments](https://docs.usetempl.com/pricing/stablecoin-payments/)
+Choose Starter or Plus at checkout. Pay the USDC amount shown on one of the offered networks. Pay monthly or cover 12 months in one payment. Included cases and AI credit reset monthly. Renew manually. Bring your own AI provider or prepay for Templ AI. On Starter, set a monthly limit before using Templ AI. [Create a hosted workspace](https://usetempl.com/create) · [Pricing](https://docs.usetempl.com/pricing/) · [Stablecoin payments](https://docs.usetempl.com/pricing/stablecoin-payments/)
 
 [Connect your own knowledge sources and AI](docs/support-delivery.md#connect-ai)
 

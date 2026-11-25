@@ -1,6 +1,8 @@
 /* Templ accent shared by the app, docs and blog. */
 :root,
-[data-theme="light"] {
+[data-theme="light"],
+[data-templ-visitor-chat],
+[data-theme="light"] [data-templ-visitor-chat] {
   --templ-accent: #396f4d;
   --templ-accent-hover: #315f42;
   --templ-accent-active: #29543a;
@@ -12,7 +14,8 @@
   --templ-chart-1: #325f42;
 }
 
-[data-theme="dark"] {
+[data-theme="dark"],
+[data-theme="dark"] [data-templ-visitor-chat] {
   --templ-accent: #a1c8a5;
   --templ-accent-hover: #b0d0b3;
   --templ-accent-active: #bddac0;
@@ -25,7 +28,8 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme]) {
+  :root:not([data-theme]),
+  :root:not([data-theme]) [data-templ-visitor-chat] {
     --templ-accent: #a1c8a5;
     --templ-accent-hover: #b0d0b3;
     --templ-accent-active: #bddac0;

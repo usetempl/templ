@@ -1,3 +1,4 @@
+import { annualPeriodIdAt } from "./product-annual-access";
 import type { ChatPrincipalId } from "@templ/chat/principal";
 import { normalizeChatPrincipal } from "@templ/chat/principal";
 import { PRODUCT_STARTER_PRICES, PRODUCT_TOP_UP } from "@templ/chat/plans";
@@ -158,7 +159,7 @@ export async function setPrepaidMode(
     )
       throw fail();
     const period = plan?.currentPeriod
-      ? await readPrepaidPeriod(storage, plan.currentPeriod)
+      ? await readPrepaidPeriod(storage, await annualPeriodIdAt(storage, plan.currentPeriod, input.at))
       : null;
     if (period && input.at >= period.startsAt && input.at < period.endsAt)
       throw new HttpError(

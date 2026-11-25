@@ -3,10 +3,11 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import type { ChatRoomId } from "@templ/chat/index";
 import { topUpBonusCents } from "@templ/chat/resolution-pricing";
-import { PRODUCT_STARTER_PRICES, PRODUCT_STANDARD_PRICES, PRODUCT_TOP_UP } from "@templ/chat/plans";
+import { PRODUCT_ANNUAL_PRICES, PRODUCT_STARTER_PRICES, PRODUCT_STANDARD_PRICES, PRODUCT_TOP_UP } from "@templ/chat/plans";
 import type { MonthlySupportPlan } from "@templ/chat/standard-plan";
 import {
   PRODUCT_CHECKOUT_OPTIONS,
+  ANNUAL_PAYMENT_NETWORKS,
   getProductPaymentAsset,
   productRailOf,
   type ProductPaymentNetwork,
@@ -112,11 +113,16 @@ function Checkout({
       ? "starter"
       : "standard",
   );
+  const [term, setTerm] = useState<"monthly" | "annual">("monthly");
+  const annualNetwork = standard?.annualAvailable && ANNUAL_PAYMENT_NETWORKS.find(network => productCheckoutAvailable(network, "USDC", features));
+  const annual = standardPurpose === "period" && Boolean(annualNetwork) && term === "annual";
+  const requestedPurpose = annual ? "annual" : standardPurpose;
   const monthlyPrices = monthlyPlan === "starter" ? PRODUCT_STARTER_PRICES : PRODUCT_STANDARD_PRICES;
+  const accessCents = annual ? PRODUCT_ANNUAL_PRICES[monthlyPlan] : monthlyPrices.workspaceMonthlyUsdCents;
   const [dollars, setDollars] = useState(() =>
     String(
       (standardPurpose === "period"
-        ? monthlyPrices.workspaceMonthlyUsdCents
+        ? accessCents
         : standardPurpose === "credit"
           ? Math.min(
               standard?.dueCents ||
@@ -131,7 +137,7 @@ function Checkout({
     : 0;
   const usdCents =
     standardPurpose === "period"
-      ? monthlyPrices.workspaceMonthlyUsdCents
+      ? accessCents
       : standardPurpose === "credit"
         ? manualCents > 0 && manualCents <= PRODUCT_TOP_UP.maxUsdCents
           ? manualCents
@@ -166,7 +172,7 @@ function Checkout({
   const [revision, setRevision] = useState(0);
   const [, setJournalRevision] = useState(0);
   const running = useRef(false);
-  const selection = `${room}:${auth.session?.principalId}:${chainId}:${symbol}:${payer}:${standardPurpose}:${monthlyPlan}:${expectedPeriod}:${dollars}:${communitySessionRevision()}`;
+  const selection = `${room}:${auth.session?.principalId}:${chainId}:${symbol}:${payer}:${requestedPurpose}:${monthlyPlan}:${expectedPeriod}:${dollars}:${communitySessionRevision()}`;
   const current = useRef(selection);
   current.current = selection;
   const mounted = useRef(true);
@@ -621,6 +627,18 @@ function Checkout({
           )}
           {standardPurpose === "period" ? (
             <>
+              {annualNetwork && (
+                <fieldset className={styles.termChoice} disabled={locked}>
+                  <legend>Pay</legend>
+                  <div>
+                    <label><input type="radio" name="payment-term" checked={!annual} onChange={() => setTerm("monthly")} />Monthly</label>
+                    <label><input type="radio" name="payment-term" checked={annual} onChange={() => {
+                      if (!ANNUAL_PAYMENT_NETWORKS.includes(chainId)) setChainId(annualNetwork);
+                      setTerm("annual");
+                    }} />Annually · 2 months free</label>
+                  </div>
+                </fieldset>
+              )}
               {standard?.starterAvailable && (
                 <label>
                   Templ Hosted plan
@@ -631,13 +649,13 @@ function Checkout({
                       setMonthlyPlan(event.target.value === "starter" ? "starter" : "standard")
                     }
                   >
-                    <option value="starter">Starter {formatUsd(PRODUCT_STARTER_PRICES.workspaceMonthlyUsdCents)}/month</option>
-                    <option value="standard">Plus {formatUsd(PRODUCT_STANDARD_PRICES.workspaceMonthlyUsdCents)}/month</option>
+                    <option value="starter">Starter {formatUsd(annual ? PRODUCT_ANNUAL_PRICES.starter : PRODUCT_STARTER_PRICES.workspaceMonthlyUsdCents)}/{annual ? "year" : "month"}</option>
+                    <option value="standard">Plus {formatUsd(annual ? PRODUCT_ANNUAL_PRICES.standard : PRODUCT_STANDARD_PRICES.workspaceMonthlyUsdCents)}/{annual ? "year" : "month"}</option>
                   </select>
                 </label>
               )}
               <p className={styles.note}>
-                One month · {monthlyPrices.includedAnsweredCasesPerMonth} answered cases · All seats
+                {annual ? "One payment for 12 months" : "One month"} · {monthlyPrices.includedAnsweredCasesPerMonth} cases per month · All seats
               </p>
             </>
           ) : (
@@ -702,7 +720,7 @@ function Checkout({
                 <strong>{formatUsd(usdCents)}</strong>
                 {bonusCents > 0 ? ` plus ${formatUsd(bonusCents)} credit` : ""}
                 {standardPurpose === "period" ? (
-                  " Your month starts after Templ verifies payment."
+                  annual ? " Your year starts after Templ verifies payment." : " Your month starts after Templ verifies payment."
                 ) : standardPurpose === "credit" ? (
                   " Added to your prepaid balance after Templ verifies payment."
                 ) : manualUsage ? (
@@ -734,7 +752,7 @@ function Checkout({
               {networks
                 .filter((network) =>
                   standardPurpose
-                    ? [1, 8453, 56, "solana"].includes(network)
+                    ? (annual ? ANNUAL_PAYMENT_NETWORKS : [1, 8453, 56, "solana"]).includes(network)
                     : !manualUsage || [1, 8453].includes(Number(network)),
                 )
                 .map((network) => (
@@ -829,7 +847,7 @@ function Checkout({
                       ...(standardPurpose
                         ? {
                             purpose:
-                              standardPurpose === "period"
+                              annual ? ("standard-annual" as const) : standardPurpose === "period"
                                 ? ("standard-period" as const)
                                 : ("standard-credit" as const),
                             expectedPeriod,
@@ -855,7 +873,7 @@ function Checkout({
                     result.intent.asset.symbol !== symbol ||
                     (standardPurpose !== null &&
                       (result.intent.settlement !== "standard-prepaid" ||
-                        result.intent.standard?.purpose !== standardPurpose ||
+                        result.intent.standard?.purpose !== requestedPurpose ||
                         result.intent.standard.expectedPeriod !== expectedPeriod ||
                         (standardPurpose === "period" &&
                           result.intent.standard.priceVersion !== monthlyPrices.publishedOn)))
