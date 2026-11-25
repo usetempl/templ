@@ -127,7 +127,7 @@ export type SupportWidgetOptions = {
    * title (up to 80 characters) and one line under it (up to 200). */
   intro?: { title: string; text?: string };
   /** Offer "Add details" so users can share a transaction.
-   * Defaults to true; turn it off when your support has no transactions. */
+   * Turn it on for an app that accepts transaction references. */
   transactionField?: boolean;
   /** Called with the number of team replies the visitor hasn't seen while
    * the widget is closed, and with 0 when it opens. */
@@ -146,6 +146,8 @@ export type SupportWidgetAppearance = {
   accent?: string | { light: string; dark: string };
   /** Panel and control corners. Defaults to soft. */
   radius?: "square" | "soft" | "round";
+  /** Square action buttons with a two-pixel outline. */
+  outlinedButtons?: boolean;
   /** Launcher and panel side. Defaults to right. */
   position?: "right" | "left";
   /** Square image for the header and launcher: an HTTPS URL or a path on your site. */
@@ -2774,7 +2776,7 @@ function renderSupportWidget(
   attach.id = attachId;
   attachToggle.setAttribute("aria-controls", attachId);
   const tx = el("input");
-  tx.hidden = attachToggle.hidden = options.transactionField === false;
+  tx.hidden = attachToggle.hidden = options.transactionField !== true;
   tx.placeholder = "Transaction ID or link";
   tx.maxLength = 300;
   tx.spellcheck = false;
@@ -3475,9 +3477,9 @@ function renderSupportWidget(
       const saved = policy.appearance;
       if (active && saved) {
         appearance = typeof __TEMPL_WIDGET_BUILD__ === "undefined" && options.fixedAppearance
-          ? { ...options.appearance, accent: saved.accent ?? options.appearance?.accent }
+          ? { ...options.appearance, accent: saved.accent ?? options.appearance?.accent, outlinedButtons: saved.outlinedButtons ?? options.appearance?.outlinedButtons }
           : { ...options.appearance, ...saved };
-        boundAppearance?.set({theme: "auto", accent: undefined, radius: "soft", position: "right", ...appearance});
+        boundAppearance?.set(appearance);
         paintBranding();
         options.appearanceChanged?.(saved);
       }

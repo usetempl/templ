@@ -29,10 +29,9 @@ export function SupportProfiles({
   return (
     <section
       id="support-profiles"
-      aria-label="Support profiles"
+      aria-label="Chat profiles"
       className={styles.sections}
     >
-      <TeamWebsiteForm context={context} saved={saved} onSave={setSaved} />
       {(["founder", "assistant"] as const).map((role) => (
         <ContactForm
           key={role}
@@ -43,6 +42,7 @@ export function SupportProfiles({
           connected={connected}
         />
       ))}
+      <TeamWebsiteForm context={context} saved={saved} onSave={setSaved} />
     </section>
   );
 }
@@ -161,7 +161,7 @@ function ContactForm({
     <form onSubmit={save}>
       <UnsavedChanges dirty={dirty} />
       <Card
-        title={label}
+        title={label + " profile"}
         description="Visitors see this name and photo in the chat."
         bodyClassName={styles.panelBody}
         footer={

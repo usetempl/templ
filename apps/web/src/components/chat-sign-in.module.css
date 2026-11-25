@@ -95,7 +95,7 @@
   margin-top: var(--templ-space-4);
 }
 .walletOption {
-  composes: button secondary large from global;
+  composes: button large from global;
   width: 100%;
   min-height: 44px;
   justify-content: flex-start;

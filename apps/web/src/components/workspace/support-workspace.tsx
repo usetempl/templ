@@ -28,6 +28,7 @@ import {
   IconSettings,
   IconSubtask,
   IconUsersGroup,
+  IconUserCircle,
 } from "@tabler/icons-react";
 import type {
   ChatRoomId,
@@ -457,6 +458,18 @@ function Workspace({ id, supportUrl }: WorkspaceEntry) {
     },
     [pushHistory],
   );
+  useEffect(() => {
+    if (!admin || tab !== "settings") return;
+    const redirectEncryption = () => {
+      const url = new URL(window.location.href);
+      if (url.hash !== "#case-encryption") return;
+      url.searchParams.set("tab", "widget");
+      if (pushHistory(url, true)) setTabValue("widget");
+    };
+    redirectEncryption();
+    window.addEventListener("hashchange", redirectEncryption);
+    return () => window.removeEventListener("hashchange", redirectEncryption);
+  }, [admin, tab, pushHistory]);
   const reload = useCallback(() => setRetry((value) => value + 1), []);
   useEffect(() => {
     if (
@@ -755,50 +768,19 @@ function Workspace({ id, supportUrl }: WorkspaceEntry) {
       {settingsView && (
         <>
           <RailNavGroup label="Workspace settings">
-            {admin && (
-              <RailNavItem
-                icon={IconLock}
-                label="Chat encryption"
-                onClick={() => go("settings", null, "case-encryption")}
-              />
-            )}
-            <RailNavItem
-              icon={IconHome}
-              label="Home"
-              active={visible === "home"}
-              onClick={() => go("home")}
-            />
-            {team && state?.features?.quality === true && (
-              <RailNavItem
-                icon={IconChartBar}
-                label="Reports"
-                active={visible === "quality"}
-                onClick={() => go("quality")}
-              />
-            )}
-            {team && followUpsAllowed(state?.features) && (
-              <RailNavItem
-                icon={IconSubtask}
-                label="Follow-ups"
-                active={visible === "follow-ups"}
-                onClick={() => go("follow-ups")}
-              />
-            )}
+            <RailNavItem icon={IconHome} label="Workspace" active={visible === "home"} onClick={() => go("home")} />
             {admin && (
               <>
-                <RailNavItem
-                  icon={IconCode}
-                  label="Chat"
-                  active={visible === "widget"}
-                  onClick={() => go("widget")}
-                />
-                <RailNavItem
-                  icon={IconUsersGroup}
-                  label="Team"
-                  active={visible === "team"}
-                  onClick={() => go("team")}
-                />
+                <RailNavItem icon={IconCode} label="Chat" active={visible === "widget"} onClick={() => go("widget")} />
+                <RailNavItem icon={IconUserCircle} label="Chat profiles" onClick={() => go("settings", null, "support-profiles")} />
+                <RailNavItem icon={IconUsersGroup} label="Team" active={visible === "team"} onClick={() => go("team")} />
               </>
+            )}
+            {team && state?.features?.quality === true && (
+              <RailNavItem icon={IconChartBar} label="Reports" active={visible === "quality"} onClick={() => go("quality")} />
+            )}
+            {team && followUpsAllowed(state?.features) && (
+              <RailNavItem icon={IconSubtask} label="Follow-ups" active={visible === "follow-ups"} onClick={() => go("follow-ups")} />
             )}
             {manager && (
               <RailNavItem

@@ -199,8 +199,8 @@ export function OnboardingView({ data }: { data: OnboardingReport }) {
         Direct signups can skip the install prompt. Connections to existing
         workspaces stay outside signup conversion rates.
       </p>
-      <details>
-        <summary>Setup and payment</summary>
+      <section>
+        <h3>Setup and payment</h3>
         <p>
           Each row measures journeys that started that action. These actions are
           optional for the core funnel.
@@ -237,9 +237,9 @@ export function OnboardingView({ data }: { data: OnboardingReport }) {
             </tbody>
           </table>
         </div>
-      </details>
-      <details>
-        <summary>Every onboarding action</summary>
+      </section>
+      <section>
+        <h3>Every onboarding action</h3>
         <p>
           Actions include setup, team invitations, payment attempts and
           failures. Times use each action’s first occurrence.
@@ -264,9 +264,9 @@ export function OnboardingView({ data }: { data: OnboardingReport }) {
             </tbody>
           </table>
         </div>
-      </details>
-      <details>
-        <summary>Time between actions</summary>
+      </section>
+      <section>
+        <h3>Time between actions</h3>
         {!data.transitions.length ? (
           <p>No action pairs recorded yet.</p>
         ) : (
@@ -293,7 +293,7 @@ export function OnboardingView({ data }: { data: OnboardingReport }) {
             </table>
           </div>
         )}
-      </details>
+      </section>
     </>
   );
 }

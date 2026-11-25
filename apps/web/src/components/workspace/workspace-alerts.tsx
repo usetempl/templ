@@ -786,15 +786,15 @@ function AddChannel({
           </span>
         </label>
       )}
-      <details className={styles.choose}>
-        <summary>{c.chooseEvents}</summary>
+      <section className={styles.choose}>
+        <h3>{c.chooseEvents}</h3>
         <EventChoice
           kind={kind}
           wallet={kind === "webhook" && wallet}
           choice={choice}
           onChange={setChoice}
         />
-      </details>
+      </section>
       <label className={ui.check}>
         <input
           type="checkbox"

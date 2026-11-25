@@ -211,8 +211,8 @@ export function failureControls(
             ),
           );
         const rows = el("div", undefined, "failure-rows");
-        const technical = el("details", undefined, "failure-tech");
-        const summary = el("summary");
+        const technical = el("section", undefined, "failure-tech");
+        const summary = el("h3");
         technical.append(summary);
         const captured = el("p");
         captured.append(el("b", "Captured at"), el("time", entry.capturedAt));

@@ -57,7 +57,7 @@
   cursor: wait;
   transform: none;
 }
-.page :is(button, select, summary):focus-visible {
+.page :is(button, select):focus-visible {
   outline: var(--templ-focus-width) solid var(--templ-focus);
   outline-offset: var(--templ-focus-offset);
 }
@@ -87,8 +87,8 @@
 .page tbody th {
   font-weight: var(--templ-weight-body);
 }
-.page summary {
-  cursor: pointer;
+.page h3 {
+  margin-block: var(--templ-space-2);
 }
 @media (max-width: 600px) {
   .summary {

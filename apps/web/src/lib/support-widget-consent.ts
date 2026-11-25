@@ -68,7 +68,7 @@ export function consent(
   form.prepend(included);
   let offeredWallet: SupportSelectedWallet | undefined;
   let walletTick: HTMLInputElement | undefined;
-  const verifiedOnly = !!host.options.decorateOwnMenu;
+  const allowReportedWallet = () => host.policy?.minimumLevel === "connected" || host.options.conversationDrawers === false;
   const updateIncluded = () => {
     copy.replaceChildren();
     privacy(copy);
@@ -80,7 +80,7 @@ export function consent(
     walletSlot.replaceChildren();
     const session = client.session;
     if (
-      !verifiedOnly &&
+      allowReportedWallet() &&
       wallet &&
       session?.level !== "signed" &&
       wallet.address !== session?.address
@@ -102,7 +102,7 @@ export function consent(
   // Reading the page's wallet is passive. Sharing still needs its visible tick.
   let walletReadRevision: number | undefined;
   const warm = () => {
-    if (verifiedOnly || client.session?.level === "signed" || walletReadRevision === revision)
+    if (!allowReportedWallet() || client.session?.level === "signed" || walletReadRevision === revision)
       return;
     const current = (walletReadRevision = revision);
     void client
@@ -289,7 +289,7 @@ export function consent(
         }
         const session = client.session;
         const read =
-          verifiedOnly || session?.level === "signed" ? undefined : client.reportedWallet?.();
+          !allowReportedWallet() || session?.level === "signed" ? undefined : client.reportedWallet?.();
         // A slow wallet doesn't hold the summary; its row joins when read.
         let wallet = await Promise.race([
           read,
@@ -358,8 +358,7 @@ export function consent(
             ),
           ];
           row("Details included", names.join(", "));
-          const full = el("details");
-          full.append(el("summary", "View details"));
+          const full = el("div");
           rows.append(full);
           for (const [label, value] of picked) full.append(row(label, value));
         }

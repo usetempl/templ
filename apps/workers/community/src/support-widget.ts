@@ -216,6 +216,7 @@ type WidgetSettings = {
   walletIdentification?: WalletIdentification | null;
   appearance?: WidgetAppearance | null;
   appearanceRevision?: number;
+  outlinedButtons?: boolean;
   appearanceUnavailable?: boolean;
   origins: string[];
   minimumLevel: SupportMinimumLevel;
@@ -741,11 +742,16 @@ function widgetConfigTransaction(
     }
     const closure = await widgetClosureOp(local, body);
     if (closure) return { response: closure, marked: false };
-    const saved = await local.get<Partial<WidgetSettings>>("widget-config");
+    const [saved, appearance, outlinedButtons] = await Promise.all([
+      local.get<Partial<WidgetSettings>>("widget-config"),
+      readWidgetAppearance(local),
+      // An older release can save widget settings without losing this choice.
+      local.get<boolean>("widget-outlined-buttons-v1"),
+    ]);
     const stored = saved ?? {};
-    const appearance = await readWidgetAppearance(local);
     const current: Required<WidgetSettings> = {
       ...appearance,
+      outlinedButtons: outlinedButtons === true,
       origins: stored.origins ?? [],
       // Workspaces saved before access levels existed accept anyone, as the
       // founder chose for every workspace.
@@ -831,6 +837,9 @@ function widgetConfigTransaction(
         return { response: json({ ...shown(current), audit: outbox?.entries ?? [] }), marked: false };
       }
       const intro = widgetIntroFields(body, body.widgetIntroAvailable === true);
+      if (body.outlinedButtons !== undefined && (typeof body.outlinedButtons !== "boolean" || body.appearance === undefined))
+        throw new HttpError(400, "Save the button style with the chat appearance.");
+      const nextOutlinedButtons = body.outlinedButtons ?? current.outlinedButtons;
       const updatedAppearance =
         body.appearance === undefined
           ? null
@@ -838,6 +847,7 @@ function widgetConfigTransaction(
               appearance,
               body.appearance,
               body.appearanceRevision,
+              nextOutlinedButtons !== current.outlinedButtons,
             );
       if (updatedAppearance?.appearance?.headerNotice?.text) {
         await refusePhrase(
@@ -853,6 +863,7 @@ function widgetConfigTransaction(
       // Each field saves on its own; saving origins never resets the level.
       const next: Required<WidgetSettings> = {
         ...appearance,
+        outlinedButtons: nextOutlinedButtons,
         walletIdentification: body.walletIdentification === undefined
           ? current.walletIdentification : readWalletIdentification(body.walletIdentification),
         ...(updatedAppearance
@@ -1058,6 +1069,8 @@ function widgetConfigTransaction(
           revision: next.appearanceRevision,
           value: next.appearance,
         });
+      if (next.outlinedButtons !== current.outlinedButtons)
+        await local.put("widget-outlined-buttons-v1", next.outlinedButtons);
       let audit = outbox?.entries ?? [];
       if (changes.length && outbox) {
         audit = [
@@ -1140,6 +1153,7 @@ function shown(settings: Required<WidgetSettings>): WidgetSettings {
     appearance,
     walletIdentification,
     appearanceRevision,
+    outlinedButtons,
     appearanceUnavailable,
     hostedPage,
     walletFallback,
@@ -1159,6 +1173,7 @@ function shown(settings: Required<WidgetSettings>): WidgetSettings {
     ...rest,
     ...(walletIdentification ? { walletIdentification } : {}),
     ...(appearanceRevision > 0 ? { appearance, appearanceRevision } : {}),
+    ...(outlinedButtons ? { outlinedButtons: true } : {}),
     ...(appearanceUnavailable ? { appearanceUnavailable } : {}),
     ...(hostedPage ? { hostedPage } : {}),
     ...(walletFallback ? {} : { walletFallback }),
@@ -1255,6 +1270,7 @@ export async function widgetConfig(
         safetyLine?: unknown;
         appearance?: unknown;
         appearanceRevision?: unknown;
+        outlinedButtons?: unknown;
         prompts?: unknown;
         replyHours?: unknown;
         widgetIntroAvailable?: boolean;
@@ -2135,9 +2151,10 @@ export async function supportWidgetRoute(
           ...(featureOn(env, undefined, "supportParallelConversations") ? { newConversation: true } : {}),
           ...((current.appearanceRevision ?? 0) > 0
             ? {
-                appearance:
-                  publicWidgetAppearance(current.appearance ?? null, origin) ??
-                  {},
+                appearance: {
+                  ...publicWidgetAppearance(current.appearance ?? null, origin),
+                  ...(current.outlinedButtons ? { outlinedButtons: true } : {}),
+                },
               }
             : {}),
           ...(featureOn(env, undefined, "widgetIntro")

@@ -178,14 +178,14 @@
   margin: 0;
 }
 
-.manualPayment > summary {
+.manualPayment > h3 {
   width: fit-content;
   padding: var(--templ-space-2) 0;
   color: var(--templ-text);
   font-weight: var(--templ-weight-heading);
-  cursor: pointer;
+  margin-block: var(--templ-space-2);
 }
-.manualPayment[open] > summary {
+.manualPayment > h3 {
   margin-bottom: var(--templ-space-2);
 }
 .paymentAddress {

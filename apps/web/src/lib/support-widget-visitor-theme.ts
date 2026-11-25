@@ -10,7 +10,7 @@ export function addVisitorThemeControl(host: TailHost, menu: HTMLElement, signal
   control.setAttribute("aria-label", "Dark mode");
   host.style.append(document.createTextNode(`
     .shared-chat .head .visitor-theme{display:grid;place-items:center;flex:0 0 44px;width:44px;height:44px;padding:0;border:0;border-radius:50%;background:transparent;color:var(--t);cursor:pointer}
-    .shared-chat .head .visitor-theme:focus-visible{outline:2px solid var(--af);outline-offset:-3px}
+    .shared-chat .head .visitor-theme:focus-visible{outline:2px solid currentColor;outline-offset:-3px}
     .shared-chat .head .visitor-theme::after{display:none}
     .visitor-theme svg{width:18px;height:18px;transition:transform .14s ease-out}
     .visitor-theme path{transition:opacity .16s ease-out}
@@ -44,7 +44,9 @@ export function addVisitorThemeControl(host: TailHost, menu: HTMLElement, signal
   observer.observe(widget, { attributes: true, attributeFilter: ["data-theme"] });
   signal.addEventListener("abort", () => observer.disconnect(), { once: true });
   control.append(icon);
-  menu.before(control);
+  const logo = menu.closest(".head")?.querySelector(":scope > .avatar");
+  if (logo) logo.after(control);
+  else menu.before(control);
   control.addEventListener("click", () => {
     const value = widget.dataset.theme === "dark" ? "light" : "dark";
     if (siteAppearance) {

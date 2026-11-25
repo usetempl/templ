@@ -62,6 +62,7 @@ export function WorkspaceCostTable({
   const [cursor, setCursor] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [retry, setRetry] = useState(0);
+  const [selected, setSelected] = useState<WorkspaceCostRow | null>(null);
   const current = pages[pages.length - 1];
   useEffect(() => {
     if (cursor === null) return;
@@ -89,6 +90,13 @@ export function WorkspaceCostTable({
     };
   }, [cursor, initial.month, principal, retry]);
   const loading = cursor !== null && !error;
+  if (selected) return (
+    <section aria-label="Workspace costs">
+      <button type="button" className={styles.rowToggle} onClick={() => setSelected(null)}>Back to workspace costs</button>
+      <h2>{selected.name || selected.workspace}</h2>
+      <WorkspaceCostDetails key={selected.workspace} row={selected} principal={principal} />
+    </section>
+  );
   return (
     <section aria-labelledby="workspace-economics">
       <h2 id="workspace-economics">Workspace economics</h2>
@@ -148,14 +156,14 @@ export function WorkspaceCostTable({
         include assigned costs only.
       </p>
       {current.missing.length > 0 && (
-        <details>
-          <summary>Missing sources</summary>
+        <section>
+          <h3>Missing sources</h3>
           <ul>
             {current.missing.map((item) => (
               <li key={item}>{item}</li>
             ))}
           </ul>
-        </details>
+        </section>
       )}
       {loading ? (
         <p role="status">Loading workspace costs…</p>
@@ -209,7 +217,7 @@ export function WorkspaceCostTable({
                       )?.nativeRoom.name ||
                       null,
                   }}
-                  principal={principal}
+                  onSelect={setSelected}
                 />
               ))}
             </tbody>
@@ -251,24 +259,20 @@ export function WorkspaceCostTable({
 
 function WorkspaceCostRows({
   row,
-  principal,
+  onSelect,
 }: {
   row: WorkspaceCostRow;
-  principal: ChatPrincipalId;
+  onSelect: (selected: WorkspaceCostRow) => void;
 }) {
-  const [open, setOpen] = useState(false);
   const title =
     row.name || `${row.workspace.slice(0, 8)}…${row.workspace.slice(-4)}`;
   return (
-    <Fragment>
       <tr>
         <th scope="row">
           <button
             type="button"
             className={styles.rowToggle}
-            aria-expanded={open}
-            aria-controls={`workspace-cost-${row.workspace}`}
-            onClick={() => setOpen((value) => !value)}
+            onClick={() => onSelect(row)}
             title={row.workspace}
           >
             {title}
@@ -290,18 +294,6 @@ function WorkspaceCostRows({
             : `${row.grossMarginPercent.toFixed(1)}%`}
         </td>
       </tr>
-      {open && (
-        <tr id={`workspace-cost-${row.workspace}`}>
-          <td colSpan={9}>
-            <WorkspaceCostDetails
-              key={`${principal}:${row.month}:${row.workspace}`}
-              row={row}
-              principal={principal}
-            />
-          </td>
-        </tr>
-      )}
-    </Fragment>
   );
 }
 
@@ -400,14 +392,14 @@ function WorkspaceCostDetails({
         </div>
       )}
       {detail.financeBasis.length > 0 && (
-        <details>
-          <summary>Revenue basis</summary>
+        <section>
+          <h3>Revenue basis</h3>
           <ul>
             {detail.financeBasis.map((item) => (
               <li key={item}>{item}</li>
             ))}
           </ul>
-        </details>
+        </section>
       )}
       <h3>Daily AI usage</h3>
       {detail.days.every((day) => day.resources.length === 0) ? (
@@ -445,8 +437,8 @@ function WorkspaceCostDetails({
                           {resource.purpose}
                         </span>
                         {Object.keys(resource.consumerOutcomes).length > 0 && (
-                          <details>
-                            <summary>Outcomes</summary>
+                          <section>
+                            <h3>Outcomes</h3>
                             <ul>
                               {Object.entries(resource.consumerOutcomes).map(
                                 ([outcome, total]) => (
@@ -456,7 +448,7 @@ function WorkspaceCostDetails({
                                 ),
                               )}
                             </ul>
-                          </details>
+                          </section>
                         )}
                       </td>
                       <td>

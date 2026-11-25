@@ -38,7 +38,6 @@ import { UnsavedChanges } from "./unsaved-changes";
 import { WorkspaceSections } from "./workspace-sections";
 import { CategoryRule } from "./category-rule";
 import { WorkspaceIcon } from "./workspace-icon";
-import { WorkspaceEncryptionSettings } from "./workspace-encryption-settings";
 import { SupportProfiles } from "./support-profiles";
 
 import { PersonalSettings } from "@/components/personal-settings";
@@ -185,8 +184,7 @@ function WorkspaceConfiguration({ context }: { context: WorkspaceContext }) {
       />
       <WorkspaceSections
         items={[
-          { id: "case-encryption", label: "Chat encryption" },
-          { id: "support-profiles", label: "Support profiles" },
+          ...(current?.canEdit ? [{ id: "support-profiles", label: "Chat profiles" }] : []),
           { id: "workspace-general", label: "Workspace" },
           { id: "case-settings", label: "Case handling" },
           ...(prioritiesEnabled
@@ -201,7 +199,6 @@ function WorkspaceConfiguration({ context }: { context: WorkspaceContext }) {
         ]}
       />
       <div className={layout.sections}>
-        <WorkspaceEncryptionSettings key={`${room}:${account}`} context={context} />
         <div id="workspace-general" className={layout.sections}>
           <TeamDisplayName
             key={`team-name:${room}:${account}`}

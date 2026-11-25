@@ -105,6 +105,7 @@ export function mountSupportWidget(options: SupportWidgetOptions) {
   if (options.styleNonce) style.nonce = options.styleNonce;
   style.textContent = ":host{display:none}";
   const launcher = el("button");
+  launcher.className = "launcher";
   launcher.type = "button";
   launcher.hidden = !!options.container || options.showLauncher === false;
   launcher.setAttribute("aria-expanded", "false");
@@ -237,7 +238,9 @@ export function mountSupportWidget(options: SupportWidgetOptions) {
   const colors = loadAppearance()
     .then((module) => {
       if (destroyed) return;
-      style.textContent = module.FRAME_STYLE + (options.container
+      style.textContent = module.FRAME_STYLE + `:host([data-position=left]) .viewport,:host([data-position=left]) button{right:auto;left:20px}
+@media(max-width:480px){.viewport{inset:auto 8px 8px;width:auto;height:calc(100dvh - 16px)}button{right:16px;bottom:16px}:host([data-position=left]) .viewport{left:8px;right:8px}:host([data-position=left]) button{left:16px}button[aria-expanded=true]{display:none}}
+@media(prefers-reduced-motion:reduce){button{transition:none}button:hover{transform:none}}` + (options.container
         ? ":host{display:block;height:100%}button{display:none!important}.viewport{position:static;inset:auto;width:100%;height:100%;border-radius:0;box-shadow:none}"
         : "");
       const bound = (boundColors = module.bindWidgetAppearance(
@@ -279,6 +282,7 @@ export function mountSupportWidget(options: SupportWidgetOptions) {
         theme: "auto",
         accent: undefined,
         radius: "soft",
+        outlinedButtons: false,
         position: "right",
         ...options.appearance,
         ...(message.value as SupportWidgetAppearance),

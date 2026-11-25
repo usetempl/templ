@@ -3,19 +3,6 @@
 
 @import "../../../../packages/chat/src/design-system/brand.css";
 
-:root,
-:root:not([data-theme]),
-[data-theme] {
-  --templ-accent: #99ff00;
-  --templ-accent-hover: #aaff2b;
-  --templ-accent-active: #8ce600;
-  --templ-on-accent: #151515;
-  --templ-action-border: light-dark(#151515, #99ff00);
-  --templ-accent-soft: light-dark(#e1f8bf, #2c391b);
-  --templ-accent-text: light-dark(#365b00, #b6f16a);
-  --templ-focus: light-dark(#466c00, #b6f16a);
-  --templ-chart-1: var(--templ-accent-text);
-}
 
 :root {
   --templ-brand: var(--templ-accent);

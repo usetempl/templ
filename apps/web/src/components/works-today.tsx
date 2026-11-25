@@ -1,6 +1,6 @@
 "use client";
 import { useRelease } from "@/lib/release-context";
-import { IconCheck, IconCircleDashed, IconPlus } from "@tabler/icons-react";
+import { IconCheck, IconCircleDashed } from "@tabler/icons-react";
 import {
   landingCapabilities,
   type LandingCapability,
@@ -13,7 +13,7 @@ export const NOTHING_LIVE_LINE = "Nothing has passed every release check yet.";
 /** What works today, computed from release flags and support constants, at
  * the top of the availability page. No dates, labels or links: a row moves
  * to "Live now" when its evidence does. The live rows sit in one strip; the rest wait
- * in a closed list under it that stays one click away. */
+ * in a closed list under it that stays listed below. */
 export function WorksToday({
   rows: suppliedRows,
 }: {
@@ -45,11 +45,10 @@ export function WorksToday({
           )}
         </div>
         {later.length > 0 && (
-          <details className={styles.later} data-live="false">
-            <summary>
+          <section className={styles.later} data-live="false">
+            <h3>
               <span>{LATER_TITLE}</span>
-              <IconPlus aria-hidden="true" />
-            </summary>
+            </h3>
             <ul>
               {later.map((row) => (
                 <li key={row.id} data-capability={row.id}>
@@ -58,7 +57,7 @@ export function WorksToday({
                 </li>
               ))}
             </ul>
-          </details>
+          </section>
         )}
       </div>
     </section>

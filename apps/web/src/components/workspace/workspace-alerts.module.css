@@ -123,14 +123,14 @@
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr));
   gap: var(--templ-space-2) var(--templ-space-4);
 }
-.choose > summary {
+.choose > h3 {
   min-height: 44px;
   display: flex;
   align-items: center;
-  cursor: pointer;
+  margin-block: var(--templ-space-2);
   color: var(--templ-muted);
 }
-.choose[open] > summary {
+.choose > h3 {
   margin-bottom: var(--templ-space-2);
 }
 .review {

@@ -301,14 +301,14 @@ function CaseTransactionPanel({
       )}
       {result?.needsPerson && <p className={own.person}>{c.needsPerson}</p>}
       {notice}
-      <details className={own.disclosure}>
-        <summary>
+      <section className={own.disclosure}>
+        <h3>
           {result || transaction || reason
             ? "Transaction details"
             : "Check a transaction"}
-        </summary>
+        </h3>
         <div className={own.expanded}>{children}</div>
-      </details>
+      </section>
     </section>
   );
 }
@@ -522,10 +522,10 @@ function CheckCard({
             <br />
             {view.whatHappened}
           </p>
-          <details className={own.advanced}>
-            <summary>Evidence and next steps</summary>
+          <section className={own.advanced}>
+            <h3>Evidence and next steps</h3>
             {evidence}
-          </details>
+          </section>
         </>
       ) : (
         evidence
@@ -804,10 +804,10 @@ function ScopedDiagnosisPanel({
     </p>
   ) : null;
   const optionalCheck = (content: ReactNode) => (
-    <details className={`${own.advanced} ${own.optional}`}>
-      <summary>Check transaction</summary>
+    <section className={`${own.advanced} ${own.optional}`}>
+      <h3>Check transaction</h3>
       {content}
-    </details>
+    </section>
   );
   if (!enabled || hidden || !list)
     return compact && !hasTransactionContext && !transactions.length ? (
@@ -1110,20 +1110,20 @@ function ScopedDiagnosisPanel({
         <ul className={panel.rows}>{compact ? checks.slice(0, 1) : checks}</ul>
       )}
       {compact && checks.length > 1 && (
-        <details className={own.advanced}>
-          <summary>Previous checks</summary>
+        <section className={own.advanced}>
+          <h3>Previous checks</h3>
           <ul className={panel.rows}>{checks.slice(1)}</ul>
-        </details>
+        </section>
       )}
       {!compact && list.unreadable > 0 && (
         <p className={styles.detailMuted}>{c.unreadable}</p>
       )}
       {list.enabled &&
         (compact ? (
-          <details className={own.advanced}>
-            <summary>{c.pasteLabel}</summary>
+          <section className={own.advanced}>
+            <h3>{c.pasteLabel}</h3>
             {pasteForm}
-          </details>
+          </section>
         ) : (
           pasteForm
         ))}

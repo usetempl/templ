@@ -153,16 +153,16 @@ export const welcome = {
       } else if (host.options.conversationDrawers) prepareDrawer?.(host, parent);
       return;
     }
-    const head = parent.closest(".panel")?.querySelector(".head");
+    const welcome = host.welcome;
     const contacts = peopleView.workspaceContacts(host);
-    let people = head?.querySelector<HTMLDetailsElement>(".support-contacts");
-    if (contacts && head) {
+    let people = welcome.querySelector<HTMLElement>(".support-contacts");
+    if (contacts) {
       if (!people) {
-        people = host.el("details", undefined, "support-contacts");
-        people.append(host.el("summary", "Team"), host.el("div"));
-        head.append(people);
-        people.addEventListener("toggle", () => { if (people?.open) peopleView.refreshContacts(host); });
-        host.style.textContent += ".support-contacts{position:relative;font-size:13px}.support-contacts summary{cursor:pointer}.support-contacts>div{position:absolute;right:0;top:100%;z-index:5;width:210px;padding:10px;background:var(--bg);border:1px solid var(--b);border-radius:10px}.support-contacts>div>div{display:flex;align-items:center;gap:8px;padding:5px}.support-contacts i{display:grid;place-items:center;width:30px;height:30px}.support-contacts img{width:100%;height:100%;border-radius:50%;object-fit:cover}.support-contacts small{display:block;color:var(--m)}";
+        people = host.el("section", undefined, "support-contacts");
+        people.append(host.el("h3", "Team"), host.el("div"));
+        welcome.append(people);
+        peopleView.refreshContacts(host);
+        host.style.textContent += ".support-contacts{font-size:13px}.support-contacts h3{font-size:inherit}.support-contacts>div>div{display:flex;align-items:center;gap:8px;padding:5px}.support-contacts i{display:grid;place-items:center;width:30px;height:30px}.support-contacts img{width:100%;height:100%;border-radius:50%;object-fit:cover}.support-contacts small{display:block;color:var(--m)}";
       }
       const labels = JSON.stringify(contacts);
       if (people.dataset.contacts !== labels) {

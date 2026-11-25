@@ -1,6 +1,19 @@
-/* Templ accent shared by the app, docs and blog. */
+/* Application controls and links. */
 :root,
-[data-theme="light"],
+:root:not([data-theme]),
+[data-theme] {
+  --templ-accent: #99ff00;
+  --templ-accent-hover: #aaff2b;
+  --templ-accent-active: #8ce600;
+  --templ-on-accent: #151515;
+  --templ-action-border: light-dark(#151515, #99ff00);
+  --templ-accent-soft: light-dark(#e1f8bf, #2c391b);
+  --templ-accent-text: light-dark(#365b00, #b6f16a);
+  --templ-focus: light-dark(#466c00, #b6f16a);
+  --templ-chart-1: var(--templ-accent-text);
+}
+
+/* A visitor chat keeps its own workspace palette. */
 [data-templ-visitor-chat],
 [data-theme="light"] [data-templ-visitor-chat] {
   --templ-accent: #396f4d;
@@ -14,7 +27,6 @@
   --templ-chart-1: #325f42;
 }
 
-[data-theme="dark"],
 [data-theme="dark"] [data-templ-visitor-chat] {
   --templ-accent: #a1c8a5;
   --templ-accent-hover: #b0d0b3;
@@ -28,7 +40,6 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme]),
   :root:not([data-theme]) [data-templ-visitor-chat] {
     --templ-accent: #a1c8a5;
     --templ-accent-hover: #b0d0b3;

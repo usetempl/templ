@@ -9,7 +9,7 @@ import type { SupportWidgetAppearance } from "./support-widget";
 
 export type WidgetTheme = "light" | "dark";
 export type WidgetAccent = string | { light: string; dark: string };
-export type WidgetAppearance = Pick<SupportWidgetAppearance, "theme" | "accent" | "radius" | "position" | "colors">;
+export type WidgetAppearance = Pick<SupportWidgetAppearance, "theme" | "accent" | "radius" | "position" | "colors" | "outlinedButtons">;
 type Palette = NonNullable<WidgetAppearance["colors"]>[WidgetTheme];
 export type WidgetDisplay = { theme: WidgetTheme; font: string };
 export const WIDGET_DEFAULT_ACCENT = {
@@ -215,7 +215,8 @@ export function bindWidgetAppearance(
     style.dataset.appearance = "";
     style.nonce = root.querySelector("style")?.nonce ?? "";
     style.textContent =
-      ".loading-case{display:flex;align-items:center;justify-content:center;gap:12px;min-height:96px}.loading-case::before{content:'';width:24px;height:24px;border:2px solid var(--b2);border-top-color:var(--a);border-radius:50%;animation:spin .8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}.head>button[aria-label]{position:relative}.head>button[aria-label]:is(:hover,:focus-visible)::after{content:attr(aria-label);position:absolute;top:calc(100% + 6px);right:0;z-index:2;width:max-content;max-width:200px;padding:5px 8px;background:var(--t);color:var(--bg);font-size:12px;font-weight:500;line-height:1.4;pointer-events:none}";
+      ".loading-case{display:flex;align-items:center;justify-content:center;gap:12px;min-height:96px}.loading-case::before{content:'';width:24px;height:24px;border:2px solid var(--b2);border-top-color:var(--a);border-radius:50%;animation:spin .8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}.head>button[aria-label]{position:relative}.head>button[aria-label]:is(:hover,:focus-visible)::after{content:attr(aria-label);position:absolute;top:calc(100% + 6px);right:0;z-index:2;width:max-content;max-width:200px;padding:5px 8px;background:var(--t);color:var(--bg);font-size:12px;font-weight:500;line-height:1.4;pointer-events:none}"+
+      ":host([data-outlined-buttons]) :is(.launcher,.primary,.send,.drawer-section-body .drawer-primary,.drawer-section-body .drawer-stop,.drawer-actions button){box-sizing:border-box;border:2px solid var(--t);border-radius:0}";
     root.append(style);
   }
   let appearance = initial;
@@ -232,6 +233,7 @@ export function bindWidgetAppearance(
         ? choice
         : hostWidgetTheme(document, media?.matches, parent);
     host.dataset.theme = mode;
+    host.toggleAttribute("data-outlined-buttons", appearance.outlinedButtons === true);
     host.dataset.position = appearance.position === "left" ? "left" : "right";
     const radius =
       appearance.radius === "square"
@@ -280,7 +282,8 @@ export function bindWidgetAppearance(
   apply();
   return {
     set(next: WidgetAppearance) {
-      appearance = { ...appearance, ...next };
+      // Callers pass the complete effective settings, including removals.
+      appearance = next;
       apply();
     },
     destroy() {
@@ -297,7 +300,4 @@ export const FRAME_STYLE = `${WIDGET_FRAME_COLORS}:host{all:initial;--rl:14px;fo
 button{position:fixed;right:20px;bottom:36px;z-index:2147483000;display:flex;align-items:center;gap:9px;height:52px;padding:0 20px 0 16px;border:0;border-radius:var(--rl);background:var(--a);color:var(--oa);font:inherit;cursor:pointer;transition:transform .2s cubic-bezier(.3,1.6,.6,1)}button:hover{background:var(--ah);color:var(--oh);transform:translateY(-1px) scale(1.03)}button:active{background:var(--aa);color:var(--op)}button:focus-visible{outline:2px solid var(--af,var(--t));outline-offset:2px}svg{width:18px;height:18px}\
 button[data-unread]::after{content:"";position:absolute;inset:8px 10px auto auto;padding:5px;border-radius:99px;background:var(--d);outline:2px solid var(--bg)}\
 .viewport,p{position:fixed;right:20px;bottom:100px;z-index:2147483001;margin:0}.viewport{width:min(392px,calc(100vw - 32px));height:min(480px,calc(100dvh - 124px));border:0;border-radius:var(--rp,16px);color-scheme:normal;background:transparent;box-shadow:0 28px 80px var(--shc)}\
-p{max-width:280px;padding:10px 12px;border-radius:12px;background:var(--bg);color:var(--t);font-size:13px;font-weight:400}\
-:host([data-position=left]) .viewport,:host([data-position=left]) button{right:auto;left:20px}\
-@media(max-width:480px){.viewport{inset:auto 8px 8px;width:auto;height:calc(100dvh - 16px)}button{right:16px;bottom:16px}:host([data-position=left]) .viewport{left:8px;right:8px}:host([data-position=left]) button{left:16px}button[aria-expanded=true]{display:none}}\
-@media(prefers-reduced-motion:reduce){button{transition:none}button:hover{transform:none}}`;
+p{max-width:280px;padding:10px 12px;border-radius:12px;background:var(--bg);color:var(--t);font-size:13px;font-weight:400}`;

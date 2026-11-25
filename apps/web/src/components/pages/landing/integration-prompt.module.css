@@ -45,27 +45,6 @@
   font-weight: var(--templ-weight-heading);
   line-height: var(--templ-line-body);
 }
-/* The prompt's first lines. The control opens the full text. */
-.promptPreview {
-  display: grid;
-  gap: var(--templ-space-1);
-  margin: 0;
-  padding: var(--templ-space-3) var(--templ-space-4);
-  border: var(--templ-border-width) solid var(--border-2);
-  border-radius: var(--templ-radius-data);
-  background: var(--surface-2);
-  color: var(--fg);
-  font-family: var(--font-mono), monospace;
-  font-size: var(--templ-text-small);
-  line-height: var(--templ-line-body);
-}
-.promptPreview p {
-  margin: 0;
-  overflow-wrap: anywhere;
-}
-.promptPreview[aria-hidden="true"] {
-  display: none;
-}
 .promptToolbar {
   display: flex;
   align-items: center;
@@ -73,7 +52,6 @@
   gap: var(--templ-space-3);
   margin-top: var(--templ-space-4);
 }
-.promptRead,
 .promptCopy {
   composes: button secondary from "../../ui/design-system.module.css";
 }
@@ -92,13 +70,13 @@
   border-color: var(--templ-action-border);
   background: var(--templ-accent-active);
 }
-.promptSource:not([hidden]) {
+.promptSource {
   margin-top: var(--templ-space-4);
 }
 .promptSource textarea {
   display: block;
   width: 100%;
-  min-height: 240px;
+  min-height: 8rem;
   padding: var(--templ-space-3);
   resize: vertical;
   border: var(--templ-border-width) solid var(--border-2);
@@ -148,17 +126,10 @@
     padding: var(--templ-space-2) var(--templ-space-3);
     border-radius: var(--lp-radius, var(--templ-radius-surface));
   }
-  .compact .promptHead,
-  .compact .promptPreview {
-    display: none;
-  }
   .compact .promptToolbar {
     flex-wrap: nowrap;
     gap: var(--templ-space-2);
     margin-top: 0;
-  }
-  .compact .promptRead {
-    font-size: var(--templ-text-caption);
   }
   .compact .promptCopy {
     padding-inline: var(--templ-space-3);
@@ -175,10 +146,5 @@
   }
   .promptCopy {
     flex-grow: 1;
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .promptRead svg {
-    transition: none;
   }
 }

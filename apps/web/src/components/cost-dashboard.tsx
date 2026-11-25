@@ -386,8 +386,8 @@ export function CostView({ data }: { data: CostDashboard }) {
           </ul>
         </section>
       )}
-      <details>
-        <summary>Daily API and verification activity</summary>
+      <section>
+        <h3>Daily API and verification activity</h3>
         <div className={styles.tableWrap}>
           <table className={styles.table}>
             <thead>
@@ -410,7 +410,7 @@ export function CostView({ data }: { data: CostDashboard }) {
             </tbody>
           </table>
         </div>
-      </details>
+      </section>
     </>
   );
 }

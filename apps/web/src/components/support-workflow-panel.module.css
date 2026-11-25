@@ -7,7 +7,6 @@
   min-height: 44px;
   padding: var(--templ-space-3) var(--templ-space-4);
   color: var(--templ-text);
-  cursor: pointer;
 }
 
 .summary h3 {
@@ -22,15 +21,6 @@
   color: var(--templ-muted);
   font-family: var(--templ-font-mono), monospace;
   font-size: var(--templ-text-caption);
-}
-
-.summary:hover {
-  background: var(--templ-raised);
-}
-
-.summary:focus-visible {
-  outline: var(--templ-focus-width) solid var(--templ-focus);
-  outline-offset: calc(-1 * var(--templ-focus-width));
 }
 
 .disclosure > .body {

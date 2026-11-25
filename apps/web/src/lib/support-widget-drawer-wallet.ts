@@ -90,7 +90,6 @@ export async function drawerWallet(host: TailHost, menu: HTMLElement, signal: Ab
       family === "evm" || host.policy?.solanaSignIn) && provider(family));
   }
   function accountAction() {
-    if (!host.options.decorateOwnMenu) return;
     const signed = client.session?.level === "signed";
     const required = host.policy?.chatMode === "encrypted" || host.policy?.minimumLevel === "signed" || host.policy?.minimumLevel === "connected";
     if (!signed && (thread() || !required)) return;

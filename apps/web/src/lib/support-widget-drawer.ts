@@ -232,6 +232,7 @@ export function prepareDrawer(host: TailHost, actions: HTMLElement) {
   void style.then(module => {
     if (signal.aborted || !actions.isConnected) return;
     host.style.textContent += module.drawerStyle;
-    bindSupportDrawer(host, actions, signal);
+    const { menu } = bindSupportDrawer(host, actions, signal);
+    menu.classList.add("shared-options");
   }).catch(() => configured.delete(host));
 }

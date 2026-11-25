@@ -196,11 +196,11 @@
   min-width: 0;
   font-size: var(--templ-text-small);
 }
-.disclosure > summary {
+.disclosure > h3 {
   width: fit-content;
   padding: var(--templ-space-1) 0;
   color: var(--templ-text);
-  cursor: pointer;
+  margin-block: var(--templ-space-2);
 }
 .expanded {
   display: grid;
@@ -245,11 +245,11 @@
   gap: var(--templ-space-2);
   font-size: var(--templ-text-small);
 }
-.advanced summary {
+.advanced h3 {
   color: var(--templ-muted);
-  cursor: pointer;
+  margin-block: var(--templ-space-2);
 }
-.advanced[open] > :not(summary) {
+.advanced > :not(h3) {
   margin-top: var(--templ-space-2);
 }
 .optional {

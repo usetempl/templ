@@ -1009,8 +1009,8 @@ export function SupportWorkflowPanel({
               </label>
             )}
           </div>
-          <details key={`${scope}:tags`} className={detailStyles.disclosure}>
-            <summary className={detailStyles.summary}>
+          <section key={`${scope}:tags`} className={detailStyles.disclosure}>
+            <header className={detailStyles.summary}>
               <h3>Category and tags</h3>
               {workflow.summary.category && (
                 <span>{workflow.summary.category}</span>
@@ -1021,7 +1021,7 @@ export function SupportWorkflowPanel({
                   {workflow.summary.tags.length === 1 ? "tag" : "tags"}
                 </span>
               )}
-            </summary>
+            </header>
             <div className={`${styles.detailSection} ${detailStyles.body}`}>
               {workflow.summary.tags.length > 0 && (
                 <div className={styles.tagList}>
@@ -1092,12 +1092,12 @@ export function SupportWorkflowPanel({
                   : "Save category and tags"}
               </button>
             </div>
-          </details>
-          <details key={`${scope}:notes`} className={detailStyles.disclosure}>
-            <summary className={detailStyles.summary}>
+          </section>
+          <section key={`${scope}:notes`} className={detailStyles.disclosure}>
+            <header className={detailStyles.summary}>
               <h3>Internal notes</h3>
               {notes.length > 0 && <span>{notes.length}</span>}
-            </summary>
+            </header>
             <div
               className={`${styles.detailSection} ${detailStyles.body}`}
               data-tone="note"
@@ -1233,16 +1233,16 @@ export function SupportWorkflowPanel({
                   : "Add internal note"}
               </button>
             </div>
-          </details>
+          </section>
           {(workflow.savedReplies?.length ?? 0) > 0 && (
-            <details
+            <section
               key={`${scope}:replies`}
               className={detailStyles.disclosure}
             >
-              <summary className={detailStyles.summary}>
+              <header className={detailStyles.summary}>
                 <h3>Saved replies</h3>
                 <span>{workflow.savedReplies?.length}</span>
-              </summary>
+              </header>
               <div className={`${styles.detailSection} ${detailStyles.body}`}>
                 <input
                   className={styles.detailSearch}
@@ -1284,17 +1284,17 @@ export function SupportWorkflowPanel({
                   </div>
                 )}
               </div>
-            </details>
+            </section>
           )}
           {activity.length > 0 && (
-            <details
+            <section
               key={`${scope}:activity`}
               className={detailStyles.disclosure}
             >
-              <summary className={detailStyles.summary}>
+              <header className={detailStyles.summary}>
                 <h3>Activity</h3>
                 <span>{activity.length}</span>
-              </summary>
+              </header>
               <div className={`${styles.detailSection} ${detailStyles.body}`}>
                 <ol className={styles.activity}>
                   <ActivityItems
@@ -1315,21 +1315,20 @@ export function SupportWorkflowPanel({
                   </button>
                 )}
               </div>
-            </details>
+            </section>
           )}
         </>
       )}
-      <details
+      <section
         key={`${scope}:screenshots`}
         className={detailStyles.disclosure}
-        open={!team}
       >
-        <summary className={detailStyles.summary}>
+        <header className={detailStyles.summary}>
           <h3>Screenshots</h3>
           {workflow.attachments.length > 0 && (
             <span>{workflow.attachments.length}</span>
           )}
-        </summary>
+        </header>
         <div className={`${styles.detailSection} ${detailStyles.body}`}>
           <p className={styles.detailMuted}>
             PNG only, up to 2 MiB, 4,096 pixels on either side and 4 megapixels
@@ -1372,7 +1371,7 @@ export function SupportWorkflowPanel({
             />
           </label>
         </div>
-      </details>
+      </section>
     </section>
   );
 }

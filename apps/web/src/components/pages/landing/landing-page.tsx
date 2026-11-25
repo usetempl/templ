@@ -1,8 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef } from "react";
 import { SiteFooter, SiteHeader } from "@/components/site-frame";
-import { TemplSupportLink } from "@/components/templ-support";
 import { SITE } from "@/lib/site-environment";
 import { LANDING_PREVIEW, LANDING_PREVIEW_BANNER } from "@/lib/landing-preview";
 import { LandingActions, TEMPL_SOURCE_URL } from "./landing-install";
@@ -51,10 +51,10 @@ export function LandingPage() {
             Run the MIT-licensed app on your infrastructure.{" "}<br />
             Your support link uses your domain.
           </p>
-          <nav aria-label="Self-hosting and help">
+          <nav aria-label="Start using Templ">
             <a href={TEMPL_SOURCE_URL + "#try-a-complete-conversation"}>Self-host Templ</a>
             <a href={SITE.docs + "/setup"}>Read the docs</a>
-            <TemplSupportLink className={styles.helpLink}>Talk to us</TemplSupportLink>
+            <Link className={styles.helpLink} href="/create">Try cloud</Link>
           </nav>
           </div>
           <svg className={styles.homeServer} viewBox="0 0 320 180" role="img" aria-label="A server in slippers holds a coffee mug and says, I work from home.">

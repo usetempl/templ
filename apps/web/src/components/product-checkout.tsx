@@ -589,7 +589,6 @@ function Checkout({
   }
   const locked = busy || Boolean(intent);
   const choosingPlan = purpose === "period" && standardPurpose === "period";
-  const NetworkOptions = choosingPlan ? "details" : "div";
   return (
     <div className={styles.checkout}>
       {!intent && (
@@ -734,8 +733,7 @@ function Checkout({
               </>
             )}
           </p>}
-          <NetworkOptions className={choosingPlan ? styles.options : undefined}>
-            {choosingPlan && <summary>Pay with USDC on {paymentNetworkName(chainId)}</summary>}
+          <div className={choosingPlan ? styles.options : undefined}>
           <label>
             Network{" "}
             <select
@@ -805,7 +803,7 @@ function Checkout({
               </select>
             </label>
           )}
-          </NetworkOptions>
+          </div>
           {enabled && (
             <CheckoutPaymentPayer
               compact={choosingPlan}
@@ -1023,8 +1021,8 @@ function Checkout({
                   !intent.submittedTx &&
                   !saved?.hash &&
                   !intent.verificationReviewRequired && (
-                    <details className={styles.manual}>
-                      <summary>Enter a transfer manually</summary>
+                    <section className={styles.manual}>
+                      <h3>Enter a transfer manually</h3>
                       <label>
                         {intent.kind === "solana"
                           ? "Transaction signature"
@@ -1052,7 +1050,7 @@ function Checkout({
                       >
                         Check transfer
                       </button>
-                    </details>
+                    </section>
                   )}
                 {!intent.submittedTx &&
                   !saved?.hash &&

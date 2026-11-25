@@ -347,8 +347,8 @@ export function AskAiPanel({
                   </ul>
                 )}
                 {(draft.provenance || draft.citations.length > 0) && (
-                  <details className={panel.why}>
-                    <summary>{t("room.drafts.why")}</summary>
+                  <section className={panel.why}>
+                    <h3>{t("room.drafts.why")}</h3>
                     <ul>
                       {draft.citations.length > 0 && (
                         <li>
@@ -400,7 +400,7 @@ export function AskAiPanel({
                         </li>
                       )}
                     </ul>
-                  </details>
+                  </section>
                 )}
                 {replacing?.id === draft.id ? (
                   <div className={panel.actions}>

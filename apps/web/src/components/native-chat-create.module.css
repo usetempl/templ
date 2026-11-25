@@ -58,3 +58,25 @@
   font-size: var(--templ-text-small);
   line-height: var(--templ-line-body);
 }
+
+.creatingMark {
+  display: inline-grid;
+  grid-template-columns: repeat(3, 5px);
+  grid-template-rows: repeat(2, 5px);
+  gap: 1px;
+  place-content: center;
+  inline-size: 20px;
+  block-size: 20px;
+}
+.creatingMark i { background: currentColor; }
+.creatingMark i:last-child { grid-column: 2; }
+@media (prefers-reduced-motion: no-preference) {
+  .creatingMark i { animation: assemble 1.4s ease-in-out infinite; }
+  .creatingMark i:nth-child(2) { animation-delay: .09s; }
+  .creatingMark i:nth-child(3) { animation-delay: .18s; }
+  .creatingMark i:nth-child(4) { animation-delay: .27s; }
+  @keyframes assemble {
+    0%, 55%, 100% { transform: translateY(0); opacity: 1; }
+    25% { transform: translateY(-4px); opacity: .52; }
+  }
+}

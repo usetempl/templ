@@ -67,6 +67,7 @@ export function HostedSupportChat({
         appearanceChanged: (saved) => setAccent(saved.accent),
         label: name,
         chatFirst: true,
+        transactionField: false,
         guestPath: `/help/${workspace}`,
         conversationDrawers: true,
         ...(workspace === release.templSupport?.workspaceId && !frameRequired ? { decorateOwnMenu: addOwnChatMenu } : {}),
@@ -99,11 +100,13 @@ export function HostedSupportChat({
   }, [workspace, name, nonce, frameRequired, retry, release]);
   return (
     <SupportChatFrame workspace={workspace} accent={accent} label={`Support for ${name}`} siteAppearance={workspace === release.templSupport?.workspaceId}>
-      {state === "ready" && <details className={styles.channelInfo}>
-        <summary>About this support link</summary>
-        {verifiedSites.length ? <p>Verified sites: {verifiedSites.map(site => <a key={site} href={site} rel="noreferrer">{new URL(site).hostname} </a>)}</p>
-          : <p>Templ has not verified a website for this workspace.</p>}
-      </details>}
+      {state === "ready" && (
+        <p className={styles.channelInfo}>
+          {verifiedSites.length ? <>Verified sites{": "}{verifiedSites.map((site, i) => (
+            <span key={site}>{i > 0 && ", "}<a href={site} rel="noreferrer">{new URL(site).hostname}</a></span>
+          ))}</> : "This workspace has no verified website."}
+        </p>
+      )}
       {state === "ready" && (frameRequired || accountWalletRequired) && WIDGET_SIGN_IN_NETWORKS.length > 1 && (
         <div
           className={styles.network}

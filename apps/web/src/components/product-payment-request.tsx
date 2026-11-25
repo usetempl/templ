@@ -96,6 +96,7 @@ export function ProductPaymentRequestDetails({
   recoveryRequired?: boolean;
 }) {
   const [now, setNow] = useState(Date.now());
+  const [helpFor, setHelpFor] = useState<string>();
   const next = request.verificationReviewRequired
     ? Infinity
     : Math.min(
@@ -132,6 +133,8 @@ export function ProductPaymentRequestDetails({
     !request.verificationReviewRequired &&
     !request.submittedTx &&
     completedSteps === 0;
+  const paymentHelp = helpFor === request.id || recoveryRequired;
+  const showDetails = paymentHelp || closed || recoveryActions === undefined;
   const network = paymentNetworkName(request.chainId);
   const transactionUrl = request.submittedTx
     ? `${request.kind === "solana" ? "https://explorer.solana.com" : getChatChain(request.chainId).explorer}/tx/${request.submittedTx}`
@@ -212,10 +215,10 @@ export function ProductPaymentRequestDetails({
       {recoveryRequired && (
         <p role="status">
           The wallet response is unknown. Check your wallet history and enter
-          the transfer in Payment details.
+          the transfer below.
         </p>
       )}
-      {checkoutAction}
+      {!showDetails && checkoutAction}
       {completedSteps > 0 && (!closed || request.status === "credited") && (
         <div className={styles.progress}>
           <ol className={styles.stages} aria-label="Payment progress">
@@ -330,8 +333,11 @@ export function ProductPaymentRequestDetails({
             &amp; usage. Do not send another transfer.
           </p>
         )}
-      <details className={styles.details} open={recoveryRequired || undefined}>
-        <summary>Payment details</summary>
+      {showDetails ? <section aria-label="Payment details" className={styles.details}>
+        {paymentHelp && !recoveryRequired && !closed && (
+          <button type="button" className={styles.check} onClick={() => setHelpFor(undefined)}>Back to payment</button>
+        )}
+        <h3>{closed ? "Payment receipt" : "Payment details"}</h3>
         <dl className={styles.values}>
           <CopyValue
             label="Network"
@@ -399,7 +405,11 @@ export function ProductPaymentRequestDetails({
         </div>
         {reviewing && checkAgain}
         {recoveryActions}
-      </details>
+      </section> : (
+        <button type="button" className={styles.help} onClick={() => setHelpFor(request.id)}>
+          Payment details and help
+        </button>
+      )}
       {!reviewing && checkAgain}
     </section>
   );

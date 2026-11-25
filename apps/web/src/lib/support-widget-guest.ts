@@ -221,9 +221,10 @@ export function frameLoading(
   style.textContent = `
 .opening.viewport{display:grid;grid-template-rows:56px 1fr 60px;overflow:hidden;background:var(--bg);color:var(--t)}
 .opening:has(p[hidden]){display:none}
-.opening header{display:flex;align-items:center;gap:8px;padding:0 12px;border-bottom:1px solid var(--b2,#808080)}
-.opening header::before{content:"";width:32px;height:32px;border:2px solid currentColor;border-radius:50%;opacity:.65}
-.opening header button{position:static;margin-left:auto;width:36px;height:36px;padding:0;justify-content:center;border:0;background:transparent;color:inherit;font-size:24px}
+.opening header{display:flex;align-items:center;gap:6px;padding:0 12px;border-bottom:1px solid var(--b2,#808080)}
+.opening header::before{content:"";flex:0 0 86px;height:36px;opacity:.65;background:radial-gradient(circle at 18px,transparent 15px,currentColor 16px 17px,transparent 18px),radial-gradient(circle at 64px,transparent 6px,currentColor 7px 8px,transparent 9px)}
+.opening header::after{content:"";margin-left:auto;width:18px;height:12px;border-block:2px solid;background:linear-gradient(currentColor,currentColor) center/100% 2px no-repeat}
+.opening header button{position:static;order:1;width:36px;height:36px;padding:0;justify-content:center;border:0;background:transparent;color:inherit;font-size:24px}
 .opening p{position:static;align-self:center;justify-self:center;margin:0;color:inherit;text-align:center}
 .waiting-input{display:grid;grid-template-columns:1fr 44px;gap:8px;padding:8px 12px}
 .opening:has([data-error]) .waiting-input{visibility:hidden}
@@ -298,6 +299,7 @@ export function framePage(workspace: string) {
             theme: appearance.theme,
             accent: appearance.accent,
             radius: appearance.radius,
+            outlinedButtons: appearance.outlinedButtons,
             position: appearance.position,
             logo,
             font: appearance.font,

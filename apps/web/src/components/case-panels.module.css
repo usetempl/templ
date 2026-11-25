@@ -161,8 +161,8 @@
     animation: none;
   }
 }
-.why summary {
-  cursor: pointer;
+.why h3 {
+  margin-block: var(--templ-space-2);
   color: var(--templ-muted);
   font-size: var(--templ-text-caption);
 }

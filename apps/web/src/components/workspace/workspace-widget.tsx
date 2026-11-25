@@ -1,6 +1,8 @@
 "use client";
 
 import { useRelease } from "@/lib/release-context";
+import { WorkspaceEncryptionSettings } from "./workspace-encryption-settings";
+import { useWorkspaceSectionFocus } from "./workspace-sections";
 import { WidgetInstallCheck } from "./widget-install-check";
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -88,6 +90,10 @@ export function WorkspaceWidget({
   const [savedAppearance, setSavedAppearance] = useState<WidgetAppearance>({});
   const [appearanceRevision, setAppearanceRevision] = useState(0);
   const [appearanceAvailable, setAppearanceAvailable] = useState(false);
+  const [buttonStyleAvailable, setButtonStyleAvailable] = useState(false);
+  useWorkspaceSectionFocus(["case-encryption"]);
+  const [outlinedButtons, setOutlinedButtons] = useState(false);
+  const [savedOutlinedButtons, setSavedOutlinedButtons] = useState(false);
   const [appearanceSaving, setAppearanceSaving] = useState<string>();
   const [appearanceFeedback, setAppearanceFeedback] = useState<{
     scope: string;
@@ -117,7 +123,8 @@ export function WorkspaceWidget({
     setAppearanceScope("");
     void communityFetch<{
       minimumLevel?: SupportMinimumLevel;
-      options?: { loopback?: boolean; appearance?: boolean };
+      options?: { loopback?: boolean; appearance?: boolean; outlinedButtons?: boolean };
+      outlinedButtons?: boolean;
       appearance?: WidgetAppearance | null;
       appearanceRevision?: number;
       appearanceUnavailable?: boolean;
@@ -146,6 +153,9 @@ export function WorkspaceWidget({
               position: draft.position,
             }
           : saved;
+        setButtonStyleAvailable(data.options?.outlinedButtons === true);
+        setOutlinedButtons(data.outlinedButtons === true);
+        setSavedOutlinedButtons(data.outlinedButtons === true);
         setAppearance(initial);
         setSavedAppearance(saved);
         setAppearanceRevision(data.appearanceRevision ?? 0);
@@ -216,8 +226,8 @@ export function WorkspaceWidget({
   }, [appearance]);
   const appearanceDirty =
     appearanceScope === scope &&
-    JSON.stringify(appearanceValidation.value ?? appearance) !==
-      JSON.stringify(savedAppearance);
+    (outlinedButtons !== savedOutlinedButtons || JSON.stringify(appearanceValidation.value ?? appearance) !==
+      JSON.stringify(savedAppearance));
   const appearanceBusy = appearanceSaving === scope;
   async function saveAppearance() {
     if (
@@ -234,8 +244,10 @@ export function WorkspaceWidget({
       const result = await chatMutation<{
         appearance: WidgetAppearance | null;
         appearanceRevision: number;
+        outlinedButtons?: boolean;
       }>(account, roomPath(room, "widget"), {
         appearance: chosen,
+        ...(buttonStyleAvailable ? { outlinedButtons } : {}),
         appearanceRevision,
         confirmed: true,
       });
@@ -244,6 +256,7 @@ export function WorkspaceWidget({
       if (
         !Number.isSafeInteger(result.appearanceRevision) ||
         result.appearanceRevision < appearanceRevision ||
+        (result.outlinedButtons === true) !== outlinedButtons ||
         JSON.stringify(saved) !== JSON.stringify(chosen)
       )
         throw new Error(
@@ -251,6 +264,7 @@ export function WorkspaceWidget({
         );
       setAppearance(saved);
       setSavedAppearance(saved);
+      setSavedOutlinedButtons(result.outlinedButtons === true);
       setAppearanceRevision(result.appearanceRevision);
       setAppearanceFeedback({ scope, saved: true });
     } catch (error) {
@@ -271,7 +285,8 @@ export function WorkspaceWidget({
 const support = mountSupportWidget({
   workspace: "${id}",
   apiUrl: "${COMMUNITY_API}",
-  provider, // the wallet provider your app already uses (EIP-1193)
+  // Optional wallet verification: pass your app’s EIP-1193 provider here.
+  // provider,
   label: "${supportLabel(context.workspace.name.replace(/["\\]/g, ""))}",
   // Optional: up to 4 questions users can send with one click.
   // prompts: ["Where is my deposit?", "How do I withdraw?"],
@@ -302,6 +317,7 @@ const support = mountSupportWidget({
           </Callout>
         )}
 
+        <WorkspaceEncryptionSettings key={room + ":" + account} context={context} />
         <WidgetJourneySettings context={context} />
 
         <Card
@@ -353,6 +369,7 @@ const support = mountSupportWidget({
                 }
                 onClick={() => {
                   setAppearance({});
+                  setOutlinedButtons(false);
                   setAppearanceFeedback(undefined);
                 }}
               >
@@ -364,6 +381,8 @@ const support = mountSupportWidget({
           <UnsavedChanges dirty={appearanceDirty} />
           {appearanceScope === scope ? (
             <WidgetAppearanceEditor
+              outlinedButtons={outlinedButtons}
+              onOutlinedButtonsChange={buttonStyleAvailable ? setOutlinedButtons : undefined}
               key={scope}
               label={supportLabel(context.workspace.name)}
               value={appearance}

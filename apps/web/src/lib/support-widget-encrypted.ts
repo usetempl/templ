@@ -64,16 +64,11 @@ export function secure(
     panel.append(button);
   }
   if (draft && !conversation) {
-    const details = document.createElement("details"),
-      label = document.createElement("summary"),
-      preview = document.createElement("pre");
-    label.textContent = "Draft on this device";
+    const preview = document.createElement("pre");
+    preview.setAttribute("aria-label", "Draft on this device");
     preview.style.cssText = "white-space:pre-wrap;overflow-wrap:anywhere";
-    details.addEventListener("toggle", () => {
-      preview.textContent = details.open ? draft() : "";
-    });
-    details.append(label, preview);
-    panel.append(details);
+    preview.textContent = draft();
+    if (preview.textContent) panel.append(preview);
   }
   form.replaceChildren(panel);
 }

@@ -186,12 +186,12 @@ function StoragePanel({ context }: { context: WorkspaceContext }) {
           )}
           {reviewing ? (
             <>
-              <details>
-                <summary>Signed storage agreement</summary>
+              <section>
+                <h3>Signed storage agreement</h3>
                 <pre className={styles.storageTerms}>
                   {view.billing?.agreement?.documentText}
                 </pre>
-              </details>
+              </section>
               <p className={styles.note}>
                 Storage shares your workspace’s{" "}
                 {dollars(view.billing?.debtLimitCents ?? 0)} debt limit.
@@ -297,7 +297,6 @@ function StorageLedger({
   room: WorkspaceContext["room"];
   revision: number;
 }) {
-  const [open, setOpen] = useState(false);
   const [result, setResult] = useState<{
     revision: number;
     page: BrainStorageLedger | null;
@@ -311,7 +310,6 @@ function StorageLedger({
   const after = cursor.revision === revision ? cursor.value : undefined;
   const [retry, setRetry] = useState(0);
   useEffect(() => {
-    if (!open) return;
     const request = new AbortController();
     readBrainStorageLedger(room, after, request.signal)
       .then((value) => {
@@ -323,20 +321,11 @@ function StorageLedger({
           setResult({ revision, page: null, error: failure(reason) });
       });
     return () => request.abort();
-  }, [room, open, after, retry, revision]);
+  }, [room, after, retry, revision]);
   return (
-    <details
-      onToggle={(event) => {
-        const next = event.currentTarget.open;
-        if (next === open) return;
-        setResult(null);
-        setOpen(next);
-        if (!next) setCursor({ revision });
-      }}
-    >
-      <summary>Storage charges</summary>
-      {open &&
-        (error ? (
+    <section>
+      <h3>Storage charges</h3>
+      {error ? (
           <>
             <p role="alert" className={styles.error}>
               {error}
@@ -403,7 +392,7 @@ function StorageLedger({
               </button>
             )}
           </>
-        ))}
-    </details>
+        )}
+    </section>
   );
 }

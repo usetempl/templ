@@ -140,16 +140,12 @@
   padding-top: var(--templ-space-3);
   border-top: var(--templ-border-width) solid var(--templ-line);
 }
-.manual summary {
-  cursor: pointer;
+.manual h3 {
+  margin-block: var(--templ-space-2);
   font-size: var(--templ-text-small);
   color: var(--templ-muted);
 }
-.manual summary:focus-visible {
-  outline: var(--templ-focus-width) solid var(--templ-focus);
-  outline-offset: var(--templ-focus-offset);
-}
-.manual[open] summary {
+.manual h3 {
   margin-bottom: var(--templ-space-4);
 }
 .status {
@@ -234,8 +230,6 @@
 
 .confirmed { display: grid; gap: var(--templ-space-5); padding-block: var(--templ-space-3); }
 
-.options summary { cursor: pointer; color: var(--templ-muted); font-size: var(--templ-text-small); }
-.options[open] summary { margin-bottom: var(--templ-space-2); }
 
 .termChoice { margin: 0; border: 0; padding: 0; }
 .termChoice legend { margin-bottom: .5rem; font-weight: 600; }

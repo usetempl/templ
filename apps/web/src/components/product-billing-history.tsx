@@ -50,8 +50,8 @@ export function ProductBillingHistory({
   }, [room, key, attempt, revision]);
   const current = result?.key === key ? result : undefined;
   return (
-    <details>
-      <summary>Payment receipts</summary>
+    <section>
+      <h3>Payment receipts</h3>
       {!current && <p role="status">Loading receipts…</p>}
       {current?.failed && (
         <p role="alert">
@@ -120,6 +120,6 @@ export function ProductBillingHistory({
           ))}
         </ul>
       )}
-    </details>
+    </section>
   );
 }

@@ -47,6 +47,7 @@ export function prepareWidgetAppearance(
   state: WidgetAppearanceState,
   input: unknown,
   expectedRevision: unknown,
+  buttonStyleChanged = false,
 ) {
   if (state.appearanceUnavailable)
     throw new HttpError(503, "Widget appearance could not load. Try again.");
@@ -65,7 +66,7 @@ export function prepareWidgetAppearance(
     );
   }
   const changed =
-    JSON.stringify(appearance) !== JSON.stringify(state.appearance);
+    buttonStyleChanged || JSON.stringify(appearance) !== JSON.stringify(state.appearance);
   if (changed && state.appearanceRevision >= Number.MAX_SAFE_INTEGER)
     throw new HttpError(
       503,

@@ -861,14 +861,14 @@ function KnowledgeCard({ context }: { context: WorkspaceContext }) {
           )}
         </div>
       )}
-      <details>
-        <summary>Source updates</summary>
+      <section>
+        <h3>Source updates</h3>
         <ul className={styles.points}>
           {c.knowledgePoints.map((point) => (
             <li key={point}>{point}</li>
           ))}
         </ul>
-      </details>
+      </section>
       <div className={sources.toolbar}>
         {data && (
           <p className={styles.note} role="status">
@@ -1025,8 +1025,8 @@ function KnowledgeCard({ context }: { context: WorkspaceContext }) {
                 </p>
               )}
               {!!source.possiblyOutdated?.length && (
-                <details>
-                  <summary>Review conflicting passages</summary>
+                <section>
+                  <h3>Review conflicting passages</h3>
                   <p className={styles.note}>
                     A human answer differs from these passages. This source is unchanged and still available to AI.
                   </p>
@@ -1036,7 +1036,7 @@ function KnowledgeCard({ context }: { context: WorkspaceContext }) {
                       <p className={styles.note}>{conflict.reason}</p>
                     </div>
                   ))}
-                </details>
+                </section>
               )}
               <p className={styles.note}>
                 {source.kind === "faq"

@@ -132,7 +132,7 @@ body:has(.fullPage),
 }
 
 .channelInfo { flex: none; font-size: 0.875rem; padding: 4px 12px; }
-.channelInfo summary { cursor: pointer; }
+.channelInfo { margin: 0; line-height: 1.4; }
 .fullPage .network { flex: none; padding: 4px 12px; }
 
 .fullPage .network button:hover { color: var(--at, currentColor); }

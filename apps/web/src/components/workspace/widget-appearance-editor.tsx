@@ -104,11 +104,15 @@ function ColorField({
 export function WidgetAppearanceEditor({
   value,
   onChange,
+  outlinedButtons = false,
+  onOutlinedButtonsChange,
   label,
   disabled = false,
 }: {
   value: WidgetAppearance;
   onChange(value: WidgetAppearance): void;
+  outlinedButtons?: boolean;
+  onOutlinedButtonsChange?(checked: boolean): void;
   label: string;
   disabled?: boolean;
 }) {
@@ -143,8 +147,8 @@ export function WidgetAppearanceEditor({
     <div className={styles.editor}>
       <fieldset className={styles.controls} disabled={disabled}>
         <legend className={styles.srOnly}>Widget appearance</legend>
-        <section className={styles.section} aria-label="Chat accent color">
-          <h3>Chat accent color</h3>
+        <section className={styles.section} aria-label="Chat buttons">
+          <h3>Chat buttons</h3>
           <p>Pick one color for the chat button and Send. Menu actions, links and visitor messages use shades of it in both themes.</p>
           <ColorField label="Button color" value={accent} onChange={setAccent} />
           <div
@@ -173,6 +177,13 @@ export function WidgetAppearanceEditor({
           </label>
           {pair && <ColorField label="Dark mode button color" value={pair.dark}
             onChange={(dark) => patch({ accent: { ...pair, dark } })} />}
+          {onOutlinedButtonsChange && (
+            <label>
+              <input type="checkbox" checked={outlinedButtons}
+                onChange={event => onOutlinedButtonsChange(event.target.checked)} />
+              Square buttons with a thick border
+            </label>
+          )}
           {lowButtonContrast(value).map(({ mode, ratio }) => (
             <p key={mode} className={styles.contrastWarning} role="status">
               <strong>Low contrast in {mode} mode.</strong>{" "}
@@ -402,6 +413,7 @@ export function WidgetAppearanceEditor({
               colors: undefined,
               headerNotice: { enabled: false, text: "" },
               ...value,
+              outlinedButtons,
               logo: safePreviewLogo,
               theme: mode,
             }}

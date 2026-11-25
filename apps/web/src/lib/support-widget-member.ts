@@ -312,8 +312,8 @@ export const member = {
         [thread, rows],
         (node) => {
           node.className = "system tail shared-tail";
-          const list = el("details", undefined, "shared-list");
-          list.append(el("summary", `Details you shared (${rows.length})`));
+          const list = el("section", undefined, "shared-list");
+          list.append(el("h3", `Details you shared (${rows.length})`));
           for (const row of rows) {
             const line = el("div", undefined, "row");
             line.append(el("b", row.label), el("span", row.value));

@@ -134,6 +134,8 @@ declare namespace TemplSupport {
     accent?: string | { light: string; dark: string };
     /** Panel and control corners. Defaults to soft. */
     radius?: "square" | "soft" | "round";
+    /** Use square action buttons with a two-pixel outline. */
+    outlinedButtons?: boolean;
     /** Launcher and panel side. Defaults to right. */
     position?: "right" | "left";
     /** Square image for the header and launcher: an HTTPS URL or a path on your site. */

@@ -420,11 +420,11 @@ export function Billing({ principal }: { principal: ChatPrincipalId }) {
         </button>
       )}
       {current.inputTokenProbeAvailable === true && (
-        <details className={styles.diagnostics}>
-          <summary>Diagnostics</summary>
+        <section className={styles.diagnostics}>
+          <h3>Diagnostics</h3>
           <AiConnectionProbe principal={principal} />
           <InputTokenProbe principal={principal} />
-        </details>
+        </section>
       )}
     </>
   );
@@ -567,8 +567,8 @@ function Workspace({
               </div>
             )}
           </dl>
-          <details className={styles.disclosure}>
-            <summary>Case monitors</summary>
+          <section className={styles.disclosure}>
+            <h3>Case monitors</h3>
             <dl className={styles.monitorGrid}>
               <div>
                 <dt>Answered in 30 days</dt>
@@ -591,7 +591,7 @@ function Workspace({
                 <dd>{detail.monitors?.teamReopenedBeforeFinal ?? 0}</dd>
               </div>
             </dl>
-          </details>
+          </section>
           {detail.pilot && (
             <section aria-label="Pilot">
               <h3>Pilot</h3>

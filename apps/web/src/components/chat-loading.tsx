@@ -24,9 +24,9 @@ export function ChatLoading({
         {logo
           ? <Image src={logo} className={styles.logo} alt="" width={36} height={36} loading="eager" unoptimized />
           : <span className={styles.logoPlaceholder} aria-hidden="true" />}
+        <span className={styles.theme} aria-hidden="true" />
         <Title className={styles.title}>{name}</Title>
         <div className={styles.controls} aria-hidden="true">
-          <span className={styles.theme} />
           <span className={styles.menu}>
             <span className={styles.people} /><span className={styles.bars} />
           </span>

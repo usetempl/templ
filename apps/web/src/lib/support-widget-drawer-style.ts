@@ -36,9 +36,12 @@ ${outgoingBubbleStyle}
 .shared-chat .handoff-notice button{min-height:44px;padding:8px 12px}
 .shared-chat :is(.chat-avatars,.chat-roster) i{overflow:hidden}
 .shared-chat :is(.chat-avatars,.chat-roster) i img{display:block;width:100%;height:100%;object-fit:cover}
-.shared-chat .chat-options>summary{gap:6px;min-height:44px;padding:0 8px;color:var(--t)}
+.shared-chat .head{--head-ink:light-dark(#333,#eee)}
+.shared-chat .head>:is(.icon-button,.visitor-theme),.shared-chat .head>details>summary{color:var(--head-ink)}
+.shared-chat .head>button:focus-visible{outline-color:var(--head-ink)}
+.shared-chat .chat-options>summary{gap:6px;min-height:44px;padding:0 8px}
 .shared-chat :is(.chat-options,.chat-history)>summary,.shared-chat .chat-menu :is(button,summary){-webkit-user-select:none;user-select:none}
-.shared-chat :is(.chat-options,.chat-history)>summary:focus-visible{outline:2px solid var(--af);outline-offset:-2px}
+.shared-chat :is(.chat-options,.chat-history)>summary:focus-visible{outline:2px solid var(--head-ink);outline-offset:-2px}
 .shared-chat .chat-options>summary>svg{display:block;width:20px;height:20px;pointer-events:none}
 .panel.shared-chat.conversation-drawers>:is(.head,.body,.form,.error,.chat-feedback){margin-inline:0}
 .shared-chat>.head:has(.chat-options[open],.chat-history[open]){position:relative;z-index:1;--drawer-top:calc(100% + 1px)}
@@ -61,12 +64,13 @@ ${outgoingBubbleStyle}
 .shared-chat .drawer-section-body p{margin:0;color:var(--m);font-size:13px;line-height:1.45}
 .shared-chat .drawer-section-body p:empty{display:none}
 .shared-chat .drawer-section-body button{display:inline-flex;align-items:center;justify-content:center;min-height:44px;margin:0;padding:6px 12px;border-radius:8px;font-size:14px;font-weight:600}
+.shared-options>.options-note,.shared-options .tools :is([aria-label="Verify wallet"],[aria-label="Sign out"],[aria-label="Notify me when answered"]){display:none!important}
 .shared-chat .drawer-section [hidden]{display:none!important}
-.shared-chat :is(.head button,.head summary,.drawer-section-body .quiet,.member-conversations button)${enabledControl}{color:light-dark(var(--at),var(--t))}
+.shared-chat :is(.drawer-section-body .quiet,.member-conversations button)${enabledControl}{color:light-dark(var(--at),var(--t))}
 .shared-chat .drawer-section-body .quiet,.shared-chat .wallet-identity{color:var(--at)}
-.shared-chat :is(.head button,.head summary,.chat-menu button,.member-conversations button)${enabledControl}:hover,
-.shared-chat .head details[open]>summary,.shared-chat .member-conversations button[aria-current]{background:var(--s2);color:var(--at)}
-.shared-chat :is(.head button,.head summary,.chat-menu button)${enabledControl}:active{background:var(--s);color:var(--at)}
+.shared-chat :is(.chat-menu button,.member-conversations button)${enabledControl}:hover,
+.shared-chat .member-conversations button[aria-current]{background:var(--s2);color:var(--at)}
+.shared-chat .chat-menu button${enabledControl}:active{background:var(--s);color:var(--at)}
 .drawer-loading{order:1;padding:10px 12px;color:var(--m);font-size:13px}
 .drawer-loading[data-loading]::before,[data-notice-loading]::before,.shared-chat .body>.loading-case:not([hidden])::before{content:"";display:block;width:5rem;height:4px;margin-block-end:8px;border-radius:2px;background:var(--m)}
 .shared-chat .body>.loading-case:not([hidden]){display:grid;justify-items:center;border:0;background:none;color:var(--m)}

@@ -19,7 +19,6 @@ import { Card, PageHeader, Skeleton, Stat } from "@/components/ui/ui";
 import type { WorkspaceContext } from "./support-workspace";
 import styles from "./workspace.module.css";
 import { useWorkspaceSectionFocus } from "./workspace-sections";
-import { confirmWorkspaceNavigation } from "./unsaved-changes";
 
 const AnswerReviews = dynamic(
   () =>
@@ -89,7 +88,6 @@ function Reports({ context }: { context: WorkspaceContext }) {
   const [window, setWindow] = useState<SupportReportWindow>("30d");
   const [retry, setRetry] = useState(0);
   const [snapshot, setSnapshot] = useState<Snapshot>();
-  const [reviewsOpen, setReviewsOpen] = useState(false);
   const key = `${context.room}:${context.account}:${context.revision}:${lead}:${window}:${retry}`;
   const current = snapshot?.key === key ? snapshot : undefined;
   useEffect(() => {
@@ -267,25 +265,13 @@ function Reports({ context }: { context: WorkspaceContext }) {
             </>
           )}
         </Card>
-        <details
-          id="answer-reviews"
-          onToggle={(event) => setReviewsOpen(event.currentTarget.open)}
-        >
-          <summary
-            onClick={(event) => {
-              if (reviewsOpen && !confirmWorkspaceNavigation())
-                event.preventDefault();
-            }}
-          >
-            Answer reviews
-          </summary>
-          {reviewsOpen && (
+        <section id="answer-reviews">
+          <h3>Answer reviews</h3>
             <AnswerReviews
               key={`${context.room}:${context.account}`}
               context={context}
             />
-          )}
-        </details>
+        </section>
       </div>
     </div>
   );

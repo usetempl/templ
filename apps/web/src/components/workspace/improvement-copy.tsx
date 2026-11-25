@@ -149,8 +149,8 @@ export function ThreadCopyPanel({
     }
   }
   return (
-    <details className={styles.small}>
-      <summary>{on.learning ? "Learned knowledge and case copies" : c.panelTitle}</summary>
+    <section className={styles.small}>
+      <h3>{on.learning ? "Learned knowledge and case copies" : c.panelTitle}</h3>
       <div className={styles.stack} style={{ gap: 10, marginTop: 10 }}>
         {result ? (
           <p role="status" className={styles.status}>
@@ -201,6 +201,6 @@ export function ThreadCopyPanel({
           </p>
         )}
       </div>
-    </details>
+    </section>
   );
 }

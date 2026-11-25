@@ -65,14 +65,14 @@ export function FunnelDashboardPanel() {
       ) : (
         <div key={`${principal}:${revision}`}>
           <OnboardingDashboard principal={principal} />
-          <details>
-            <summary>Historical totals</summary>
+          <section>
+            <h3>Historical totals</h3>
             <p>
               These totals mix traffic types and milestone dates. Use signup
               journeys for conversion rates.
             </p>
             <Funnel principal={principal} />
-          </details>
+          </section>
         </div>
       )}
     </main>
@@ -210,8 +210,8 @@ export function FunnelView({ data }: { data: FunnelReport }) {
           .
         </p>
       </section>
-      <details>
-        <summary>By day</summary>
+      <section>
+        <h3>By day</h3>
         <div className={styles.tableWrap}>
           <table>
             <thead>
@@ -234,7 +234,7 @@ export function FunnelView({ data }: { data: FunnelReport }) {
             </tbody>
           </table>
         </div>
-      </details>
+      </section>
     </>
   );
 }

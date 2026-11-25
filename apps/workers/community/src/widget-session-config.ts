@@ -65,6 +65,8 @@ export function widgetSessionSettings(
   const identification = readWalletIdentification(body.walletIdentification);
   if (body.walletIdentification !== undefined && !identification)
     throw new HttpError(400, "Choose the wallet verification settings.");
+  if (body.outlinedButtons !== undefined && (typeof body.outlinedButtons !== "boolean" || body.appearance === undefined))
+    throw new HttpError(400, "Save the button style with the chat appearance.");
   let appearance: WidgetAppearance | null | undefined;
   if (body.appearance !== undefined) {
     try {
@@ -103,6 +105,7 @@ export function widgetSessionSettings(
     ...(body.appearance === undefined
       ? {}
       : { appearance, appearanceRevision: body.appearanceRevision }),
+    ...(body.outlinedButtons === undefined ? {} : { outlinedButtons: body.outlinedButtons }),
     ...widgetIntroFields(body, featureOn(env, undefined, "widgetIntro")),
     ...(identification ? { walletIdentification: identification } : {}),
     ...(body.hostedPage === undefined ? {} : { hostedPage: body.hostedPage }),
@@ -129,6 +132,7 @@ export function widgetSessionSettings(
 export const namesWidgetSessionSetting = (body: Record<string, unknown>) =>
   body.walletIdentification !== undefined ||
   body.appearance !== undefined ||
+  body.outlinedButtons !== undefined ||
   body.hostedPage !== undefined ||
   body.walletFallback !== undefined ||
   body.askPerson !== undefined ||
@@ -142,6 +146,7 @@ export const namesWidgetSessionSetting = (body: Record<string, unknown>) =>
 /** What the manager's settings page may offer: each feature Templ has on. */
 export const widgetSessionOptions = (env: WidgetSessionEnv) => ({
   appearance: true,
+  outlinedButtons: true,
   ...(featureOn(env, undefined, "widgetIntro") ? { widgetIntro: true } : {}),
   ...(hostedPageOffered(env) ? { hostedPage: true } : {}),
   remember: rememberOffered(env),

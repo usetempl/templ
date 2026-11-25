@@ -66,7 +66,7 @@
 .later {
   border-top: var(--templ-border-width) solid var(--templ-line);
 }
-.later summary {
+.later h3 {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -76,24 +76,7 @@
   color: var(--templ-muted);
   font-size: var(--templ-text-body);
   font-weight: var(--templ-weight-heading);
-  list-style: none;
-  cursor: pointer;
-}
-.later summary::-webkit-details-marker {
-  display: none;
-}
-.later summary:hover {
-  color: var(--templ-text);
-}
-.later summary svg {
-  width: 18px;
-  height: 18px;
-  flex: none;
-  color: var(--templ-muted);
-  transition: transform var(--templ-duration-normal) var(--templ-ease-standard);
-}
-.later[open] summary svg {
-  transform: rotate(45deg);
+  margin: 0;
 }
 .later ul {
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
@@ -107,11 +90,6 @@
 @media (max-width: 767px) {
   .now {
     grid-template-columns: minmax(0, 1fr);
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .later summary svg {
-    transition: none;
   }
 }
 .now .empty {

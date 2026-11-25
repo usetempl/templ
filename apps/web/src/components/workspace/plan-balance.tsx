@@ -56,8 +56,8 @@ function ManualUsagePaymentInstructions() {
   }
   return (
     <>
-      <details className={plan.manualPayment}>
-        <summary>Pay manually</summary>
+      <section className={plan.manualPayment}>
+        <h3>Pay manually</h3>
         <div className={styles.stack}>
           <p>Send USDC or USDT on Ethereum, or USDC on Base.</p>
           <p>Send only the amount due.</p>
@@ -80,7 +80,7 @@ function ManualUsagePaymentInstructions() {
             reducing your debt.
           </p>
         </div>
-      </details>
+      </section>
       {toast}
     </>
   );

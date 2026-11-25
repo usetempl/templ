@@ -1,9 +1,8 @@
 "use client";
 
-import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   IconCheck,
-  IconChevronDown,
   IconCopy,
   IconPrompt,
 } from "@tabler/icons-react";
@@ -13,12 +12,7 @@ import styles from "./integration-prompt.module.css";
 export const COPIED_LINE =
   "Copied. Paste it into your AI coding tool, in your app’s repo.";
 export const MANUAL_LINE = "Select the prompt and copy it.";
-/** How many lines of the prompt the closed card shows. */
-const PREVIEW_LINES = 3;
-
-/** The install prompt as a card: the first lines, one copy button and a
- * text toggle that shows the whole prompt. After a copy the status line
- * says where to paste it, then `next`, and stays until the page changes. */
+/** The full install prompt stays available for copying by hand. */
 export function IntegrationPrompt({
   prompt,
   label,
@@ -41,22 +35,20 @@ export function IntegrationPrompt({
   /** The prompt was copied elsewhere on this page: show `next` here too. */
   copied?: boolean;
   /** A window event that opens the whole prompt, selected, for a copy by
-   * hand, as after a failed copy from this card. */
+   * hand, as after a failed clipboard write. */
   manualEvent?: string;
   /** Wallet families the prompt covers, shown as chips. */
   families?: readonly string[];
   /** A line under the button before the first copy. */
   note?: ReactNode;
-  /** Keep the hero's prompt closed and compact on phones. */
+  /** Use a compact prompt field on phones. */
   compact?: boolean;
   /** The next step, shown after a successful copy. */
   next?: ReactNode;
   /** Runs once per successful clipboard write. */
   onCopied?: () => void;
 }) {
-  const fieldId = useId();
   const field = useRef<HTMLTextAreaElement>(null);
-  const [expanded, setExpanded] = useState(false);
   const [status, setStatus] = useState<
     "idle" | "copying" | "copied" | "manual"
   >("idle");
@@ -67,7 +59,6 @@ export function IntegrationPrompt({
   useEffect(() => {
     if (!manualEvent) return;
     const openManual = () => {
-      setExpanded(true);
       setStatus("manual");
       setManualTick((tick) => tick + 1);
     };
@@ -91,7 +82,6 @@ export function IntegrationPrompt({
     try {
       await navigator.clipboard.writeText(prompt);
     } catch {
-      setExpanded(true);
       setStatus("manual");
       setManualTick((tick) => tick + 1);
       return;
@@ -102,10 +92,6 @@ export function IntegrationPrompt({
   }
   const done = status === "copied" || (copied && status !== "manual");
   const lowered = done && againLabel !== undefined;
-  const preview = prompt
-    .split("\n")
-    .filter((line) => line.trim())
-    .slice(0, PREVIEW_LINES);
   return (
     <div className={`${styles.promptCard} ${compact ? styles.compact : ""}`}>
       <div className={styles.promptHead}>
@@ -120,22 +106,17 @@ export function IntegrationPrompt({
           </ul>
         )}
       </div>
-      <div className={styles.promptPreview} aria-hidden={expanded}>
-        {preview.map((line) => (
-          <p key={line}>{line}</p>
-        ))}
+      <div className={styles.promptSource}>
+        <textarea
+          ref={field}
+          aria-label="Prompt text"
+          readOnly
+          value={prompt}
+          rows={12}
+          spellCheck={false}
+        />
       </div>
       <div className={styles.promptToolbar}>
-        <button
-          type="button"
-          className={styles.promptRead}
-          aria-expanded={expanded}
-          aria-controls={fieldId}
-          onClick={() => setExpanded(!expanded)}
-        >
-          {expanded ? "Hide the prompt" : "Read it first"}
-          <IconChevronDown aria-hidden="true" />
-        </button>
         <button
           type="button"
           className={`${styles.promptCopy} ${primary && !lowered ? styles.promptPrimary : ""}`}
@@ -155,17 +136,6 @@ export function IntegrationPrompt({
                 ? againLabel
                 : label}
         </button>
-      </div>
-      <div className={styles.promptSource} hidden={!expanded}>
-        <textarea
-          ref={field}
-          id={fieldId}
-          aria-label="Prompt text"
-          readOnly
-          value={prompt}
-          rows={12}
-          spellCheck={false}
-        />
       </div>
       <div role="status" className={styles.promptStatus}>
         {status === "copying" ? (

@@ -39,7 +39,7 @@ import {
 import { OnboardingWalletFields } from "./wallet-identification-fields";
 import { trackEvent } from "@/lib/analytics";
 import { copy as t } from "@/lib/copy";
-import { Callout, Field, Spinner, ui } from "./ui/ui";
+import { Callout, Field, ui } from "./ui/ui";
 import { useActionToast } from "./action-toast";
 import styles from "./native-chat-create.module.css";
 
@@ -296,7 +296,9 @@ export function NativeChatCreate({
               }
             }}
           >
-            {busy && <Spinner />}
+            {busy && <span aria-hidden="true" className={styles.creatingMark}>
+              <i /><i /><i /><i />
+            </span>}
             {busy
               ? t("shell.create.creating")
               : pending && error
