@@ -1,4 +1,5 @@
 import { followTranscript } from "./support-widget-transcript-scroll";
+import { ordinaryGuestReturn, supportStorageKey } from "./support-widget-return";
 import { conversationModules } from "./support-widget-conversation-modules";
 import { transactionExample } from "./standalone-trial-example";
 import { widgetMessageId as requestId } from "./support-widget-message-id";
@@ -207,8 +208,8 @@ const conversationId = (id: string) => {
 /** A guest's credential entry holds only the credential, as every release
  * reads it; the thread it last held has an entry of its own. */
 const guestKeys = (workspace: string) => [
-  `templ:support-guest:v1:${workspace}`,
-  `templ:support-guest-thread:v1:${workspace}`,
+  supportStorageKey("guest", workspace),
+  supportStorageKey("guest-thread", workspace),
 ];
 function storedGuest(workspace: string) {
   try {
@@ -352,6 +353,7 @@ export function createSupportClient(
   options: SupportWidgetOptions,
   runtime: {
     fetch?: typeof fetch;
+    build?: string;
     origin?: string;
     load?: (path: string) => Promise<unknown>;
   } = {},
@@ -579,7 +581,7 @@ export function createSupportClient(
         headers: {
           ...(body === undefined ? {} : { "Content-Type": "application/json" }),
           // The build id goes on every request that is preflighted anyway.
-          ...(authenticated || body ? { "X-Templ-Widget": WIDGET_BUILD } : {}),
+          ...(authenticated || body ? { "X-Templ-Widget": runtime.build ?? WIDGET_BUILD } : {}),
           ...(authenticated || bearer
             ? { Authorization: `Bearer ${authenticated?.token ?? bearer}` }
             : {}),
@@ -765,14 +767,18 @@ export function createSupportClient(
         )
           return this.session;
       }
-      // The credential also stays in memory, for browsers that block storage.
-      const stored =
-        storedGuest(options.workspace) ??
-        (guestCredential
-          ? { credential: guestCredential, thread: session?.thread }
-          : undefined);
+      // Browsers with unavailable storage keep their credential in memory.
+      const persisted = storedGuest(options.workspace);
+      const stored = persisted ?? (guestCredential
+        ? { credential: guestCredential, thread: session?.thread }
+        : undefined);
       if (resumeOnly && !stored) return undefined;
       const version = generation;
+      const checkOpening = () => {
+        if (version !== generation ||
+          (resumeOnly && persisted && storedGuest(options.workspace)?.credential !== persisted.credential))
+          throw new Error(WALLET_CHANGED);
+      };
       const flight = (async () => {
         const claim = claimOf(consentedWallet);
         // A resume names the page's wallet, so a wallet the guest shared
@@ -781,6 +787,7 @@ export function createSupportClient(
           stored && !claim && wallet && !walletUnavailable
             ? claimOf(await read().catch(() => undefined))
             : undefined;
+        checkOpening();
         const start = (credential?: string) =>
           call<
             Omit<WidgetSession, "address" | "chainId"> & {
@@ -808,14 +815,14 @@ export function createSupportClient(
         } catch (reason) {
           if (!stored || (reason as { status?: number }).status !== 401)
             throw reason;
+          checkOpening();
           // The server ended this credential; stop sending it.
           storeGuest();
           guestCredential = undefined;
           if (resumeOnly) return;
           started = await start();
         }
-        if (version !== generation || destroyed)
-          throw new Error(WALLET_CHANGED);
+        checkOpening();
         // A wallet sign-in that finished meanwhile keeps its session.
         if (session?.level === "signed") return;
         guestCredential = started.credential;
@@ -1066,8 +1073,9 @@ export type { Selected as SupportSelectedWallet, WidgetSession };
 export function mountSupportWidget(
   options: SupportWidgetOptions,
   runtime?: Parameters<typeof createSupportClient>[1],
+  opening?: { client: SupportClient; guest: Promise<unknown> },
 ) {
-  return renderSupportWidget({ chatFirst: true, conversationDrawers: true, ...options }, createSupportClient(options, runtime));
+  return renderSupportWidget({ chatFirst: true, conversationDrawers: true, ...options }, opening?.client ?? createSupportClient(options, runtime), undefined, opening?.guest);
 }
 
 export type WidgetMessage = {
@@ -1397,11 +1405,7 @@ const SVG_NS = "http://www.w3.org/2000/svg";
 /** One-path outline glyphs, built as DOM so host pages with Trusted Types work. */
 const ICONS = {
   chat: "M4 5h16v11H10l-5 4v-4H4z",
-  close: "M6 6l12 12M18 6L6 18",
-  minus: "M5 12h14",
-  send: "M4 12l16-8-6 16-3-7zM11 13l9-9",
   wallet: "M3 7h18v12H3zM3 7l3-3h11v3M16 13h2",
-  check: "M5 12l5 5 9-10",
 } as const;
 function icon(name: keyof typeof ICONS, pathData: string = ICONS[name]) {
   const svg = document.createElementNS(SVG_NS, "svg");
@@ -1729,6 +1733,21 @@ const loadWelcome = (): Promise<typeof import("./support-widget-welcome")> =>
     : import("./support-widget-welcome");
 /** Everything the widget loads on first use besides the context card. */
 export const extras = {
+  bindEmail(host: TailHost) {
+    host.emailButton?.addEventListener("click", () => {
+      if (host.policy?.templLeadCapture) return;
+      if (host.notify) return void host.run(host.notify);
+      host.replyNotices = true;
+      host.render();
+    });
+  },
+  emailState(host: TailHost, thread: string | null, busy: boolean) {
+    const button = host.emailButton;
+    if (!button || host.policy?.templLeadCapture) return;
+    const enabled = !!host.policy?.replyEmail;
+    button.disabled = !enabled || !thread || busy;
+    button.title = !enabled ? "Email notices unavailable" : !thread ? "Send a message first." : "Get email notices";
+  },
   ready: () => loadWelcome().then(({ welcome }) => welcome.ready(), () => {}),
   async guest(host: TailHost) {
     if (
@@ -2623,6 +2642,7 @@ function renderSupportWidget(
   options: Omit<SupportWidgetOptions, "provider" | "wallet">,
   client: WidgetClient,
   sample?: DemoSetup,
+  openingGuest?: Promise<unknown>,
 ) {
   const demo = typeof __TEMPL_WIDGET_BUILD__ === "undefined" ? sample : undefined;
   const chunkFailed = (step: string, route = "widget") =>
@@ -2648,10 +2668,7 @@ function renderSupportWidget(
   const style = document.createElement("style");
   const fullStyle = document.createElement("style");
   const nonce = options.styleNonce;
-  if (nonce) {
-    style.nonce = nonce;
-    fullStyle.nonce = nonce;
-  }
+  if (nonce) style.nonce = fullStyle.nonce = nonce;
   style.textContent = widgetStyle() + (demo?.style ?? "");
   const styleReady = loadStyle().then(
     (module) => {
@@ -2675,10 +2692,14 @@ function renderSupportWidget(
     if (className) node.className = className;
     return node;
   };
+  const control = (text: string | undefined, className: string) => {
+    const node = el("button", text, className);
+    node.type = "button";
+    return node;
+  };
   const label = options.label ?? "Support";
-  const launcher = el("button", undefined, "launcher");
-  launcher.type = "button";
-  launcher.append(icon("chat"), document.createTextNode(label));
+  const launcher = control(undefined, "launcher");
+  launcher.append(icon("chat"), label);
   launcher.hidden = !!options.container || options.showLauncher === false;
   if (fixedPreview) launcher.inert = true;
   launcher.setAttribute("aria-expanded", "false");
@@ -2697,17 +2718,15 @@ function renderSupportWidget(
   const subtitle = el("span", "Private chat", "sub");
   titles.append(el("strong", label), subtitle);
   header.append(avatar, titles);
-  const close = el("button", undefined, "icon-button");
-  close.type = "button";
+  const close = control(undefined, "icon-button");
   close.setAttribute("aria-label", "Close");
-  close.append(icon("close"));
+  close.append(icon("chat", "M6 6l12 12M18 6L6 18"));
   close.hidden = fixedPreview || !!demoContainer || !!options.container && !options.onClose;
   header.append(close);
   const body = el("div", undefined, "body");
   // The welcome block's words come with the extras; its button shows at once.
   const welcome = el("div", undefined, "welcome");
-  const signIn = el("button", undefined, "primary");
-  signIn.type = "button";
+  const signIn = control(undefined, "primary");
   const signInLabel = el("span", "Verify wallet");
   signIn.append(icon("wallet"), signInLabel);
   welcome.append(signIn);
@@ -2720,12 +2739,9 @@ function renderSupportWidget(
   const loading = el("p", "Loading your conversation…", "starter loading-case");
   loading.setAttribute("role", "status");
   loading.hidden = true;
-  const older = el("button", "Earlier messages", "older");
-  older.type = "button";
+  const older = control("Earlier messages", "older");
   older.hidden = true;
   const suggestions = el("div", undefined, "suggestions");
-  suggestions.setAttribute("role", "group");
-  suggestions.setAttribute("aria-label", "Common questions");
   body.append(welcome, older);
   // A live widget shows its questions with the starter, before the visitor's
   // first message. The demo shows them under its sample chat.
@@ -2748,7 +2764,7 @@ function renderSupportWidget(
   );
   const send = el("button", undefined, "send");
   send.type = "submit";
-  send.append(icon("send"));
+  send.append(icon("chat", "M4 12l16-8-6 16-3-7zM11 13l9-9"));
   composer.append(draft, send);
   // Details the visitor chooses to share: one row each, ticked to send.
   const card = el("div", undefined, "card");
@@ -2758,26 +2774,14 @@ function renderSupportWidget(
   choices.append(card);
   body.append(choices);
   const tools = el("div", undefined, "tools");
-  const attachToggle = el("button", "+", "icon-button");
+  const attachToggle = control("+", "icon-button");
   attachToggle.setAttribute("aria-label", "Add details");
-  attachToggle.type = "button";
   attachToggle.setAttribute("aria-expanded", "false");
-  const signOut = el("button", "Sign out", "quiet");
-  signOut.type = "button";
-  const emailButton = el("button", "Notify me", "quiet");
-  emailButton.type = "button";
+  const signOut = control("Sign out", "quiet");
+  const emailButton = control("Notify me", "quiet");
   emailButton.disabled = true;
   tools.append(signOut, emailButton);
   composer.insertBefore(attachToggle, draft);
-  emailButton.addEventListener("click", () => {
-    if (tailHost.policy?.templLeadCapture) return;
-    if (tailHost.notify) {
-      void tailHost.run(tailHost.notify);
-      return;
-    }
-    tailHost.replyNotices = true;
-    render();
-  });
   const attach = el("div", undefined, "attach");
   attach.hidden = true;
   const attachId = `templ-attach-${Math.random().toString(36).slice(2)}`;
@@ -2993,6 +2997,7 @@ function renderSupportWidget(
     consent?.empty(!conversation && !draft.value.trim());
     const hidden =
       form.hidden || !!demoContainer || messages.childElementCount > 0;
+    loading.hidden = hidden || !restoring;
     starter.hidden = hidden || restoring;
     if (more && (!demoContainer || options.chatFirst))
       more.firstOpen(
@@ -3003,17 +3008,7 @@ function renderSupportWidget(
         busy || !!pending,
       );
     if (tailHost.firstPerson) tools.prepend(tailHost.firstPerson);
-    const emailAllowed = !!tailHost.policy?.replyEmail;
-    if (!tailHost.policy?.templLeadCapture) {
-      emailButton.disabled =
-        !emailAllowed || !conversation || busy || !!pending;
-      emailButton.title = !emailAllowed
-        ? "Email notices unavailable"
-        : !conversation
-          ? "Send a message first."
-          : "Get email notices";
-    }
-    loading.hidden = hidden || !restoring;
+    more?.emailState(tailHost, conversation, busy || !!pending);
     showQuestions();
     // Verification requires a wallet; a current proof offers Sign out.
     const level = client.session?.level;
@@ -3193,6 +3188,7 @@ function renderSupportWidget(
     (loadingExtras ??= loadExtras().then(
       (module) => {
         more = module.extras;
+        more.bindEmail(tailHost);
         more.identity(subtitle, client.session);
         more.starter(starter, options.intro);
         if (options.container) more.fullPage(style);
@@ -3480,6 +3476,7 @@ function renderSupportWidget(
     render(prepend);
   }
   let pendingPolicy: ReturnType<NonNullable<WidgetClient["policy"]>> | undefined;
+  let openingPolicy: typeof pendingPolicy;
   function readPolicy() {
     return pendingPolicy ??= client.policy?.().then((policy) => {
       const saved = policy.appearance;
@@ -3509,19 +3506,26 @@ function renderSupportWidget(
     )
       return;
     const extrasReady = withExtras();
+    const replyLink = (options.guestLink ?? location.hash ?? "").startsWith("#templ-guest=");
+    // Only an existing guest can renew here. Never allocate a guest on open.
+    const early = openingGuest ?? (returning && !panel.hidden && !replyLink && !client.session && ordinaryGuestReturn(options.workspace)
+      ? client.guest?.(true) : undefined);
+    openingGuest = undefined;
+    const atOpen = openingPolicy = !panel.hidden && !replyLink && !minimumLevel ? readPolicy() : undefined;
+    void early?.catch(() => {});
+    void atOpen?.catch(() => {});
     await goLive();
+    openingPolicy = undefined;
     // A reply link restores its identity before any guest is created.
     // Ordinary chats can read while the optional controls load.
-    if (
-      (options.guestLink ?? location.hash ?? "").startsWith("#templ-guest=")
-    ) {
+    if (replyLink) {
       await extrasReady;
       await more?.guest(tailHost);
     }
     // The policy and a returning guest's session load together. Without a
     // readable policy, the wallet sign-in stays in front.
-    const policyReady = minimumLevel === undefined &&
-      readPolicy()
+    const policyReady = !minimumLevel &&
+      (atOpen ?? readPolicy())
         ?.then(
           (policy) => {
             // The team's own line, set in its widget settings, once
@@ -3569,8 +3573,8 @@ function renderSupportWidget(
       await policyReady;
       return !stale();
     };
-    if (!client.session && !client.ended)
-      await client.guest?.(true).catch((reason) => {
+    if (early || (!client.session && !client.ended))
+      await (early ?? client.guest?.(true))?.catch((reason) => {
         // A team that now requires more: the policy decides what shows.
         if (
           (reason as { reason?: string })?.reason !== "access-level-required"
@@ -3785,6 +3789,7 @@ function renderSupportWidget(
                   : !panel.hidden || waiting,
               form,
               routing,
+              openingPolicy ?? pendingPolicy,
             );
           })
           .catch((error) => {

@@ -5,6 +5,7 @@ import { useRelease } from "@/lib/release-context";
 import { useEffect, useRef, useState } from "react";
 import { loadTemplSupportWidget } from "@/lib/templ-support";
 import { SUPPORT_WIDGET_LATEST } from "@/lib/support-widget-release";
+import { hostedGuestReturn } from "@/lib/hosted-guest-return";
 import { supportPageWallet } from "@/lib/support-page-wallet";
 import type { mountSupportWidget } from "@/lib/support-widget";
 import { SITE } from "@/lib/site-environment";
@@ -42,10 +43,15 @@ export function HostedSupportChat({
   const [network, setNetwork] = useState(WIDGET_SIGN_IN_NETWORKS[0]);
   const currentNetwork = useRef(network);
   useEffect(() => {
+    const opening = new AbortController();
     let disposed = false;
     let mounted: ReturnType<typeof mountSupportWidget> | undefined;
     trackEvent("hosted_support_opened");
     async function load() {
+      const wallet = supportPageWallet(currentNetwork.current);
+      const returning = frameRequired ? undefined : hostedGuestReturn(
+        workspace, SUPPORT_WIDGET_LATEST.sourceSha256.slice(0, 16), wallet, opening.signal,
+      );
       let widgetModule: WidgetModule;
       if (frameRequired) {
         const asset = SUPPORT_WIDGET_LATEST.chunks.framehost?.path;
@@ -62,7 +68,7 @@ export function HostedSupportChat({
         workspace,
         apiUrl: SITE.community,
         container: container.current,
-        wallet: supportPageWallet(currentNetwork.current),
+        wallet,
         walletForNetwork: family => widgetSignInNetworks(release).includes(family) ? supportPageWallet(family) : null,
         accountWalletRequired: setAccountWalletRequired,
         styleNonce: nonce,
@@ -73,7 +79,7 @@ export function HostedSupportChat({
         guestPath: `/help/${workspace}`,
         conversationDrawers: true,
         ...(workspace === release.templSupport?.workspaceId && !frameRequired ? { decorateOwnMenu: addOwnChatMenu } : {}),
-      });
+      }, undefined, returning);
       widget.current = mounted;
       await mounted.open(false);
       if (disposed) return;
@@ -84,6 +90,9 @@ export function HostedSupportChat({
     }
     void load().catch(() => {
       if (disposed) return;
+      mounted?.destroy();
+      opening.abort();
+      mounted = undefined;
       setState("failed");
       trackEvent("hosted_support_failed");
       console.warn(
@@ -97,6 +106,7 @@ export function HostedSupportChat({
     return () => {
       disposed = true;
       mounted?.destroy();
+      opening.abort();
       widget.current = null;
     };
   }, [workspace, name, nonce, frameRequired, retry, release]);

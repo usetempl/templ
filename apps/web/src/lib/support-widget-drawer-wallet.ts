@@ -124,7 +124,7 @@ export async function drawerWallet(host: TailHost, menu: HTMLElement, signal: Ab
           list.querySelector<HTMLButtonElement>("[data-keep]")?.focus();
         });
         minus.classList.add("wallet-remove");
-        minus.append(host.icon("minus"), el("span", "Remove"));
+        minus.append(host.icon("chat", "M5 12h14"), el("span", "Remove"));
         minus.setAttribute("aria-label", "Remove wallet " + canonical);
         minus.dataset.address = address;
         if (removing === address) {

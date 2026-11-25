@@ -8,9 +8,10 @@ import {
   IconMessageCircle,
   IconPlus,
 } from "@tabler/icons-react";
-import { useChatAuth } from "@/lib/chat-auth";
+import { ChatAuthProvider, useChatAuth } from "@/lib/chat-auth";
 import { chatHref, normalizeChatRoomId } from "@/lib/chat-room-id";
-import { useCommunityDirectory } from "@/lib/community-directory";
+import { CommunityDirectoryProvider, useCommunityDirectory } from "@/lib/community-directory";
+import { WalletProvider } from "@/lib/wallet";
 import { nativeRoomHref } from "@/lib/native-room";
 import { SiteFrame } from "./site-frame";
 import { TemplSupport } from "./templ-support";
@@ -76,6 +77,16 @@ function appTitle(pathname: string) {
   return "Workspaces";
 }
 
+export function DashboardProviders({ children }: { children: ReactNode }) {
+  return (
+    <WalletProvider>
+      <ChatAuthProvider>
+        <CommunityDirectoryProvider><AppShell>{children}</AppShell></CommunityDirectoryProvider>
+      </ChatAuthProvider>
+    </WalletProvider>
+  );
+}
+
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -106,9 +117,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     pathname.startsWith("/chat/") ||
     (segments.length === 1 && !ROUTES.has(segments[0]));
   const supportPage =
-    pathname.startsWith("/example/") ||
-    pathname.startsWith("/help/") ||
-    pathname.startsWith("/support-entry/");
+    pathname.startsWith("/example/");
   if (supportPage)
     return (
       <main id="main-content" tabIndex={-1}>

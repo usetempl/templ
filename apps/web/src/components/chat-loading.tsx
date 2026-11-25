@@ -1,4 +1,5 @@
 import Image from "next/image";
+import { IconSend } from "@tabler/icons-react";
 import type { ReactNode } from "react";
 import styles from "./chat-loading.module.css";
 
@@ -49,7 +50,9 @@ export function ChatLoading({
       </div>
       <div className={styles.composer}>
         <textarea aria-label="Message to the support team" disabled rows={1} placeholder={connecting ? "Loading..." : "Chat unavailable"} />
-        <button type="button" aria-label="Send" aria-busy={connecting} disabled />
+        <button type="button" aria-label="Send" aria-busy={connecting} disabled>
+          <IconSend size={18} aria-hidden="true" />
+        </button>
       </div>
     </div>
   );

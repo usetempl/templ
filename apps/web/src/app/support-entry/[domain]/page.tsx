@@ -21,7 +21,7 @@ export default async function SupportEntryPage({
   );
   if (support === "unavailable")
     return (
-      <div className={styles.page}>
+      <main id="main-content" tabIndex={-1} className={styles.page}>
         <header className={styles.header}>
           <TemplMark className={styles.stamp} decorative />
           <h1>Support is busy</h1>
@@ -30,11 +30,11 @@ export default async function SupportEntryPage({
             <a href={`/support-entry/${domain}`}>Reload</a>
           </p>
         </header>
-      </div>
+      </main>
     );
   if (!support) notFound();
   return (
-    <div className={styles.page}>
+    <main id="main-content" tabIndex={-1} className={styles.page}>
       <header className={styles.header}>
         <TemplMark className={styles.stamp} decorative />
         <h1>Support for {support.name}</h1>
@@ -42,6 +42,6 @@ export default async function SupportEntryPage({
           Open support
         </Link>
       </header>
-    </div>
+    </main>
   );
 }

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { readHostedSupport } from "@/lib/hosted-support";
+import { SUPPORT_WIDGET_LATEST } from "@/lib/support-widget-release";
 import { supportPageWorkspace } from "@/lib/support-page-config";
 import { TemplMark } from "@/components/brand/templ-mark";
 import { HostedSupportChat } from "./help-client";
@@ -21,7 +22,7 @@ export default async function HostedSupportPage({
   const support = await readHostedSupport(`/widget/${workspace}/hosted`);
   if (support === "unavailable")
     return (
-      <div className={styles.page}>
+      <main id="main-content" tabIndex={-1} className={styles.page}>
         <header className={styles.header}>
           <TemplMark className={styles.stamp} decorative />
           <h1>Support is busy</h1>
@@ -29,12 +30,14 @@ export default async function HostedSupportPage({
             Try again in a minute. <a href={`/help/${workspace}`}>Reload</a>
           </p>
         </header>
-      </div>
+      </main>
     );
   if (!support || support.workspace !== workspace) notFound();
   const nonce = (await headers()).get("x-nonce") ?? undefined;
+  const runtime = support.frameRequired ? SUPPORT_WIDGET_LATEST.chunks.framehost : SUPPORT_WIDGET_LATEST;
   return (
     <SupportChatThemeScope workspace={workspace} nonce={nonce}>
+      {runtime && <link rel="modulepreload" href={runtime.path} nonce={nonce} crossOrigin="anonymous" />}
       <HostedSupportChat workspace={workspace} name={support.name}
         frameRequired={support.frameRequired} nonce={nonce} verifiedSites={support.verifiedSites} />
     </SupportChatThemeScope>

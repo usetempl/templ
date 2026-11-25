@@ -209,7 +209,7 @@ export const welcome = {
       ]) {
         const item = el("li");
         const tick = el("span", undefined, "tick");
-        tick.append(host.icon("check"));
+        tick.append(host.icon("chat", "M5 12l5 5 9-10"));
         const text = el("div");
         text.append(document.createTextNode(strong), el("span", rest));
         item.append(tick, text);

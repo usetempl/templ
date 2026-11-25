@@ -5,7 +5,7 @@ import type { Metadata, Viewport } from "next";
 import { connection } from "next/server";
 import { headers } from "next/headers";
 import { Geist, Geist_Mono } from "next/font/google";
-import { AppShell } from "@/components/app-shell";
+import { AppRouteShell } from "@/components/app-route-shell";
 import { AnalyticsProvider } from "@/components/analytics-provider";
 import { AppTheme } from "@/components/app-theme";
 import { APP_THEME_SCRIPT } from "@/lib/app-theme";
@@ -13,9 +13,6 @@ import { brandAsset } from "@/lib/brand-assets";
 import { CommunityPreconnect } from "@/components/community-preconnect";
 import { APP_ENVIRONMENT, SITE } from "@/lib/release-public";
 import { searchRobotsMetadata } from "../../scripts/search-indexing.mjs";
-import { ChatAuthProvider } from "@/lib/chat-auth";
-import { WalletProvider } from "@/lib/wallet";
-import { CommunityDirectoryProvider } from "@/lib/community-directory";
 import { copy as t } from "@/lib/copy";
 import { OPERATOR } from "@/lib/operator";
 import "./globals.css";
@@ -145,13 +142,7 @@ export default async function RootLayout({
           {t("shell.skipToContent")}
         </a>
         <ReleaseProvider configuration={configuration}>
-          <WalletProvider>
-            <ChatAuthProvider>
-              <CommunityDirectoryProvider>
-                <AppShell>{children}</AppShell>
-              </CommunityDirectoryProvider>
-            </ChatAuthProvider>
-          </WalletProvider>
+          <AppRouteShell>{children}</AppRouteShell>
         </ReleaseProvider>
       </body>
     </html>

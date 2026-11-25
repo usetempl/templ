@@ -39,7 +39,9 @@ export function bindMemberHistory(
     reading: () => !panel.hasAttribute("data-drawer-open"),
     principal: () => host.client.session?.principalId,
     selected,
-    active: () => menu.isConnected && panel.isConnected && !panel.hidden && !document.hidden,
+    // The selected transcript gets the first authenticated read on return.
+    active: () => menu.isConnected && panel.isConnected && !panel.hidden && !document.hidden &&
+      !panel.querySelector(".loading-case:not([hidden])"),
     load: cursor => client.adopt!()[1]<TeamConversationList>(memberConversationsPath(cursor)),
     open: async row => {
       if (host.draft.value.trim()) return false;

@@ -99,18 +99,4 @@
 }
 .composer textarea::placeholder { color: var(--chat-muted); opacity: 1; }
 .composer button { display: grid; place-items: center; padding: 0; border-radius: 50%; background: light-dark(#dadada, #424242); }
-.composer button[aria-busy="true"]::before {
-  content: "";
-  width: 18px;
-  height: 18px;
-  box-sizing: border-box;
-  border: 2px solid light-dark(#8c8c8c, #898989);
-  border-top-color: light-dark(#404040, #eee);
-  border-right-color: light-dark(#404040, #eee);
-  border-radius: 50%;
-  animation: connecting .9s linear infinite;
-}
-@keyframes connecting { to { transform: rotate(1turn); } }
-@media (prefers-reduced-motion: reduce) {
-  .composer button[aria-busy="true"]::before { animation: none; }
-}
+.composer button { color: var(--chat-muted); }

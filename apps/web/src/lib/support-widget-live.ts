@@ -113,6 +113,7 @@ export async function live(
   pulse: LivePulse,
   form?: HTMLElement,
   routing?: typeof import("./support-widget-encrypted"),
+  openingPolicy?: Promise<object>,
 ) {
   const encrypted = form && (routing ?? await loadEncrypted());
   const [, call, kit, base, origin] = client.adopt();
@@ -400,16 +401,28 @@ export async function live(
       undefined,
       true,
     );
-  client.policy = async () => {
+  function observePolicy(pending: Promise<object>) {
+    asked = true;
+    const availability = pending.then(answer => {
+      const flags = answer as {guestCheck?: unknown; live?: boolean; notice?: unknown};
+      guestCheck = flags.guestCheck;
+      notice(flags.notice);
+      return flags.live === true;
+    });
+    liveOn = availability;
+    void availability.catch(() => {
+      if (liveOn === availability) {
+        asked = false;
+        liveOn = undefined;
+      }
+    });
+  }
+  client.policy = () => {
     const counted = pulse() && !quiet;
     quiet = false;
-    const answer = counted ? await policy() : await background();
-    const flags = answer as { guestCheck?: unknown; live?: unknown };
-    guestCheck = flags.guestCheck;
-    liveOn = Promise.resolve(flags.live === true);
-    asked = true;
-    notice((answer as { notice?: unknown }).notice);
-    return answer;
+    const pending = counted ? policy() : background();
+    observePolicy(pending);
+    return pending;
   };
   /* Templ's de-identified copy. While the workspace builds one,
    * the policy names the notice version for the pre-send summary. An approved
@@ -433,6 +446,8 @@ export async function live(
       ).href,
     };
   };
+  // A visible chat can already be reading policy when the live controls arrive.
+  if (openingPolicy) observePolicy(openingPolicy);
   const settled = (state: boolean) => {
     open = state;
     notice();
