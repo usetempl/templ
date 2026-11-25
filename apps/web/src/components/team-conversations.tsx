@@ -2,11 +2,8 @@
 
 import { CustomerEncryptedSupport } from "./customer-encrypted-support";
 import { threadIdentityLabel } from "@templ/chat/support-identity-label";
-import { PRIORITY_COPY, type PriorityFeed } from "@templ/chat/support-priority";
 import { InboxCaseRow } from "./inbox-case-row";
 import { useReplyDraft } from "./use-reply-draft";
-import { PriorityReasons } from "./support-priority-reasons";
-import { readPriorities } from "@/lib/support-priority-client";
 import {
   SUPPORT_IDENTITY_LABELS,
   identityOf,
@@ -50,11 +47,9 @@ import type {
 } from "@templ/chat/index";
 import type { ChatPrincipalId } from "@templ/chat/principal";
 import {
-  SUPPORT_TIME_SPENT,
   type SupportAiMode,
   type SupportHandoffBy,
   type SupportHandoffReason,
-  type SupportTimeSpent,
   type SupportWorkflow,
 } from "@templ/chat/support";
 import { caseBillingLabel } from "@/lib/product-offer";
@@ -126,6 +121,7 @@ import { Badge } from "./ui/ui";
 import { StateLine } from "./state-line";
 import { Identicon } from "./ui/identicon";
 import styles from "./team-conversations.module.css";
+import { useStaffChatWorkflow, useStaffChatPresence } from "./use-staff-chat-workflow";
 import { SupportWorkflowPanel } from "./support-workflow-panel";
 import {
   AiControl,
@@ -136,14 +132,9 @@ import { useActionToast } from "./action-toast";
 import { SupportInboxSearch } from "./support-inbox-search";
 import { SupportAccountOptions } from "./support-account-options";
 import { DownloadChat } from "./workspace/download-chat";
-import { InboxAlertsNudge, SeenByMember } from "./workspace/inbox-alerts";
-// The answer-quality panel in the request details.
-import { ThreadQuality } from "./workspace/thread-quality";
+import { InboxAlertsNudge } from "./workspace/inbox-alerts";
 import { publishOpenInbox } from "@/lib/inbox-attention";
 import { clearInboxCounts, requestInboxCounts } from "@/lib/inbox-counts";
-import { CasePanels } from "./case-frame-panels";
-import { FollowUpsSection } from "./follow-ups-section";
-import { diagnosisPanelAllowed, DiagnosisPanel } from "./diagnosis-panel";
 import {
   turnChip,
   turnLine,
@@ -158,19 +149,15 @@ import {
 import {
   PhoneActions,
   PhoneConversation,
-  requestCaseCategory,
   PhoneDetails,
-  CaseDetailsExtras,
   PhoneDetailsButton,
 } from "./phone-thread";
 import {
   clearLinkedInboxView,
   readLinkedInboxView,
 } from "@/lib/inbox-link-view";
-import { ThreadCopyPanel } from "./workspace/improvement-copy";
 import {
   InboxSystemLine,
-  SharedDetailsMarker,
   inboxThreadItems,
 } from "./inbox-thread-markers";
 /** The member's one conversation with a workspace's team and the team's
@@ -449,9 +436,8 @@ function ScopedTeamConversationsBody({
       {status && team && (
         <div className={styles.split} data-selected={Boolean(selected)}>
           <TeamQueue
-            priorityEnabled={features?.priorityFeed === true}
             draftsEnabled={features?.aiDrafts === true}
-            key={`queue:${room}:${account ?? "guest"}:${features?.priorityFeed === true}`}
+            key={`queue:${room}:${account ?? "guest"}`}
             room={room}
             revision={revision}
             available={status.available}
@@ -535,7 +521,6 @@ export function TeamConversationsPane(props: BodyProps) {
 /** The team's room-scoped queue. Members never see it; a member who reaches
  * it through a stale link sees only their own thread. */
 function TeamQueue({
-  priorityEnabled = false,
   draftsEnabled,
   room,
   revision,
@@ -549,7 +534,6 @@ function TeamQueue({
   pendingCases,
   firstCasePage,
 }: {
-  priorityEnabled?: boolean;
   draftsEnabled: boolean;
   room: ChatRoomId;
   revision: number;
@@ -572,10 +556,6 @@ function TeamQueue({
   const account = useChatAuth().session?.principalId;
   const filterId = useId();
   const [savedInbox] = useState(() => readSupportInboxState(room, account));
-  const [priorityView, setPriorityView] = useState(
-    () => priorityEnabled && readLinkedInboxView() === null,
-  );
-  const prioritiesShown = priorityEnabled && priorityView;
   /** The service's words when a ledger view is still being set up. The
    * queue shows All open for the rest of this visit. */
   const [preparing, setPreparing] = useState("");
@@ -593,7 +573,6 @@ function TeamQueue({
   // picking another view keeps the earlier bar.
   const setFilter = (value: TeamConversationFilter) => {
     setSelection(null);
-    setPriorityView(false);
     clearLinkedInboxView();
     setFilterValue(value);
     writeSupportInboxState(room, account, { filter: value });
@@ -619,9 +598,7 @@ function TeamQueue({
   const [filterDraft, setFilterDraft] = useState(filters);
   // Each read names the query it answers; a filter or revision change shows
   // the loading line again without a synchronous reset inside the effect.
-  const query = prioritiesShown
-    ? "priorities"
-    : teamQueueCacheKey(filter, filters);
+  const query = teamQueueCacheKey(filter, filters);
   const cache = useMemo(
     () => teamPresentationCache(room, account, revision),
     [room, account, revision],
@@ -632,7 +609,6 @@ function TeamQueue({
     nextCursor?: string | null;
     pending?: "refresh" | "more" | "retry";
     error?: string;
-    priorityFeed?: PriorityFeed;
   }>();
   const current: typeof loaded =
     loaded?.query === query
@@ -717,25 +693,6 @@ function TeamQueue({
         pending: more ? "more" : "refresh",
       }));
       try {
-        if (prioritiesShown) {
-          const feed = await readSupport(
-            (signal) => readPriorities(room, signal),
-            controller.signal,
-          );
-          if (controller.signal.aborted) return;
-          const page = {
-            rows: feed.cases.flatMap((item) =>
-              item.conversation ? [item.conversation] : [],
-            ),
-            priorityFeed: feed,
-            nextCursor: null,
-            pages: 1,
-          };
-          cache.rememberQueue(query, page);
-          setLoaded({ query, ...page });
-          lastRead = Date.now();
-          return;
-        }
         // Re-read the visible pages together: a resolved or newly opened
         // conversation can move across page boundaries between refreshes.
         // More cases can use the last page's cursor and leave visible rows in place.
@@ -824,14 +781,14 @@ function TeamQueue({
     const focused = () => {
       if (Date.now() - lastRead >= FOCUS_REFRESH_MS) refresh();
     };
-    const timer = prioritiesShown ? null : window.setInterval(refresh, POLL_MS);
+    const timer = window.setInterval(refresh, POLL_MS);
     window.addEventListener("focus", focused);
     return () => {
       controller.abort();
       if (timer !== null) window.clearInterval(timer);
       window.removeEventListener("focus", focused);
     };
-  }, [room, account, filter, revision, query, filters, cache, prioritiesShown, firstCasePage]);
+  }, [room, account, filter, revision, query, filters, cache, firstCasePage]);
   const activeFilters = Object.values(filters).filter(Boolean).length;
   const filterForm = (
     <form
@@ -967,8 +924,7 @@ function TeamQueue({
               }
             />
           </button>
-          {!prioritiesShown && (
-            <button
+          <button
               type="button"
               className={styles.iconButton}
               aria-label="Filters"
@@ -982,7 +938,6 @@ function TeamQueue({
                 <span className={styles.filterCount}>{activeFilters}</span>
               )}
             </button>
-          )}
         </div>
       </div>
       <SupportInboxSearch
@@ -991,9 +946,7 @@ function TeamQueue({
         onOpen={onOpen}
       />
 
-      {prioritiesShown
-        ? null
-        : filtersOpen && <div className={styles.filterPanel}>{filterForm}</div>}
+      {filtersOpen && <div className={styles.filterPanel}>{filterForm}</div>}
       {!available && (
         <p className={styles.note} role="status">
           {t("room.team.unavailableNote")}
@@ -1015,18 +968,6 @@ function TeamQueue({
         counts={counts}
         showAiHandling={aiShown}
         onChange={setFilter}
-        priorities={
-          priorityEnabled
-            ? {
-                selected: prioritiesShown,
-                onSelect: () => {
-                  setSelection(null);
-                  clearLinkedInboxView();
-                  setPriorityView(true);
-                },
-              }
-            : undefined
-        }
       />
 
       {selectionActive && (
@@ -1078,15 +1019,11 @@ function TeamQueue({
       <div
         ref={listScroll}
         className={styles.listScroll}
-        data-view={prioritiesShown ? "priorities" : filter}
+        data-view={filter}
       >
         {rows === null && !error && <CaseListSkeleton />}
         {rows?.length === 0 && !current?.nextCursor && !error && (
           <div className={styles.queueEmpty}>
-            {prioritiesShown ? (
-              <p>{PRIORITY_COPY.empty}</p>
-            ) : (
-              <>
                 <InboxEmptyState
                   message={
                     activeFilters > 0
@@ -1137,19 +1074,12 @@ function TeamQueue({
                     textClassName={styles.filterHint}
                   />
                 )}
-              </>
-            )}
           </div>
         )}
         {rows && rows.length > 0 && (
           <ul className={styles.list} aria-label={t("room.team.list")}>
             {rows.map((savedRow) => {
               const row = pendingCases?.[savedRow.id] ?? savedRow;
-              const priority = prioritiesShown
-                ? current?.priorityFeed?.cases.find(
-                    (item) => item.thread === row.id,
-                  )
-                : undefined;
               const profile = profiles.get(row.member);
               const preview = previewFor(row);
               const name = profile?.displayName?.trim();
@@ -1210,9 +1140,6 @@ function TeamQueue({
                     }
                     onOpen={() => onOpen(row.id, row)}
                   >
-                    {priority ? (
-                      <PriorityReasons value={priority} />
-                    ) : (
                       <span className={styles.rowMeta}>
                         {chip && <span className={styles.tag} title={chip.text}>{chip.text}</span>}
                         {statusLabel && <span className={styles.tag}>{statusLabel}</span>}
@@ -1221,7 +1148,6 @@ function TeamQueue({
                         {row.support?.tags.map((tag) => <span key={tag} className={styles.tag}>{tag}</span>)}
                         {row.support?.unread && <span className={styles.srOnly}>Unread</span>}
                       </span>
-                    )}
                   </InboxCaseRow>
                 </li>
               );
@@ -1400,7 +1326,7 @@ function ConversationView({
   } | null>(null);
   /** The member tapped "Talk to a person" and the request is on its way. */
   const [asking, setAsking] = useState<string | null>(null);
-  const [timeSpent, setTimeSpent] = useState<SupportTimeSpent | "">("");
+  const [categoryPrompt, setCategoryPrompt] = useState<string | null>(null);
   /** The details panel’s latest workflow read. */
   const [panelWorkflow, setPanelWorkflow] = useState<{
     thread: string;
@@ -1755,7 +1681,7 @@ function ConversationView({
       restoredDraft.current = null;
       setTyping(null);
       setTypedIn(null);
-      setTimeSpent("");
+      setCategoryPrompt(null);
       lastTypingMark.current = 0;
       sendAttempt.current = null;
     }
@@ -1896,6 +1822,9 @@ function ConversationView({
     },
     [conversationId],
   );
+  const staffThread = teamView && workflowEnabled && !revoked && !conversation?.encryption
+    ? conversation?.id ?? null : null;
+  useStaffChatWorkflow(room, staffThread, workflowRevision, onPanelWorkflow);
   const workflowNow =
     conversation && panelWorkflow?.thread === conversation.id
       ? panelWorkflow.workflow
@@ -1936,6 +1865,8 @@ function ConversationView({
   // Current case access and author permissions apply.
   const composeActivity = useComposeActivity(conversation?.id);
   const typedSinceOpen = Boolean(conversation) && typedIn === conversation?.id;
+  useStaffChatPresence(room, account, staffThread, shownThread === staffThread,
+    typedSinceOpen && composeActivity.active && Boolean(text.trim()));
   /** A person's typing mark: only after they type here, at most every
    * TYPING_MARK_MS, never for a member. Refusals are ignored; the reply
    * itself says why it can't go. */
@@ -2099,7 +2030,7 @@ function ConversationView({
     setCaseAction(null);
     setBusy(false);
   }
-  async function setResolved(resolved: boolean) {
+  async function setResolved(resolved: boolean, category?: string) {
     if (!conversation) return;
     const previous = conversation;
     const id = previous.id;
@@ -2123,13 +2054,13 @@ function ConversationView({
     try {
       const result = await resolveConversation(account, room, id, resolved, {
         ifRevision: previous.revision,
-        ...(resolved && timeSpent ? { timeSpent } : {}),
+        ...(resolved && category ? { category } : {}),
       });
       if (caseMutations.current.get(id) !== mutation) return;
       setConversation((current) =>
         current?.id === id ? result.conversation : current,
       );
-      if (activeConversation.current === id) setTimeSpent("");
+      if (activeConversation.current === id) setCategoryPrompt(null);
       onQueueChange?.();
     } catch (reason) {
       if (caseMutations.current.get(id) !== mutation) return;
@@ -2186,7 +2117,7 @@ function ConversationView({
           "reason" in reason.details &&
           reason.details.reason === "category-required"
         )
-          requestCaseCategory();
+          setCategoryPrompt(id);
       } else toast.show("Could not update the case. Open it to try again.");
     } finally {
       endCaseMutation(id, mutation);
@@ -2301,26 +2232,6 @@ function ConversationView({
   }
   const blocked = conversation?.postBlockedReason ?? null;
   const replyBlocked = teamView ? (conversation?.replyBlocked ?? null) : null;
-  const timeSpentField = conversation?.viewer === "team" &&
-    conversation.state === "open" && (
-      <label className={styles.timeSpent}>
-        <span>{t("room.timeSpent.label")}</span>
-        <select
-          value={timeSpent}
-          disabled={busy || !status.available}
-          onChange={(event) =>
-            setTimeSpent(event.target.value as SupportTimeSpent | "")
-          }
-        >
-          <option value="">{t("room.timeSpent.none")}</option>
-          {SUPPORT_TIME_SPENT.map((bucket) => (
-            <option key={bucket} value={bucket}>
-              {t(`room.timeSpent.${bucket}`)}
-            </option>
-          ))}
-        </select>
-      </label>
-    );
   const resolveButton =
     conversation &&
     conversation.viewer === "team" &&
@@ -2653,6 +2564,13 @@ function ConversationView({
                   ? memberName
                   : t("room.team.title", { name: communityName })}
               </strong>
+              {teamView && conversation && (
+                <span className={styles.walletList}>
+                  {(conversation.verifiedWalletAddresses ?? (conversation.verifiedWalletAddress ? [conversation.verifiedWalletAddress] : [])).map(address => (
+                    <span key={address}>Verified wallet <code>{address}</code></span>
+                  ))}
+                </span>
+              )}
               {caseFacts}
               {teamView && conversation ? (
                 <StateLine value={stateLine ?? earlierLine(conversation)} />
@@ -2662,7 +2580,7 @@ function ConversationView({
                 </span>
               )}
             </div>
-            <PhoneDetailsButton />
+            {!teamView && <PhoneDetailsButton />}
             <PhoneActions className={styles.threadActions}>
               {resolveButton}
               {stopButton}
@@ -2670,6 +2588,17 @@ function ConversationView({
           </>
         )}
       </header>
+      {categoryPrompt && categoryPrompt === conversation?.id && teamView && (
+        <label className={styles.resolveCategory}>
+          Category to resolve this case
+          <select value="" disabled={busy || !status.available} onChange={event => {
+            if (event.target.value) void setResolved(true, event.target.value);
+          }}>
+            <option value="">Choose a category</option>
+            {workflowNow?.settings.categories?.map(category => <option key={category}>{category}</option>)}
+          </select>
+        </label>
+      )}
       {banner}
       {caseAction && caseAction.id === conversation?.id && (
         <p className={styles.caseAction} role="status">
@@ -2871,18 +2800,6 @@ function ConversationView({
                     />
                   )}
                 </div>
-                {teamView &&
-                  !teamSide &&
-                  conversation &&
-                  message.sharedDetails !== undefined && (
-                    <SharedDetailsMarker
-                      count={message.sharedDetails}
-                      thread={conversation.id}
-                      snapshots={Boolean(
-                        workflowNow?.context?.snapshots?.length,
-                      )}
-                    />
-                  )}
               </div>
             </div>
           );
@@ -3140,97 +3057,22 @@ function ConversationView({
       )}
     </div>
   );
-  /** Feature panels under the request details, for the team only. Each
-   * panel checks its own access through its route. */
-  const featurePanels =
-    teamView && conversation && !revoked ? (
-      <>
-        {/* The case frame and Ask AI panels. */}
-        <CasePanels
-          aiDrafts={features?.aiDrafts === true}
-          key={`cases:${room}:${conversation.id}:${account}`}
-          room={room}
-          account={account}
-          conversation={conversation}
-          context={workflowNow?.context ?? null}
-          replyText={text}
-          onUseDraft={setText}
-          refreshKey={workflowRevision}
-        />
-        {/* The follow-ups section. */}
-        <FollowUpsSection
-          enabled={features?.followUps === true}
-          key={`follow-ups:${room}:${conversation.id}:${account}`}
-          room={room}
-          account={account}
-          thread={conversation.id}
-          refreshKey={workflowRevision}
-        />
-        {/* "Seen by the member". */}
-        <SeenByMember
-          key={`seen:${room}:${conversation.id}`}
-          room={room}
-          thread={conversation.id}
-          lastTeamReplyAt={lastTeamMessage?.createdAt ?? null}
-        />
-        {/* Reply labels and the review card. */}
-        {!viewerIsMember && features?.quality === true && (
-          <ThreadQuality
-            key={`quality:${room}:${conversation.id}:${account}`}
-            room={room}
-            account={account}
-            thread={conversation.id}
-            names={labelFor}
-            replies={
-              shownThread === conversation.id
-                ? messages.filter(teamSideOf).map((message) => ({
-                    id: Number(message.id),
-                    text: message.text,
-                    createdAt: message.createdAt,
-                    author: labelFor(message.author),
-                    bot:
-                      authors[message.author]?.badges.includes("bot") === true,
-                  }))
-                : []
-            }
-          />
-        )}
-        {/* A member's privacy request or objection about Templ's copy (the */}
-        {/* manager and support leads only). */}
-        {!viewerIsMember && (
-          <ThreadCopyPanel
-            key={`corpus:${room}:${conversation.id}:${account}`}
-            room={room}
-            account={account}
-            thread={conversation.id}
-          />
-        )}
-      </>
-    ) : null;
+  if (teamView) return (
+    <div className={styles.conversation} data-viewer="team">
+      {thread}
+      {toast.toast}
+    </div>
+  );
   return (
     <PhoneConversation
       className={styles.conversation}
-      viewer={teamView ? "team" : "member"}
+      viewer="member"
       details={Boolean(conversation && !revoked)}
       resetKey={conversation?.id ?? ""}
     >
       {thread}
-      {teamView && toast.toast}
       {conversation && !revoked && (
         <PhoneDetails className={styles.threadAside} label="Case details">
-          {teamView && (conversation.verifiedWalletAddresses?.length ?? 0) > 1 && (
-            <section className={styles.detailSection} aria-label="Verified wallets">
-              <h3>Verified wallets</h3>
-              <ul className={styles.verifiedWallets}>
-                {conversation.verifiedWalletAddresses?.map((address) => (
-                  <li key={address}><code>{address}</code></li>
-                ))}
-              </ul>
-            </section>
-          )}
-          {timeSpentField && (
-            <div className={styles.detailSection}>{timeSpentField}</div>
-          )}
           <SupportWorkflowPanel
             priorityEnabled={features?.priorityFeed === true}
             draftsEnabled={features?.aiDrafts === true}
@@ -3255,27 +3097,12 @@ function ConversationView({
             onMutationEnd={endPanelMutation}
             refreshKey={workflowRevision}
           />
-          {teamView && account && (
-            <DiagnosisPanel
-              enabled={diagnosisPanelAllowed(features)}
-              key={`diagnosis:${room}:${conversation.id}:${account}`}
-              room={room}
-              account={account}
-              thread={conversation.id}
-              transactions={workflowNow?.context?.transactions ?? []}
-              context={workflowNow?.context ?? null}
-              replyText={text}
-              onPutInReply={setText}
-              refreshKey={workflowRevision}
-            />
-          )}
           <DownloadChat
             key={`download:${room}:${conversation.id}:${account}`}
             room={room}
             conversationId={conversation.id}
             viewer={conversation.viewer}
           />
-          <CaseDetailsExtras>{featurePanels}</CaseDetailsExtras>
         </PhoneDetails>
       )}
     </PhoneConversation>

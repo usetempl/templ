@@ -1285,7 +1285,7 @@
   .conversation[data-details="open"] {
     grid-template-columns: minmax(0, 1fr);
   }
-  .conversation[data-details="open"] > .threadAside:not([data-case-details-dialog]) {
+  .conversation[data-details="open"] > .threadAside {
     position: absolute;
     z-index: var(--templ-z-overlay);
     inset: 0 0 0 auto;
@@ -1417,7 +1417,7 @@
   .conversation > .threadAside {
     display: none;
   }
-  .conversation[data-details="open"] > .threadAside:not([data-case-details-dialog]) {
+  .conversation[data-details="open"] > .threadAside {
     position: fixed;
     inset: 0;
     width: 100%;
@@ -1783,30 +1783,6 @@
   }
 }
 
-.conversation[data-viewer="team"] .detailsToggle {
-  border-color: transparent;
-}
-
-.conversation > .threadAside[data-case-details-dialog] {
-  position: fixed;
-  inset: 0;
-  margin: auto;
-  width: min(42rem, calc(100% - 2rem));
-  height: fit-content;
-  max-height: min(85dvh, 54rem);
-  border: var(--templ-border-width) solid var(--templ-line);
-  border-radius: var(--templ-radius-surface);
-  box-shadow: var(--templ-shadow-lg);
-}
-
-.conversation > .threadAside[data-case-details-dialog]:modal {
-  display: block;
-}
-
-.threadAside[data-case-details-dialog]::backdrop {
-  background: rgb(0 0 0 / 42%);
-}
-
 .conversation[data-viewer="team"] .messageBody {
   border-color: transparent;
 }
@@ -1859,9 +1835,17 @@
   cursor: pointer;
 }
 
-@media (max-width: 480px) {
-  .conversation > .threadAside[data-case-details-dialog] {
-    width: calc(100% - 1rem);
-    max-height: calc(100dvh - 1rem);
-  }
+
+.threadTitle .walletList {
+  display: grid;
+  gap: .2rem;
+  overflow-wrap: anywhere;
+}
+.threadTitle .walletList:empty { display: none; }
+.resolveCategory {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: .5rem;
+  padding: .5rem 1rem;
 }

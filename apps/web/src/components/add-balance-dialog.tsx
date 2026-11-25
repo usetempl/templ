@@ -23,12 +23,14 @@ export function AddBalanceDialog({
   room,
   assertCurrent,
   onConfirmed,
+  onPlanReady,
   onClose,
   purpose,
 }: {
   room: ChatRoomId;
   assertCurrent: () => void;
   onConfirmed: () => void;
+  onPlanReady?: () => void;
   onClose: () => void;
   purpose?: "period" | "credit";
 }) {
@@ -69,6 +71,8 @@ export function AddBalanceDialog({
       });
     return () => controller.abort();
   }, [room, usageKey, refresh]);
+  const planActive = Boolean(verified?.key === usageKey && verified.accessTransaction && standard?.status === "paid" &&
+    standard.period?.paymentId?.split(":")[1] === verified.accessTransaction);
   const dismiss = useDismissDialog(onClose);
   return (
     <dialog
@@ -112,8 +116,8 @@ export function AddBalanceDialog({
         {!usage && !error && <p role="status">Loading your plan…</p>}
         {verified?.key === usageKey && (
           <div className={styles.confirmed} role="status">
-            <strong>{verified.accessTransaction && standard?.status === "paid" && standard.period?.paymentId?.split(":")[1] === verified.accessTransaction ? "Your hosted plan is active." : "Payment verified."}</strong>
-            <button type="button" className={styles.primary} onClick={onClose}>Back to workspace</button>
+            <strong>{planActive ? "Your hosted plan is active." : "Payment verified."}</strong>
+            <button type="button" className={styles.primary} onClick={planActive && onPlanReady ? onPlanReady : onClose}>{planActive && onPlanReady ? "Set up AI" : "Back to workspace"}</button>
           </div>
         )}
         {usage && !standard && (

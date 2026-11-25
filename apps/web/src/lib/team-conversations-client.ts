@@ -118,11 +118,13 @@ export function resolveConversation(
   resolved: boolean,
   options: {
     timeSpent?: SupportTimeSpent;
+    category?: string;
     ifRevision?: number;
     assertCurrent?: () => void;
   } = {},
 ): Promise<{ conversation: TeamConversation }> {
   const body: Record<string, unknown> = { resolved };
+  if (resolved && options.category) body.category = options.category;
   if (options.ifRevision !== undefined) {
     if (!Number.isSafeInteger(options.ifRevision) || options.ifRevision < 0)
       throw new Error("Include the case revision.");

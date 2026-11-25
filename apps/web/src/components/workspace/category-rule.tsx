@@ -62,6 +62,7 @@ export function CategoryRule({ context }: { context: WorkspaceContext }) {
       setBusy(false);
     }
   }
+  if (!settings?.requireCategory) return null;
   return (
     <Card
       title="Category before resolving"

@@ -2,6 +2,7 @@
 import { threadIdentityLabel } from "@templ/chat/support-identity-label";
 import { UnsavedChanges } from "./workspace/unsaved-changes";
 import { PRIORITY_COPY } from "@templ/chat/support-priority";
+import { useStaffChatPresence } from "./use-staff-chat-workflow";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ChatRoomId, TeamConversation } from "@templ/chat/index";
 import type { ChatPrincipalId } from "@templ/chat/principal";
@@ -346,35 +347,7 @@ export function SupportWorkflowPanel({
           : workflow,
       );
   }, [workflow, earlierNotes, onWorkflow]);
-  useEffect(() => {
-    if (!team || !enabled || !messagesShown) return;
-    void updateSupportWorkflow(account, room, conversation.id, {
-      action: "read",
-    }).catch(() => {});
-  }, [account, room, conversation.id, team, enabled, messagesShown]);
-  useEffect(() => {
-    if (!team || !enabled || !messagesShown) return;
-    let pending = false;
-    const update = () => {
-      if (!document.hidden && !pending) {
-        pending = true;
-        // `typed` says `composing` means typed in this thread since it
-        // opened: a restored draft is not a person stepping in.
-        void updateSupportWorkflow(account, room, conversation.id, {
-          action: "presence",
-          composing,
-          typed: true,
-        })
-          .catch(() => {})
-          .finally(() => {
-            pending = false;
-          });
-      }
-    };
-    update();
-    const timer = window.setInterval(update, 20_000);
-    return () => window.clearInterval(timer);
-  }, [account, room, conversation.id, team, enabled, composing, messagesShown]);
+  useStaffChatPresence(room, account, team && enabled ? conversation.id : null, messagesShown, composing);
   async function mutate(body: Record<string, unknown>) {
     if (mutationPending.current || busy || actionBusy || !enabled) return false;
     if (onMutationStart && !onMutationStart()) return false;

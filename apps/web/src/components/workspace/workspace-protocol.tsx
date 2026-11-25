@@ -3,8 +3,7 @@ import { trackEvent } from "@/lib/analytics";
 
 import { canManageWorkspace } from "@templ/chat/moderation-permissions";
 
-import { BrainStoragePanel } from "./brain-storage-panel";
-import { SupportFileImport } from "./support-file-import";
+import { SourceUrlForm } from "./onboarding-source";
 import { KNOWLEDGE_LIMITS } from "@templ/chat/knowledge";
 
 import {
@@ -16,43 +15,27 @@ import {
 } from "react";
 import {
   KNOWLEDGE_ERAS,
-  PROFILE_STATUSES,
   PROFILE_VISIBILITY,
-  parseProfileCsv,
-  parseProfileJson,
+  type ProfileVisibility,
   type KnowledgeEraTag,
   type KnowledgeOverview,
   type KnowledgeSourceView,
-  type ProfileContract,
-  type ProfileVisibility,
 } from "@templ/chat/protocol-profile";
 import {
-  addKnowledge,
-  applyProfileImport,
-  applyRegistry,
   knowledgeAction,
   readKnowledge,
   readKnowledgeFaq,
   readAiGuidance,
   saveAiGuidance,
-  readProfile,
-  readProfileContracts,
-  saveProfileSettings,
-  saveRegistry,
-  syncRegistry,
-  uploadProfileImport,
-  type ImportPreview,
-  type ProfileView,
   type KnowledgeFilters,
 } from "@/lib/knowledge-client";
 import {
   ERA_TEXT,
   QUALITY_COPY as c,
-  STATUS_TEXT,
   VISIBILITY_TEXT,
 } from "@/lib/copy/quality";
 import { CommunityApiError } from "@/lib/community-client";
-import { Badge, Callout, Card, Field, Spinner, ui } from "@/components/ui/ui";
+import { Badge, Card, Field, Spinner, ui } from "@/components/ui/ui";
 import type { WorkspaceContext } from "./support-workspace";
 import styles from "./workspace-quality.module.css";
 import sources from "./knowledge-sources.module.css";
@@ -60,20 +43,7 @@ import { UnsavedChanges } from "./unsaved-changes";
 
 const message = (reason: unknown) =>
   reason instanceof Error ? reason.message : c.error;
-const lines = (text: string) =>
-  text
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean);
-
-/** The protocol profile in Settings. */
-export function WorkspaceProtocol({ context }: { context: WorkspaceContext }) {
-  return (
-    <div id="protocol-resources" className={styles.stack}>
-      <ProfileCard context={context} />
-    </div>
-  );
-}
+const lines = (text: string) => text.split("\n").map(line => line.trim()).filter(Boolean);
 
 const workspaceAdmin = (context: WorkspaceContext) =>
   canManageWorkspace(
@@ -96,315 +66,8 @@ export function WorkspaceKnowledge({ context }: { context: WorkspaceContext }) {
   );
 }
 
-/** Entries by status: the older products the team keeps for lookups. */
-function ContractList({
-  context,
-  revision,
-}: {
-  context: WorkspaceContext;
-  revision: number;
-}) {
-  const { room } = context;
-  const [status, setStatus] = useState("");
-  const [attempt, setAttempt] = useState(0);
-  const readKey = `${room}:${revision}:${status}:${attempt}`;
-  const [result, setResult] = useState<{ key: string; contracts: ProfileContract[] | null; error?: string }>();
-  const contracts = result?.key === readKey ? result.contracts : null;
-  const error = result?.key === readKey ? result.error : undefined;
-  useEffect(() => {
-    const controller = new AbortController();
-    readProfileContracts(
-      room,
-      { status: status || undefined },
-      controller.signal,
-    )
-      .then(
-        (data) => {
-          if (controller.signal.aborted) return;
-          if (!Array.isArray(data?.contracts)) throw new Error("Contracts could not load.");
-          setResult({ key: readKey, contracts: data.contracts });
-        },
-      )
-      .catch(
-        () =>
-          !controller.signal.aborted && setResult({ key: readKey, contracts: null, error: "Contracts could not load." }),
-      );
-    return () => controller.abort();
-  }, [room, status, readKey]);
-  return (
-    <>
-      <h3 className={styles.subhead}>{c.contractsTitle}</h3>
-      <select
-        className={ui.input}
-        aria-label={c.contractsFilter}
-        value={status}
-        onChange={(event) => setStatus(event.target.value)}
-      >
-        <option value="">{c.contractsAll}</option>
-        {PROFILE_STATUSES.map((option) => (
-          <option key={option} value={option}>
-            {STATUS_TEXT[option]}
-          </option>
-        ))}
-      </select>
-      {error ? (
-        <div>
-          <p role="alert">{error}</p>
-          <button
-            type="button"
-            className="button small secondary"
-            onClick={() => setAttempt((value) => value + 1)}
-          >
-            Try again
-          </button>
-        </div>
-      ) : contracts === null ? (
-        <Spinner />
-      ) : contracts.length === 0 ? (
-        <p className={styles.note}>{c.contractsEmpty}</p>
-      ) : (
-        <ul className={styles.rows}>
-          {contracts.map((contract) => (
-            <li
-              key={`${contract.network}:${contract.address}`}
-              className={styles.row}
-            >
-              <div className={styles.rowHead}>
-                <span>{contract.label}</span>
-                <span className={styles.badges}>
-                  <Badge>{STATUS_TEXT[contract.status]}</Badge>
-                  <Badge>{VISIBILITY_TEXT[contract.visibility]}</Badge>
-                </span>
-              </div>
-              <p
-                className={styles.note}
-              >{`${contract.address} on ${contract.network}`}</p>
-              {contract.staffNote && (
-                <p className={styles.note}>{contract.staffNote}</p>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
-    </>
-  );
-}
-
-function ProfileCard({ context }: { context: WorkspaceContext }) {
-  const { room, account } = context;
-  const admin = workspaceAdmin(context);
-  const [profile, setProfile] = useState<ProfileView | null>(null);
-  const [tick, setTick] = useState(0);
-  const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [preview, setPreview] = useState<ImportPreview | null>(null);
-  const [fileErrors, setFileErrors] = useState<string[]>([]);
-  const [mode, setMode] = useState<"merge" | "replace">("merge");
-  const [registry, setRegistry] = useState<string | null>(null);
-  const [sites, setSites] = useState<string | null>(null);
-  useEffect(() => {
-    const controller = new AbortController();
-    readProfile(room, controller.signal)
-      .then((data) => !controller.signal.aborted && setProfile(data))
-      .catch((reason) => !controller.signal.aborted && setError(message(reason)));
-    return () => controller.abort();
-  }, [room, tick]);
-  async function run(task: () => Promise<string | void>) {
-    setBusy(true);
-    setError("");
-    setNotice("");
-    try {
-      const done = await task();
-      if (done) setNotice(done);
-      setTick((n) => n + 1);
-    } catch (reason) {
-      setError(message(reason));
-    } finally {
-      setBusy(false);
-    }
-  }
-  async function pick(file: File | undefined) {
-    if (!file) return;
-    const text = await file.text();
-    const parsed = /\.csv$/i.test(file.name) ? parseProfileCsv(text) : parseProfileJson(text);
-    setFileErrors(parsed.errors.slice(0, 20).map((row) => c.importRow(row.row, row.reason)));
-    if (!parsed.contracts.length) return;
-    await run(async () => {
-      setPreview(
-        await uploadProfileImport(room, account, parsed.contracts, "metrics" in parsed ? parsed.metrics : [], mode),
-      );
-    });
-  }
-  if (!profile?.counts)
-    return (
-      <Card title={c.profileTitle} description={c.profileIntro}>
-        {error ? <><p className={styles.error} role="alert">{error}</p><button type="button" className="button secondary"
-          onClick={() => { setError(""); setTick(value => value + 1); }}>Try again</button></> : <Spinner />}
-      </Card>
-    );
-  const last = profile.registry?.lastResult;
-  const registryDirty = registry !== null && registry !== (profile.registry?.url ?? "");
-  const sitesDirty = sites !== null && JSON.stringify(lines(sites)) !== JSON.stringify(profile.officialUrls);
-  return (
-    <Card title={c.profileTitle} description={c.profileIntro}>
-      <UnsavedChanges dirty={registryDirty || sitesDirty || preview !== null} />
-      <p className={styles.note}>{c.profileCounts(profile.counts.contracts, profile.counts.metrics, profile.counts.abis)}</p>
-      <p className={styles.badges}>
-        {PROFILE_STATUSES.filter((status) => profile.counts.byStatus[status]).map((status) => (
-          <Badge key={status}>{`${STATUS_TEXT[status]} ${profile.counts.byStatus[status]}`}</Badge>
-        ))}
-      </p>
-      <ContractList context={context} revision={profile.revision} />
-      {admin && (
-        <>
-          <h3 className={styles.subhead}>{c.importTitle}</h3>
-          <p className={styles.note}>{c.importHint}</p>
-          <div className={styles.actions}>
-            <input
-              type="file"
-              accept=".json,.csv,application/json,text/csv"
-              aria-label={c.importTitle}
-              disabled={busy}
-              onChange={(event) => void pick(event.target.files?.[0])}
-            />
-            <select className={ui.input} aria-label="Import mode" value={mode} onChange={(event) => setMode(event.target.value as "merge" | "replace")}>
-              <option value="merge">{c.importMerge}</option>
-              <option value="replace">{c.importReplace}</option>
-            </select>
-          </div>
-          {fileErrors.length > 0 && (
-            <ul className={styles.points}>
-              {fileErrors.map((line) => (
-                <li key={line}>{line}</li>
-              ))}
-            </ul>
-          )}
-          {preview && (
-            <div className={styles.review}>
-              <p>{c.importDiff(preview.diff.added, preview.diff.changed, preview.diff.unchanged, preview.diff.errors)}</p>
-              <button
-                type="button"
-                className="button small"
-                disabled={busy}
-                onClick={() =>
-                  void run(async () => {
-                    const result = await applyProfileImport(room, account, preview.importId, preview.mode);
-                    setPreview(null);
-                    return c.contractsSaved(result.applied);
-                  })
-                }
-              >
-                {busy && <Spinner />}
-                {c.importApply}
-              </button>
-            </div>
-          )}
-          <h3 className={styles.subhead}>{c.registryTitle}</h3>
-          <p className={styles.note}>{c.registryHint}</p>
-          <form
-            onSubmit={(event: FormEvent) => {
-              event.preventDefault();
-              void run(async () => {
-                const result = await saveRegistry(room, account, registry ?? profile.registry?.url ?? null, "daily");
-                setProfile(current => current && { ...current, registry: result.registry });
-                setRegistry(null);
-                return c.saved;
-              });
-            }}
-          >
-            <Field label={c.registryUrl}>
-              <input
-                className={ui.input}
-                type="url"
-                placeholder="https://"
-                value={registry ?? profile.registry?.url ?? ""}
-                onChange={(event) => setRegistry(event.target.value)}
-              />
-            </Field>
-            <div className={styles.actions}>
-              <button type="submit" className="button small secondary" disabled={busy || !registryDirty}>
-                {c.registrySave}
-              </button>
-              {profile.registry && (
-                <button
-                  type="button"
-                  className="button small"
-                  disabled={busy}
-                  onClick={() =>
-                    void run(async () => {
-                      const { result } = await syncRegistry(room, account);
-                      return result.result === "applied"
-                        ? c.syncApplied(result.added, result.changed)
-                        : result.result === "unchanged"
-                          ? c.nothingChanged
-                          : undefined;
-                    })
-                  }
-                >
-                  {c.registrySync}
-                </button>
-              )}
-            </div>
-          </form>
-          {last?.result === "paused" && (
-            <div className={styles.review}>
-              <p>{c.registryPaused(last.changed + last.added + last.missing)}</p>
-              <ul className={styles.points}>
-                {(last.pending ?? []).slice(0, 10).map((key) => (
-                  <li key={key}>{key}</li>
-                ))}
-              </ul>
-              <button type="button" className="button small" disabled={busy} onClick={() => void run(async () => {
-                await applyRegistry(room, account);
-                return c.saved;
-              })}>
-                {c.registryApply}
-              </button>
-            </div>
-          )}
-          <Field label={c.officialSites} hint={c.officialSitesHint}>
-            <textarea
-              className={ui.input}
-              rows={2}
-              value={sites ?? profile.officialUrls.join("\n")}
-              onChange={(event) => setSites(event.target.value)}
-            />
-          </Field>
-          <button
-            type="button"
-            className="button small secondary"
-            disabled={busy || !sitesDirty}
-            onClick={() =>
-              void run(async () => {
-                const result = await saveProfileSettings(room, account, { officialUrls: lines(sites ?? "") });
-                setProfile(current => current && { ...current, ...result });
-                setSites(null);
-                return c.saved;
-              })
-            }
-          >
-            {c.saveSites}
-          </button>
-        </>
-      )}
-      {notice && (
-        <p className={styles.status} role="status">
-          {notice}
-        </p>
-      )}
-      {error && (
-        <p className={styles.error} role="alert">
-          {error}
-        </p>
-      )}
-    </Card>
-  );
-}
-
-type Adding = "doc" | "sitemap" | "faq" | "file" | null;
 function KnowledgeCard({ context }: { context: WorkspaceContext }) {
-  const { room, account, manager } = context;
+  const { room, account } = context;
   const editable = workspaceAdmin(context);
   const [data, setData] = useState<KnowledgeOverview | null>(null);
   const [editing, setEditing] = useState<KnowledgeSourceView | null>(null);
@@ -429,14 +92,6 @@ function KnowledgeCard({ context }: { context: WorkspaceContext }) {
   const [guidance, setGuidance] = useState<string | null>(null);
   const [guidanceDraft, setGuidanceDraft] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
-  const [adding, setAdding] = useState<Adding>(null);
-  const [url, setUrl] = useState("");
-  const [title, setTitle] = useState("");
-  const [text, setText] = useState("");
-  const [era, setEra] = useState<KnowledgeEraTag>("current");
-  const [visibility, setVisibility] =
-    useState<ProfileVisibility>("member-safe");
-  const [addresses, setAddresses] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -598,278 +253,10 @@ function KnowledgeCard({ context }: { context: WorkspaceContext }) {
       );
     return () => controller.abort();
   }, [room, editable, guidanceAttempt]);
-  function submit(event: FormEvent) {
-    event.preventDefault();
-    const tags = {
-      era,
-      visibility,
-      ...(era === "legacy" ? { addresses: lines(addresses) } : {}),
-    };
-    void run(async () => {
-      if (adding === "doc")
-        await addKnowledge(room, account, { action: "add-doc", url, ...tags });
-      else if (adding === "faq")
-        await addKnowledge(room, account, {
-          action: "add-faq",
-          title,
-          text,
-          ...tags,
-        });
-      else if (adding === "sitemap") {
-        const result = (await addKnowledge(room, account, {
-          action: "add-sitemap",
-          url,
-          ...tags,
-        })) as {
-          added: number;
-        };
-        setAdding(null);
-        if (result.added > 0) trackEvent("brain_source_added");
-        return c.sitemapAdded(result.added);
-      }
-      setAdding(null);
-      setUrl("");
-      trackEvent("brain_source_added");
-      setTitle("");
-      setText("");
-      setAddresses("");
-      return c.saved;
-    });
-  }
-  function cancelAdding() {
-    if (
-      (url || title || text || addresses) &&
-      !window.confirm("Discard this new source?")
-    )
-      return;
-    setAdding(null);
-    setUrl("");
-    setTitle("");
-    setText("");
-    setAddresses("");
-  }
   return (
-    <Card
-      id="company-brain"
-      title={c.knowledgeTitle}
-      description={c.knowledgeDescription}
-      actions={
-        editable ? (
-          <button
-            type="button"
-            className="button small secondary"
-            disabled={
-              busy || loadingMore || editing !== null || adding !== null
-            }
-            onClick={() => setAdding("doc")}
-          >
-            {c.addSource}
-          </button>
-        ) : undefined
-      }
-    >
-      <UnsavedChanges
-        dirty={
-          (guidanceDraft !== null && guidanceDraft !== guidance) ||
-          Boolean(adding && (url || title || text || addresses))
-        }
-      />
-      <Callout tone="warning">{c.knowledgeWarning}</Callout>
-      {editable && (
-        <>
-          <Field label={c.aiGuidance} hint={c.aiGuidanceHint}>
-            <textarea
-              className={ui.input}
-              rows={3}
-              maxLength={KNOWLEDGE_LIMITS.guidanceChars}
-              disabled={guidance === null || busy}
-              value={guidanceDraft ?? guidance ?? ""}
-              onChange={(event) => setGuidanceDraft(event.target.value)}
-            />
-          </Field>
-          <button
-            type="button"
-            className="button small secondary"
-            disabled={
-              busy ||
-              guidance === null ||
-              guidanceDraft === null ||
-              guidanceDraft === guidance
-            }
-            onClick={() =>
-              void run(async () => {
-                const saved = await saveAiGuidance(
-                  room,
-                  account,
-                  guidanceDraft ?? "",
-                );
-                setGuidance(saved.text);
-                setGuidanceDraft(null);
-                return c.saved;
-              }, false)
-            }
-          >
-            {busy && <Spinner />}
-            {c.saveAiGuidance}
-          </button>
-          {guidanceError && (
-            <div>
-              <p role="alert">{guidanceError}</p>
-              <button
-                type="button"
-                className="button small secondary"
-                onClick={() => setGuidanceAttempt((value) => value + 1)}
-              >
-                Try again
-              </button>
-            </div>
-          )}
-        </>
-      )}
-      {manager && (
-        <BrainStoragePanel
-          key={`${room}:${account}:${context.revision}`}
-          context={context}
-          revision={tick}
-        />
-      )}
-      {adding && (
-        <div className={styles.review}>
-          <Field label={c.sourceType}>
-            <select
-              className={ui.input}
-              value={adding}
-              disabled={busy}
-              onChange={(event) =>
-                setAdding(event.target.value as Exclude<Adding, null>)
-              }
-            >
-              <option value="doc">Docs page</option>
-              <option value="faq">FAQ entry</option>
-              <option value="sitemap">Sitemap</option>
-              <option value="file">File</option>
-            </select>
-          </Field>
-          {adding === "file" ? (
-            <SupportFileImport
-              context={context}
-              kind="knowledge"
-              onImported={() => setTick((value) => value + 1)}
-            />
-          ) : (
-            <form className={styles.fields} onSubmit={submit}>
-              {adding === "faq" ? (
-                <>
-                  <Field label={c.question}>
-                    <input
-                      className={ui.input}
-                      value={title}
-                      maxLength={120}
-                      onChange={(event) => setTitle(event.target.value)}
-                    />
-                  </Field>
-                  <Field label={c.answer}>
-                    <textarea
-                      className={ui.input}
-                      rows={4}
-                      maxLength={4000}
-                      value={text}
-                      onChange={(event) => setText(event.target.value)}
-                    />
-                  </Field>
-                </>
-              ) : (
-                <Field label={c.pageUrl}>
-                  <input
-                    className={ui.input}
-                    type="url"
-                    placeholder="https://"
-                    value={url}
-                    onChange={(event) => setUrl(event.target.value)}
-                  />
-                </Field>
-              )}
-              <div className={sources.filters}>
-                <Field label="Product version">
-                  <select
-                    className={ui.input}
-                    value={era}
-                    onChange={(event) =>
-                      setEra(event.target.value as KnowledgeEraTag)
-                    }
-                  >
-                    {KNOWLEDGE_ERAS.map((option) => (
-                      <option key={option} value={option}>
-                        {ERA_TEXT[option]}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-                <Field label="Who may see it">
-                  <select
-                    className={ui.input}
-                    value={visibility}
-                    onChange={(event) =>
-                      setVisibility(event.target.value as ProfileVisibility)
-                    }
-                  >
-                    {PROFILE_VISIBILITY.map((option) => (
-                      <option key={option} value={option}>
-                        {VISIBILITY_TEXT[option]}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-              </div>
-              {era === "legacy" && (
-                <Field label={c.addresses} hint={c.addressesHint}>
-                  <textarea
-                    className={ui.input}
-                    rows={2}
-                    value={addresses}
-                    onChange={(event) => setAddresses(event.target.value)}
-                  />
-                </Field>
-              )}
-              <div className={styles.actions}>
-                <button type="submit" className="button small" disabled={busy}>
-                  {busy && <Spinner />}
-                  {adding === "faq"
-                    ? c.addFaq
-                    : adding === "sitemap"
-                      ? c.addSitemap
-                      : c.addPage}
-                </button>
-                <button
-                  type="button"
-                  className="button small secondary"
-                  onClick={cancelAdding}
-                >
-                  {c.cancel}
-                </button>
-              </div>
-            </form>
-          )}
-          {adding === "file" && (
-            <button
-              type="button"
-              className="button small secondary"
-              onClick={cancelAdding}
-            >
-              {c.cancel}
-            </button>
-          )}
-        </div>
-      )}
-      <section>
-        <h3>Source updates</h3>
-        <ul className={styles.points}>
-          {c.knowledgePoints.map((point) => (
-            <li key={point}>{point}</li>
-          ))}
-        </ul>
-      </section>
-      <div className={sources.toolbar}>
+    <Card id="company-brain" title="Website and docs">
+      {editable && <SourceUrlForm context={context} onSaved={() => setTick(value => value + 1)} />}
+      {(Boolean(data?.next) || (data?.counts.sources ?? 0) > 8 || Boolean(filters.q || filters.kind || filters.status)) && <div className={sources.toolbar}>
         {data && (
           <p className={styles.note} role="status">
             {data.counts.sources} sources in this workspace.{" "}
@@ -954,7 +341,7 @@ function KnowledgeCard({ context }: { context: WorkspaceContext }) {
             </button>
           )}
         </form>
-      </div>
+      </div>}
       {!data ? (
         error ? null : (
           <Spinner />
@@ -963,7 +350,7 @@ function KnowledgeCard({ context }: { context: WorkspaceContext }) {
         <p className={styles.note}>
           {filters.q || filters.kind || filters.status
             ? "No sources match these filters."
-            : "No sources yet. Add a docs page, file or FAQ."}
+            : "No pages added yet."}
         </p>
       ) : (
         <ul className={sources.list} aria-label="AI sources">
@@ -972,8 +359,8 @@ function KnowledgeCard({ context }: { context: WorkspaceContext }) {
               <div className={styles.rowHead}>
                 <strong>{source.title}</strong>
                 <span className={styles.badges}>
-                  <Badge>{ERA_TEXT[source.era]}</Badge>
-                  <Badge>{VISIBILITY_TEXT[source.visibility]}</Badge>
+                  {source.era !== "current" && <Badge>{ERA_TEXT[source.era]}</Badge>}
+                  {source.visibility !== "member-safe" && <Badge>{VISIBILITY_TEXT[source.visibility]}</Badge>}
                   {source.learning?.kind === "entry" && (
                     <Badge tone={source.learning.reviewRequired ? "warning" : "info"}>
                       {source.learning.pausedAt ? "Learned FAQ paused" : source.learning.reviewRequired ? "Learned FAQ needs review" : "Learned from team"}
@@ -1079,7 +466,6 @@ function KnowledgeCard({ context }: { context: WorkspaceContext }) {
                       disabled={
                         busy ||
                         loadingMore ||
-                        adding !== null ||
                         editing !== null
                       }
                       onClick={() => {
@@ -1169,6 +555,58 @@ function KnowledgeCard({ context }: { context: WorkspaceContext }) {
           {loadingMore && <Spinner />}
           {loadingMore ? "Loading…" : "Load more"}
         </button>
+      )}
+      <UnsavedChanges dirty={guidanceDraft !== null && guidanceDraft !== guidance} />
+      {editable && (
+        <>
+          <Field label={c.aiGuidance} hint={c.aiGuidanceHint}>
+            <textarea
+              className={ui.input}
+              rows={3}
+              maxLength={KNOWLEDGE_LIMITS.guidanceChars}
+              disabled={guidance === null || busy}
+              value={guidanceDraft ?? guidance ?? ""}
+              onChange={(event) => setGuidanceDraft(event.target.value)}
+            />
+          </Field>
+          <button
+            type="button"
+            className="button small secondary"
+            disabled={
+              busy ||
+              guidance === null ||
+              guidanceDraft === null ||
+              guidanceDraft === guidance
+            }
+            onClick={() =>
+              void run(async () => {
+                const saved = await saveAiGuidance(
+                  room,
+                  account,
+                  guidanceDraft ?? "",
+                );
+                setGuidance(saved.text);
+                setGuidanceDraft(null);
+                return c.saved;
+              }, false)
+            }
+          >
+            {busy && <Spinner />}
+            {c.saveAiGuidance}
+          </button>
+          {guidanceError && (
+            <div>
+              <p role="alert">{guidanceError}</p>
+              <button
+                type="button"
+                className="button small secondary"
+                onClick={() => setGuidanceAttempt((value) => value + 1)}
+              >
+                Try again
+              </button>
+            </div>
+          )}
+        </>
       )}
       {notice && (
         <p className={styles.status} role="status">

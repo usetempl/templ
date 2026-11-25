@@ -1,5 +1,7 @@
 import type { TailHost } from "./support-widget";
 
+export const teamIcon = "M8 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8M2 21v-2a5 5 0 0 1 5-5h2a5 5 0 0 1 5 5v2m3-17a4 4 0 0 1 0 8m1 3a5 5 0 0 1 4 5v1";
+
 /** Initials reserve the portrait while a workspace image loads, including on a failed read. */
 export function participantBadge(host: TailHost, initial: string, photo?: string | null) {
   const badge = host.el("i", initial);

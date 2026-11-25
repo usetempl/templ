@@ -215,7 +215,7 @@ export function bindWidgetAppearance(
     style.dataset.appearance = "";
     style.nonce = root.querySelector("style")?.nonce ?? "";
     style.textContent =
-      ".loading-case{display:flex;align-items:center;justify-content:center;gap:12px;min-height:96px}.loading-case::before{content:'';width:24px;height:24px;border:2px solid var(--b2);border-top-color:var(--a);border-radius:50%;animation:spin .8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}.head>button[aria-label]{position:relative}.head>button[aria-label]:is(:hover,:focus-visible)::after{content:attr(aria-label);position:absolute;top:calc(100% + 6px);right:0;z-index:2;width:max-content;max-width:200px;padding:5px 8px;background:var(--t);color:var(--bg);font-size:12px;font-weight:500;line-height:1.4;pointer-events:none}"+
+      ".loading-case{display:flex;align-items:center;justify-content:center;gap:12px;min-height:96px}.body:has(.loading-case:not([hidden]))>.chat-empty{display:none}.loading-case::before{content:'';width:24px;height:24px;border:2px solid var(--b2);border-top-color:var(--a);border-radius:50%;animation:spin .8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}.head>button[aria-label]{position:relative}.head>button[aria-label]:is(:hover,:focus-visible)::after{content:attr(aria-label);position:absolute;top:calc(100% + 6px);right:0;z-index:2;width:max-content;max-width:200px;padding:5px 8px;background:var(--t);color:var(--bg);font-size:12px;font-weight:500;line-height:1.4;pointer-events:none}"+
       ":host([data-outlined-buttons]) :is(.launcher,.primary,.send,.drawer-section-body .drawer-primary,.drawer-section-body .drawer-stop,.drawer-actions button){box-sizing:border-box;border:2px solid var(--t);border-radius:0}";
     root.append(style);
   }

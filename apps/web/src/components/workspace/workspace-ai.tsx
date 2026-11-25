@@ -23,14 +23,10 @@ import {
   Spinner,
   ui,
 } from "@/components/ui/ui";
-import { AiReplyChecks } from "./ai-reply-checks";
-import { BrainStoragePanel } from "./brain-storage-panel";
-import { WorkspaceKnowledge, WorkspaceProtocol } from "./workspace-protocol";
-import { WorkspaceQuality } from "./workspace-quality";
+import { WorkspaceKnowledge } from "./workspace-protocol";
 import type { WorkspaceContext } from "./support-workspace";
 import styles from "./workspace.module.css";
 import layout from "./workspace-settings.module.css";
-import { WorkspaceSections } from "./workspace-sections";
 import { UnsavedChanges } from "./unsaved-changes";
 
 export const AI_AGENT_SECTION = "ai-agent";
@@ -48,7 +44,7 @@ const isMode = (value: string): value is SupportAiMode =>
   SUPPORT_AI_MODES.includes(value as SupportAiMode);
 
 export function WorkspaceAi({ context }: { context: WorkspaceContext }) {
-  const { room, account, revision } = context;
+  const { room, account } = context;
   const [defaultMode, setDefaultMode] = useState<SupportAiMode>();
   const admin = canManageWorkspace(
     {
@@ -58,29 +54,11 @@ export function WorkspaceAi({ context }: { context: WorkspaceContext }) {
     context.state?.bots?.some((bot) => bot.principalId === account),
   );
   const knowledge = hasSupportKnowledge(context.state?.features);
-  const quality = context.state?.features?.quality === true;
   return (
     <div className={`${styles.page} ${styles.pageNarrow} ${layout.page}`}>
-      <PageHeader
-        title="AI"
-        description="Manage sources and how AI handles your cases."
-      />
-      <WorkspaceSections
-        items={[
-          ...(admin ? [{ id: AI_AGENT_SECTION, label: "Case mode" }] : []),
-          ...(admin && context.state?.features?.managedAgent
-            ? [{ id: "managed-ai", label: "Templ AI" }]
-            : []),
-          ...(knowledge ? [{ id: "company-brain", label: "Sources" }] : []),
-          ...(admin && quality
-            ? [{ id: "review-settings", label: "Review sampling" }]
-            : []),
-          ...(admin && context.state?.features?.protocolProfile
-            ? [{ id: "protocol-resources", label: "Protocol" }]
-            : []),
-        ]}
-      />
+      <PageHeader title="Support AI" />
       <div className={layout.sections}>
+        {knowledge && <WorkspaceKnowledge key={`sources:${room}:${account}:${admin}`} context={context} />}
         {!admin && (
           <p className={styles.small}>
             A workspace admin can add sources and change AI instructions.
@@ -90,16 +68,6 @@ export function WorkspaceAi({ context }: { context: WorkspaceContext }) {
           <Callout>
             AI sources are not available in this workspace.
           </Callout>
-        )}
-        {!quality && (
-          <Callout>Answer reviews are not available in this workspace.</Callout>
-        )}
-        {!knowledge && context.manager && (
-          <BrainStoragePanel
-            key={`storage:${room}:${account}:${revision}`}
-            context={context}
-            revision={revision}
-          />
         )}
         {admin && (
           <AiConfiguration
@@ -113,26 +81,6 @@ export function WorkspaceAi({ context }: { context: WorkspaceContext }) {
             key={`managed:${room}:${account}`}
             context={context}
             defaultMode={defaultMode}
-          />
-        )}
-        {knowledge && (
-          <WorkspaceKnowledge
-            key={`knowledge:${room}:${account}:${admin}`}
-            context={context}
-          />
-        )}
-        {admin && quality && (
-          <div id="review-settings">
-            <WorkspaceQuality
-              key={`quality:${room}:${account}`}
-              context={context}
-            />
-          </div>
-        )}
-        {admin && context.state?.features?.protocolProfile === true && (
-          <WorkspaceProtocol
-            key={`protocol:${room}:${account}`}
-            context={context}
           />
         )}
       </div>
@@ -203,19 +151,12 @@ function AiConfiguration({
       </Card>
     );
   return (
-    <>
       <AiDefaultSettings
         context={context}
         initial={loaded.settings}
         canEdit={loaded.canEditSettings === true}
         onSaved={onMode}
       />
-      <AiReplyChecks
-        context={context}
-        initial={loaded.settings}
-        canEdit={loaded.canEditSettings === true}
-      />
-    </>
   );
 }
 
@@ -322,7 +263,7 @@ function AiDefaultSettings({
         >
           <Field
             label="New cases start with"
-            hint={`${MODE_HINTS[mode]} Anyone on the team can change it for one case from the chat header.`}
+            hint={`${MODE_HINTS[mode]} Your team can change this in a conversation.`}
           >
             <select
               className={ui.input}

@@ -1,5 +1,6 @@
 "use client";
 
+import hero from "./hero-copy.json";
 import Link from "next/link";
 import { useEffect, useRef } from "react";
 import { SiteFooter, SiteHeader } from "@/components/site-frame";
@@ -31,11 +32,11 @@ export function LandingPage() {
       <main id="main-content" tabIndex={-1}>
         <section className={styles.hero} aria-labelledby="landing-title">
           <div className={styles.heroInner}>
-            <h1 id="landing-title" className={styles.heroTitle}>Add private support to your app.</h1>
+            <h1 id="landing-title" className={styles.heroTitle}>{hero.headline}</h1>
             <div className={styles.heroCopy}>
               <p className={styles.subline}>
-                Share a chat link and reply to users from one inbox.{" "}<br />
-                Let AI handle the questions your docs already cover.
+                {hero.description[0]}{" "}<br />
+                {hero.description[1]}
               </p>
               <LandingActions id="hero-chat" selfHost />
             </div>

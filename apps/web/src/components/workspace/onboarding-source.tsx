@@ -8,7 +8,33 @@ import type { WorkspaceContext } from "./support-workspace";
 import styles from "./workspace.module.css";
 
 export function OnboardingSource({ context }: { context: WorkspaceContext }) {
-  const { room, account, go } = context;
+  return (
+    <Card
+      id="ai-setup"
+      title="Set up your support AI"
+      description="Add a public page your team uses to answer questions."
+    >
+      <SourceUrlForm context={context} />
+      <button
+        type="button"
+        className="button secondary"
+        onClick={() => context.go("knowledge")}
+      >
+        Open AI setup
+      </button>
+    </Card>
+  );
+}
+
+export function SourceUrlForm({
+  context,
+  onSaved,
+}: {
+  context: WorkspaceContext;
+  onSaved?: () => void;
+}) {
+  const { room, account } = context;
+  const [sourceType, setSourceType] = useState<"page" | "sitemap">("page");
   const [url, setUrl] = useState("");
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
@@ -23,17 +49,37 @@ export function OnboardingSource({ context }: { context: WorkspaceContext }) {
     setNotice("");
     setError("");
     try {
-      const page = await addKnowledge(room, account, {
-        action: "add-doc", url: url.trim(), era: "current", visibility: "member-safe",
+      const result = await addKnowledge(room, account, {
+        action: sourceType === "sitemap" ? "add-sitemap" : "add-doc",
+        url: url.trim(),
+        era: "current",
+        visibility: "member-safe",
       });
-      if (!("status" in page)) throw new Error("Missing page status");
-      trackEvent("brain_source_added");
-      if (page.status === "ready") setNotice("Page ready for AI replies. You can add another page.");
-      else if (page.status === "pending") setNotice("Page saved. Templ will read it before AI can use it.");
-      else setError("This page is unavailable for AI replies. Open Sources to check it.");
+      if ("added" in result) {
+        setNotice(
+          `${result.added} ${result.added === 1 ? "page" : "pages"} added from this sitemap.`,
+        );
+      } else if (
+        result.status === "ready" &&
+        result.chunks > 0 &&
+        !result.error
+      ) {
+        setNotice("Page ready for AI replies.");
+      } else if (result.status === "pending") {
+        setNotice("Page saved. Templ will read it before AI can use it.");
+      } else {
+        setError(
+          "This page has no usable text yet. Check the address or add another page.",
+        );
+      }
+      if (!("added" in result) || result.added > 0)
+        trackEvent("brain_source_added");
       setUrl("");
+      onSaved?.();
     } catch {
-      setError("Could not add this page. Check the public web address and try again.");
+      setError(
+        "Could not add this page. Check the public web address and try again.",
+      );
     } finally {
       submitting.current = false;
       setBusy(false);
@@ -41,21 +87,70 @@ export function OnboardingSource({ context }: { context: WorkspaceContext }) {
   }
 
   return (
-    <Card title="Add pages for your support AI" description="Choose public pages from your website or docs that visitors can use.">
+    <>
       <form className={styles.fields} onSubmit={save}>
-        <Field label="Public page URL">
-          <input className={ui.input} type="url" autoComplete="off" placeholder="https://"
-            required value={url} disabled={busy} onChange={event => setUrl(event.target.value)} />
+        <div className={styles.row} role="group" aria-label="Source type">
+          {(["page", "sitemap"] as const).map((type) => (
+            <button
+              key={type}
+              type="button"
+              className={`button small ${sourceType === type ? "secondary" : "quiet"}`}
+              disabled={busy}
+              aria-pressed={sourceType === type}
+              onClick={() => {
+                setSourceType(type);
+                setNotice("");
+                setError("");
+              }}
+            >
+              {type === "page" ? "Web page" : "Sitemap"}
+            </button>
+          ))}
+        </div>
+        <Field
+          label={
+            sourceType === "page" ? "Public page URL" : "Public sitemap URL"
+          }
+        >
+          <input
+            className={ui.input}
+            type="url"
+            autoComplete="off"
+            placeholder={
+              sourceType === "page"
+                ? "https://example.com/docs"
+                : "https://example.com/sitemap.xml"
+            }
+            required
+            value={url}
+            disabled={busy}
+            onChange={(event) => setUrl(event.target.value)}
+          />
         </Field>
         <div className={styles.row}>
-          <button type="submit" className="button" disabled={busy || !account || !url.trim()}>
-            {busy ? "Adding page…" : "Add page"}
+          <button
+            type="submit"
+            className="button"
+            disabled={busy || !account || !url.trim()}
+          >
+            {busy
+              ? "Adding…"
+              : sourceType === "page"
+                ? "Add page"
+                : "Add sitemap"}
           </button>
-          <button type="button" className="button secondary" onClick={() => go("knowledge")}>Open Sources</button>
         </div>
       </form>
-      {notice && <p className={styles.status} role="status">{notice}</p>}
-      {error && <p className={styles.error} role="alert">{error}</p>}
-    </Card>
+      {notice && (
+        <p className={styles.status} role="status">
+          {notice}
+        </p>
+      )}
+      {error && (
+        <p className={styles.error} role="alert">
+          {error}
+        </p>
+      )}
+    </>
   );
 }

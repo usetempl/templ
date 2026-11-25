@@ -3,8 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev -p 6969",
-    "build": "next build --webpack && node ../scripts/src/release/scan-client-bundle.mjs --forbid-manifest-secrets --dir .next/static --dir public",
+    "dev": "node scripts/render-share-art.mjs && next dev -p 6969",
+    "build": "node scripts/render-share-art.mjs && next build --webpack && node ../scripts/src/release/scan-client-bundle.mjs --forbid-manifest-secrets --dir .next/static --dir public",
     "start": "next start",
     "lint": "eslint src next.config.ts open-next.config.ts vitest.config.ts",
     "format": "prettier --write . --ignore-path ../../.gitignore",

@@ -8,7 +8,6 @@ import {
   Fragment,
   useCallback,
   useEffect,
-  useLayoutEffect,
   useState,
   useSyncExternalStore,
   type ReactNode,
@@ -18,17 +17,13 @@ import dynamic from "next/dynamic";
 import {
   IconAlertTriangle,
   IconBook,
-  IconChartBar,
   IconCode,
   IconCreditCard,
-  IconHistory,
   IconHome,
   IconInbox,
   IconLock,
   IconSettings,
-  IconSubtask,
   IconUsersGroup,
-  IconUserCircle,
 } from "@tabler/icons-react";
 import type {
   ChatRoomId,
@@ -80,7 +75,6 @@ import { workspaceDeleting } from "@/lib/workspace-deletion-client";
 import {
   dropEarlyWorkspaceRead,
   loadWorkspaceView,
-  prefetchWorkspaceSetup,
   startEarlyAllCases,
   startEarlyWorkspaceRead,
   takeEarlyWorkspaceRead,
@@ -415,29 +409,6 @@ function Workspace({ id, supportUrl }: WorkspaceEntry) {
   const listed = directory.joined.find(
     (item) => item.nativeRoom?.id === id,
   )?.nativeRoom;
-  const installCheck = state?.features?.installCheck === true;
-  const priorityFeed = state?.features?.priorityFeed === true;
-  // Home's reads start before its screen loads, with this view's flags.
-  useLayoutEffect(() => {
-    if (!auth.restoring && manager && visible === "home")
-      prefetchWorkspaceSetup(
-        room,
-        account,
-        revision,
-        installCheck,
-        priorityFeed,
-      );
-  }, [
-    room,
-    account,
-    revision,
-    manager,
-    visible,
-    installCheck,
-    priorityFeed,
-    auth.restoring,
-  ]);
-
   const go = useCallback(
     (next: WorkspaceTab, open: string | null = null, section?: string) => {
       const url = new URL(window.location.href);
@@ -772,23 +743,8 @@ function Workspace({ id, supportUrl }: WorkspaceEntry) {
             {admin && (
               <>
                 <RailNavItem icon={IconCode} label="Chat" active={visible === "widget"} onClick={() => go("widget")} />
-                <RailNavItem icon={IconUserCircle} label="Chat profiles" onClick={() => go("settings", null, "support-profiles")} />
                 <RailNavItem icon={IconUsersGroup} label="Team" active={visible === "team"} onClick={() => go("team")} />
               </>
-            )}
-            {team && state?.features?.quality === true && (
-              <RailNavItem icon={IconChartBar} label="Reports" active={visible === "quality"} onClick={() => go("quality")} />
-            )}
-            {team && followUpsAllowed(state?.features) && (
-              <RailNavItem icon={IconSubtask} label="Follow-ups" active={visible === "follow-ups"} onClick={() => go("follow-ups")} />
-            )}
-            {manager && (
-              <RailNavItem
-                icon={IconHistory}
-                label="Activity"
-                active={visible === "activity"}
-                onClick={() => go("activity")}
-              />
             )}
             {billing && (
               <RailNavItem
@@ -836,6 +792,7 @@ function Workspace({ id, supportUrl }: WorkspaceEntry) {
           purpose={plansOpen}
           onClose={() => setPlansOpen(null)}
           onConfirmed={reload}
+          onPlanReady={admin && hasSupportKnowledge(state?.features) ? () => { setPlansOpen(null); go("knowledge"); } : undefined}
           assertCurrent={() => {
             if (communitySessionRevision() !== sessionRevision)
               throw new Error("Your account changed. Reopen plans.");

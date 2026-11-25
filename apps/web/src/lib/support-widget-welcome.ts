@@ -4,27 +4,12 @@ import {
   SUPPORT_IDENTITY_LABELS,
   identityOf,
 } from "@templ/chat/support-identity";
-declare const __TEMPL_WIDGET_CONVERSATION__: string | undefined;
-declare const __TEMPL_WIDGET_CONVERSATION_STYLE__: string | undefined;
-declare const __TEMPL_WIDGET_CONVERSATIONS__: string | undefined;
+import { conversationModules } from "./support-widget-conversation-modules";
 let conversation: typeof import("./support-widget-chat-first") | undefined;
 let conversationStyle: string | undefined;
 let conversations: typeof import("./support-widget-conversations") | undefined;
 let conversationLoad: Promise<void> | undefined;
 let conversationFailed = false;
-const loadConversation = () => typeof __TEMPL_WIDGET_CONVERSATION__ === "string"
-  ? import(/* webpackIgnore: true */ /* turbopackIgnore: true */ new globalThis.URL(__TEMPL_WIDGET_CONVERSATION__, import.meta.url).href)
-  : import("./support-widget-chat-first");
-const loadConversationStyle = () => typeof __TEMPL_WIDGET_CONVERSATION_STYLE__ === "string"
-  ? import(/* webpackIgnore: true */ /* turbopackIgnore: true */ new globalThis.URL(__TEMPL_WIDGET_CONVERSATION_STYLE__, import.meta.url).href)
-  : import("./support-widget-chat-style");
-const loadConversations = () => typeof __TEMPL_WIDGET_CONVERSATIONS__ === "string"
-  ? import(/* webpackIgnore: true */ /* turbopackIgnore: true */ new globalThis.URL(__TEMPL_WIDGET_CONVERSATIONS__, import.meta.url).href)
-  : import("./support-widget-conversations");
-declare const __TEMPL_WIDGET_DRAWER__: string | undefined;
-const loadDrawer = () => typeof __TEMPL_WIDGET_DRAWER__ === "string"
-  ? import(/* webpackIgnore: true */ /* turbopackIgnore: true */ new globalThis.URL(__TEMPL_WIDGET_DRAWER__, import.meta.url).href)
-  : import("./support-widget-drawer");
 let prepareDrawer: typeof import("./support-widget-drawer").prepareDrawer | undefined;
 const decoratedMenus = new WeakMap<TailHost, () => void>();
 const WELCOME_STYLE =
@@ -136,7 +121,7 @@ export const welcome = {
       ? "Waiting for the team"
       : "Talk to a person";
     if ((thread || (host.options.chatFirst && (host.policy?.chatFirst || host.policy?.singleConversation))) && !conversation && !conversationFailed) {
-      conversationLoad ??= Promise.all([loadConversation(), loadConversationStyle(), loadConversations(), loadDrawer()])
+      conversationLoad ??= conversationModules()
         .then(([module, style, list, drawer]) => {
           prepareDrawer = drawer.prepareDrawer;
           conversation = module;

@@ -20,12 +20,6 @@ export const MANAGED_COPY = {
   title: "Templ AI",
   description:
     "An AI agent Templ runs for your workspace. Anyone on your team can take over a case.",
-  points: [
-    "It answers from your AI knowledge and shows the team what it used.",
-    "It follows each case's AI mode: answers, drafts only, or off.",
-    "It asks at most one question per case, then hands the case to your team.",
-    "It never asks for keys or recovery phrases and never asks anyone to sign.",
-  ],
   addToTeam:
     "Add this account on the Team page as an AI agent. It answers only after that.",
   account: "Templ AI account",
@@ -203,11 +197,6 @@ export function ManagedAgentSettings({
           }
         >
           <div className={layout.panelBody}>
-            <ul className={layout.points}>
-              {MANAGED_COPY.points.map((point) => (
-                <li key={point}>{point}</li>
-              ))}
-            </ul>
             {view.settings.enabled && !view.onTeam && (
               <div className={layout.inset}>
                 <p>{MANAGED_COPY.addToTeam}</p>

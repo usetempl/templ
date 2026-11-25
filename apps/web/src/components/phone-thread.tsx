@@ -21,12 +21,6 @@ import { copy as t } from "@/lib/copy";
 import styles from "./team-conversations.module.css";
 
 const NARROW_PHONE_WIDTH = "(max-width: 480px)";
-const CATEGORY_REQUIRED = "templ-case-category-required";
-
-export function requestCaseCategory() {
-  window.dispatchEvent(new Event(CATEGORY_REQUIRED));
-}
-
 /** Whether a media query matches, false on the server and without
  * matchMedia. */
 function useMediaQuery(query: string) {
@@ -47,7 +41,6 @@ function useMediaQuery(query: string) {
 
 type Details = {
   available: boolean;
-  modal: boolean;
   open: boolean;
   sheetId: string;
   toggleId: string;
@@ -64,7 +57,7 @@ export function PhoneConversation({
   children,
 }: {
   className: string;
-  viewer: "team" | "member";
+  viewer: "member";
   details: boolean;
   resetKey: string;
   children: ReactNode;
@@ -79,7 +72,7 @@ export function PhoneConversation({
   );
   return (
     <DetailsContext.Provider
-      value={{ available: details, modal: viewer === "team", open, sheetId, toggleId, setOpen }}
+      value={{ available: details, open, sheetId, toggleId, setOpen }}
     >
       <div
         className={className}
@@ -112,50 +105,7 @@ export function PhoneDetailsButton() {
   );
 }
 
-export function CaseDetailsExtras({ children }: { children: ReactNode }) {
-  const details = useContext(DetailsContext);
-  return details?.modal && !details.open ? null : children;
-}
-
-/** Opens the details sheet and focuses the shared facts on any screen size. */
-export function PhoneDetailsLink({
-  target,
-  className,
-  children,
-}: {
-  target: string;
-  className: string;
-  children: ReactNode;
-}) {
-  const details = useContext(DetailsContext);
-  const [requested, setRequested] = useState(0);
-  const shown = useRef(0);
-  useEffect(() => {
-    if (requested === shown.current || (details && !details.open)) return;
-    const frame = window.requestAnimationFrame(() => {
-      const element = document.getElementById(target);
-      if (!element) return;
-      element.scrollIntoView({ block: "nearest" });
-      element.focus({ preventScroll: true });
-      shown.current = requested;
-    });
-    return () => window.cancelAnimationFrame(frame);
-  }, [requested, details, target]);
-  return (
-    <button
-      type="button"
-      className={className}
-      onClick={() => {
-        details?.setOpen(true);
-        setRequested((value) => value + 1);
-      }}
-    >
-      {children}
-    </button>
-  );
-}
-
-/** A dialog for staff and narrow screens, with a details column for wider member views. */
+/** Members can manage their shared information on either layout. */
 export function PhoneDetails({
   className,
   label,
@@ -171,18 +121,7 @@ export function PhoneDetails({
   const toggleId = details?.toggleId;
   const wasOpen = useRef(false);
   const sheet = useRef<HTMLDialogElement>(null);
-  const phone = useMediaQuery("(max-width: 900px)");
-  const modal = phone || details?.modal === true;
-  const [categoryRequest, setCategoryRequest] = useState(0);
-  const focusedCategory = useRef(0);
-  useEffect(() => {
-    const reveal = () => {
-      details?.setOpen(true);
-      setCategoryRequest((value) => value + 1);
-    };
-    window.addEventListener(CATEGORY_REQUIRED, reveal);
-    return () => window.removeEventListener(CATEGORY_REQUIRED, reveal);
-  }, [details]);
+  const modal = useMediaQuery("(max-width: 900px)");
   useEffect(() => {
     const element = sheet.current;
     if (!element) return;
@@ -204,33 +143,12 @@ export function PhoneDetails({
     const element = sheet.current;
     return () => element?.close();
   }, []);
-  useEffect(() => {
-    if (!open || categoryRequest === focusedCategory.current) return;
-    const focus = () => {
-      const field = sheet.current?.querySelector<HTMLElement>("#case-category");
-      if (!field) return false;
-      const disclosure = field.closest("details");
-      if (disclosure) disclosure.open = true;
-      field.scrollIntoView?.({ block: "nearest" });
-      field.focus({ preventScroll: true });
-      focusedCategory.current = categoryRequest;
-      return true;
-    };
-    if (focus()) return;
-    const observer = new MutationObserver(() => {
-      if (focus()) observer.disconnect();
-    });
-    if (sheet.current)
-      observer.observe(sheet.current, { childList: true, subtree: true });
-    return () => observer.disconnect();
-  }, [open, categoryRequest]);
   return (
     <dialog
       ref={sheet}
       id={details?.sheetId}
       className={className}
       open={!modal}
-      data-case-details-dialog={details?.modal ? "" : undefined}
       role={modal ? undefined : "complementary"}
       aria-label={label}
       onCancel={(event) => {

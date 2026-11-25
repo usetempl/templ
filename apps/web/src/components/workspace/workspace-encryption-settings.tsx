@@ -120,6 +120,7 @@ export function WorkspaceEncryptionSettings({ context }: { context: WorkspaceCon
     setChosen(mode);
     if (fileInput.current) fileInput.current.value = "";
   }
+  if (!context.status?.encryption && !settings?.profile && !(settings && settings.revision > 0)) return null;
   return (
     <Card id="case-encryption" title="Chat encryption">
       <div className={layout.panelBody}>

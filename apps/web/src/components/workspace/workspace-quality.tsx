@@ -15,7 +15,6 @@ import {
   TREND_WINDOWS,
   weekStart,
   type GapSignal,
-  type PilotPresetView,
   type ReviewSkipReason,
   type Rubric,
   type RubricScore,
@@ -41,12 +40,10 @@ import {
   previewEval,
   saveEval,
   markGap,
-  pilotPresetAction,
   readCaseQuality,
   readEvalRuns,
   readEvals,
   readGaps,
-  readPilotPreset,
   readQuality,
   readReviews,
   readTrends,
@@ -89,16 +86,6 @@ const week = (date: string) =>
 function wholeNumber(text: string, min: number, max: number): number | null {
   const value = text.trim() === "" ? Number.NaN : Number(text);
   return Number.isInteger(value) && value >= min && value <= max ? value : null;
-}
-
-/** Review settings and transaction policy on the AI page. */
-export function WorkspaceQuality({ context }: { context: WorkspaceContext }) {
-  return (
-    <div className={styles.stack}>
-      <TransactionDraftSettings context={context} />
-      <QualityCard context={context} />
-    </div>
-  );
 }
 
 /** The Quality tab, for everyone on the team: the review queue, and for
@@ -174,8 +161,6 @@ function useLoad<T, A>(
     replace,
   };
 }
-const loadPreset = (room: Room, _arg: null, signal: AbortSignal) =>
-  readPilotPreset(room, signal);
 const loadQuality = (room: Room, _arg: null, signal: AbortSignal) =>
   readQuality(room, signal);
 const loadGaps = (room: Room, _arg: null, signal: AbortSignal) =>
@@ -228,85 +213,7 @@ function Status({ notice, error }: { notice?: string; error?: string }) {
   );
 }
 
-function TransactionDraftSettings({ context }: { context: WorkspaceContext }) {
-  const { room, account } = context;
-  const admin = canManageWorkspace({
-    isManager: context.manager,
-    permissions: context.state?.viewer?.permissions,
-  });
-  const policy = useLoad<PilotPresetView, null>(loadPreset, room, null);
-  const saved =
-    typeof policy.data?.aiDraftsForTransactions === "boolean"
-      ? policy.data.aiDraftsForTransactions
-      : undefined;
-  const [enabled, setEnabled] = useState<boolean | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
-  const value = enabled ?? saved;
-  const dirty = saved !== undefined && value !== saved;
-  async function save(event: FormEvent) {
-    event.preventDefault();
-    if (!admin || busy || !dirty || value === undefined) return;
-    setBusy(true);
-    setError("");
-    setNotice("");
-    try {
-      const result = await pilotPresetAction(room, account, {
-        action: "transactions",
-        enabled: value,
-      });
-      if (typeof result?.aiDraftsForTransactions === "boolean")
-        policy.replace(result);
-      else policy.reload();
-      setEnabled(null);
-      setNotice(c.saved);
-    } catch (reason) {
-      setError(message(reason));
-    } finally {
-      setBusy(false);
-    }
-  }
-  return (
-    <form noValidate onSubmit={(event) => void save(event)}>
-      <Card
-        title={c.transactionsTitle}
-        description={c.transactionsDescription}
-        footer={
-          admin && saved !== undefined ? (
-            <button type="submit" className="button" disabled={busy || !dirty}>
-              {busy && <Spinner />}
-              {c.saveTransactions}
-            </button>
-          ) : undefined
-        }
-      >
-        <UnsavedChanges dirty={dirty} />
-        {policy.loading ? (
-          <Spinner />
-        ) : saved === undefined ? (
-          <LoadFailed error={policy.error ?? c.error} onRetry={policy.reload} />
-        ) : (
-          <label className={ui.check}>
-            <input
-              type="checkbox"
-              checked={enabled ?? saved}
-              disabled={!admin || busy}
-              onChange={(event) => {
-                setEnabled(event.target.checked);
-                setNotice("");
-              }}
-            />
-            {c.transactionsToggle}
-          </label>
-        )}
-        <Status notice={notice} error={error} />
-      </Card>
-    </form>
-  );
-}
-
-function QualityCard({ context }: { context: WorkspaceContext }) {
+export function WorkspaceQuality({ context }: { context: WorkspaceContext }) {
   const overview = useLoad<SupportQualityOverview, null>(
     loadQuality,
     context.room,

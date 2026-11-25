@@ -1,3 +1,4 @@
+import hero from "@/components/pages/landing/hero-copy.json";
 import { getRelease, getReleaseConfiguration } from "@/lib/config";
 import { ReleaseProvider } from "@/lib/release-context";
 import type { Metadata, Viewport } from "next";
@@ -53,26 +54,22 @@ const geistMono = Geist_Mono({
 export async function generateMetadata(): Promise<Metadata> {
   const RELEASE = await getRelease();
   const title = t("landing.meta.title");
-  const description = t("landing.meta.description", {
-    networks:
-      RELEASE.supportWidgetSolanaVerified === true ? "EVM and Solana" : "EVM",
-  });
   return {
     metadataBase: new URL(SITE.origin),
     title: {
       default: title,
       template: "%s | Templ",
     },
-    description,
+    description: t("landing.meta.description"),
     robots: searchRobotsMetadata(APP_ENVIRONMENT, RELEASE),
     icons: { apple: "/apple-touch-icon.png" },
     openGraph: {
       type: "website",
-      images: [{ url: "/art/og/templ-og.png", width: 1200, height: 630 }],
+      images: [{ url: "/art/og/templ-og.png?v=private-support", width: 1200, height: 630, alt: hero.headline }],
     },
     twitter: {
       card: "summary_large_image",
-      images: ["/art/og/templ-og.png"],
+      images: [{ url: "/art/og/templ-og.png?v=private-support", alt: hero.headline }],
     },
   };
 }

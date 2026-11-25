@@ -6,7 +6,6 @@ import type {
   SupportWorkflow,
 } from "@templ/chat/support";
 import { inboxSystemEvent, inboxTime } from "@/lib/inbox-facts";
-import { PhoneDetailsLink } from "./phone-thread";
 import styles from "./team-conversations.module.css";
 
 type ThreadItem =
@@ -50,24 +49,5 @@ export function InboxSystemLine({
     <p className={styles.system} data-event-id={activity.id}>
       {label} {when} <time dateTime={activity.at}>{time}</time>
     </p>
-  ) : null;
-}
-
-export function SharedDetailsMarker({
-  count,
-  thread,
-  snapshots = false,
-}: {
-  count: number;
-  thread: string;
-  snapshots?: boolean;
-}) {
-  return count > 0 ? (
-    <PhoneDetailsLink
-      target={`support-${snapshots ? "failure" : "context"}-${thread}`}
-      className={styles.sharedDetails}
-    >
-      Shared {count} {count === 1 ? "detail" : "details"}
-    </PhoneDetailsLink>
   ) : null;
 }

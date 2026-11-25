@@ -112,8 +112,9 @@ export async function live(
   client: SupportClient,
   pulse: LivePulse,
   form?: HTMLElement,
+  routing?: typeof import("./support-widget-encrypted"),
 ) {
-  const encrypted = form && (await loadEncrypted());
+  const encrypted = form && (routing ?? await loadEncrypted());
   const [, call, kit, base, origin] = client.adopt();
   const ws = base.slice(base.lastIndexOf("/") + 1);
   const api = new URL(base);

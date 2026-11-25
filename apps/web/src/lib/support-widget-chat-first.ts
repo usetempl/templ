@@ -89,7 +89,7 @@ export function chatFirstControls(
       more.replaceChildren(avatars, menuIcon);
       more.setAttribute("aria-description", "People and conversation settings");
       const heading = host.el("h3", "People");
-      heading.prepend(host.icon("people"));
+      heading.prepend(host.icon("chat", peopleView.teamIcon));
       peopleMenu.prepend(heading);
       menu.append(peopleMenu);
     }

@@ -91,9 +91,15 @@ const bundle = async (contents, define = {}, banner) =>
         __TEMPL_WIDGET_CONTEXT__: '"context"',
         __TEMPL_WIDGET_MEMBER__: '"member"',
         __TEMPL_WIDGET_EXTRAS__: '"extras"',
+        __TEMPL_WIDGET_WELCOME__: '"welcome"',
+        __TEMPL_WIDGET_CONVERSATION__: '"conversation"',
+        __TEMPL_WIDGET_CONVERSATION_STYLE__: '"conversation-style"',
+        __TEMPL_WIDGET_CONVERSATIONS__: '"conversations"',
+        __TEMPL_WIDGET_DRAWER__: '"drawer"',
         __TEMPL_WIDGET_EVM__: '"evm"',
         __TEMPL_WIDGET_SOLANA__: '"solana"',
         __TEMPL_WIDGET_LIVE__: '"live"',
+        __TEMPL_WIDGET_ENCRYPTED__: '"encrypted"',
         // The verified-domain line and member screenshots.
         __TEMPL_WIDGET_OPS__: '"ops"',
         __TEMPL_WIDGET_DOMAIN__: '"domain"',
@@ -182,6 +188,12 @@ export const solana = (wallet) =>
   // A chunk that loads another names it: the context chunk the card, the
   // extras the member lines, the member lines the screenshot and the live
   // chunk the visitor check.
+  const conversationModules = {
+    __TEMPL_WIDGET_CONVERSATION__: "conversation",
+    __TEMPL_WIDGET_CONVERSATION_STYLE__: "conversation-style",
+    __TEMPL_WIDGET_DRAWER__: "drawer",
+    __TEMPL_WIDGET_CONVERSATIONS__: "conversations",
+  };
   const loads = {
     context: {
       __TEMPL_WIDGET_CARD__: "card",
@@ -196,6 +208,7 @@ export const solana = (wallet) =>
       __TEMPL_WIDGET_CONTEXT__: "context",
     },
     extras: {
+      ...conversationModules,
       __TEMPL_WIDGET_MEMBER__: "member",
       __TEMPL_WIDGET_WELCOME__: "welcome",
       __TEMPL_WIDGET_GUEST__: "guest",
@@ -209,12 +222,7 @@ export const solana = (wallet) =>
       __TEMPL_WIDGET_DRAWER_WALLET__: "drawer-wallet",
     },
     "drawer-wallet": { __TEMPL_WIDGET_WALLET_VIEW__: "wallet-view", __TEMPL_WIDGET_WALLET_STYLE__: "wallet-style" },
-    welcome: {
-      __TEMPL_WIDGET_CONVERSATION__: "conversation",
-      __TEMPL_WIDGET_CONVERSATION_STYLE__: "conversation-style",
-      __TEMPL_WIDGET_DRAWER__: "drawer",
-      __TEMPL_WIDGET_CONVERSATIONS__: "conversations",
-    },
+    welcome: conversationModules,
   }[name];
   const text = await bundle(
     contents,
@@ -245,6 +253,7 @@ const bytes = await bundle(
     __TEMPL_WIDGET_EVM__: JSON.stringify(chunks.evm.path),
     __TEMPL_WIDGET_SOLANA__: JSON.stringify(chunks.solana.path),
     __TEMPL_WIDGET_LIVE__: JSON.stringify(chunks.live.path),
+    __TEMPL_WIDGET_ENCRYPTED__: JSON.stringify(chunks.encrypted.path),
     __TEMPL_WIDGET_DOMAIN__: JSON.stringify(chunks.domain.path),
     __TEMPL_WIDGET_CONSENT__: JSON.stringify(chunks.consent.path),
     __TEMPL_WIDGET_STYLE__: JSON.stringify(chunks.style.path),

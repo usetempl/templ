@@ -1,6 +1,6 @@
-/** Landing metadata. */
+import hero from "../../components/pages/landing/hero-copy.json";
+
 export const landing = {
-  "landing.meta.title": "Support that respects your privacy | Templ",
-  "landing.meta.description":
-    "Support for privacy-conscious crypto apps. Users choose which wallet and transaction details to share, then talk with your team in one chat.",
+  "landing.meta.title": `${hero.headline} | Templ`,
+  "landing.meta.description": hero.description.join(" "),
 } as const;

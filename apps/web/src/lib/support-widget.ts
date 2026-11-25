@@ -1,4 +1,5 @@
 import { followTranscript } from "./support-widget-transcript-scroll";
+import { conversationModules } from "./support-widget-conversation-modules";
 import { transactionExample } from "./standalone-trial-example";
 import { widgetMessageId as requestId } from "./support-widget-message-id";
 import { widgetErrorMessage } from "./support-widget-error";
@@ -1400,11 +1401,9 @@ const ICONS = {
   minus: "M5 12h14",
   send: "M4 12l16-8-6 16-3-7zM11 13l9-9",
   wallet: "M3 7h18v12H3zM3 7l3-3h11v3M16 13h2",
-  lock: "M6 11h12v9H6zM8 11V8a4 4 0 0 1 8 0v3",
-  people: "M8 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8M2 21v-2a5 5 0 0 1 5-5h2a5 5 0 0 1 5 5v2m3-17a4 4 0 0 1 0 8m1 3a5 5 0 0 1 4 5v1",
   check: "M5 12l5 5 9-10",
 } as const;
-function icon(name: keyof typeof ICONS) {
+function icon(name: keyof typeof ICONS, pathData: string = ICONS[name]) {
   const svg = document.createElementNS(SVG_NS, "svg");
   for (const [attribute, value] of Object.entries({
     viewBox: "0 0 24 24",
@@ -1417,7 +1416,7 @@ function icon(name: keyof typeof ICONS) {
   }))
     svg.setAttribute(attribute, value);
   const path = document.createElementNS(SVG_NS, "path");
-  path.setAttribute("d", ICONS[name]);
+  path.setAttribute("d", pathData);
   svg.append(path);
   return svg;
 }
@@ -1508,6 +1507,11 @@ const loadLive = (): Promise<typeof import("./support-widget-live")> =>
   typeof __TEMPL_WIDGET_LIVE__ == "string"
     ? chunk(`${__TEMPL_WIDGET_LIVE__}#${requestId()}`)
     : import("./support-widget-live");
+declare const __TEMPL_WIDGET_ENCRYPTED__: string | undefined;
+const loadRouting = (): Promise<typeof import("./support-widget-encrypted")> =>
+  typeof __TEMPL_WIDGET_ENCRYPTED__ === "string"
+    ? chunk(__TEMPL_WIDGET_ENCRYPTED__)
+    : import("./support-widget-encrypted");
 /* The verified-domain line under the title
  * (support-widget-domain.ts), loaded only when the policy names one. */
 declare const __TEMPL_WIDGET_DOMAIN__: string | undefined;
@@ -1759,8 +1763,11 @@ export const extras = {
       typeof import("./support-widget-welcome").welcome.firstOpen
     >
   ) {
+    const [host, tools] = args;
+    if (host.options.chatFirst && !host.policy && !tools.closest<HTMLElement>(".panel")?.hidden)
+      void conversationModules().catch(() => {});
     void loadWelcome().then(
-      ({ welcome }) => welcome.firstOpen(...args),
+      ({ welcome }) => { if (!host.lifetime?.aborted) welcome.firstOpen(...args); },
       () => {},
     );
   },
@@ -2710,7 +2717,8 @@ function renderSupportWidget(
   const starter = el("div", undefined, "starter");
   starter.hidden = true;
   // A returning guest sees this until the widget finds their conversation.
-  const loading = el("p", "Opening chat…", "starter loading-case");
+  const loading = el("p", "Loading your conversation…", "starter loading-case");
+  loading.setAttribute("role", "status");
   loading.hidden = true;
   const older = el("button", "Earlier messages", "older");
   older.type = "button";
@@ -3512,70 +3520,72 @@ function renderSupportWidget(
     }
     // The policy and a returning guest's session load together. Without a
     // readable policy, the wallet sign-in stays in front.
-    await Promise.all([
-      minimumLevel === undefined &&
-        readPolicy()?.then(
-            (policy) => {
-              // The team's own line, set in its widget settings, once
-              // even when two reads overlap.
-              if (policy.safetyLine && !tailHost.policy?.safetyLine)
-                warning.append(" We never DM you first.");
-              if (policy.verifiedDomain)
-                loadDomain().then(
-                  (module) => module.domain(titles, policy.verifiedDomain!),
-                  () => {},
-                );
-              tailHost.policy = policy;
-              options.accountWalletRequired?.(policy.chatMode === "encrypted" || policy.minimumLevel !== "anyone");
-              attachToggle.hidden = tx.hidden && !policy.diagnostics;
-              if (
-                options.templLeadCapture &&
-                policy.templLeadCapture &&
-                !loadingLead
-              )
-                loadingLead = Promise.all([loadLead(), withConsent()]).then(
-                  ([module]) => {
-                    if (active) {
-                      module.lead(tailHost, panel);
-                      showPending();
-                    }
-                  },
-                  () => {
-                    loadingLead = undefined;
-                    chunkFailed("lead", "landing");
-                    showError(
-                      new Error(LOAD_FAILED),
-                    );
-                  },
-                );
-              return policy.minimumLevel;
-            },
-            // Unread: the next refresh asks again, and the composer stays.
-            () => undefined,
-          )
-          .then((level) => {
-            minimumLevel = level;
-            sessionChanged();
-          }),
-      !client.session &&
-        !client.ended &&
-        client.guest?.(true).catch((reason) => {
-          // A team that now requires more: the policy decides what shows.
-          if (
-            (reason as { reason?: string })?.reason !== "access-level-required"
-          )
-            throw reason;
-        }),
-    ]);
+    const policyReady = minimumLevel === undefined &&
+      readPolicy()
+        ?.then(
+          (policy) => {
+            // The team's own line, set in its widget settings, once
+            // even when two reads overlap.
+            if (policy.safetyLine && !tailHost.policy?.safetyLine)
+              warning.append(" We never DM you first.");
+            if (policy.verifiedDomain)
+              loadDomain().then(
+                (module) => module.domain(titles, policy.verifiedDomain!),
+                () => {},
+              );
+            tailHost.policy = policy;
+            options.accountWalletRequired?.(policy.chatMode === "encrypted" || policy.minimumLevel !== "anyone");
+            attachToggle.hidden = tx.hidden && !policy.diagnostics;
+            if (
+              options.templLeadCapture &&
+              policy.templLeadCapture &&
+              !loadingLead
+            )
+              loadingLead = Promise.all([loadLead(), withConsent()]).then(
+                ([module]) => {
+                  if (active) {
+                    module.lead(tailHost, panel);
+                    showPending();
+                  }
+                },
+                () => {
+                  loadingLead = undefined;
+                  chunkFailed("lead", "landing");
+                  showError(
+                    new Error(LOAD_FAILED),
+                  );
+                },
+              );
+            return policy.minimumLevel;
+          },
+          // Unread: the next refresh asks again, and the composer stays.
+          () => undefined,
+        )
+        .then((level) => {
+          minimumLevel = level;
+          sessionChanged();
+        });
+    const current = async () => {
+      await policyReady;
+      return !stale();
+    };
+    if (!client.session && !client.ended)
+      await client.guest?.(true).catch((reason) => {
+        // A team that now requires more: the policy decides what shows.
+        if (
+          (reason as { reason?: string })?.reason !== "access-level-required"
+        )
+          throw reason;
+      });
     if (stale()) return;
-    // A wallet sign-in ran out: no reads and no guest until they sign in.
-    if (client.ended) return sessionChanged();
     const session = client.session;
-    if (!session) {
-      noThreadYet = minimumLevel !== "signed";
-      restoring = false;
-      sessionChanged();
-      return;
+    if (!session || client.ended) {
+      if (!(await current())) return;
+      if (!client.ended) {
+        noThreadYet = minimumLevel !== "signed";
+        restoring = false;
+      }
+      return sessionChanged();
     }
     let thread = conversation;
     if (!thread && !hintTried) {
@@ -3592,17 +3602,20 @@ function renderSupportWidget(
       }
     }
     if (!thread) {
+      if (!(await current())) return;
       noThreadYet = true;
       restoring = false;
       setStarter();
       return;
     }
-    const guest = !!session.level && session.level !== "signed";
     let page: WidgetMessages;
     try {
       // An open chat in a visible tab tells the team the member saw it.
+      // The authenticated case read can run alongside public settings. Both
+      // must finish for this visitor before the transcript is displayed.
       page = await client.messages(thread, undefined, !panel.hidden);
     } catch (reason) {
+      if (!(await current())) return;
       // A remembered thread this visitor can no longer read: ask for status.
       if (
         conversation ||
@@ -3611,13 +3624,13 @@ function renderSupportWidget(
         throw reason;
       return refreshNow(stale);
     }
-    if (stale()) return;
+    if (!(await current()) || client.session?.principalId !== session.principalId) return;
     conversation = thread;
     restoring = false;
     formerMembers = page.conversation?.formerMembers ?? [];
     // The team's request to verify shows in the chat, under the thread.
     const asked = page.workflow?.verificationRequested;
-    if (guest && asked !== undefined) verifyRequested = !!asked;
+    if (session.level && session.level !== "signed" && asked !== undefined) verifyRequested = !!asked;
     display(page);
 
   }
@@ -3762,8 +3775,8 @@ function renderSupportWidget(
   const goLive = () =>
     demo
       ? Promise.resolve()
-      : (booting ||= loadLive()
-          .then((module) => {
+      : (booting ||= Promise.all([loadLive(), loadRouting()])
+          .then(([module, routing]) => {
             return module.live(
               client as SupportClient,
               (wake?: number) =>
@@ -3771,6 +3784,7 @@ function renderSupportWidget(
                   ? ((waiting = true), refresh().catch(showError), schedule())
                   : !panel.hidden || waiting,
               form,
+              routing,
             );
           })
           .catch((error) => {
