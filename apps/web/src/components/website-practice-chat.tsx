@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { ActivityDots } from "./ui/ui";
+import { IconSend } from "@tabler/icons-react";
 import { CommunityApiError } from "@/lib/community-client";
 import { loadTemplSupportWidget } from "@/lib/templ-support";
 import { widgetMessageId } from "@/lib/support-widget-message-id";
@@ -12,6 +14,7 @@ type Props = {
   accent?: string;
   icon: string;
   canSend: boolean;
+  scanning?: boolean;
   suggestion?: string;
   /** Keeps an unsent question in this tab while the visitor changes websites. */
   draft?: { current: string };
@@ -125,6 +128,7 @@ function localIcon(data: string) {
 }
 
 export function WebsitePracticeChat(props: Props) {
+  const questionId = useId();
   const container = useRef<HTMLDivElement>(null);
   const latest = useRef(props);
   useLayoutEffect(() => {
@@ -257,6 +261,11 @@ export function WebsitePracticeChat(props: Props) {
   return (
     <>
       <div className={styles.practiceWindow} ref={container} />
+      {!mounted && !failed && !props.scanning && (
+        <p className={styles.activityStatus} role="status">
+          <ActivityDots /> Opening chat…
+        </p>
+      )}
       {failed && (
         <p role="alert">
           Chat could not load.{" "}
@@ -279,13 +288,18 @@ export function WebsitePracticeChat(props: Props) {
         props.suggestion &&
         !hasDraft &&
         !asked && (
-          <button
-            className={styles.suggestion}
-            type="button"
-            onClick={sendSuggestion}
-          >
-            {props.suggestion}
-          </button>
+          <div className={styles.suggestion}>
+            <p id={questionId}>{props.suggestion}</p>
+            <button
+              className="button"
+              type="button"
+              aria-describedby={questionId}
+              onClick={sendSuggestion}
+            >
+              <IconSend size={17} aria-hidden="true" />
+              Send test question
+            </button>
+          </div>
         )}
     </>
   );

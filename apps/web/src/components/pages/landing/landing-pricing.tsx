@@ -1,13 +1,8 @@
 import { PRODUCT_ANNUAL_PRICES as ANNUAL, PRODUCT_LIMITS, PRODUCT_STARTER_PRICES as STARTER, PRODUCT_STANDARD_PRICES as PLUS } from "@templ/chat/plans";
 import { formatUsdCents as dollars } from "@templ/chat/resolution-copy";
 import { SITE } from "@/lib/site-environment";
-import { CustomPricingLink } from "./landing-custom-pricing";
 import { LandingActions } from "./landing-install";
 import styles from "./landing-pricing.module.css";
-
-const exampleCases = 2_000;
-const exampleMonthlyCents = PLUS.workspaceMonthlyUsdCents
-  + (exampleCases - PLUS.includedAnsweredCasesPerMonth) * PLUS.additionalAnsweredCaseUsdCents;
 
 export function LandingPricing() {
   return (
@@ -33,10 +28,6 @@ export function LandingPricing() {
               <tr><th scope="row">Monthly AI credit</th><td>{dollars(STARTER.includedAiCreditUsdCents)}</td><td>{dollars(PLUS.includedAiCreditUsdCents)}</td></tr>
             </tbody>
           </table>
-          <p className={styles.example}>
-            On Plus, {exampleCases.toLocaleString("en-US")} answered cases in one month cost {dollars(exampleMonthlyCents)} before extra AI usage.{" "}
-            <CustomPricingLink />
-          </p>
         </section>
       </div>
       <small className={styles.footnote}>Top up anytime for more cases or AI. <a href={SITE.docs + "/pricing"} data-templ-conversion="pricing_rules_clicked">Full pricing details</a></small>

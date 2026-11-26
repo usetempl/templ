@@ -3,6 +3,7 @@ import { trackEvent } from "@/lib/analytics";
 
 import { canManageWorkspace } from "@templ/chat/moderation-permissions";
 
+import { canUseTrialPractice, TrialAiPractice } from "./trial-ai-practice";
 import { SourceUrlForm } from "./onboarding-source";
 import { KNOWLEDGE_LIMITS } from "@templ/chat/knowledge";
 
@@ -62,6 +63,11 @@ export function WorkspaceKnowledge({ context }: { context: WorkspaceContext }) {
         key={`${context.room}:${context.account}:${context.manager}:${workspaceAdmin(context)}`}
         context={context}
       />
+      {workspaceAdmin(context) && canUseTrialPractice(context) && (
+        <Card title="Test your AI">
+          <TrialAiPractice key={context.room + ":" + context.account} context={context} />
+        </Card>
+      )}
     </div>
   );
 }

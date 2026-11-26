@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { Field, ui } from "@/components/ui/ui";
+import { ActivityDots, Field, ui } from "@/components/ui/ui";
 import { SITE } from "@/lib/site-environment";
 import { chatMutation } from "@/lib/chat-api";
 import {
@@ -10,7 +10,13 @@ import {
   roomPath,
 } from "@/lib/community-client";
 import type { WorkspaceContext } from "./support-workspace";
+import { isBillingView } from "@/lib/product-offer";
 import styles from "./knowledge-sources.module.css";
+
+export function canUseTrialPractice({ state }: WorkspaceContext) {
+  const plan = state?.product && isBillingView(state.product) ? state.product.standardPlan : undefined;
+  return Boolean(state?.features?.trialAiPractice && plan?.status === "demo" && plan.starterAvailable && !plan.period);
+}
 
 type Practice = { remaining: number; answer?: string | null };
 
@@ -118,6 +124,7 @@ export function TrialAiPractice({ context }: { context: WorkspaceContext }) {
           className="button"
           disabled={!question.trim() || !value?.remaining || busy}
         >
+          {busy && <ActivityDots />}
           {busy ? "Checking your docs…" : "Ask AI"}
         </button>
       </div>

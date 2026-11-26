@@ -7,13 +7,11 @@
 .trial, .hosted { min-width: 0; padding: clamp(20px, 2.7vw, 38px); border: 1px solid var(--border); border-radius: 12px; }
 .trial { align-self: start; background: var(--surface-1); }
 .plans .allowance { margin: 20px 0 0; max-width: 48ch; color: var(--fg-2); font-size: 15px; }
-.plans table { width: 100%; margin: 16px 0; border-collapse: collapse; color: var(--fg); font-variant-numeric: tabular-nums; }
+.plans table { width: 100%; margin: 16px 0 0; border-collapse: collapse; color: var(--fg); font-variant-numeric: tabular-nums; }
 .plans th, .plans td { padding: 10px 4px; text-align: right; }
 .plans tr > :first-child { text-align: left; font-weight: 400; }
 .plans tbody tr { border-top: 1px solid var(--border); }
 .plans .price td { font-size: clamp(23px,3vw,34px); font-weight: 600; }
-.plans .example { margin: 16px 0 0; color: var(--fg-2); font-size: 15px; }
-.quoteLink { color: inherit; text-underline-offset: 3px; }
 .footnote { display: block; margin-top: 12px; text-align: right; color: var(--fg-2); font-size: 14px; }
 .footnote a { display: inline-block; padding-block: 6px; color: inherit; text-underline-offset: 3px; }
 @media (max-width:767px) { .choices { grid-template-columns: 1fr; gap: 16px; } .plans table { font-size: 15px; } .footnote { text-align: left; } }

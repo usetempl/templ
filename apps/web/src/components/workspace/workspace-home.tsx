@@ -9,6 +9,7 @@ import { communityFetch, roomPath } from "@/lib/community-client";
 import { isBillingView } from "@/lib/product-offer";
 import { TURNED_AWAY, turnedAway } from "@/lib/copy/insights";
 import { HostedChatSetup } from "./hosted-chat-setup";
+import { canUseTrialPractice } from "./trial-ai-practice";
 import { OnboardingSource } from "./onboarding-source";
 import type { WorkspaceContext } from "./support-workspace";
 import { useWorkspaceSectionFocus } from "./workspace-sections";
@@ -64,10 +65,6 @@ export function WorkspaceHome({ context }: { context: WorkspaceContext }) {
     <div data-workspace-settings="" className={`${styles.page} ${styles.pageNarrow}`}>
       <PageHeader title={workspace.name} />
       <div className={styles.stack}>
-        {canSetUpAi && (paid || standard?.status === "demo") && hasSupportKnowledge(context.state.features) && (
-          <OnboardingSource key={`ai-setup:${room}:${account}`} context={context}
-            practice={standard?.status === "demo" && standard.starterAvailable && !standard.period && context.state.features?.trialAiPractice} />
-        )}
         {manager && !current ? (
           <Skeleton height={96} />
         ) : current?.error ? (
@@ -105,6 +102,10 @@ export function WorkspaceHome({ context }: { context: WorkspaceContext }) {
               )}
             </div>
           </Card>
+        )}
+        {canSetUpAi && (paid || standard?.status === "demo") && hasSupportKnowledge(context.state.features) && (
+          <OnboardingSource key={`ai-setup:${room}:${account}`} context={context}
+            practice={canUseTrialPractice(context)} />
         )}
         {manager &&
           standard?.status === "demo" &&

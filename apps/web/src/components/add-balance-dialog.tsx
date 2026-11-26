@@ -15,6 +15,7 @@ import {
   supportClosedMessage,
 } from "@/lib/product-offer";
 import { readProduct, type ProductUsage } from "@/lib/product-client";
+import { ActivityDots } from "./ui/ui";
 import { ProductCheckout } from "./product-checkout";
 import { useDismissDialog } from "@/lib/use-dismiss-dialog";
 import styles from "./add-balance-dialog.module.css";
@@ -113,11 +114,11 @@ export function AddBalanceDialog({
             </button>
           </p>
         )}
-        {!usage && !error && <p role="status">Loading your plan…</p>}
+        {!usage && !error && <p role="status"><ActivityDots /> Loading your plan…</p>}
         {verified?.key === usageKey && (
           <div className={styles.confirmed} role="status">
             <strong>{planActive ? "Your hosted plan is active." : "Payment verified."}</strong>
-            <button type="button" className={styles.primary} onClick={planActive && onPlanReady ? onPlanReady : onClose}>{planActive && onPlanReady ? "Set up AI" : "Back to workspace"}</button>
+            <button type="button" className={styles.primary} onClick={planActive && onPlanReady ? onPlanReady : onClose}>Back to workspace</button>
           </div>
         )}
         {usage && !standard && (

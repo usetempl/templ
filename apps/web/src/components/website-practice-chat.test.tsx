@@ -65,7 +65,7 @@ const suggestion = "How do I export my journal?";
 const shadow = () =>
   document.querySelector("[data-templ-support]")!.shadowRoot!;
 const composer = () => shadow().querySelector("textarea")!;
-const chip = () => screen.queryByRole("button", { name: suggestion });
+const chip = () => screen.queryByRole("button", { name: "Send test question" });
 function chatProps(changes: Partial<Props> = {}): Props {
   return {
     name: "Garden",
@@ -119,9 +119,9 @@ it("sends nothing while the visitor writes and holds a send until the preview is
 
 it("sends the suggested question once", async () => {
   await mount(chatProps());
-  fireEvent.click(
-    await screen.findByRole("button", { name: suggestion }),
-  );
+  const send = await screen.findByRole("button", { name: "Send test question" });
+  expect(document.getElementById(send.getAttribute("aria-describedby")!)?.textContent).toBe(suggestion);
+  fireEvent.click(send);
   expect(widget.submitted).toEqual([suggestion]);
   expect(chip()).toBeNull();
 });

@@ -12,7 +12,7 @@ import { communityFetch, CommunityApiError } from "@/lib/community-client";
 import { useRelease } from "@/lib/release-context";
 import { workspaceCreationEnabled } from "@/lib/release-public";
 import { trackEvent } from "@/lib/analytics";
-import { Callout, Field, ui } from "./ui/ui";
+import { ActivityDots, Callout, Field, ui } from "./ui/ui";
 import styles from "./native-chat-create.module.css";
 
 type Brand = { name: string; accent: string; logo: string };
@@ -339,12 +339,8 @@ export function WebsiteOnboarding({ nextPlan }: { nextPlan: boolean }) {
                 role="status"
                 aria-atomic="true"
               >
-                <span className={styles.scanDots} aria-hidden="true">
-                  <i />
-                  <i />
-                  <i />
-                </span>
-                <strong>
+                <strong className={styles.activityStatus}>
+                  <ActivityDots />
                   {slowScan
                     ? "Still reading your website…"
                     : "Looking for your logo and docs…"}
@@ -363,13 +359,15 @@ export function WebsiteOnboarding({ nextPlan }: { nextPlan: boolean }) {
               canSend={
                 !disabled && !!preview?.ready && preview.remaining > 0 && named
               }
+              scanning={scanning}
               suggestion={suggestion}
               draft={unsent}
               ask={ask}
             />
             {preview && (
               <p className={styles.practiceNote}>
-                <span role="status">
+                <span className={styles.activityStatus} role="status">
+                  {busy === "ask" && <ActivityDots />}
                   {!preview.ready
                     ? "AI couldn’t read this page."
                     : busy === "ask"
@@ -454,6 +452,7 @@ export function WebsiteOnboarding({ nextPlan }: { nextPlan: boolean }) {
                 className="button secondary"
                 disabled={disabled || !edited || !named}
               >
+                {busy === "brand" && <ActivityDots />}
                 {busy === "brand" ? "Applying…" : "Apply changes"}
               </button>
               {error?.at === "brand" && (
@@ -480,6 +479,7 @@ export function WebsiteOnboarding({ nextPlan }: { nextPlan: boolean }) {
               disabled={disabled || auth.restoring || (!!brand && !named)}
               onClick={save}
             >
+              {(busy === "signin" || busy === "save") && <ActivityDots />}
               {busy === "save"
                 ? "Saving your workspace…"
                 : auth.session

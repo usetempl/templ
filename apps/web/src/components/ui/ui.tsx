@@ -364,6 +364,14 @@ export function Meter({
   );
 }
 
+export function ActivityDots() {
+  return (
+    <span className={styles.activityDots} aria-hidden="true">
+      <i /><i /><i />
+    </span>
+  );
+}
+
 export function Spinner({ size = 16 }: { size?: number }) {
   return (
     <span className={styles.spin} style={{ width: size }} aria-hidden="true" />

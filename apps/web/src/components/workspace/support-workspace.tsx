@@ -792,7 +792,7 @@ function Workspace({ id, supportUrl }: WorkspaceEntry) {
           purpose={plansOpen}
           onClose={() => setPlansOpen(null)}
           onConfirmed={reload}
-          onPlanReady={admin && hasSupportKnowledge(state?.features) ? () => { setPlansOpen(null); go("knowledge"); } : undefined}
+          onPlanReady={team ? () => { setPlansOpen(null); go("home"); } : undefined}
           assertCurrent={() => {
             if (communitySessionRevision() !== sessionRevision)
               throw new Error("Your account changed. Reopen plans.");

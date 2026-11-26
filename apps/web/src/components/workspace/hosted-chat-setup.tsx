@@ -7,7 +7,7 @@ import { formatUsdCents } from "@templ/chat/resolution-copy";
 import { chatMutation } from "@/lib/chat-api";
 import { communityFetch, roomPath } from "@/lib/community-client";
 import { SITE } from "@/lib/site-environment";
-import { CopyButton, ui } from "@/components/ui/ui";
+import { ActivityDots, CopyButton, ui } from "@/components/ui/ui";
 import type { WorkspaceContext } from "./support-workspace";
 import styles from "./hosted-chat-setup.module.css";
 
@@ -77,15 +77,7 @@ export function HostedChatSetup({ context, paid }: { context: WorkspaceContext; 
     <section className={styles.setup} aria-labelledby="hosted-chat-title">
       <header className={styles.intro}>
         <h2 id="hosted-chat-title">Your support chat</h2>
-        {!paid && <p>Send a test message in chat. Reply from your inbox.</p>}
       </header>
-      <div className={styles.chatActions}>
-        <a className="button secondary" href={link} target="_blank" rel="noopener noreferrer">
-          Open chat <IconArrowUpRight aria-hidden="true" />
-        </a>
-        <CopyButton value={link} label="Copy chat link" />
-        <button type="button" className="button secondary" onClick={() => go("inbox")}>Open inbox</button>
-      </div>
       <div className={styles.options}>
         {managed && !claimed && (
           <section className={styles.nameChoice} aria-labelledby="choose-hosted-name">
@@ -104,6 +96,7 @@ export function HostedChatSetup({ context, paid }: { context: WorkspaceContext; 
                     autoComplete="off" spellCheck={false} aria-describedby="hosted-name-terms" />
                 </div>
                 <button className="button" disabled={busy}>
+                  {busy && <ActivityDots />}
                   {busy ? "Checking availability…" : paid ? "Claim name" : "Reserve name and choose a plan"}
                 </button>
               </div>
@@ -113,6 +106,13 @@ export function HostedChatSetup({ context, paid }: { context: WorkspaceContext; 
           </section>
         )}
         {message && <p role="status" className={styles.notice}>{message}</p>}
+        <div className={styles.chatActions}>
+          <a className="button secondary" href={link} target="_blank" rel="noopener noreferrer">
+            Open chat <IconArrowUpRight aria-hidden="true" />
+          </a>
+          <CopyButton value={link} label="Copy chat link" />
+          <button type="button" className="button secondary" onClick={() => go("inbox")}>Open inbox</button>
+        </div>
         <button type="button" className={styles.widgetLink} onClick={() => go("widget")}>
           <IconCode aria-hidden="true" /> Add the chat to your site
         </button>

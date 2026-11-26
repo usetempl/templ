@@ -5,8 +5,6 @@
     "Try it with your site. No account needed."
   ],
   "example": {
-    "siteLabel": "Example chat on",
-    "site": "example.com",
     "guest": "Guest",
     "question": "How do I invite a teammate?",
     "ai": "AI, from your docs",

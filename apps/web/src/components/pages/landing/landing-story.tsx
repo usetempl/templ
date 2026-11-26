@@ -9,7 +9,6 @@ export function LandingStory() {
     <figure id="how" className={styles.stage} aria-label="Example conversation">
       <div id="story" className={styles.transcript}>
         <div className={styles.markLine} aria-hidden="true"><TemplMark decorative className={styles.mark} /><span /></div>
-        <p className={styles.site}><small>{example.siteLabel}</small><span>{example.site}</span></p>
         <ol className={styles.messages} aria-label="Example messages">
           <li className={styles.guest}><small>{example.guest}</small>{example.question}</li>
           <li className={styles.fromDocs}><small>{example.ai}</small>{example.answer}</li>
