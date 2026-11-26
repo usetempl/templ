@@ -66,8 +66,8 @@ export function NativeTelegram({ context }: { context: WorkspaceContext }) {
   if (!view)
     return (
       <Card
-        title="Telegram replies"
-        description="Bring handed-off cases to your Telegram group."
+        title="Telegram handoffs"
+        description="Get a message in your Telegram group when AI needs your team’s help."
       >
         {loading ? (
           <p role="status">
@@ -133,8 +133,8 @@ export function NativeTelegram({ context }: { context: WorkspaceContext }) {
   }
   return (
     <Card
-      title="Telegram replies"
-      description="Bring handed-off cases to your Telegram group."
+      title="Telegram handoffs"
+      description="Get a message in your Telegram group when AI needs your team’s help."
     >
       <p className={styles.note}>
         Group members can read case summaries. Group administrators can reply as

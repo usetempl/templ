@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { hasSupportKnowledge } from "@templ/chat/workspace-flags";
+import { canManageWorkspace } from "@templ/chat/moderation-permissions";
 import { Card, Callout, PageHeader, Skeleton } from "@/components/ui/ui";
 import { AppApprovalRequestButton } from "@/components/app-approval-request";
 import { communityFetch, roomPath } from "@/lib/community-client";
@@ -15,6 +16,10 @@ import styles from "./workspace.module.css";
 
 export function WorkspaceHome({ context }: { context: WorkspaceContext }) {
   const { room, account, manager, workspace, go } = context;
+  const canSetUpAi = canManageWorkspace(
+    { isManager: manager, permissions: context.state.viewer?.permissions },
+    context.state.bots?.some(bot => bot.principalId === account),
+  );
   useWorkspaceSectionFocus(["ai-setup"]);
   const product = context.state.product;
   const billing = product && isBillingView(product) ? product : undefined;
@@ -59,8 +64,9 @@ export function WorkspaceHome({ context }: { context: WorkspaceContext }) {
     <div data-workspace-settings="" className={`${styles.page} ${styles.pageNarrow}`}>
       <PageHeader title={workspace.name} />
       <div className={styles.stack}>
-        {manager && paid && hasSupportKnowledge(context.state.features) && (
-          <OnboardingSource key={`${room}:${account}`} context={context} />
+        {canSetUpAi && (paid || standard?.status === "demo") && hasSupportKnowledge(context.state.features) && (
+          <OnboardingSource key={`ai-setup:${room}:${account}`} context={context}
+            practice={standard?.status === "demo" && standard.starterAvailable && !standard.period && context.state.features?.trialAiPractice} />
         )}
         {manager && !current ? (
           <Skeleton height={96} />

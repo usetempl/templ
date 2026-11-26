@@ -122,7 +122,7 @@ function WorkspaceConfiguration({ context }: { context: WorkspaceContext }) {
           { id: "workspace-general", label: "Workspace" },
           ...(current?.canEdit ? [{ id: "support-profiles", label: "Chat profiles" }] : []),
           { id: "case-settings", label: "Reply hours" },
-          { id: "alerts", label: "Alerts" },
+          { id: "alerts", label: context.state?.features?.nativeTelegram ? "Telegram and alerts" : "Alerts" },
           ...(context.manager
             ? [{ id: "workspace-manager", label: "Ownership" }]
             : []),

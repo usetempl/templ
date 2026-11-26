@@ -643,6 +643,35 @@ function TeamQueue({
   const bulkRequest = useRef<AbortController | null>(null);
   useEffect(() => () => bulkRequest.current?.abort(), []);
 
+  function toggleCase(id: string) {
+    if (!selectable.has(id) || bulkRequest.current) return;
+    setSelection(previous => {
+      if (!previous || previous.query !== query) return previous;
+      const ids = previous.ids.includes(id)
+        ? previous.ids.filter(selected => selected !== id)
+        : [...previous.ids, id];
+      return { query, ids };
+    });
+  }
+
+  function selectVisibleCases() {
+    const list = listScroll.current;
+    if (!list || bulkRequest.current) return;
+    const bounds = list.getBoundingClientRect();
+    const top = Math.max(0, bounds.top);
+    const bottom = Math.min(window.innerHeight, bounds.bottom);
+    const visible = Array.from(list.querySelectorAll<HTMLElement>("[data-inbox-case]"))
+      .filter(element => {
+        const rect = element.getBoundingClientRect();
+        return rect.height > 0 && rect.bottom > top && rect.top < bottom;
+      })
+      .map(element => element.dataset.inboxCase!)
+      .filter(id => selectable.has(id));
+    setSelection(previous => previous?.query === query
+      ? { query, ids: [...new Set([...previous.ids, ...visible])] }
+      : previous);
+  }
+
   async function markSpam() {
     if (!account || bulkRequest.current || !checked.length) return;
     const action = new AbortController();
@@ -651,8 +680,9 @@ function TeamQueue({
     setBulkBusy(true);
     const done: string[] = [];
     const failed: string[] = [];
-    try {
-      for (const id of checked) {
+    const remaining = checked.values();
+    async function updateNext() {
+      for (const id of remaining) {
         if (action.signal.aborted) return;
         try {
           const result = await updateSupportWorkflow(account, room, id, { action: "status", state: "spam" });
@@ -662,15 +692,30 @@ function TeamQueue({
           failed.push(id);
         }
       }
+    }
+    try {
+      await Promise.all(Array.from({ length: Math.min(4, checked.length) }, updateNext));
       if (action.signal.aborted) return;
-      setSelection(failed.length ? { query, ids: failed } : null);
+      setSelection(previous => previous?.query === query ? { query, ids: failed } : previous);
       setBulkStatus({
         text: failed.length
           ? `${done.length} marked as spam. ${failed.length} couldn’t be updated.`
           : `${done.length} marked as spam.`,
         failed: Boolean(failed.length),
       });
-      if (done.length) onBulkChanged(done);
+      if (done.length) {
+        const confirmed = new Set(done);
+        setLoaded(previous => {
+          if (previous?.query !== query || !previous.rows) return previous;
+          const rows = filter === "all"
+            ? previous.rows.map(row => confirmed.has(row.id) && row.support
+              ? { ...row, state: "resolved" as const, support: { ...row.support, state: "spam" as const } }
+              : row)
+            : previous.rows.filter(row => !confirmed.has(row.id));
+          return { ...previous, rows };
+        });
+        onBulkChanged(done);
+      }
     } finally {
       bulkRequest.current = null;
       if (!action.signal.aborted) setBulkBusy(false);
@@ -891,7 +936,7 @@ function TeamQueue({
       <div className={styles.queueHead}>
         <h1>{t("room.team.list")}</h1>
         <div className={styles.queueHeadActions}>
-          {bulkAvailable && candidates.length > 0 && (
+          {bulkAvailable && (
             <button
               type="button"
               className={styles.iconButton}
@@ -972,17 +1017,14 @@ function TeamQueue({
 
       {selectionActive && (
         <div className={styles.bulkBar} aria-label="Selected cases">
-          <label>
-            <input
-              type="checkbox"
-              checked={selectable.size > 0 && checked.length === selectable.size}
-              disabled={!selectable.size || bulkBusy}
-              onChange={(event) =>
-                setSelection({ query, ids: event.target.checked ? [...selectable] : [] })
-              }
-            />
-            Select shown
-          </label>
+          <button
+            type="button"
+            className="button small secondary"
+            disabled={!selectable.size || bulkBusy}
+            onClick={selectVisibleCases}
+          >
+            Select visible
+          </button>
           <button
             type="button"
             className="button small"
@@ -992,6 +1034,9 @@ function TeamQueue({
             {bulkBusy ? "Marking spam…" : checked.length ? `Mark ${checked.length} as spam` : "Mark as spam"}
           </button>
         </div>
+      )}
+      {selectionActive && rows && rows.length > 0 && !candidates.length && (
+        <p className={styles.bulkStatus}>None of these cases can be marked as spam.</p>
       )}
       {bulkStatus && (
         <p className={styles.bulkStatus} role={bulkStatus.failed ? "alert" : "status"}>
@@ -1099,17 +1144,10 @@ function TeamQueue({
                     <input
                       type="checkbox"
                       className={styles.selectCase}
-                      aria-label={`Select case: ${preview || name || "Guest"}`}
+                      aria-label={`Select case: ${preview || label || "Guest"}`}
                       checked={checked.includes(row.id)}
                       disabled={bulkBusy || !selectable.has(row.id)}
-                      onChange={(event) =>
-                        setSelection({
-                          query,
-                          ids: event.target.checked
-                            ? [...checked, row.id]
-                            : checked.filter(id => id !== row.id),
-                        })
-                      }
+                      onChange={() => toggleCase(row.id)}
                     />
                   )}
                   <InboxCaseRow
@@ -1128,7 +1166,9 @@ function TeamQueue({
                         {waitSince ? waitAge(waitSince) : relativeTime(at)}
                       </time>
                     }
-                    selected={row.id === selected}
+                    selected={selectionActive ? checked.includes(row.id) : row.id === selected}
+                    selectionChecked={selectionActive ? checked.includes(row.id) : undefined}
+                    disabled={selectionActive && (bulkBusy || !selectable.has(row.id))}
                     unread={row.support?.unread === true}
                     busy={Boolean(pendingCases?.[row.id])}
                     humanRequest={
@@ -1138,7 +1178,7 @@ function TeamQueue({
                           (row.handoff?.reason === "person" ||
                             row.handoff?.by === "member")))
                     }
-                    onOpen={() => onOpen(row.id, row)}
+                    onOpen={selectionActive ? () => toggleCase(row.id) : () => onOpen(row.id, row)}
                   >
                       <span className={styles.rowMeta}>
                         {chip && <span className={styles.tag} title={chip.text}>{chip.text}</span>}

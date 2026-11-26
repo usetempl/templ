@@ -743,7 +743,7 @@ export class SupportKnowledge {
     const url = new URL(request.url);
     // Managed AI: the room's managed ops, Templ's spend
     // meter and nothing else under /managed/.
-    const managed = await managedKnowledgeFetch(this.state, this.db, request);
+    const managed = await managedKnowledgeFetch(this.state, this.db, request, this.env as ManagedKnowledgeEnv);
     if (managed) return managed;
     if (request.method === "POST" && url.pathname === "/purge-workspace")
       return this.purgeWorkspace(request);

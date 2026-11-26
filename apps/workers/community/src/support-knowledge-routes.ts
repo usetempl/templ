@@ -1,3 +1,7 @@
+import { PRODUCT_STATE_KEY, readProductState, standardPlanForState } from "./product-entitlements";
+import { STANDARD_PLAN_KEY } from "./product-standard-plan";
+import { workspaceClosing } from "./workspace-deletion";
+import { managedKnowledgeCall } from "./managed-agent/knowledge-client";
 import { hasStorageAgreement, acceptStorageAgreement, storageBillingView, storageLedgerPage, storageReadGrant, withdrawStorageAgreement, type StorageBillingEnv } from "./brain-storage-billing";
 import { featureOn, supportKnowledgeOn } from "./workspace-flags";
 import { learnedCorrectionAvailable, learnedReplyCorrection } from "./support-learning-correction";
@@ -93,7 +97,7 @@ export type KnowledgeQualityDeps = {
 const THREAD_ROUTE = /^\/conversations\/(tc-[0-9a-f]{32})\/(review|evals|legacy)$/;
 const ROOM_ROUTE = /^\/conversations\/(quality|reviews|trends|gaps|pilot-preset)$/;
 export const KNOWLEDGE_ROUTE =
-  /^\/conversations\/knowledge(?:\/(search|context|guidance|storage|storage-ledger|kb-[0-9a-f]{16}))?$/;
+  /^\/conversations\/knowledge(?:\/(search|context|guidance|practice|storage|storage-ledger|kb-[0-9a-f]{16}))?$/;
 const PRE_ROUTE = /^\/conversations\/(tc-[0-9a-f]{32})\/(resolve|workflow|messages)$/;
 const ASK_ROUTE = "/conversations/ask";
 
@@ -394,6 +398,19 @@ async function knowledgeRoute(
   const actor = knowledgeActor(viewer);
   const call = (op: string, args: Record<string, unknown> = {}) =>
     knowledgeCall(env, context.room, op, actor, args);
+  if (item === "practice") {
+    if (!viewer.admin || viewer.bot || !await featureOn(context.mediaEnv, storage, "trialAiPractice") ||
+        !await storage.get(PRODUCT_STATE_KEY) || !await storage.get(STANDARD_PLAN_KEY) || await workspaceClosing(storage)) throw toolsNotFound();
+    const state = await readProductState(storage, context.now, context.mediaEnv);
+    const plan = standardPlanForState(state);
+    if (plan?.status !== "demo" || plan.period || !plan.starterAvailable || (state.exemptUntil && state.exemptUntil > context.now)) throw toolsNotFound();
+    if (context.method === "GET") return json(await managedKnowledgeCall(env, context.room, "trial.practice"));
+    if (context.method !== "POST") throw toolsNotFound();
+    const { question, requestId } = context.body;
+    if (typeof question !== "string" || !question.trim() || question.length > 800) throw new HttpError(400, "Enter a product question of up to 800 characters.");
+    await refusePhrase(question, "sent");
+    return json(await managedKnowledgeCall(env, context.room, "trial.practice", { question, requestId }));
+  }
   if (item === "storage") {
     if (!viewer.manager || viewer.bot) throw toolsNotFound();
     if (!featureOn(context.mediaEnv, undefined, "brainStorage") &&

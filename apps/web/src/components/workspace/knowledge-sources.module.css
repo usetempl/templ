@@ -43,6 +43,15 @@
   gap: var(--templ-space-4);
   container-type: inline-size;
 }
+.practice {
+  margin-block-start: var(--templ-space-5);
+  padding-block-start: var(--templ-space-5);
+  border-top: 1px solid var(--templ-line);
+}
+.practice h3 {
+  margin: 0;
+  font-size: var(--templ-text-lead);
+}
 
 .sourceTypes {
   display: inline-flex;

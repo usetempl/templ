@@ -317,7 +317,6 @@ export function NativeChatCreate({
         <p className={styles.terms}>
           Test {PRODUCT_LIMITS.freeSupportTickets} tickets free, with{" "}
           {PRODUCT_LIMITS.freeTeamRepliesPerTicket} team replies per ticket.
-          Templ AI is off during free tests.
         </p>
       </section>
       {toast}

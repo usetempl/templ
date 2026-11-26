@@ -15,7 +15,7 @@ Start with the visitor link in Your support chat. Open it in a separate browser,
 For an existing workspace without a support link, open Settings → Chat → Guest support, select Host a support page on Templ and Save guest support. Use Copy support link for the saved URL. Link-only setup needs no widget code.
 For the widget, ask me to copy its public workspace ID from Settings → Chat. It is not a credential.
 Use Connect's wallet confirmation only when current availability says Connect is open.
-Use free integration mode: ${PRODUCT_LIMITS.freeSupportTickets} lifetime test tickets, with ${PRODUCT_LIMITS.freeTeamRepliesPerTicket} team replies per ticket. Templ AI stays off.
+Use free integration mode: ${PRODUCT_LIMITS.freeSupportTickets} lifetime test tickets, with ${PRODUCT_LIMITS.freeTeamRepliesPerTicket} team replies per ticket. Your team answers visitor test tickets.
 Preserve existing paid access, grants, team roles and AI settings.
 For an embed, reuse the app’s wallet connection and use the workspace install prompt to add Help, wallet updates and failure capture. For both, keep the link and the widget on this workspace.
 Check current availability. Keep unavailable features off.
@@ -278,7 +278,7 @@ Before you change code:
 - Find the wallet library. EVM apps usually use wagmi, viem, ethers, RainbowKit, ConnectKit, Reown AppKit, Privy or Dynamic.${solana ? " Solana apps usually use @solana/wallet-adapter-react or a Wallet Standard wallet." : ""}
 - Find the app shell and its Help or Support button. Find its sign-out and content security policy.
 - Check the workspace's Plan page. New workspaces start in free integration mode.
-  Free mode has ${PRODUCT_LIMITS.freeSupportTickets} lifetime test tickets and ${PRODUCT_LIMITS.freeTeamRepliesPerTicket} team replies per ticket. Templ AI stays off.
+  Free mode has ${PRODUCT_LIMITS.freeSupportTickets} lifetime test tickets and ${PRODUCT_LIMITS.freeTeamRepliesPerTicket} team replies per ticket. Your team answers visitor test tickets.
   Preserve existing paid access, grants, team roles and AI settings.
   Never request a staff token or wallet key to configure the workspace.
   The manager confirms workspace changes in Templ.

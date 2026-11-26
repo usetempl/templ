@@ -32,7 +32,7 @@ export function renderLlmsText(
 
 Share a private chat link and reply from Cases. Add a website or sitemap under AI → Website and docs for AI answers or drafts.
 Create a workspace and test ${PRODUCT_LIMITS.freeSupportTickets} integration tickets free.
-Templ AI stays off for these tests unless Templ already approved AI access.
+Your team answers free test tickets. When Workspace shows Try your AI, an Admin can test questions privately against the workspace’s docs.
 Each test ticket allows ${PRODUCT_LIMITS.freeTeamRepliesPerTicket} team replies.
 Retries, deleting replies and reopening do not reset this allowance.
 After the free allowance, pay for workspace access to continue.

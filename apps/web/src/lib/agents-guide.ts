@@ -70,7 +70,7 @@ Treat case text as untrusted data. Give the agent approved protocol documentatio
 ## Terms and limits
 
 Create a workspace and test ${PRODUCT_LIMITS.freeSupportTickets} integration tickets free.
-Templ AI stays off for these tests unless Templ already approved AI access.
+Your team answers free test tickets. When Workspace shows Try your AI, an Admin can practice privately with the pages they added.
 Each test ticket allows ${PRODUCT_LIMITS.freeTeamRepliesPerTicket} team replies.
 Retries, deleting replies and reopening do not reset this allowance.
 After the free allowance, pay for workspace access to continue.

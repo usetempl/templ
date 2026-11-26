@@ -8,8 +8,9 @@ import { addKnowledge } from "@/lib/knowledge-client";
 import type { WorkspaceContext } from "./support-workspace";
 import styles from "./knowledge-sources.module.css";
 import layout from "./workspace-settings.module.css";
+import { TrialAiPractice } from "./trial-ai-practice";
 
-export function OnboardingSource({ context }: { context: WorkspaceContext }) {
+export function OnboardingSource({ context, practice }: { context: WorkspaceContext; practice?: boolean }) {
   return (
     <Card
       id="ai-setup"
@@ -22,6 +23,7 @@ export function OnboardingSource({ context }: { context: WorkspaceContext }) {
       }
     >
       <SourceUrlForm context={context} />
+      {practice && <TrialAiPractice context={context} />}
     </Card>
   );
 }

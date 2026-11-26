@@ -14,6 +14,7 @@ export const MANAGED_OPS = [
   "golden.get",
   "golden.run",
   "grounded.verify",
+  "trial.practice",
 ] as const;
 export type ManagedOp = (typeof MANAGED_OPS)[number];
 

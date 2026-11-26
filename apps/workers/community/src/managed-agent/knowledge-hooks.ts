@@ -1,3 +1,4 @@
+import { trialPractice } from "./trial-practice";
 import { verifyGroundedReceipt } from "./grounded";
 import { workspaceFeatureEnvFor } from "../workspace-flags";
 import { recordWorkspaceCost } from "../workspace-cost-recording";
@@ -314,6 +315,7 @@ export async function managedKnowledgeFetch(
   state: DurableObjectState,
   db: KnowledgeDb,
   request: Request,
+  env?: ManagedKnowledgeEnv,
 ): Promise<Response | null> {
   const url = new URL(request.url);
   if (request.method !== "POST" || !url.pathname.startsWith("/managed/"))
@@ -328,6 +330,11 @@ export async function managedKnowledgeFetch(
     if (url.pathname === "/managed/spend")
       return json(await templSpendRequest(state.storage, body, Date.now()));
     if (url.pathname === "/managed/op") {
+      if (body.op === "trial.practice") {
+        bindRoom(db, body.room, Date.now());
+        if (!env) throw new KnowledgeError(503, "trial-ai-practice", "AI practice is unavailable.");
+        return json(await trialPractice(db, env, templMeter(env), (body.args ?? {}) as Record<string, unknown>));
+      }
       const result = await managedOperation(db, body, Date.now());
       const due = nextJobDue(db);
       if (due !== null) {

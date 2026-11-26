@@ -13,7 +13,7 @@ export function LandingPricing() {
           <h3 id="trial-title">Start with a free chat</h3>
           <p>Open your visitor link, send a question and reply from your team inbox.</p>
           <LandingActions id="start-install" />
-          <p className={styles.allowance}>Try {PRODUCT_LIMITS.freeSupportTickets} tickets with up to {PRODUCT_LIMITS.freeTeamRepliesPerTicket} staff replies each. Templ AI is off during the trial.</p>
+          <p className={styles.allowance}>Try {PRODUCT_LIMITS.freeSupportTickets} tickets with up to {PRODUCT_LIMITS.freeTeamRepliesPerTicket} staff replies each.</p>
         </section>
         <section className={styles.hosted} aria-labelledby="hosted-title">
           <h3 id="hosted-title">Templ Hosted</h3>

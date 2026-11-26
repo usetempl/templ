@@ -127,6 +127,9 @@ export function ManagedAgentSettings({
   const standard =
     product && isBillingView(product) ? product.standardPlan : undefined;
   const prepaid = Boolean(standard) || view.model === "gpt-6.1-sol";
+  // An installed responder can answer even if the optional managed service is off.
+  const anotherResponder = context.state?.bots?.some(bot => bot.principalId !== view.principal);
+  const serviceName = anotherResponder ? "Additional hosted AI" : MANAGED_COPY.title;
   const status: Record<ManagedAgentView["state"], string> = {
     ready:
       defaultMode === "off"
@@ -136,7 +139,7 @@ export function ManagedAgentSettings({
           : defaultMode === "answers"
             ? "Ready to answer new cases."
             : "Ready. Checking the case mode.",
-    off: "Templ AI is off.",
+    off: anotherResponder ? "Not enabled" : "Templ AI is off.",
     "not-on-team": "Add the Templ AI account to your team.",
     "no-grant": "Templ AI is not set up for this workspace.",
     "kill-switch": "Templ AI is paused.",
@@ -148,15 +151,15 @@ export function ManagedAgentSettings({
   return (
     <section
       id="managed-ai"
-      aria-label={MANAGED_COPY.title}
+      aria-label={serviceName}
       className={layout.sections}
     >
       <form onSubmit={(event) => void save(event)}>
         <UnsavedChanges dirty={dirty} />
         <Card
           bodyClassName={layout.panelBody}
-          title={MANAGED_COPY.title}
-          description={MANAGED_COPY.description}
+          title={serviceName}
+          description={anotherResponder ? "Your workspace already has a registered AI agent." : MANAGED_COPY.description}
           actions={
             <Badge
               tone={
@@ -221,7 +224,7 @@ export function ManagedAgentSettings({
               <p>
                 {standard
                   ? standard.status === "demo"
-                    ? "Templ AI is off during free integration. Open Plan & usage when you are ready to go live."
+                    ? "Your team answers trial chats. Choose a plan to let AI answer visitors."
                     : "Templ AI follows your workspace access and available AI credit."
                   : view.grant.active && view.grant.endsAt
                     ? MANAGED_COPY.planUntil(day(view.grant.endsAt))

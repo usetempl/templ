@@ -15,6 +15,7 @@ import { supportRecord, readAiState, staffPreviewReason, type SupportRecord } fr
 import type { ConversationContext, TeamConversationRecord } from "./team-conversations";
 import { featureOn } from "./workspace-flags";
 import { wakeLearningJob } from "./managed-agent/room";
+import { managedPrincipal } from "./managed-agent/principal";
 import { storageReadGrant } from "./brain-storage-billing";
 import { readBots } from "./bots";
 import { workspaceClosing } from "./workspace-deletion";
@@ -50,6 +51,7 @@ type Marker = {
   handoffAt: number;
   reason: SupportHandoffReason;
   origin: ChatPrincipalId;
+  teamReply?: true;
   attempts?: number;
 };
 export type StoredLearningJob = Marker & {
@@ -131,11 +133,19 @@ export async function captureHandoffLearning(
   storage: Storage, context: ConversationContext, record: TeamConversationRecord, data: SupportRecord, handoff: StoredHandoff,
 ) {
   const origin = context.viewer.principalId;
-  if (handoff.by !== "agent" || HANDOFF_LEARNING_EXCLUDED_REASONS.includes(handoff.reason) ||
-    !context.isBot || !origin || !data.caseSeq || data.requestedAt !== handoff.requestAt ||
+  if (!data.caseSeq || data.requestedAt !== handoff.requestAt) return;
+  const key = markerKey(record.id, data.caseSeq);
+  if (HANDOFF_LEARNING_EXCLUDED_REASONS.includes(handoff.reason)) {
+    if (await featureOn(context.mediaEnv, storage, "handoffLearning"))
+      await storage.put(key, { blockedForRequest: handoff.requestAt });
+    return;
+  }
+  if (handoff.by !== "agent" || !context.isBot || !origin ||
     !(await registered(storage, context, origin)) || !(await allowed(storage, context, record, data))) return;
-  const previous = marker(await storage.get(markerKey(record.id, data.caseSeq)));
-  await storage.put(markerKey(record.id, data.caseSeq), {
+  const stored = await storage.get<{ blockedForRequest?: number }>(key);
+  if (stored?.blockedForRequest === handoff.requestAt) return;
+  const previous = marker(stored);
+  await storage.put(key, {
     v: 1, thread: record.id, caseSeq: data.caseSeq, requestAt: handoff.requestAt,
     handoffAt: handoff.at, reason: handoff.reason, origin,
     attempts: previous?.requestAt === handoff.requestAt ? previous.attempts ?? 0 : 0,
@@ -147,13 +157,31 @@ export async function captureHandoffLearning(
  * missing from an earlier clarification, with at most eight jobs per case. */
 export async function queueHandoffLearningReply(
   storage: Storage, context: ConversationContext, record: TeamConversationRecord, message: ChatMessage,
+  answeredHandoff?: StoredHandoff | null,
 ): Promise<StoredLearningJob | null> {
   if (context.isBot || !context.viewer.principalId) return null;
   const data = await supportRecord(storage as DurableObjectTransaction, record);
-  if (!data.caseSeq) return null;
+  if (!data.caseSeq || data.requestedAt === null) return null;
   const key = markerKey(record.id, data.caseSeq);
-  const pending = marker(await storage.get(key));
-  if (!pending) return null;
+  // A handoff from an older build can predate the exclusion marker. The
+  // accepted reply clears that handoff, so retain its exclusion for follow-ups.
+  if (answeredHandoff?.requestAt === data.requestedAt && HANDOFF_LEARNING_EXCLUDED_REASONS.includes(answeredHandoff.reason)) {
+    await storage.put(key, { blockedForRequest: data.requestedAt });
+    return null;
+  }
+  const stored = await storage.get<{ blockedForRequest?: number }>(key);
+  if (stored?.blockedForRequest === data.requestedAt) return null;
+  let pending = marker(stored);
+  if ((!pending || pending.requestAt !== data.requestedAt) && data.lastMemberMessageAt !== null &&
+      data.lastMemberMessageAt >= data.requestedAt && await featureOn(context.mediaEnv, storage, "teamReplyLearning")) {
+    const bots = context.registeredBots ?? [];
+    const managed = await managedPrincipal(context.room);
+    const origin = bots.includes(managed) ? managed : bots.length === 1 ? bots[0] : undefined;
+    if (!origin) return null;
+    pending = { v: 1, thread: record.id, caseSeq: data.caseSeq, requestAt: data.requestedAt,
+      handoffAt: data.requestedAt, reason: "other", teamReply: true, origin };
+  }
+  if (!pending || (pending.teamReply && !await featureOn(context.mediaEnv, storage, "teamReplyLearning"))) return null;
   if (pending.requestAt !== data.requestedAt || context.now - pending.handoffAt > 30 * DAY ||
     !(await allowed(storage, context, record, data)) || !(await registered(storage, context, pending.origin)) ||
     !(await context.isSupportStaff?.(context.viewer.principalId)) ||
@@ -208,7 +236,10 @@ async function current(storage: Storage, context: ConversationContext, deps: Dep
   const { record, role } = await deps.authorize(job.conversation);
   if (role !== "team") throw hidden();
   const data = await supportRecord(storage as DurableObjectTransaction, record);
-  if (!(await allowed(storage, context, record, data))) throw hidden();
+  const latest = await storage.get<{ blockedForRequest?: number }>(markerKey(job.thread, job.caseSeq));
+  if (latest?.blockedForRequest === job.requestAt ||
+      (job.teamReply && !await featureOn(context.mediaEnv, storage, "teamReplyLearning")) ||
+      !(await allowed(storage, context, record, data))) throw hidden();
   if (data.caseSeq !== job.caseSeq || data.requestedAt !== job.requestAt ||
     (await storage.get<number>(`channel-sequence:${job.conversation}`)) !== Number(job.answer.id)) throw stale();
   const answer = await storage.get<ChatMessage>(messageKey(job.conversation, Number(job.answer.id)));

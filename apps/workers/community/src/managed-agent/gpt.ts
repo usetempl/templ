@@ -206,13 +206,39 @@ export async function probePrepaidGptCount(ai: GptBinding, gatewayId: string) {
   };
 }
 
-/** Each request has its own durable financial hold. Cost reporting remains asynchronous. */
-export function prepaidGptCaller(input: {
+type InferenceHold = {
+  attemptId: string; requestBytes: number; model: string; maxOutputTokens: number;
+  requestSha256: string; inputTokens?: number;
+};
+type InferenceSettlement = {
+  attemptId: string; model: string; usage: StandardAiTokenUsage | null; outcome: "completed" | "failed";
+};
+export type GptFunding = {
+  reserve(input: InferenceHold): Promise<boolean>;
+  settle(input: InferenceSettlement): Promise<{ available: boolean }>;
+};
+type GptOptions = {
   ai: GptBinding;
   gatewayId: string;
-  billing: RoomClient;
   observeCost?(event: WorkspaceCostEvent): void;
-}): ModelCaller {
+};
+
+/** Each paid call reserves against the workspace's existing rate card. */
+export function prepaidGptCaller(input: GptOptions & { billing: RoomClient }): ModelCaller {
+  return fundedGptCaller(input, {
+    async reserve(request) {
+      const held = await input.billing.post("/private/prepaid-ai/reserve", request);
+      return held.status === 200 && held.body.mode === "prepaid" && held.body.admitted === true;
+    },
+    async settle(request) {
+      const settled = await input.billing.post("/private/prepaid-ai/settle", request);
+      if (settled.status !== 200) throw new Error("billing-settlement-pending");
+      return { available: settled.body.unavailable !== true || settled.body.absorbedOverHold === true };
+    },
+  });
+}
+
+export function fundedGptCaller(input: GptOptions, funding: GptFunding): ModelCaller {
   return async ({ system, user, format = "answer", purpose = "other", onCostAttempt }) => {
     const body = prepaidGptRequest(system, user, format);
     const serialized = JSON.stringify(body),
@@ -232,7 +258,7 @@ export function prepaidGptCaller(input: {
     const attemptId = crypto.randomUUID();
     let held;
     try {
-      held = await input.billing.post("/private/prepaid-ai/reserve", {
+      held = await funding.reserve({
         attemptId,
         requestBytes,
         model: PREPAID_GPT_MODEL,
@@ -248,11 +274,7 @@ export function prepaidGptCaller(input: {
         providerAttempted: false,
       };
     }
-    if (
-      held.status !== 200 ||
-      held.body.mode !== "prepaid" ||
-      held.body.admitted !== true
-    )
+    if (!held)
       return {
         kind: "failed",
         reason: "prepaid-admission-refused",
@@ -383,7 +405,7 @@ export function prepaidGptCaller(input: {
     });
     let settled;
     try {
-      settled = await input.billing.post("/private/prepaid-ai/settle", {
+      settled = await funding.settle({
         attemptId,
         model,
         usage,
@@ -396,19 +418,12 @@ export function prepaidGptCaller(input: {
         usage: null,
       };
     }
-    if (settled.status !== 200)
-      return {
-        kind: "failed",
-        reason: "billing-settlement-pending",
-        usage: null,
-      };
     const standardUsage =
       model === PREPAID_GPT_MODEL && standardTier ? usage : null;
     if (refused) return { kind: "refusal", usage: {}, standardUsage };
     if (
       outcome !== "completed" ||
-      (settled.body.unavailable === true &&
-        settled.body.absorbedOverHold !== true)
+      !settled.available
     )
       return { kind: "failed", reason: failure, usage: null, standardUsage };
     return { kind: "answer", value: parsed, model, usage: {}, standardUsage };

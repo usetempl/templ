@@ -1814,14 +1814,6 @@
   background: var(--templ-surface);
 }
 
-.bulkBar label {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--templ-space-2);
-  min-height: 36px;
-  font-size: var(--templ-text-small);
-}
-
 .bulkStatus {
   margin: 0;
   padding: var(--templ-space-2) var(--templ-space-3);

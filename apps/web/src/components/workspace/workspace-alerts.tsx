@@ -183,8 +183,8 @@ export function WorkspaceAlerts({ context }: { context: WorkspaceContext }) {
   const view = channels.current?.value;
   return (
     <section className={styles.stack} aria-label={c.sectionTitle} id="alerts">
-      <YourAlerts context={context} />
       {admin && <NativeTelegram context={context} />}
+      <YourAlerts context={context} />
       {!!view?.emailOverflowToday && (
         <Callout tone="warning" role="status">
           {c.emailOverflow(view.emailOverflowToday)}

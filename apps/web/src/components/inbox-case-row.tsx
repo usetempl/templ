@@ -14,6 +14,8 @@ export function InboxCaseRow({
   busy = false,
   humanRequest = false,
   onOpen,
+  selectionChecked,
+  disabled,
   children,
 }: {
   label: string;
@@ -26,6 +28,8 @@ export function InboxCaseRow({
   busy?: boolean;
   humanRequest?: boolean;
   onOpen?: () => void;
+  selectionChecked?: boolean;
+  disabled?: boolean;
   children?: ReactNode;
 }) {
   const preview = requestPreview?.trim();
@@ -67,7 +71,9 @@ export function InboxCaseRow({
       {...state}
       type="button"
       aria-busy={busy || undefined}
-      aria-current={selected ? "true" : undefined}
+      aria-current={selectionChecked === undefined && selected ? "true" : undefined}
+      aria-pressed={selectionChecked}
+      disabled={disabled}
       onClick={onOpen}
     >
       {content}

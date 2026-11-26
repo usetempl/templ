@@ -16,6 +16,12 @@
     "killSwitch": "NATIVE_TELEGRAM_BRIDGE_ENABLED",
     "name": "Telegram replies"
   },
+  "teamReplyLearning": {
+    "releaseFlag": "aiDraftsProved",
+    "workspaceOnly": true,
+    "killSwitch": "SUPPORT_HANDOFF_LEARNING_ENABLED",
+    "name": "Learn from team replies"
+  },
   "widgetIntro": {
     "releaseFlag": "supportWidgetVerified",
     "workspaceOnly": true,
@@ -129,6 +135,12 @@
     "releaseFlag": "priorityFeedVerified",
     "killSwitch": "SUPPORT_PRIORITY_FEED_ENABLED",
     "name": "Priorities"
+  },
+  "trialAiPractice": {
+    "releaseFlag": "managedAgentVerified",
+    "workspaceOnly": true,
+    "killSwitch": "SUPPORT_TRIAL_AI_PRACTICE_ENABLED",
+    "name": "Free AI practice questions"
   },
   "managedAgent": {
     "releaseFlag": "managedAgentVerified",

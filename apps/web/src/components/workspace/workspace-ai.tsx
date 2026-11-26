@@ -15,6 +15,7 @@ import { chatMutation } from "@/lib/chat-api";
 import { communityFetch, roomPath } from "@/lib/community-client";
 import { ManagedAgentSettings } from "@/components/managed-agent-settings";
 import {
+  Badge,
   Callout,
   Card,
   Field,
@@ -56,7 +57,11 @@ export function WorkspaceAi({ context }: { context: WorkspaceContext }) {
   const knowledge = hasSupportKnowledge(context.state?.features);
   return (
     <div data-workspace-settings="" className={`${styles.page} ${styles.pageNarrow} ${layout.page}`}>
-      <PageHeader title="Support AI" />
+      <PageHeader title="Support AI" actions={admin && context.state?.features?.nativeTelegram && (
+        <button type="button" className="button secondary" onClick={() => context.go("settings", null, "alerts")}>
+          Telegram handoffs
+        </button>
+      )} />
       <div className={layout.sections}>
         {knowledge && <WorkspaceKnowledge key={`sources:${room}:${account}:${admin}`} context={context} />}
         {!admin && (
@@ -217,6 +222,11 @@ function AiDefaultSettings({
         bodyClassName={layout.panelBody}
         id={AI_AGENT_SECTION}
         title="AI agent"
+        actions={context.state.bots.length > 0 && (
+          <Badge tone={savedMode === "off" ? "neutral" : "brand"} dot>
+            {savedMode === "answers" ? "Answers on" : savedMode === "drafts" ? "Drafts only" : "Replies off"}
+          </Badge>
+        )}
         footer={
           canEdit ? (
             <>

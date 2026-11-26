@@ -104,6 +104,8 @@ export type WorkspaceFlagEnv = DemoWorkspaceFlagEnv &
     SUPPORT_AI_DRAFTS_ENABLED?: string;
     SUPPORT_APP_AI_REPLIES_ENABLED?: string;
     SUPPORT_HANDOFF_LEARNING_ENABLED?: string;
+    SUPPORT_TRIAL_AI_PRACTICE_ENABLED?: string;
+    SUPPORT_SELF_SERVE_SETUP_ENABLED?: string;
     SUPPORT_AI_INTERACTIONS_ENABLED?: string;
     SUPPORT_BRAIN_STORAGE_ENABLED?: string;
     BRAIN_STORAGE_COLLECTION_ENABLED?: string;
@@ -148,10 +150,12 @@ type StoredFlags = Partial<Record<WorkspaceFlagKey, WorkspaceFlag>>;
 const SCOPED_FLAGS = Symbol("workspace-flags");
 const SCOPED_FEATURES = Symbol("workspace-features");
 const SCOPED_WORKSPACE = Symbol("workspace-feature-id");
+const NEW_WORKSPACE_SETUP = Symbol("self-serve-support-setup");
 type ScopedEnv = WorkspaceFlagEnv & {
   [SCOPED_FLAGS]?: StoredFlags;
   [SCOPED_FEATURES]?: WorkspaceFeatures;
   [SCOPED_WORKSPACE]?: string;
+  [NEW_WORKSPACE_SETUP]?: boolean;
 };
 export const WORKSPACE_FLAGS_KEY = "workspace-flags-v1";
 export const WORKSPACE_FLAGS_INDEX_OBJECT = "workspace-flags-index";
@@ -307,6 +311,12 @@ function effective(
   )
     return false;
   const flag = flags[key];
+  if ((env as ScopedEnv)[NEW_WORKSPACE_SETUP] && env.SUPPORT_SELF_SERVE_SETUP_ENABLED === "true" &&
+      (env.APP_ORIGIN !== "https://usetempl.com" || activatedReleaseFlag(env, "selfServeSupportOnboardingVerified"))) {
+    if (key === "nativeTelegram" && released(env, "teamInvites")) return true;
+    if (key === "trialAiPractice" && released(env, "managedAgent")) return true;
+    if ((key === "handoffLearning" || key === "teamReplyLearning") && released(env, "aiDrafts")) return true;
+  }
   if (key === "standardMonthlyBilling") return released(env, key);
   if (key === "managedAgent" && (env as ScopedEnv)[SCOPED_WORKSPACE] === MANAGED_QUALIFICATION_TRIAL.workspace)
     return Boolean(flag?.on && Date.parse(flag.until) > Date.now() && managedQualificationTrial(env, flag.operator, MANAGED_QUALIFICATION_TRIAL.workspace));
@@ -468,6 +478,7 @@ export async function workspaceFeatureEnv<T extends WorkspaceFlagEnv>(
   const native = await storage.get<NativeRoomRecord>("native-room");
   return Object.assign({}, env, {
     [SCOPED_FLAGS]: await currentIssuedFlags(storage, env, flags ?? {}, native),
+    [NEW_WORKSPACE_SETUP]: native?.selfServeSupportSetup === true,
     [SCOPED_FEATURES]: undefined,
     [SCOPED_WORKSPACE]: native?.room.id,
   });

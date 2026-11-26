@@ -1961,7 +1961,7 @@ async function postMessage(
       agent.reply.text.trim().length > 0,
   );
   if (role === "team" && !context.isBot)
-    await queueHandoffLearningReply(storage, context, next, message);
+    await queueHandoffLearningReply(storage, context, next, message, record.handoff);
   // A person's reply keeps the AI to drafts for the rest of this request.
   if (role === "team")
     next = await restrictForPerson(storage, context, next, "person-reply", {
