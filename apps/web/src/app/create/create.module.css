@@ -1,0 +1,9 @@
+/* Lines up with the onboarding column in native-chat-create.module.css. */
+.theme {
+  display: flex;
+  justify-content: flex-end;
+  width: min(100%, 760px);
+  margin: 0 auto;
+  padding: var(--templ-space-3)
+    clamp(var(--templ-space-4), 4vw, var(--templ-space-10)) 0;
+}

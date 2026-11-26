@@ -18,7 +18,11 @@ type Props = {
   suggestion?: string;
   /** Keeps an unsent question in this tab while the visitor changes websites. */
   draft?: { current: string };
-  ask: (question: string, requestId: string) => Promise<string>;
+  ask: (
+    question: string,
+    requestId: string,
+    onReceipt: () => void,
+  ) => Promise<string>;
 };
 
 // The renderer is the versioned widget installed by customers. Its trial transport
@@ -28,10 +32,64 @@ function practiceTransport(workspace: string, ask: Props["ask"]) {
   const conversation = {
     id: "tc-" + crypto.randomUUID().replaceAll("-", ""),
     state: "open",
+    aiReplyExpected: true,
   };
   const visitor = "practice-visitor";
   const messages: WidgetMessage[] = [];
   const requestIds = new Map<string, string>();
+  const deliveries = new Map<string, Promise<WidgetMessage>>();
+  let nextAnswer: Promise<void> | undefined;
+  let resumeTyping = false;
+
+  function deliver(text: string, clientId: string): Promise<WidgetMessage> {
+    const delivered = messages.find((message) => message.clientId === clientId);
+    if (delivered) return Promise.resolve(delivered);
+    const pending = deliveries.get(clientId);
+    if (pending) return pending;
+
+    const requestId = requestIds.get(clientId) ?? crypto.randomUUID();
+    requestIds.set(clientId, requestId);
+    const delivery = new Promise<WidgetMessage>((resolve, reject) => {
+      let received = false;
+      const acknowledge = () => {
+        if (received) return;
+        received = true;
+        resumeTyping = !conversation.aiReplyExpected;
+        conversation.aiReplyExpected = true;
+        const message = {
+          id: clientId,
+          clientId,
+          author: visitor,
+          createdAt: new Date().toISOString(),
+          text,
+        };
+        messages.push(message);
+        resolve(message);
+      };
+      nextAnswer = Promise.resolve().then(async () => {
+        try {
+          const answer = await ask(text, requestId, acknowledge);
+          // An older service can confirm delivery with its completed answer.
+          acknowledge();
+          messages.push({
+            id: crypto.randomUUID(),
+            author: "practice-ai",
+            teamName: "Support AI",
+            createdAt: new Date().toISOString(),
+            text: answer,
+          });
+        } catch (error) {
+          if (received) conversation.aiReplyExpected = false;
+          else reject(error);
+        } finally {
+          if (received) requestIds.delete(clientId);
+          deliveries.delete(clientId);
+        }
+      });
+    });
+    deliveries.set(clientId, delivery);
+    return delivery;
+  }
   const transport: typeof fetch = async (input, init) => {
     const url = new URL(input instanceof Request ? input.url : String(input));
     const route = url.pathname.slice(prefix.length);
@@ -57,27 +115,27 @@ function practiceTransport(workspace: string, ask: Props["ask"]) {
         canAsk: true,
       });
     const thread = "/conversations/" + conversation.id;
-    if (route === thread + "/messages" && init?.method === "GET")
+    if (route === thread + "/messages" && init?.method === "GET") {
+      // The widget has already drawn its receipt. Wake its normal refresh as
+      // soon as there is an answer to display.
+      // After a failed answer the widget first needs the new typing state.
+      if (resumeTyping) resumeTyping = false;
+      else await nextAnswer;
       return Response.json({
         conversation,
         messages,
         nextBefore: null,
         authors: { "practice-ai": { badges: ["bot"] } },
       });
+    }
     if (
       init?.method === "POST" &&
       (route === "/conversations/ask" || route === thread + "/messages")
     ) {
       const { text, clientId } = JSON.parse(String(init.body));
-      const delivered = messages.find(
-        (message) => message.clientId === clientId,
-      );
-      if (delivered) return Response.json({ conversation, message: delivered });
-      const requestId = requestIds.get(clientId) ?? crypto.randomUUID();
-      requestIds.set(clientId, requestId);
-      let answer: string;
       try {
-        answer = await ask(text, requestId);
+        const message = await deliver(text, clientId);
+        return Response.json({ conversation, message });
       } catch (reason) {
         if (!(reason instanceof CommunityApiError)) throw reason;
         // The widget deletes a draft that the service refused for holding a secret.
@@ -93,23 +151,6 @@ function practiceTransport(workspace: string, ask: Props["ask"]) {
           { status: reason.status === 401 ? 403 : reason.status },
         );
       }
-      const now = new Date().toISOString();
-      const message = {
-        id: clientId,
-        clientId,
-        author: visitor,
-        createdAt: now,
-        text,
-      };
-      messages.push(message, {
-        id: crypto.randomUUID(),
-        author: "practice-ai",
-        teamName: "Support AI",
-        createdAt: now,
-        text: answer,
-      });
-      requestIds.delete(clientId);
-      return Response.json({ conversation, message });
     }
     // Additional visitor features have no customer destination in private practice.
     return new Response(null, { status: 404 });
@@ -153,25 +194,30 @@ export function WebsitePracticeChat(props: Props) {
       const workspace = widgetMessageId();
       const { transport, visitor } = practiceTransport(
         workspace,
-        (text, id) => {
+        (text, id, onReceipt) => {
           // The widget keeps a failed question with its own Retry and Discard.
           setAsked(true);
           const kept = latest.current.draft;
           if (kept) kept.current = "";
-          return latest.current.ask(text, id);
+          return latest.current.ask(text, id, onReceipt);
         },
       );
       const options = {
         workspace,
         container: container.current,
         label: latest.current.name,
+        appearance: {
+          theme: document.documentElement.dataset.theme === "dark" ? "dark" : "light",
+          accent: latest.current.accent,
+        },
         apiUrl: "https://preview.invalid",
         persistDrafts: false,
         showLauncher: false,
         transactionField: false,
         chatFirst: true,
         conversationDrawers: true,
-      };
+        replyAfterReceipt: true,
+      } satisfies Parameters<typeof mountSupportWidget>[0];
       const client = widgetModule.createSupportClient(options, { fetch: transport });
       // This local identity has no credential or authority at any API.
       client.adopt({
@@ -185,6 +231,9 @@ export function WebsitePracticeChat(props: Props) {
         client,
         guest: Promise.resolve(),
       });
+      // The first frame already matches the page. The appearance module
+      // follows subsequent changes from either theme switch.
+      chat.setAppearance({ theme: "auto" });
       widget.current = chat;
       const shadow = root();
       const draft = shadow?.querySelector("textarea");
@@ -260,7 +309,7 @@ export function WebsitePracticeChat(props: Props) {
   }
   return (
     <>
-      <div className={styles.practiceWindow} ref={container} />
+      <div className={styles.practiceWindow} data-templ-site-appearance="" ref={container} />
       {!mounted && !failed && !props.scanning && (
         <p className={styles.activityStatus} role="status">
           <ActivityDots /> Opening chat…

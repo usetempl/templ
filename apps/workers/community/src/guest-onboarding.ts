@@ -15,8 +15,12 @@ import {
   knowledgeStub,
   type KnowledgeEnv,
 } from "./support-knowledge-client";
-import { managedKnowledgeCall } from "./managed-agent/knowledge-client";
-import { refusePhrase } from "./secret-guard";
+import {
+  TRIAL_RECEIPT_TYPE,
+  managedKnowledgeCall,
+  managedKnowledgeReceipt,
+} from "./managed-agent/knowledge-client";
+import { refusePhrase, SECRET_REFUSED } from "./secret-guard";
 import { uuidv7 } from "./uuidv7";
 import {
   websiteUrl,
@@ -129,11 +133,13 @@ export async function expirePreviewAdmissions(storage: DurableObjectStorage) {
 }
 
 /** Runs in an AuthRecord dedicated to one random cookie. Its room id is server-generated
- * and stays private until an account claims the preview. */
+ * and stays private until an account claims the preview. `hold` keeps the record's
+ * next step waiting for work that outlasts the response. */
 export async function previewRecord(
   storage: DurableObjectStorage,
   env: TrialEnv,
   body: Record<string, unknown>,
+  hold: (pending: Promise<unknown>) => void = () => {},
 ) {
   let row = await storage.get<StoredTrial>(KEY);
   const now = Date.now();
@@ -221,13 +227,25 @@ export async function previewRecord(
       body.question.length > 800
     )
       throw new HttpError(400, "Enter a question of up to 800 characters.");
-    await refusePhrase(body.question, "sent");
-    return json(
-      await managedKnowledgeCall(env, room, "trial.practice", {
-        question: body.question,
-        requestId: body.requestId,
-      }),
-    );
+    try {
+      await refusePhrase(body.question, "sent");
+    } catch (error) {
+      // The visitor widget uses this reason to clear the refused draft.
+      if (body.receipt === true && error instanceof HttpError && error.reason === SECRET_REFUSED)
+        return json({ error: error.message, reason: SECRET_REFUSED }, error.status);
+      throw error;
+    }
+    const args = { question: body.question, requestId: body.requestId };
+    if (body.receipt !== true)
+      return json(await managedKnowledgeCall(env, room, "trial.practice", args));
+    const receipt = await managedKnowledgeReceipt(env, room, args);
+    if (receipt.headers.get("Content-Type") !== TRIAL_RECEIPT_TYPE || !receipt.body)
+      return receipt;
+    // The record's next step waits for the answer, as it does without a
+    // receipt, even after this caller leaves.
+    const [delivered, answered] = receipt.body.tee();
+    hold(answered.pipeTo(new WritableStream()).catch(() => {}));
+    return new Response(delivered, receipt);
   } else if (body.op === "claim" || body.op === "finish") {
     // Only a claim binds the preview to an account, and only that account's claim
     // can finish. Repeating either step leaves a claimed or saved row as it is.
@@ -440,7 +458,12 @@ export async function guestOnboardingRoute(
   if (op === "confirm")
     args = { op, name: body.name, accent: body.accent, logo: body.logo };
   if (op === "ask")
-    args = { op, question: body.question, requestId: body.requestId };
+    args = {
+      op,
+      question: body.question,
+      requestId: body.requestId,
+      ...(body.receipt === true ? { receipt: true } : {}),
+    };
   const result = await call({ ...args, previewId: body.previewId });
   if (op !== "start") return result;
   const response = new Response(result.body, result);

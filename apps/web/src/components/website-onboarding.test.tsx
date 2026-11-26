@@ -9,7 +9,7 @@ type ChatProps = {
   icon: string;
   canSend: boolean;
   suggestion?: string;
-  ask(question: string, requestId: string): Promise<string>;
+  ask(question: string, requestId: string, onReceipt: () => void): Promise<string>;
 };
 const mocks = vi.hoisted(() => ({
   api: vi.fn(),
@@ -56,7 +56,7 @@ vi.mock("./website-practice-chat", () => ({
         type="button"
         onClick={() =>
           void props
-            .ask("Where can members export a journal?", "request-1")
+            .ask("Where can members export a journal?", "request-1", () => {})
             .then(mocks.answered, mocks.failed)
         }
       >
@@ -90,7 +90,7 @@ const garden = (changes: Body = {}) => ({
   icon: "data:image/svg+xml;base64,PHN2Zy8+",
   ready: true,
   suggestion: "How do I export my journal?",
-  remaining: 5,
+  remaining: 25,
   confirmed: true,
   ...changes,
 });
@@ -121,7 +121,7 @@ it("previews a bare domain and replaces an earlier preview that holds another we
   });
   render(<WebsiteOnboarding nextPlan={false} />);
   enterWebsite("garden.tools");
-  expect(await screen.findByText("5 of 5 free questions left")).toBeTruthy();
+  expect(await screen.findByText("25 of 25 free questions left")).toBeTruthy();
   expect(starts).toEqual([
     { site: "garden.tools", restart: false },
     { site: "garden.tools", restart: true },
@@ -151,19 +151,19 @@ it("returns to the website field with a plain line when the scan response cannot
 });
 
 it("answers a question without applying unfinished appearance edits, then shows why the next one failed", async () => {
-  let remaining = 5;
+  let remaining = 25;
   let fails = false;
   api({
     read: () => garden({ remaining }),
     ask: () => {
       if (fails) {
-        remaining = 3;
+        remaining = 23;
         throw new CommunityApiError(
           "AI could not finish this practice question.",
           503,
         );
       }
-      remaining = 4;
+      remaining = 24;
       return {
         answer: "Members can export a garden journal from the settings page.",
         remaining,
@@ -171,7 +171,7 @@ it("answers a question without applying unfinished appearance edits, then shows 
     },
   });
   render(<WebsiteOnboarding nextPlan={false} />);
-  await screen.findByText("5 of 5 free questions left");
+  await screen.findByText("25 of 25 free questions left");
   fireEvent.change(screen.getByLabelText(/Icon URL/), {
     target: { value: "https://garden.tools/large.png" },
   });
@@ -189,10 +189,11 @@ it("answers a question without applying unfinished appearance edits, then shows 
     {
       question: "Where can members export a journal?",
       requestId: "request-1",
+      receipt: true,
       previewId: "preview-1",
     },
   ]);
-  expect(await screen.findByText("4 of 5 free questions left")).toBeTruthy();
+  expect(await screen.findByText("24 of 25 free questions left")).toBeTruthy();
 
   fails = true;
   fireEvent.click(screen.getByRole("button", { name: "Ask in chat" }));
@@ -200,7 +201,7 @@ it("answers a question without applying unfinished appearance edits, then shows 
   expect((await screen.findByRole("alert")).textContent).toContain(
     "AI could not finish this practice question.",
   );
-  expect(await screen.findByText("3 of 5 free questions left")).toBeTruthy();
+  expect(await screen.findByText("23 of 25 free questions left")).toBeTruthy();
 });
 
 it("applies appearance edits on request and reports a failed icon beside the fields", async () => {
@@ -222,7 +223,7 @@ it("applies appearance edits on request and reports a failed icon beside the fie
     },
   });
   render(<WebsiteOnboarding nextPlan={false} />);
-  await screen.findByText("5 of 5 free questions left");
+  await screen.findByText("25 of 25 free questions left");
   const apply = () =>
     screen.getByRole("button", { name: "Apply changes" }) as HTMLButtonElement;
   expect(apply().disabled).toBe(true);
@@ -254,7 +255,7 @@ it("applies appearance edits on request and reports a failed icon beside the fie
 it("keeps the fallback question about the website while the chat name changes", async () => {
   api({ read: () => garden({ suggestion: undefined }) });
   render(<WebsiteOnboarding nextPlan={false} />);
-  await screen.findByText("5 of 5 free questions left");
+  await screen.findByText("25 of 25 free questions left");
   const name = screen.getByLabelText("Chat name");
   fireEvent.change(name, { target: { value: "Help" } });
   expect(chat().name).toBe("Help");
@@ -284,7 +285,7 @@ it("keeps the preview after a dismissed sign-in and follows the service once an 
     },
   });
   render(<WebsiteOnboarding nextPlan={false} />);
-  await screen.findByText("5 of 5 free questions left");
+  await screen.findByText("25 of 25 free questions left");
   const save = () =>
     screen.getByRole("button", {
       name: "Sign in to keep your workspace",
@@ -296,7 +297,7 @@ it("keeps the preview after a dismissed sign-in and follows the service once an 
   await waitFor(() => expect(save().disabled).toBe(false));
   expect(screen.queryByRole("alert")).toBeNull();
   expect(calls("claim")).toEqual([]);
-  expect(screen.getByText("5 of 5 free questions left")).toBeTruthy();
+  expect(screen.getByText("25 of 25 free questions left")).toBeTruthy();
 
   mocks.signIn.mockResolvedValueOnce({ principalId: "wallet:owner" });
   fireEvent.click(save());
@@ -329,7 +330,7 @@ it("confirms the shown appearance before sign-in and opens the saved workspace",
   });
   mocks.signIn.mockResolvedValue({ principalId: "wallet:owner" });
   render(<WebsiteOnboarding nextPlan />);
-  await screen.findByText("5 of 5 free questions left");
+  await screen.findByText("25 of 25 free questions left");
   fireEvent.click(
     screen.getByRole("button", { name: "Sign in to keep your workspace" }),
   );

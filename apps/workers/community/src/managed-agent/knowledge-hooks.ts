@@ -22,6 +22,7 @@ import {
   type KnowledgeDb,
 } from "../support-knowledge-schema";
 import { anthropicCaller } from "./anthropic";
+import { TRIAL_RECEIPT_HEADERS } from "./knowledge-client";
 import { prepaidGptCaller } from "./gpt";
 import type { ManagedJob } from "./room";
 import { managedPrincipal } from "./principal";
@@ -310,6 +311,57 @@ export async function runnerDeps(
   };
 }
 
+/** A practice question's delivery receipt. The 200 starts, with one flushed
+ * space, only once the attempt is reserved; a refusal before that throws as it
+ * does without a receipt. The answer follows as JSON, or `{ error, status }`
+ * when it fails. The answer runs to its settlement after a caller leaves. */
+async function trialPracticeReceipt(
+  state: DurableObjectState,
+  db: KnowledgeDb,
+  env: ManagedKnowledgeEnv,
+  args: Record<string, unknown>,
+): Promise<Response> {
+  let accept = () => {};
+  const accepted = new Promise<void>((resolve) => {
+    accept = resolve;
+  });
+  const outcome = trialPractice(db, env, templMeter(env), args, accept).then(
+    (value) => ({ value }),
+    (failure: unknown) => ({ failure }),
+  );
+  if (typeof state.waitUntil === "function") state.waitUntil(outcome);
+  const early = await Promise.race([accepted, outcome]);
+  if (early) {
+    if ("failure" in early) throw early.failure;
+    return json(early.value);
+  }
+  const encoder = new TextEncoder();
+  let stream!: ReadableStreamDefaultController<Uint8Array>;
+  const body = new ReadableStream<Uint8Array>({
+    start(controller) {
+      stream = controller;
+    },
+  });
+  stream.enqueue(encoder.encode(" "));
+  void outcome.then((result) => {
+    let answer: unknown;
+    if (!("failure" in result)) answer = result.value;
+    else if (result.failure instanceof KnowledgeError)
+      answer = { error: result.failure.message, status: result.failure.status };
+    else {
+      console.error("TEMPL_MANAGED_FAILURE", { path: "/managed/op" });
+      answer = { error: "Managed AI is unavailable.", status: 503 };
+    }
+    try {
+      stream.enqueue(encoder.encode(JSON.stringify(answer)));
+      stream.close();
+    } catch {
+      /* The caller left. The attempt has already settled. */
+    }
+  });
+  return new Response(body, { headers: TRIAL_RECEIPT_HEADERS });
+}
+
 /** SupportKnowledge's fetch hook: null for any path it does not own. */
 export async function managedKnowledgeFetch(
   state: DurableObjectState,
@@ -333,7 +385,9 @@ export async function managedKnowledgeFetch(
       if (body.op === "trial.practice") {
         bindRoom(db, body.room, Date.now());
         if (!env) throw new KnowledgeError(503, "trial-ai-practice", "AI practice is unavailable.");
-        return json(await trialPractice(db, env, templMeter(env), (body.args ?? {}) as Record<string, unknown>));
+        const args = (body.args ?? {}) as Record<string, unknown>;
+        if (args.receipt === true) return await trialPracticeReceipt(state, db, env, args);
+        return json(await trialPractice(db, env, templMeter(env), args));
       }
       const result = await managedOperation(db, body, Date.now());
       const due = nextJobDue(db);

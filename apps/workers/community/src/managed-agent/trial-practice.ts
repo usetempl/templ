@@ -22,22 +22,38 @@ import {
 import type { TemplMeter } from "./runner";
 import type { ManagedKnowledgeEnv } from "./knowledge-hooks";
 
-const KEY = "managed.trial-practice.v1";
+// A rollback must still be able to read the original five entries.
+const originalKey = "managed.trial-practice.v1";
+const additionalKey = "managed.trial-practice.additional.v1";
+const originalCapacity = 5;
 const limit = PRODUCT_LIMITS.freeAiPracticeQuestions;
 const error = (status: number, text: string) =>
   new KnowledgeError(status, "trial-ai-practice", text);
 const toCents = (nanos: string) =>
   Number((BigInt(nanos) + 9_999_999n) / 10_000_000n);
 
-function attempts(db: KnowledgeDb): string[] {
-  const value = JSON.parse(readMeta(db, KEY) ?? "[]");
+function readAttempts(db: KnowledgeDb, key: string, capacity: number): string[] {
+  const value = JSON.parse(readMeta(db, key) ?? "[]");
   if (
     !Array.isArray(value) ||
-    value.length > limit ||
+    value.length > capacity ||
     !value.every((id) => typeof id === "string")
   )
     throw error(503, "AI practice could not load.");
   return value;
+}
+
+function attempts(db: KnowledgeDb): string[] {
+  return [
+    ...readAttempts(db, originalKey, originalCapacity),
+    ...readAttempts(db, additionalKey, limit - originalCapacity),
+  ];
+}
+
+function saveAttempts(db: KnowledgeDb, ids: string[]) {
+  writeMeta(db, originalKey, JSON.stringify(ids.slice(0, originalCapacity)));
+  if (ids.length > originalCapacity || readMeta(db, additionalKey) != null)
+    writeMeta(db, additionalKey, JSON.stringify(ids.slice(originalCapacity)));
 }
 
 // A practice question can make two calls. Each holds its own maximum against
@@ -67,11 +83,14 @@ function trialFunding(meter: TemplMeter, cap: number): GptFunding {
   };
 }
 
+/** `accepted` runs once, after this question's attempt is reserved and before
+ * any model call. It never runs for a refusal or a balance read. */
 export async function trialPractice(
   db: KnowledgeDb,
   env: ManagedKnowledgeEnv,
   meter: TemplMeter,
   args: Record<string, unknown>,
+  accepted: () => void = () => {},
 ) {
   const cap = Number(env.MANAGED_AGENT_SPEND_CAP_USD_CENTS);
   const gatewayId = env.MANAGED_AGENT_GATEWAY_ID;
@@ -119,9 +138,10 @@ export async function trialPractice(
       throw error(409, "This question was already submitted.");
     if (used.length >= limit)
       throw error(409, "You’ve used your free AI questions.");
-    writeMeta(db, KEY, JSON.stringify([...used, requestId]));
+    saveAttempts(db, [...used, requestId]);
     return limit - used.length - 1;
   });
+  accepted();
   const handoff = { remaining, answer: null };
   if (groundedSensitive(question)) return handoff;
   const model = fundedGptCaller(
@@ -142,11 +162,7 @@ export async function trialPractice(
   if (result.kind === "failed") {
     if (result.providerAttempted === false) {
       db.transaction(() =>
-        writeMeta(
-          db,
-          KEY,
-          JSON.stringify(attempts(db).filter((id) => id !== requestId)),
-        ),
+        saveAttempts(db, attempts(db).filter((id) => id !== requestId)),
       );
     }
     throw error(503, "AI could not finish this practice question.");

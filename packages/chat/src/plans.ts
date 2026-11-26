@@ -242,7 +242,7 @@ export const PRODUCT_LIMITS = {
   /** Lifetime member-opened cases for integration testing. */
   freeSupportTickets: 10,
   /** Private, owner-initiated AI practice questions per hosted trial workspace. */
-  freeAiPracticeQuestions: 5,
+  freeAiPracticeQuestions: 25,
   /** Accepted team replies per free integration-test ticket. */
   freeTeamRepliesPerTicket: 3,
   searchesPerMinutePerAccount: 20,

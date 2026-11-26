@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useSyncExternalStore } from "react";
+import { useEffect, useLayoutEffect, useSyncExternalStore } from "react";
 import { usePathname } from "next/navigation";
+import { IconMoon, IconSun } from "@tabler/icons-react";
 import {
   type AppTheme as AppThemePreference,
   readAppTheme,
@@ -13,7 +14,8 @@ import styles from "./app-theme.module.css";
 
 export function AppTheme() {
   const pathname = usePathname();
-  useEffect(() => subscribeAppTheme(() => {}), [pathname]);
+  // A route can have its own default, so the theme is set before the new page paints.
+  useLayoutEffect(() => subscribeAppTheme(() => {}), [pathname]);
   useEffect(() => {
     const select = (event: Event) => {
       if (!(event.target instanceof HTMLElement) || !event.target.hasAttribute("data-templ-site-appearance")) return;
@@ -24,6 +26,25 @@ export function AppTheme() {
     return () => document.removeEventListener("templ:visitor-appearance", select);
   }, []);
   return null;
+}
+
+const shownDark = () => document.documentElement.dataset.theme === "dark";
+const serverDark = () => false;
+
+/** One button for a page without room for the three choices. */
+export function AppThemeSwitch() {
+  const dark = useSyncExternalStore(subscribeAppTheme, shownDark, serverDark);
+  return (
+    <button
+      type="button"
+      className="button quiet icon"
+      aria-label="Dark mode"
+      aria-pressed={dark}
+      onClick={() => setAppTheme(shownDark() ? "light" : "dark")}
+    >
+      {dark ? <IconMoon aria-hidden="true" /> : <IconSun aria-hidden="true" />}
+    </button>
+  );
 }
 
 export function AppThemeChoice() {

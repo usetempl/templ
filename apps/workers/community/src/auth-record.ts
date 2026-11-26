@@ -204,9 +204,13 @@ export class AuthRecord {
     if (typeof this.state.waitUntil === "function") this.state.waitUntil(task);
   }
   private previewTail = Promise.resolve();
-  private serializePreview<T>(work: () => Promise<T>) {
-    const next = this.previewTail.then(work);
-    this.previewTail = next.then(() => undefined, () => undefined);
+  private serializePreview<T>(work: (hold: (pending: Promise<unknown>) => void) => Promise<T>) {
+    let held: Promise<unknown> | undefined;
+    const next = this.previewTail.then(() => work((pending) => {
+      held = pending;
+      this.state.waitUntil?.(pending);
+    }));
+    this.previewTail = next.then(() => held).then(() => undefined, () => undefined);
     return next;
   }
   async fetch(request: Request) {
@@ -218,7 +222,7 @@ export class AuthRecord {
         return await previewAdmission(this.state.storage, (await readJson(request, 256)).ip);
       if (path === "/website-preview" && request.method === "POST") {
         const body = await readJson(request, 4096);
-        return await this.serializePreview(() => previewRecord(this.state.storage, this.env, body));
+        return await this.serializePreview((hold) => previewRecord(this.state.storage, this.env, body, hold));
       }
       const keyed = request.headers.get(AUTH_RECORD_HEADER);
       if (keyed !== null) {

@@ -135,7 +135,7 @@ it("gives a retried message one request ID and lets the widget delete a refused 
   );
   ask.mockResolvedValueOnce("From the settings page.");
   expect((await post("Where is export?", "client-1")).status).toBe(200);
-  expect(ask.mock.calls[1]).toEqual(ask.mock.calls[0]);
+  expect(ask.mock.calls[1]?.slice(0, 2)).toEqual(ask.mock.calls[0]?.slice(0, 2));
   // A delivered message is acknowledged again without another question.
   expect((await post("Where is export?", "client-1")).status).toBe(200);
   expect(ask).toHaveBeenCalledTimes(2);
@@ -180,4 +180,56 @@ it("brings an unsent question back after the website changes", async () => {
   expect(chip()).toBeNull();
   await post("How do I export?", "client-4");
   expect(draft.current).toBe("");
+});
+
+it.each(["answered", "failed"])("acknowledges delivery while the AI is still working (%s)", async (outcome) => {
+  let accept!: () => void;
+  let finish!: () => void;
+  const answer = new Promise<string>((resolve, reject) => {
+    finish = () => outcome === "answered"
+      ? resolve("Open the settings page.")
+      : reject(new CommunityApiError("AI could not finish.", 503));
+  });
+  const ask = vi.fn<Props["ask"]>((_text, _id, received) => {
+    accept = received;
+    return answer;
+  });
+  await mount(chatProps({ ask }));
+  const base = "https://preview.invalid/widget/" + widget.workspace + "/conversations/";
+  const send = () => widget.fetch!(base + "ask", {
+    method: "POST", body: JSON.stringify({ text: suggestion, clientId: "same-question" }),
+  });
+  let delivered = false;
+  const [first, duplicate] = [send(), send()];
+  void first.then(() => { delivered = true; });
+  await waitFor(() => expect(ask).toHaveBeenCalledTimes(1));
+  expect(delivered).toBe(false);
+  accept();
+  const receipt = await (await first).json();
+  expect(await (await duplicate).json()).toEqual(receipt);
+  expect(receipt.message.text).toBe(suggestion);
+  expect(receipt.conversation.aiReplyExpected).toBe(true);
+
+  const read = widget.fetch!(base + receipt.conversation.id + "/messages", { method: "GET" });
+  finish();
+  const history = await (await read).json();
+  expect(history.messages.map((m: { text: string }) => m.text)).toEqual(
+    outcome === "answered" ? [suggestion, "Open the settings page."] : [suggestion],
+  );
+  expect(history.conversation.aiReplyExpected).toBe(outcome === "answered");
+  expect((await (await send()).json()).message).toEqual(receipt.message);
+  expect(ask).toHaveBeenCalledTimes(1);
+  if (outcome === "failed") {
+    let next!: (value: string) => void;
+    ask.mockImplementationOnce((_text, _id, received) => {
+      received();
+      return new Promise(resolve => { next = resolve; });
+    });
+    await widget.fetch!(base + receipt.conversation.id + "/messages", {
+      method: "POST", body: JSON.stringify({ text: "Try a new question", clientId: "another" }),
+    });
+    const refreshed = await widget.fetch!(base + receipt.conversation.id + "/messages", { method: "GET" });
+    expect((await refreshed.json()).conversation.aiReplyExpected).toBe(true);
+    next("Here is the answer.");
+  }
 });

@@ -191,7 +191,11 @@ export function WebsiteOnboarding({ nextPlan }: { nextPlan: boolean }) {
       "brand",
     );
   }
-  async function ask(question: string, requestId: string): Promise<string> {
+  async function ask(
+    question: string,
+    requestId: string,
+    onReceipt: () => void,
+  ): Promise<string> {
     if (lock.current || !preview || !brand)
       throw new Error("The preview is not ready.");
     // The widget's own Retry reaches this without the composer's checks.
@@ -217,11 +221,12 @@ export function WebsiteOnboarding({ nextPlan }: { nextPlan: boolean }) {
       const reply = await communityFetch<{
         answer: string | null;
         remaining: number;
-      }>("/onboarding/ask", {
-        question,
-        requestId,
-        previewId: current.previewId,
-      });
+      }>(
+        "/onboarding/ask",
+        { question, requestId, previewId: current.previewId, receipt: true },
+        undefined,
+        onReceipt,
+      );
       setPreview({ ...current, remaining: reply.remaining });
       return (
         reply.answer ||
@@ -367,15 +372,12 @@ export function WebsiteOnboarding({ nextPlan }: { nextPlan: boolean }) {
             {preview && (
               <p className={styles.practiceNote}>
                 <span className={styles.activityStatus} role="status">
-                  {busy === "ask" && <ActivityDots />}
                   {!preview.ready
                     ? "AI couldn’t read this page."
-                    : busy === "ask"
-                      ? "Finding an answer…"
-                      : preview.remaining +
-                        " of " +
-                        PRODUCT_LIMITS.freeAiPracticeQuestions +
-                        " free questions left"}
+                    : preview.remaining +
+                      " of " +
+                      PRODUCT_LIMITS.freeAiPracticeQuestions +
+                      " free questions left"}
                 </span>
                 {!preview.ready && (
                   <button

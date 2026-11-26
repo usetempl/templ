@@ -5,6 +5,8 @@ export type AppTheme = "system" | "light" | "dark";
 export const APP_THEME_KEY = "templ:appearance";
 const THEME_EVENT = "templ:appearance-change";
 const SYSTEM_QUERY = "(prefers-color-scheme: dark)";
+/** Onboarding starts light. A saved light or dark choice still applies there. */
+const LIGHT_PATH = "/create";
 
 function validTheme(value: string | null): AppTheme {
   return value === "light" || value === "dark" ? value : "system";
@@ -29,7 +31,7 @@ function applyAppTheme(choice = readAppTheme()) {
   document.documentElement.dataset.appearance = choice;
   document.documentElement.dataset.theme =
     choice === "system"
-        ? window.matchMedia(SYSTEM_QUERY).matches
+        ? location.pathname !== LIGHT_PATH && window.matchMedia(SYSTEM_QUERY).matches
           ? "dark"
           : "light"
         : choice;
@@ -81,4 +83,4 @@ export function subscribeAppTheme(onChange: () => void) {
 }
 
 /** Set the saved appearance before the browser paints the page. */
-export const APP_THEME_SCRIPT = `${restoreSiteAppearanceScript(APP_THEME_KEY)};(()=>{let t="system";try{t=localStorage.getItem("${APP_THEME_KEY}")||t}catch{}if(t!=="light"&&t!=="dark")t="system";const h=document.documentElement;h.dataset.appearance=t;h.dataset.theme=t==="system"?(matchMedia("${SYSTEM_QUERY}").matches?"dark":"light"):t})()`;
+export const APP_THEME_SCRIPT = `${restoreSiteAppearanceScript(APP_THEME_KEY)};(()=>{let t="system";try{t=localStorage.getItem("${APP_THEME_KEY}")||t}catch{}if(t!=="light"&&t!=="dark")t="system";const h=document.documentElement;h.dataset.appearance=t;h.dataset.theme=t==="system"?(location.pathname!=="${LIGHT_PATH}"&&matchMedia("${SYSTEM_QUERY}").matches?"dark":"light"):t})()`;

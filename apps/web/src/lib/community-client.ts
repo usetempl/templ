@@ -28,6 +28,7 @@ export async function communityFetch<T>(
   path: string,
   body?: unknown,
   signal?: AbortSignal,
+  onReceipt?: () => void,
 ): Promise<T> {
   // POSTs are preflighted already for their JSON body, so the hint adds no
   // round trip. GETs stay simple requests without it.
@@ -48,7 +49,18 @@ export async function communityFetch<T>(
           body: JSON.stringify(body),
         }),
   });
+  // This response starts only after the service accepts the question. Its body
+  // stays open while the AI prepares the answer.
+  const accepted =
+    response.ok &&
+    !!onReceipt &&
+    response.headers.get("Content-Type")?.split(";")[0] ===
+      "application/vnd.templ.received+json";
+  if (accepted) onReceipt();
   const data = await response.json();
+  if (accepted && typeof data.error === "string") {
+    throw new CommunityApiError(data.error, data.status, data);
+  }
   if (!response.ok) {
     if (data.reason === "strong-auth-required" && typeof window !== "undefined")
       window.dispatchEvent(new Event("templ:strong-auth-required"));
