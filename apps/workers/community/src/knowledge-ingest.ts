@@ -1,9 +1,9 @@
 /** Reads what a workspace points Templ at: its protocol registry file, its
- * docs pages and sitemaps. Every request goes through `safeFetch` (https
+ * docs pages and sitemaps. External requests go through `safeFetch` (https
  * only, public hosts, no Templ zones, redirects re-checked, size and time
- * capped). Nothing here signs, sends a transaction or follows a link found
+ * capped). Website previews can also read fixed public Templ pages. Nothing here signs, sends a transaction or follows a link found
  * in chat. Tests inject `fetch` and `resolve`. */
-import { hideAmbiguousHex } from "@templ/chat/support-safety";
+import { asksForSecret, hideAmbiguousHex } from "@templ/chat/support-safety";
 import { detectStoredSecret } from "./secret-guard";
 import { HttpError } from "./common";
 import { parseSupportImport, importRowRefusal, IMPORT_REASON, type ImportRow } from "./support-import-parser";
@@ -16,7 +16,7 @@ import {
 } from "./safe-fetch";
 import { KnowledgeError } from "./support-knowledge-schema";
 
-import { websiteBrand, type WebsiteBrand } from "./website-brand";
+import { fetchWebsiteAsset, websiteBrand, type WebsiteBrand } from "./website-brand";
 
 export type IngestDependencies = SafeFetchDependencies;
 
@@ -148,11 +148,30 @@ export function htmlToText(html: string): { title: string | null; text: string }
   };
 }
 
+async function suggestedQuestion(html: string) {
+  const headings: string[] = [];
+  let heading = "";
+  const parser = new HTMLRewriter().on("h2, h3, h4", {
+    element(tag) {
+      heading = "";
+      tag.onEndTag(() => {
+        const text = heading.trim().replace(/\s+/g, " ").replace(/\?$/, "");
+        if (headings.length < 16 && text.length >= 8 && text.length <= 100 &&
+            /^(?:how|why|what|when|who|where|can|does|is|do)\s/i.test(text) &&
+            !/[<>@:/]/.test(text) && !asksForSecret(text)) headings.push(text + "?");
+      });
+    },
+    text(chunk) { heading += chunk.text.slice(0, 120 - heading.length); },
+  });
+  await parser.transform(new Response(html)).arrayBuffer();
+  return headings.find((q) => /^(?:who is .+ for|how (?:does|do|can) |why )/i.test(q)) ?? headings[0];
+}
+
 export type PageFetch =
-  | { kind: "text"; title: string | null; text: string; etag: string | null; brand?: WebsiteBrand }
+  | { kind: "text"; title: string | null; text: string; etag: string | null; suggestion?: string; brand?: WebsiteBrand & {docs: string[]} }
   | { kind: "unchanged" }
   | { kind: "gone" }
-  | { kind: "failed"; error: string; brand?: WebsiteBrand };
+  | { kind: "failed"; error: string; suggestion?: string; brand?: WebsiteBrand & {docs: string[]} };
 const PAGE_TYPES = ["text/html", "text/plain", "text/markdown", "application/xhtml+xml"];
 /** Reads one docs page: HTML, Markdown or plain text, at most 1 MB. */
 export async function fetchPage(
@@ -160,9 +179,10 @@ export async function fetchPage(
   etag: string | null,
   dependencies: IngestDependencies = {},
   includeBrand = false,
+  findSuggestion = false,
 ): Promise<PageFetch> {
   try {
-    const response = await safeFetch(
+    const response = await fetchWebsiteAsset(
       url,
       {
         maxBytes: KNOWLEDGE_LIMITS.pageBytes,
@@ -192,7 +212,8 @@ export async function fetchPage(
       ? await websiteBrand(body, response.url, page.title) : undefined;
     if (brand && await detectStoredSecret([brand.name, brand.logo].join("\n"))) return { kind: "failed", error: "secret-refused" };
     if (!page.text.trim()) return { kind: "failed", error: "empty", ...(brand ? { brand } : {}) };
-    return { ...(brand ? { brand } : {}), kind: "text", title: page.title ? hideAmbiguousHex(page.title) : null, text: hideAmbiguousHex(page.text), etag: response.headers.get("etag") };
+    const suggestion = (includeBrand || findSuggestion) && type === "text/html" ? await suggestedQuestion(body) : undefined;
+    return { ...(brand ? { brand } : {}), ...(suggestion ? { suggestion: hideAmbiguousHex(suggestion) } : {}), kind: "text", title: page.title ? hideAmbiguousHex(page.title) : null, text: hideAmbiguousHex(page.text), etag: response.headers.get("etag") };
   } catch (error) {
     return {
       kind: "failed",

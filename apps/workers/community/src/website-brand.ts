@@ -1,23 +1,72 @@
-import { checkPublicHttpsUrl, safeFetch } from "./safe-fetch";
-import { HttpError } from "./common";
+import {
+  checkPublicHttpsUrl,
+  safeFetch,
+  type SafeFetchDependencies,
+  type SafeFetchOptions,
+} from "./safe-fetch";
+import { HttpError, readBytes } from "./common";
 
 export type WebsiteBrand = { name: string; accent: string; logo: string };
 const fallbackAccent = "#99ff00";
+
+const templHomepage = "https://usetempl.com/";
+const templIcons = [
+  templHomepage + "favicon.svg",
+  templHomepage + "apple-touch-icon.png",
+];
+const templPublicPages = [templHomepage, "https://docs.usetempl.com/"];
+const templAssets = [...templPublicPages, ...templIcons];
+
+/** Only these fixed, public files can be read on Templ domains. Never follow redirects. */
+export async function fetchWebsiteAsset(
+  url: string,
+  options: SafeFetchOptions,
+  dependencies: SafeFetchDependencies = {},
+) {
+  const asset = templAssets.find((known) => known === url);
+  if (!asset) return safeFetch(url, options, dependencies);
+  const response = await (dependencies.fetch ?? fetch)(asset, {
+    method: "GET",
+    redirect: "manual",
+    signal: AbortSignal.timeout(options.timeoutMs),
+    headers: {
+      accept: options.headers?.accept || "image/*",
+      ...(options.headers?.["if-none-match"]
+        ? { "if-none-match": options.headers["if-none-match"] }
+        : {}),
+    },
+  });
+  const body =
+    response.status === 200
+      ? await readBytes(response, options.maxBytes)
+      : new Uint8Array();
+  if (response.status !== 200) await response.body?.cancel();
+  return {
+    url: asset,
+    status: response.status,
+    headers: response.headers,
+    body,
+  };
+}
 
 export function websiteUrl(input: unknown) {
   if (typeof input !== "string" || !input.trim())
     throw new HttpError(400, "Enter your website.");
   const value = input.trim();
   try {
-    const url = checkPublicHttpsUrl(
+    if (value.length > 2048) throw new Error();
+    const url = new URL(
       /^[a-z][\w+.-]*:/i.test(value) ? value : "https://" + value,
-      { allowQuery: true },
     );
+    if (url.protocol === "http:") url.protocol = "https:";
     url.hash = "";
     url.search = "";
-    return url.href;
+    if (url.href === templHomepage || url.href === "https://www.usetempl.com/")
+      return templHomepage;
+    if (templPublicPages.includes(url.href)) return url.href;
+    return checkPublicHttpsUrl(url.href).href;
   } catch {
-    throw new HttpError(400, "Enter a public HTTPS website.");
+    throw new HttpError(400, "Enter a public website, like example.com.");
   }
 }
 
@@ -32,7 +81,11 @@ export function defaultBrand(site: string): WebsiteBrand {
 
 export function publicIcon(value: string, base: string) {
   try {
-    const url = checkPublicHttpsUrl(new URL(value, base).href, {
+    const candidate = new URL(value, base);
+    candidate.search = "";
+    candidate.hash = "";
+    if (templIcons.includes(candidate.href)) return candidate.href;
+    const url = checkPublicHttpsUrl(candidate.href, {
       allowQuery: false,
     });
     return url.href;
@@ -51,12 +104,60 @@ export async function websiteBrand(
   let siteName = "",
     appName = "",
     icon = "",
-    touchIcon = "";
+    touchIcon = "",
+    headerLogo = "";
+  const docs = new Map<string, number>();
+  const home = new URL(site);
   let theme = "",
     tile = "",
     mask = "",
     css = "";
   const head = new HTMLRewriter()
+    .on("img[src]", {
+      element(tag) {
+        if (headerLogo) return;
+        const alt = tag.getAttribute("alt") || "";
+        const classes = tag.getAttribute("class") || "";
+        if (/(?:^|[\s_-])logo(?:$|[\s_-])/i.test(alt + " " + classes))
+          headerLogo = publicIcon(tag.getAttribute("src") || "", site);
+      },
+    })
+    .on("a[href]", {
+      element(tag) {
+        if (docs.size >= 32) return;
+        const href = tag.getAttribute("href")?.trim();
+        if (!href || href.startsWith("#")) return;
+        try {
+          const target = new URL(href, site);
+          if (
+            target.search ||
+            target.hash ||
+            target.username ||
+            target.password ||
+            target.port ||
+            target.protocol !== "https:"
+          )
+            return;
+          const docsHost = "docs." + home.hostname.replace(/^www\./, "");
+          if (target.hostname !== home.hostname && target.hostname !== docsHost)
+            return;
+          const path = target.pathname.replace(/\/$/, "");
+          const priority =
+            /^(?:\/docs|\/documentation|\/learn|\/guide|\/help)$/i.test(path) ||
+            (target.hostname === docsHost && !path)
+              ? 1
+              : /(?:^|\/)(?:overview|introduction|getting-started|faq|about)$/i.test(
+                    path,
+                  )
+                ? 2
+                : 0;
+          if (priority && target.href !== home.href)
+            docs.set(websiteUrl(target.href), priority);
+        } catch {
+          /* Ignore unusable public links. */
+        }
+      },
+    })
     .on("head meta", {
       element(tag) {
         const key = (
@@ -98,22 +199,71 @@ export async function websiteBrand(
     /--(?:color-brand|brand-color|color-primary|primary-color|accent-color|brand|primary)\s*:\s*(#[a-f\d]{3,6})\b/i.exec(
       css,
     )?.[1];
-  const color = [theme, cssAccent, mask, tile].find(
-    (value) => value && /^#(?:[a-f\d]{3}|[a-f\d]{6})$/i.test(value),
-  );
-  if (color)
+  const brandSurface = [...css.matchAll(/([^{}]{1,256})\{([^{}]{1,2048})\}/g)]
+    .filter((rule) =>
+      /\.(?:logo-container|brand-mark|brand-background|btn-primary|button-primary|nav-btn-active)\b/i.test(
+        rule[1],
+      ),
+    )
+    .map(
+      (rule) =>
+        /(?:^|;)\s*background(?:-color)?\s*:\s*(#[a-f\d]{6})\b/i.exec(
+          rule[2],
+        )?.[1],
+    )
+    .find(Boolean);
+  const backgrounds = [
+    ...css.matchAll(
+      /(?:^|[}])\s*(?:html|body|:root)(?:\s*,\s*(?:html|body|:root))*\s*\{([^{}]+)\}/gi,
+    ),
+  ]
+    .map(
+      (rule) =>
+        /(?:^|;)\s*background(?:-color)?\s*:\s*(#[a-f\d]{6})\b/i.exec(
+          rule[1],
+        )?.[1],
+    )
+    .filter((hex) => {
+      if (!hex) return false;
+      const channels = [1, 3, 5].map((i) =>
+        Number.parseInt(hex.slice(i, i + 2), 16),
+      );
+      return Math.max(...channels) - Math.min(...channels) >= 28;
+    });
+  const color = [
+    cssAccent,
+    brandSurface,
+    theme,
+    mask,
+    tile,
+    ...backgrounds,
+  ].find((value) => value && /^#(?:[a-f\d]{3}|[a-f\d]{6})$/i.test(value));
+  if (site === templHomepage) brand.accent = fallbackAccent;
+  else if (color)
     brand.accent =
       color.length === 4
         ? "#" + [...color.slice(1)].map((c) => c + c).join("")
         : color;
-  const name = (siteName || appName || title || brand.name)
+  const titleParts = (title || "").split(/\s+[-–—|]\s+/);
+  const shortTitle =
+    titleParts.length === 2 &&
+    /^(?:lend|borrow|home|docs|dashboard|overview|app|log in|sign in)$/i.test(
+      titleParts[1],
+    )
+      ? titleParts[0]
+      : title;
+  const name = (siteName || appName || shortTitle || brand.name)
     .replace(/\s+/g, " ")
     .trim()
     .slice(0, 80);
   return {
     ...brand,
     name: name || brand.name,
-    logo: touchIcon || icon || new URL("/favicon.ico", site).href,
+    logo: touchIcon || headerLogo || icon || new URL("/favicon.ico", site).href,
+    docs: [...docs]
+      .sort((a, b) => a[1] - b[1])
+      .slice(0, 2)
+      .map(([url]) => url),
   };
 }
 
@@ -122,8 +272,8 @@ export async function websiteBrand(
 export async function previewIcon(url: string) {
   if (!url) return "";
   try {
-    const file = await safeFetch(url, {
-      maxBytes: 48_000,
+    const file = await fetchWebsiteAsset(url, {
+      maxBytes: 80 * 1024,
       timeoutMs: 3_000,
       maxRedirects: 2,
       allowQuery: false,
@@ -149,9 +299,11 @@ export async function previewIcon(url: string) {
       String.fromCharCode(...bytes.subarray(8, 12)) === "WEBP"
     )
       type = "image/webp";
-    return type
-      ? "data:" + type + ";base64," + btoa(String.fromCharCode(...bytes))
-      : "";
+    if (!type) return "";
+    let binary = "";
+    for (let offset = 0; offset < bytes.length; offset += 8192)
+      binary += String.fromCharCode(...bytes.subarray(offset, offset + 8192));
+    return "data:" + type + ";base64," + btoa(binary);
   } catch {
     return "";
   }

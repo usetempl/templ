@@ -11,7 +11,8 @@ const entry = `
     constructor(state, env) {
       super(state, { ...env, AI: { run: async (_model, body) => {
         const input = JSON.parse(body.input[0].content[0].text);
-        const hit = input.passages[0];
+        const hit = input.passages.find(p => p.text.includes("export a garden journal"));
+        if (!hit) throw Error("Missing the linked guide");
         const answer = {
           action: "reply", confidence: "high", handoffReason: null, facts: [], claims: [], comparisons: [],
           sources: [hit.sourceId], text: input.answer ? "Supported." : "Members can export a garden journal from the settings page.",
@@ -24,10 +25,10 @@ const entry = `
     }
   }
 `;
-it("imports one public page, isolates the preview, and saves its source and edited brand for one signed-in owner", async () => {
+it("imports linked docs, isolates the preview, and saves its source and edited brand for one signed-in owner", async () => {
   const app = await workerdHarness(entry);
   try {
-    let pages = 0;
+    let pages = 0, docs = 0;
     await app.restart(
       {
         SUPPORT_SELF_SERVE_SETUP_ENABLED: "true",
@@ -54,9 +55,13 @@ it("imports one public page, isolates the preview, and saves its source and edit
         if (url.href === "https://garden.tools/") {
           pages++;
           return new Response(
-            '<html><head><title>Gardening tools</title><meta property="og:site_name" content="Garden"><meta name="theme-color" content="#abc"><link rel="icon" href="/icon.svg"></head><body><main>Members can export a garden journal from the settings page.</main></body></html>',
+            '<html><head><title>Gardening tools</title><meta property="og:site_name" content="Garden"><meta name="theme-color" content="#abc"><link rel="icon" href="/icon.svg"></head><body><main>Track your plants. <a href="/docs">Read the docs</a><a href="https://another.tools/about">Elsewhere</a></main></body></html>',
             { headers: { "content-type": "text/html" } },
           );
+        }
+        if (url.href === "https://garden.tools/docs") {
+          docs++;
+          return new Response("<main><h2>How do I export my journal?</h2><p>Members can export a garden journal from the settings page.</p></main>", { headers: { "content-type": "text/html" } });
         }
         if (url.href === "https://garden.tools/icon.svg")
           return new Response(
@@ -66,14 +71,16 @@ it("imports one public page, isolates the preview, and saves its source and edit
         throw Error("Unexpected outbound request");
       },
     );
-    const site = "garden.tools";
+    const site = "http://garden.tools";
     const start = await app.call("/onboarding/start", undefined, { site });
+    expect((await app.call("/onboarding/start", undefined, {site:"https://community.usetempl.com/"})).status).toBe(400);
     const cookie = start.headers.get("set-cookie")?.split(";")[0];
     const preview = await data(start);
     expect(cookie).toBeTruthy();
     expect(preview).toMatchObject({
       site: "https://garden.tools/",
       ready: true,
+      suggestion: "How do I export my journal?",
       brand: {
         name: "Garden",
         accent: "#aabbcc",
@@ -176,6 +183,7 @@ it("imports one public page, isolates the preview, and saves its source and edit
     );
     expect([401, 403]).toContain(billing.status);
     expect(pages).toBe(1);
+    expect(docs).toBe(1);
   } finally {
     await app.dispose();
   }

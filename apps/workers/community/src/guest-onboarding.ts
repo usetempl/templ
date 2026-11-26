@@ -37,6 +37,8 @@ type Trial = {
   expires: number;
   brand: WebsiteBrand;
   imported?: boolean;
+  scanVersion?: number;
+  suggestion?: string;
   icon?: string;
   confirmed?: boolean;
   owner?: string;
@@ -147,13 +149,14 @@ export async function previewRecord(
     ((body.op !== "claim" && body.op !== "finish") || row.owner !== body.owner)
   )
     throw new HttpError(409, "This preview has already been saved.");
-  if (body.op === "start") {
-    if (websiteUrl(body.site) !== row.site)
+  if (body.op === "start" || body.op === "read") {
+    if (body.op === "start" && websiteUrl(body.site) !== row.site)
       throw new HttpError(409, "Start a new preview to change websites.");
-    if (row.imported === undefined) {
+    if (row.scanVersion !== 2) {
       const source = await knowledgeCall<{
         ready: boolean;
         brand?: WebsiteBrand;
+        suggestion?: string;
       }>(
         env,
         room,
@@ -161,10 +164,14 @@ export async function previewRecord(
         { role: "manager", principal: "website-preview" },
         { url: row.site },
       );
-      row.brand = source.brand ?? defaultBrand(row.site);
-      row.icon = await previewIcon(row.brand.logo);
-      if (!row.icon) row.brand.logo = "";
+      if (!row.confirmed) {
+        row.brand = source.brand ?? defaultBrand(row.site);
+        row.icon = await previewIcon(row.brand.logo);
+        if (!row.icon) row.brand.logo = "";
+      }
+      row.scanVersion = 2;
       row.imported = source.ready;
+      row.suggestion = source.suggestion;
       await storage.put(KEY, row);
     }
   } else if (body.op === "confirm") {
@@ -223,6 +230,7 @@ export async function previewRecord(
     brand: row.brand,
     icon: row.icon || "",
     ready: row.imported === true,
+    suggestion: row.suggestion,
     confirmed: !!row.confirmed,
     remaining,
   });

@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { IconArrowRight, IconArrowUp } from "@tabler/icons-react";
+import { IconArrowRight } from "@tabler/icons-react";
+import { WebsitePracticeChat } from "./website-practice-chat";
 import { PRODUCT_LIMITS } from "@templ/chat/plans";
 import { useChatAuth } from "@/lib/chat-auth";
 import { isChatSignInCanceled } from "@/lib/chat-auth-cancellation";
@@ -21,11 +22,11 @@ type Preview = {
   brand: Brand;
   icon: string;
   ready: boolean;
+  suggestion?: string;
   remaining: number;
   confirmed: boolean;
 };
 type Restored = Preview | { claiming: true; previewId: string } | null;
-type Turn = { question: string; answer: string | null };
 
 export function WebsiteOnboarding({ nextPlan }: { nextPlan: boolean }) {
   const auth = useChatAuth();
@@ -36,23 +37,24 @@ export function WebsiteOnboarding({ nextPlan }: { nextPlan: boolean }) {
   const [preview, setPreview] = useState<Preview | null>(null);
   const [brand, setBrand] = useState<Brand | null>(null);
   const [claiming, setClaiming] = useState("");
-  const [editing, setEditing] = useState(false);
-  const [fieldsOpen, setFieldsOpen] = useState(false);
-  const [question, setQuestion] = useState("");
-  const [turns, setTurns] = useState<Turn[]>([]);
+
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
+  const [slowScan, setSlowScan] = useState(false);
+  const scanning = busy === "start";
+  useEffect(() => {
+    if (!scanning) return;
+    const timer = window.setTimeout(() => setSlowScan(true), 8000);
+    return () => window.clearTimeout(timer);
+  }, [scanning]);
   const lock = useRef(false);
   const interacted = useRef(false);
-  const attempt = useRef<{ question: string; id: string } | null>(null);
 
   function showPreview(value: Preview) {
     restart.current = false;
     setPreview(value);
     setBrand(value.brand);
     setSite(value.site);
-    setEditing(!value.confirmed);
-    setFieldsOpen(false);
   }
   useEffect(() => {
     const abort = new AbortController();
@@ -85,7 +87,6 @@ export function WebsiteOnboarding({ nextPlan }: { nextPlan: boolean }) {
         setPreview(null);
         setBrand(null);
         setClaiming("");
-        setTurns([]);
       }
     } finally {
       lock.current = false;
@@ -95,65 +96,71 @@ export function WebsiteOnboarding({ nextPlan }: { nextPlan: boolean }) {
   function start(event: FormEvent) {
     event.preventDefault();
     void run("start", async () => {
+      setSlowScan(false);
       showPreview(
         await communityFetch<Preview>("/onboarding/start", {
           site,
           restart: restart.current,
         }),
       );
-      setTurns([]);
-      attempt.current = null;
     });
   }
-  function confirm(event: FormEvent) {
-    event.preventDefault();
-    if (brand)
-      void run("confirm", async () => {
-        showPreview(
-          await communityFetch<Preview>("/onboarding/confirm", {
-            ...brand,
-            previewId: preview?.previewId,
-          }),
-        );
+  async function confirmBrand() {
+    if (!brand || !preview) throw new Error("Enter your website first.");
+    if (
+      preview.confirmed &&
+      brand.name === preview.brand.name &&
+      brand.logo === preview.brand.logo &&
+      brand.accent === preview.brand.accent
+    )
+      return preview;
+    const result = await communityFetch<Preview>("/onboarding/confirm", {
+      ...brand,
+      previewId: preview.previewId,
+    });
+    showPreview(result);
+    return result;
+  }
+  async function ask(question: string, requestId: string): Promise<string> {
+    if (
+      lock.current ||
+      !preview?.ready ||
+      !preview.remaining ||
+      !brand?.name.trim()
+    )
+      throw new Error("The preview is not ready.");
+    lock.current = true;
+    setBusy("ask");
+    setError("");
+    try {
+      const confirmed = await confirmBrand();
+      const reply = await communityFetch<{
+        answer: string | null;
+        remaining: number;
+      }>("/onboarding/ask", {
+        question,
+        requestId,
+        previewId: confirmed.previewId,
       });
-  }
-  function ask(event: FormEvent) {
-    event.preventDefault();
-    const text = question.trim();
-    if (!preview || !text) return;
-    void run("ask", async () => {
-      if (attempt.current?.question !== text)
-        attempt.current = { question: text, id: crypto.randomUUID() };
-      try {
-        const reply = await communityFetch<{
-          answer: string | null;
-          remaining: number;
-        }>("/onboarding/ask", {
-          question: text,
-          requestId: attempt.current.id,
-          previewId: preview.previewId,
-        });
-        setTurns((current) => [
-          ...current,
-          { question: text, answer: reply.answer },
-        ]);
-        setPreview({ ...preview, remaining: reply.remaining });
-        setQuestion("");
-        attempt.current = null;
-      } catch (reason) {
-        const current = await communityFetch<Restored>(
-          "/onboarding/read",
-          {},
-        ).catch(() => null);
-        if (current && "brand" in current) setPreview(current);
-        if (reason instanceof CommunityApiError && reason.status === 409)
-          attempt.current = null;
-        throw reason;
-      }
-    });
+      setPreview({ ...confirmed, remaining: reply.remaining });
+      return reply.answer || "I couldn’t find that in the website or docs.";
+    } catch (reason) {
+      const current = await communityFetch<Restored>(
+        "/onboarding/read",
+        {},
+      ).catch(() => null);
+      if (current && "brand" in current) setPreview(current);
+      if (reason instanceof CommunityApiError && reason.status === 410) reset();
+      setError(reason instanceof Error ? reason.message : "Try again.");
+      throw reason;
+    } finally {
+      lock.current = false;
+      setBusy("");
+    }
   }
   function save() {
     void run("save", async () => {
+      if (!claiming) await confirmBrand();
       const session = await auth.signIn();
       trackEvent("create_submitted");
       const { id } = await communityFetch<{ id: string }>("/onboarding/claim", {
@@ -165,6 +172,9 @@ export function WebsiteOnboarding({ nextPlan }: { nextPlan: boolean }) {
     });
   }
   const disabled = !!busy || !available;
+  const suggestion =
+    preview?.suggestion ||
+    (brand ? "What can I do with " + brand.name + "?" : "");
   const reset = () => {
     restart.current = true;
     interacted.current = true;
@@ -172,22 +182,27 @@ export function WebsiteOnboarding({ nextPlan }: { nextPlan: boolean }) {
     setBrand(null);
     setClaiming("");
     setError("");
-    setTurns([]);
-    setQuestion("");
   };
+  let scanHost = "";
+  if (scanning) {
+    try {
+      const url = site.trim().replace(/^https?:\/\//i, "");
+      scanHost = new URL("https://" + url).hostname;
+    } catch {
+      // The server shows the validation error for an invalid address.
+    }
+  }
   return (
     <div className={styles.page}>
       <section className={styles.main} aria-labelledby="create-title">
         <h1 id="create-title">
           {claiming
             ? "Save your workspace"
-            : preview
-              ? editing
-                ? "Make it yours"
-                : "Try your support chat"
+            : preview || scanning
+              ? "Try your support chat"
               : "Try Templ with your website"}
         </h1>
-        {!preview && !claiming && (
+        {!scanning && !preview && !claiming && (
           <>
             <p className={styles.lede}>
               See your chat and ask AI about your site. No sign-in needed.
@@ -199,6 +214,7 @@ export function WebsiteOnboarding({ nextPlan }: { nextPlan: boolean }) {
                   autoComplete="url"
                   inputMode="url"
                   autoCapitalize="none"
+                  autoCorrect="off"
                   spellCheck={false}
                   placeholder="example.com"
                   value={site}
@@ -214,10 +230,7 @@ export function WebsiteOnboarding({ nextPlan }: { nextPlan: boolean }) {
                 className={"button " + styles.submit}
                 disabled={disabled || !site.trim()}
               >
-                {busy === "start"
-                  ? "Reading your website…"
-                  : "Preview your chat"}{" "}
-                <IconArrowRight aria-hidden />
+                Preview your chat <IconArrowRight aria-hidden />
               </button>
             </form>
             <p className={styles.terms}>
@@ -227,165 +240,124 @@ export function WebsiteOnboarding({ nextPlan }: { nextPlan: boolean }) {
             </p>
           </>
         )}
-        {preview && brand && (
+        {(scanning || (preview && brand)) && (
           <>
-            <div className={styles.preview}>
-              <header className={styles.previewHeader}>
-                <span
-                  className={styles.previewIcon}
-                  style={{ borderColor: brand.accent }}
-                >
-                  {preview.icon && brand.logo === preview.brand.logo ? (
-                    // Data from the bounded website import, shown only as an image.
-                    <img alt="" width={36} height={36} src={preview.icon} />
-                  ) : (
-                    (brand.name.trim()[0] || "?").toUpperCase()
-                  )}
+            {scanning && (
+              <div
+                className={styles.scanMessage}
+                role="status"
+                aria-atomic="true"
+              >
+                <span className={styles.scanDots} aria-hidden="true">
+                  <i />
+                  <i />
+                  <i />
                 </span>
-                <div>
-                  <strong>{brand.name || "Your team"}</strong>
-                  <span>{new URL(preview.site).hostname}</span>
-                </div>
-                {!fieldsOpen && (
-                  <button
-                    type="button"
-                    className={styles.textButton}
-                    disabled={disabled}
-                    onClick={() => {
-                      setEditing(true);
-                      setFieldsOpen(true);
-                    }}
-                  >
-                    Edit brand
-                  </button>
-                )}
-              </header>
-              {editing ? (
-                <form className={styles.previewBody} onSubmit={confirm}>
-                  {fieldsOpen && (
-                    <>
-                      <Field label="Chat name">
-                        <input
-                          className={ui.input}
-                          required
-                          maxLength={80}
-                          value={brand.name}
-                          onChange={(e) =>
-                            setBrand({ ...brand, name: e.target.value })
-                          }
-                        />
-                      </Field>
-                      <Field label="Icon URL" optional>
-                        <input
-                          className={ui.input}
-                          type="url"
-                          value={brand.logo}
-                          placeholder="https://example.com/icon.png"
-                          onChange={(e) =>
-                            setBrand({ ...brand, logo: e.target.value })
-                          }
-                        />
-                      </Field>
-                      <Field label="Accent color">
-                        <input
-                          className={styles.colorInput}
-                          type="color"
-                          value={brand.accent}
-                          onChange={(e) =>
-                            setBrand({ ...brand, accent: e.target.value })
-                          }
-                        />
-                      </Field>
-                    </>
-                  )}
-                  <div className={styles.actions}>
-                    <button
-                      className="button"
-                      disabled={disabled || !brand.name.trim()}
-                    >
-                      {busy === "confirm" ? "Saving…" : "Use this brand"}
-                    </button>
-                    <button
-                      type="button"
-                      disabled={disabled}
-                      className={styles.textButton}
-                      onClick={reset}
-                    >
-                      Change website
-                    </button>
-                  </div>
-                </form>
-              ) : (
-                <div className={styles.previewBody}>
-                  {preview.ready ? (
-                    <>
-                      <div className={styles.transcript} aria-live="polite">
-                        {turns.map((turn, i) => (
-                          <div key={i}>
-                            <p className={styles.question}>{turn.question}</p>
-                            <p>
-                              {turn.answer ||
-                                "I couldn’t find an answer on this page."}
-                            </p>
-                          </div>
-                        ))}
-                      </div>
-                      <form onSubmit={ask} className={styles.practice}>
-                        <Field label="Ask about your website">
-                          <input
-                            className={ui.input}
-                            value={question}
-                            maxLength={800}
-                            onChange={(e) => setQuestion(e.target.value)}
-                            placeholder="What does your product do?"
-                            disabled={busy === "ask" || !preview.remaining}
-                          />
-                        </Field>
-                        <button
-                          className="button"
-                          aria-label="Ask AI"
-                          disabled={
-                            disabled || !preview.remaining || !question.trim()
-                          }
-                        >
-                          <IconArrowUp aria-hidden />
-                        </button>
-                      </form>
-                      <p className={styles.note} role="status">
-                        {busy === "ask"
-                          ? "Finding an answer…"
-                          : preview.remaining +
-                            " of " +
-                            PRODUCT_LIMITS.freeAiPracticeQuestions +
-                            " free questions left"}
-                        {" · "}
-                        <a
-                          href="https://docs.usetempl.com/ai#practice-privacy"
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          Practice privacy
-                        </a>
-                      </p>
-                    </>
+                <strong>
+                  {slowScan
+                    ? "Still reading your website…"
+                    : "Looking for your logo and docs…"}
+                </strong>
+                <span>You can write your first question while you wait.</span>
+              </div>
+            )}
+            <WebsitePracticeChat
+              name={brand?.name.trim() || scanHost || "Your team"}
+              accent={brand?.accent}
+              icon={
+                preview && brand?.logo === preview.brand.logo
+                  ? preview.icon
+                  : ""
+              }
+              canSend={
+                !disabled &&
+                !!preview?.ready &&
+                preview.remaining > 0 &&
+                !!brand?.name.trim()
+              }
+              suggestion={suggestion}
+              ask={ask}
+            />
+            {preview && (
+              <p className={styles.practiceNote} role="status">
+                {preview.ready ? (
+                  busy === "ask" ? (
+                    "Finding an answer…"
                   ) : (
-                    <p>
-                      AI couldn’t read this page.{" "}
-                      <button className={styles.textButton} onClick={reset}>
-                        Try a public docs page
-                      </button>
-                    </p>
-                  )}
-                </div>
-              )}
-            </div>
+                    preview.remaining +
+                    " of " +
+                    PRODUCT_LIMITS.freeAiPracticeQuestions +
+                    " free questions left"
+                  )
+                ) : (
+                  <>
+                    AI couldn’t read this page.{" "}
+                    <button className={styles.textButton} onClick={reset}>
+                      Try a public docs page
+                    </button>
+                  </>
+                )}
+                {" · "}
+                <a
+                  href="https://docs.usetempl.com/ai#practice-privacy"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Practice privacy
+                </a>
+              </p>
+            )}
           </>
         )}
-        {(claiming || (preview?.confirmed && !editing)) && (
+        {preview && brand && (
+          <>
+            <fieldset className={styles.brandFields} disabled={disabled}>
+              <legend>Chat appearance</legend>
+              <Field label="Chat name">
+                <input
+                  className={ui.input}
+                  required
+                  maxLength={80}
+                  value={brand.name}
+                  onChange={(e) => setBrand({ ...brand, name: e.target.value })}
+                />
+              </Field>
+              <Field label="Icon URL" optional>
+                <input
+                  className={ui.input}
+                  type="url"
+                  value={brand.logo}
+                  placeholder="https://example.com/icon.png"
+                  onChange={(e) => setBrand({ ...brand, logo: e.target.value })}
+                />
+              </Field>
+              <Field label="Accent color">
+                <input
+                  className={styles.colorInput}
+                  type="color"
+                  value={brand.accent}
+                  onChange={(e) =>
+                    setBrand({ ...brand, accent: e.target.value })
+                  }
+                />
+              </Field>
+            </fieldset>
+            <button
+              className={styles.textButton}
+              disabled={disabled}
+              onClick={reset}
+            >
+              Change website
+            </button>
+          </>
+        )}
+        {(claiming || preview) && (
           <div className={styles.save}>
             <button
               className="button"
-              disabled={disabled || auth.restoring}
+              disabled={
+                disabled || auth.restoring || (!!brand && !brand.name.trim())
+              }
               onClick={save}
             >
               {busy === "save"
@@ -397,12 +369,12 @@ export function WebsiteOnboarding({ nextPlan }: { nextPlan: boolean }) {
           </div>
         )}
         {!available && (
-          <Callout role="status">
+          <Callout className={styles.feedback} role="status">
             Workspace setup is unavailable. Try again later.
           </Callout>
         )}
         {error && (
-          <Callout tone="danger" role="alert">
+          <Callout className={styles.feedback} tone="danger" role="alert">
             {error}
           </Callout>
         )}

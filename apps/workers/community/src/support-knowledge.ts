@@ -1,3 +1,4 @@
+import { websiteUrl } from "./website-brand";
 import { telegramKnowledgeOperation } from "./support-knowledge-telegram";
 import { learningKnowledgeOperation, forgetLearningKnowledge, learnedReplyCorrectionSources, quarantineLearnedReplySource } from "./support-knowledge-learning";
 import { queueKnowledgeResources } from "./workspace-resource-observations";
@@ -294,10 +295,11 @@ async function refreshSource(
   now: number,
   dependencies: IngestDependencies,
   includeBrand = false,
+  findSuggestion = false,
 ) {
   const row = sourceRow(db, id);
   if (!row || row.kind !== "doc" || row.origin === "upload" || !row.url) return;
-  const page = await fetchPage(row.url, row.etag, dependencies, includeBrand);
+  const page = await fetchPage(row.url, includeBrand || findSuggestion ? null : row.etag, dependencies, includeBrand, findSuggestion);
   if (page.kind === "text")
     recordFetch(
       db,
@@ -306,7 +308,7 @@ async function refreshSource(
       now,
     );
   else recordFetch(db, id, page, now);
-  return "brand" in page ? page.brand : undefined;
+  return page;
 }
 
 /** Reads the manager starts (adding a page or a sitemap, Refresh) fetch
@@ -574,15 +576,33 @@ export async function knowledgeOperation(
       return getFaq(db, args.id);
     case "knowledge.previewSite": {
       if (!editor) throw new KnowledgeError(403, "admin-only", "Access denied.");
-      const url = checkedPageUrl(args.url);
+      const url = websiteUrl(args.url);
       const previous = db.sql.exec("SELECT id FROM kb_sources WHERE url = ?", url).toArray()[0];
       const id = previous ? String(previous.id) : addSource(db, { kind: "doc", url }, now).id;
-      const cached = readMeta(db, "onboarding.site");
+      const cached = readMeta(db, "onboarding.site.v2");
       if (cached) return JSON.parse(cached);
       if (!takeManualFetch(db, now)) throw new KnowledgeError(429, "fetch-limit", "Try again later.");
-      const brand = await refreshSource(db, id, now, dependencies, true);
-      const result = { ready: getSource(db, id)?.status === "ready", brand };
-      writeMeta(db, "onboarding.site", JSON.stringify(result));
+      const home = await refreshSource(db, id, now, dependencies, true);
+      const scanned = home && "brand" in home ? home.brand : undefined;
+      let suggestion: string | undefined;
+      let ready = getSource(db, id)?.status === "ready";
+      if (scanned) {
+        const results = await Promise.all(scanned.docs.map(async (link) => {
+          if (await detectStoredSecret(link) || !takeManualFetch(db, now)) return;
+          const existing = db.sql.exec("SELECT id FROM kb_sources WHERE url = ?", link).toArray()[0];
+          const docId = existing ? String(existing.id) : addSource(db, { kind: "doc", url: link }, now).id;
+          return refreshSource(db, docId, now, dependencies, false, true);
+        }));
+        for (const doc of results) {
+          if (doc?.kind === "text") {
+            suggestion ||= doc.suggestion;
+            ready = true;
+          }
+        }
+      }
+      const brand = scanned && { name: scanned.name, accent: scanned.accent, logo: scanned.logo };
+      const result = { ready, brand, suggestion: suggestion || (home?.kind === "text" ? home.suggestion : undefined) };
+      writeMeta(db, "onboarding.site.v2", JSON.stringify(result));
       return result;
     }
     case "knowledge.add": {
