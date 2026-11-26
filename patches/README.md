@@ -1,5 +1,9 @@
 # Dependency patches
 
+`pnpm-workspace.yaml` lists these patches under `patchedDependencies`, and
+`pnpm-lock.yaml` pins each one by hash. `pnpm install --frozen-lockfile`
+applies them. This checkout has no dedicated test for any of them.
+
 ## viem 2.55.0: hardened browser compatibility
 
 The staging browser failed while creating a public client:
@@ -20,29 +24,26 @@ The patch does not modify or unfreeze global intrinsics. It does not change
 transaction calldata, amounts, approvals, wallet confirmation, signatures or
 access rules. Existing dependency versions remain pinned in the lockfile.
 
-### Regression check
+Keep the patch when upgrading viem until the replacement version creates
+clients with a non-writable `Function.prototype.call` and no local changes.
 
-Run:
+## stream-json 1.9.1: `__proto__` keys
 
-```sh
-pnpm --filter web exec vitest run src/lib/evm/viem-runtime.test.ts
-```
+`Assembler.js` stored every parsed key by assignment, so a `__proto__` key in
+the input could replace the prototype of the object being assembled. The patch
+defines that key as an own writable, enumerable and configurable property.
+Other keys keep ordinary assignment.
 
-The test uses isolated Node processes, not mocked clients. It covers the direct
-app dependency and WalletConnect's transitive dependency, ESM and CommonJS,
-and hardening before import, after import, or not at all. Each case constructs
-public and wallet clients, extends both, and checks a token-call helper. No
-network request, wallet signature or transaction is made. Only the test child
-changes its own `Function.prototype.call`; application code never does.
+stream-json reaches this workspace through jayson, a dependency of
+`@solana/web3.js`.
 
-The unpatched dependency fails the hardened cases with the reported error.
-Keep this regression when upgrading viem. Remove the patch when the
-replacement version passes it without local changes.
+## bigint-buffer 1.1.5: pure JavaScript only
 
-## image-size 2.0.2: malformed-file loops
+The patch removes the native addon load from `dist/node.js` and the `install`
+script from `package.json`. The four conversions keep the package's own
+pure-JavaScript code. The lockfile still lists the `bindings` package for
+bigint-buffer, but the patched code never loads it.
 
-Docusaurus (docs and blog) reads image dimensions with the archived
-`image-size` package. Two malformed-file cases (HEIF boxes and ICNS entries
-that never advance) loop forever. The patch adds the minimum-size guards.
-`apps/scripts/src/release/dependency-backports.test.mjs` checks the installed
-bytes, not only the patch declaration.
+bigint-buffer reaches this workspace through `@solana/buffer-layout-utils`, a
+dependency of `@solana/spl-token`. `pnpm-workspace.yaml` ignores advisory
+GHSA-3gc7-fjrx-p6mg for the native addon on this basis.

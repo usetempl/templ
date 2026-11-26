@@ -782,10 +782,11 @@ export function attachCommunityWallet(
   account: Address,
   ready: Ready,
   chainId?: ChatChainId,
+  expectedPrincipal?: ChatPrincipalId,
 ): Promise<CommunitySession> {
   if (attaching)
     return Promise.reject(new Error("Wait for the wallet connection."));
-  const task = attachWallet(account, ready, chainId);
+  const task = attachWallet(account, ready, chainId, expectedPrincipal);
   attaching = task;
   void task
     .finally(() => {
@@ -798,6 +799,7 @@ async function attachWallet(
   account: Address,
   ready: Ready,
   network?: ChatChainId,
+  expectedPrincipal?: ChatPrincipalId,
 ) {
   if (
     signing ||
@@ -810,6 +812,8 @@ async function attachWallet(
     throw new Error("Wait for the current sign-in.");
   const previous = await fetchCommunitySession(true);
   if (!previous) throw new Error("Sign in before adding a wallet.");
+  if (expectedPrincipal && previous.principalId !== expectedPrincipal)
+    throw new Error("The signed-in account changed. Try again.");
   if (previous.address?.toLowerCase() === account.toLowerCase())
     return previous;
   const started = authenticationRevision;

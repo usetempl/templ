@@ -73,39 +73,35 @@ export function HostedChatSetup({ context, paid }: { context: WorkspaceContext; 
       setBusy(false);
     }
   }
+  const choosingName = managed && !claimed;
   return (
     <section className={styles.setup} aria-labelledby="hosted-chat-title">
       <header className={styles.intro}>
-        <h2 id="hosted-chat-title">Your support chat</h2>
+        <h2 id="hosted-chat-title">{choosingName ? "Choose a hosted name" : "Your support chat"}</h2>
+        {choosingName && !paid && <small>From {formatUsdCents(PRODUCT_STARTER_PRICES.workspaceMonthlyUsdCents)}/month</small>}
       </header>
+      {choosingName && (
+        <form className={styles.nameForm} onSubmit={chooseName}>
+          <label htmlFor="trial-hosted-name">Hosted name</label>
+          <div className={styles.nameRow}>
+            <div className={styles.nameField}>
+              <span aria-hidden="true">{new URL(SITE.origin).host}/</span>
+              <input id="trial-hosted-name" className={ui.input} value={name} placeholder="your-team"
+                onChange={event => setName(event.target.value)} required minLength={3} maxLength={32}
+                pattern="[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9]" autoCapitalize="none" autoCorrect="off"
+                autoComplete="off" spellCheck={false} aria-describedby="hosted-name-terms" />
+            </div>
+            <button className="button" disabled={busy}>
+              {busy && <ActivityDots />}
+              {busy ? "Checking availability…" : paid ? "Claim name" : "Reserve name and choose a plan"}
+            </button>
+          </div>
+          <p id="hosted-name-terms">{paid ? "Your plan includes a hosted name." : "Choose a plan and pay in USDC."}</p>
+          {hold && <p>We reserved /{hold.slug} until {new Date(hold.expiresAt).toLocaleString()}.</p>}
+        </form>
+      )}
+      {message && <p role="status" className={styles.notice}>{message}</p>}
       <div className={styles.options}>
-        {managed && !claimed && (
-          <section className={styles.nameChoice} aria-labelledby="choose-hosted-name">
-            <header>
-              <h3 id="choose-hosted-name">Choose a hosted name</h3>
-              {!paid && <small>From {formatUsdCents(PRODUCT_STARTER_PRICES.workspaceMonthlyUsdCents)}/month</small>}
-            </header>
-            <form className={styles.nameForm} onSubmit={chooseName}>
-              <label htmlFor="trial-hosted-name">Hosted name</label>
-              <div className={styles.nameRow}>
-                <div className={styles.nameField}>
-                  <span aria-hidden="true">{new URL(SITE.origin).host}/</span>
-                  <input id="trial-hosted-name" className={ui.input} value={name} placeholder="your-team"
-                    onChange={event => setName(event.target.value)} required minLength={3} maxLength={32}
-                    pattern="[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9]" autoCapitalize="none" autoCorrect="off"
-                    autoComplete="off" spellCheck={false} aria-describedby="hosted-name-terms" />
-                </div>
-                <button className="button" disabled={busy}>
-                  {busy && <ActivityDots />}
-                  {busy ? "Checking availability…" : paid ? "Claim name" : "Reserve name and choose a plan"}
-                </button>
-              </div>
-              <p id="hosted-name-terms">{paid ? "Your plan includes a hosted name." : "Choose a plan and pay in USDC."}</p>
-              {hold && <p>We reserved /{hold.slug} until {new Date(hold.expiresAt).toLocaleString()}.</p>}
-            </form>
-          </section>
-        )}
-        {message && <p role="status" className={styles.notice}>{message}</p>}
         <div className={styles.chatActions}>
           <a className="button secondary" href={link} target="_blank" rel="noopener noreferrer">
             Open chat <IconArrowUpRight aria-hidden="true" />

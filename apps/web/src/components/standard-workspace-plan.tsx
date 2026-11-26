@@ -269,10 +269,10 @@ export function StandardWorkspacePlan({
                 disabled={!canPay || !onPay}
                 onClick={() => onPay?.("period")}
               >
-                {period ? "Renew month" : "Start paid month"}
+                {period ? "Renew month" : "Choose a plan"}
               </button>
               <p className={styles.note}>
-                Your month starts after Templ verifies payment.
+                Access starts after Templ verifies payment.
               </p>
             </div>
           )}

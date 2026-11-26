@@ -151,8 +151,8 @@ Read ${SITE.origin}/privacy, ${SITE.origin}/terms, ${SITE.origin}/dpa and ${SITE
 - [AI answers and drafts](${SITE.docs}/ai): Choose who answers each case.
 - [Get alerts for new cases](${SITE.docs}/alerts): Choose how your team receives case alerts.
 - [Workspace pricing](${SITE.docs}/pricing): Workspace pricing, optional Templ AI and services.
-- [What counts as a resolved case](${SITE.docs}/pricing/resolved-cases): See when cases bill and charges become final.
-- [Stablecoin payments](${SITE.docs}/pricing/stablecoin-payments): Read the transfer flow and release checks.
+- [How cases are counted](${SITE.docs}/pricing/resolved-cases): See answered-case counting and the rules for existing signed agreements.
+- [USDC payments](${SITE.docs}/pricing/stablecoin-payments): Pay for access, follow a transfer and find your receipt.
 - [Order forms and team access](${SITE.docs}/pricing/custom-deals): Read signed terms and the checks that control team access.
 - [How Templ keeps users and teams safe](${SITE.docs}/security): Sign-in, access and chat protections.
 - [Case data, retention and exports](${SITE.docs}/data): See who can export cases and how long data stays.

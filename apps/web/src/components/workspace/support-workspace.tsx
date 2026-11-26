@@ -40,6 +40,7 @@ import {
 } from "@/lib/community-auth";
 import { useCommunityDirectory } from "@/lib/community-directory";
 import { nativeRoomHref } from "@/lib/native-room";
+import { isBillingView } from "@/lib/product-offer";
 import { listConversations } from "@/lib/team-conversations-client";
 import { teamPresentationCache } from "@/lib/team-conversations-cache";
 import {
@@ -203,7 +204,7 @@ const TABS: WorkspaceTab[] = [
   "plan",
 ];
 const TITLES: Record<WorkspaceTab, string> = {
-  home: "Home",
+  home: "Workspace",
   inbox: "Cases",
   quality: "Reports",
   knowledge: "AI",
@@ -703,6 +704,9 @@ function Workspace({ id, supportUrl }: WorkspaceEntry) {
       image: workspace.image,
       href: nativeRoomHref({ id }),
     });
+  const product = state?.product;
+  const trialCheckout = manager && (visible === "home" || visible === "plan") &&
+    product && isBillingView(product) && product.standardPlan?.status === "demo" && product.mode !== "exempt";
   const settingsView = visible !== "inbox" && visible !== "knowledge";
   const rail = (
     <>
@@ -712,6 +716,9 @@ function Workspace({ id, supportUrl }: WorkspaceEntry) {
         workspaces={workspaces}
       />
       <RailNavGroup label="Support">
+        {trialCheckout && (
+          <RailNavItem icon={IconHome} label="Workspace" active={visible === "home"} onClick={() => go("home")} />
+        )}
         <RailNavItem
           icon={IconInbox}
           label="Cases"
@@ -731,12 +738,12 @@ function Workspace({ id, supportUrl }: WorkspaceEntry) {
           <RailNavItem
             icon={IconSettings}
             label="Settings"
-            active={settingsView}
+            active={settingsView && !trialCheckout}
             onClick={() => go("settings")}
           />
         )}
       </RailNavGroup>
-      {settingsView && (
+      {settingsView && !trialCheckout && (
         <>
           <RailNavGroup label="Workspace settings">
             <RailNavItem icon={IconHome} label="Workspace" active={visible === "home"} onClick={() => go("home")} />

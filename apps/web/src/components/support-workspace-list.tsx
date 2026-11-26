@@ -231,7 +231,7 @@ export function SupportWorkspaceList() {
           >
             {hidden
               ? "Workspaces you hide appear here while you still have access."
-              : "Create a workspace for your protocol and add the widget. Workspaces appear here when a teammate adds you."}
+              : "Create a workspace for your protocol and add the widget. Workspaces appear here when a teammate adds you. To open one you created before, sign in the same way you did then."}
           </EmptyState>
         </div>
       )}

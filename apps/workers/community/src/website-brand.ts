@@ -106,8 +106,35 @@ export async function websiteBrand(
     icon = "",
     touchIcon = "",
     headerLogo = "";
-  const docs = new Map<string, number>();
+  const docs: { url: string; priority: number }[] = [];
   const home = new URL(site);
+  const homeHost = home.hostname.replace(/^www\./, "");
+  const docHosts = ["docs", "help", "support", "learn", "guides"].map(prefix => prefix + "." + homeHost);
+  let anchorText = "";
+
+  function considerDoc(target: URL, label: string) {
+    const ownSite = target.hostname.replace(/^www\./, "") === homeHost;
+    const docHost = docHosts.includes(target.hostname);
+    const namedDocs = /^(?:(?:read|view|visit|open|explore) (?:the )?)?(?:(?:developer|product|api) )?(?:docs|documentation|help cent(?:er|re)|knowledge base|user guides?|faq)s?$/i.test(label.trim());
+    const docsProvider = /\.(?:gitbook\.io|readme\.io|mintlify\.app)$/.test(target.hostname);
+    if (!ownSite && !docHost && !(docsProvider && namedDocs)) return;
+    const path = target.pathname.replace(/\/$/, "");
+    const root = /(?:^|\/)(?:docs|documentation|guides?|help|learn|faq|knowledge-base)$/i.test(path);
+    const article = /(?:^|\/)(?:docs|documentation|guides?|help|learn|overview|introduction|getting-started|faq|about)(?:\/|$)/i.test(path);
+    const priority = namedDocs || root || (docHost && !path) ? 1 : article || docHost ? 2 : 0;
+    if (!priority) return;
+    try {
+      const url = websiteUrl(target.href);
+      if (url === home.href) return;
+      const previous = docs.find(doc => doc.url === url);
+      if (previous) previous.priority = Math.min(previous.priority, priority);
+      else docs.push({ url, priority });
+      docs.sort((a, b) => a.priority - b.priority);
+      docs.splice(2);
+    } catch {
+      // The same public URL rules apply to discovered and manually entered pages.
+    }
+  }
   let theme = "",
     tile = "",
     mask = "",
@@ -124,38 +151,22 @@ export async function websiteBrand(
     })
     .on("a[href]", {
       element(tag) {
-        if (docs.size >= 32) return;
+        anchorText = "";
         const href = tag.getAttribute("href")?.trim();
         if (!href || href.startsWith("#")) return;
+        let target: URL;
         try {
-          const target = new URL(href, site);
-          if (
-            target.search ||
-            target.hash ||
-            target.username ||
-            target.password ||
-            target.port ||
-            target.protocol !== "https:"
-          )
-            return;
-          const docsHost = "docs." + home.hostname.replace(/^www\./, "");
-          if (target.hostname !== home.hostname && target.hostname !== docsHost)
-            return;
-          const path = target.pathname.replace(/\/$/, "");
-          const priority =
-            /^(?:\/docs|\/documentation|\/learn|\/guide|\/help)$/i.test(path) ||
-            (target.hostname === docsHost && !path)
-              ? 1
-              : /(?:^|\/)(?:overview|introduction|getting-started|faq|about)$/i.test(
-                    path,
-                  )
-                ? 2
-                : 0;
-          if (priority && target.href !== home.href)
-            docs.set(websiteUrl(target.href), priority);
+          target = new URL(href, site);
         } catch {
-          /* Ignore unusable public links. */
+          return;
         }
+        if (target.protocol !== "https:" || target.search || target.username || target.password || target.port) return;
+        target.hash = "";
+        considerDoc(target, tag.getAttribute("aria-label") || tag.getAttribute("title") || "");
+        tag.onEndTag(() => considerDoc(target, anchorText.replace(/\s+/g, " ")));
+      },
+      text(chunk) {
+        if (anchorText.length < 120) anchorText += chunk.text.slice(0, 120 - anchorText.length);
       },
     })
     .on("head meta", {
@@ -260,10 +271,7 @@ export async function websiteBrand(
     ...brand,
     name: name || brand.name,
     logo: touchIcon || headerLogo || icon || new URL("/favicon.ico", site).href,
-    docs: [...docs]
-      .sort((a, b) => a[1] - b[1])
-      .slice(0, 2)
-      .map(([url]) => url),
+    docs: docs.map(doc => doc.url),
   };
 }
 

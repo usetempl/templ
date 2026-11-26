@@ -187,6 +187,12 @@ function Checkout({
     setHash("");
     setError("");
   }, [room, auth.session?.principalId]);
+  // A plan payment asks an email account to sign in with its wallet. That
+  // refusal goes once the wallet session arrives.
+  const authMethod = auth.session?.authMethod;
+  useEffect(() => {
+    setError("");
+  }, [authMethod]);
   useEffect(() => {
     const controller = new AbortController();
     void readProductPaymentStatus(

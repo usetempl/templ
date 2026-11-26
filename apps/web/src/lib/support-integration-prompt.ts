@@ -21,7 +21,7 @@ For an embed, reuse the app’s wallet connection and use the workspace install 
 Check current availability. Keep unavailable features off.
 Never request passwords, private keys, recovery phrases or staff tokens.
 Test a guest question and a team reply. Tell me what needs attention.
-Stop before payment. When I want a hosted name, use the Hosted name field under Your support chat to reserve it and choose a monthly plan. Payment is in USDC and renewals are manual.`;
+Stop before payment. When I want a hosted name, enter it under Your support chat and choose a monthly or annual plan. I pay in USDC and renew manually.`;
 }
 
 /** The hosts a prompt names. Every build uses its own `SITE`; tests and the
@@ -64,8 +64,7 @@ export function installConnectSteps(hosts: InstallHosts = SITE): string {
 
 /** The module the prompt asks the coding tool to add, as `templ-support.ts`.
  * `apps/web/test/widget-snippets/install-module.ts` holds the same text with
- * the staging hosts; tsc checks it against the served types, and a test
- * keeps the two equal byte for byte. */
+ * the staging hosts for the install example's type check. */
 export function installModule(hosts: InstallHosts = SITE): string {
   return `// templ-support.ts: one Templ support widget for the whole app.
 import type {

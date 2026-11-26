@@ -31,7 +31,7 @@ export function renderAgentsGuide({
   return `# Templ support integration
 
 Share a private chat link or embed the widget. Reply from Cases. For AI answers or drafts, add a website or sitemap under AI → Website and docs.
-[Test ${PRODUCT_LIMITS.freeSupportTickets} tickets free, without Templ AI. Read pricing.](${SITE.docs}/pricing)
+[Test ${PRODUCT_LIMITS.freeSupportTickets} tickets free. Your team answers them. Read pricing.](${SITE.docs}/pricing)
 
 Connect your AI agent with the backend guide below.
 Ask a question through [Templ's widget](${SITE.origin}/#support).

@@ -30,7 +30,7 @@ import { activatedReleaseFlag } from "./release-activation";
 const KEY = "private-website-preview";
 const COOKIE = "__Host-templ-preview";
 const DAY = 86_400_000;
-type Trial = {
+type StoredTrial = {
   previewId: string;
   room: string;
   site: string;
@@ -44,6 +44,24 @@ type Trial = {
   owner?: string;
   finished?: boolean;
 };
+type PreviewContent = Omit<StoredTrial, "confirmed" | "owner" | "finished">;
+type Trial = PreviewContent & (
+  | { confirmed?: false; owner?: never; finished?: false }
+  | { confirmed: true; owner?: never; finished?: false }
+  | { confirmed: true; owner: string; finished?: boolean }
+);
+
+function validTrial(row: StoredTrial): row is Trial {
+  if (row.confirmed !== undefined && typeof row.confirmed !== "boolean") return false;
+  if (row.finished !== undefined && typeof row.finished !== "boolean") return false;
+  if (row.owner === undefined) return row.finished !== true;
+  return typeof row.owner === "string" && row.owner.length > 0 && row.confirmed === true;
+}
+
+function stage(row: Trial) {
+  if (row.owner === undefined) return row.confirmed ? "confirmed" : "draft";
+  return row.finished ? "saved" : "claiming";
+}
 type TrialEnv = Partial<Env> & KnowledgeEnv;
 type Claim = { id: string; brand: WebsiteBrand; expires: number };
 type Forward = (
@@ -117,25 +135,27 @@ export async function previewRecord(
   env: TrialEnv,
   body: Record<string, unknown>,
 ) {
-  let row = await storage.get<Trial>(KEY);
+  let row = await storage.get<StoredTrial>(KEY);
   const now = Date.now();
   if (!row && body.op === "start") {
     const site = websiteUrl(body.site);
     await refusePhrase(site, "saved");
-    row = {
+    const initial: Trial = {
       site,
       previewId: crypto.randomUUID(),
       room: uuidv7(now),
       expires: now + DAY,
       brand: defaultBrand(site),
     };
-    const initial = row;
+    row = initial;
     await storage.transaction(async (tx) => {
       await tx.put(KEY, initial);
       await tx.setAlarm(initial.expires);
     });
   }
-  if (!row || now >= row.expires) throw expired();
+  // A row without a valid expiry or flag combination is never served or changed.
+  if (!row || !(now < row.expires) || !validTrial(row)) throw expired();
+  const state = stage(row);
   const room = "room:" + row.room;
   if (
     !["start", "read"].includes(String(body.op)) &&
@@ -187,7 +207,7 @@ export async function previewRecord(
           "That icon could not load. Try another image or leave it blank.",
         );
     }
-    row.confirmed = true;
+    row = { ...row, confirmed: true } satisfies Trial;
     await storage.put(KEY, row);
   } else if (body.op === "ask") {
     if (!row.confirmed || !row.imported)
@@ -209,11 +229,20 @@ export async function previewRecord(
       }),
     );
   } else if (body.op === "claim" || body.op === "finish") {
-    if (!row.confirmed || typeof body.owner !== "string" || !body.owner)
+    // Only a claim binds the preview to an account, and only that account's claim
+    // can finish. Repeating either step leaves a claimed or saved row as it is.
+    if (
+      state === "draft" ||
+      typeof body.owner !== "string" ||
+      !body.owner ||
+      (state === "confirmed" && body.op === "finish")
+    )
       throw new HttpError(403, "Confirm your chat and sign in to save it.");
-    row.owner = body.owner;
-    if (body.op === "finish") row.finished = true;
-    await storage.put(KEY, row);
+    if (row.owner === undefined) {
+      await storage.put(KEY, { ...row, confirmed: true, owner: body.owner } satisfies Trial);
+    } else if (body.op === "finish" && !row.finished) {
+      await storage.put(KEY, { ...row, finished: true } satisfies Trial);
+    }
     return json({
       id: row.room,
       brand: row.brand,
@@ -240,16 +269,19 @@ export async function expirePreview(
   storage: DurableObjectStorage,
   env: TrialEnv,
 ) {
-  const row = await storage.get<Trial>(KEY);
+  const row = await storage.get<StoredTrial>(KEY);
   if (!row) return false;
+  const state = validTrial(row) ? stage(row) : null;
   // A claim may be retrying the widget initialization after the room was created.
-  const cleanupAt = row.expires + (row.owner && !row.finished ? 60_000 : 0);
+  // An invalid row gets the same room check: its flags alone never decide cleanup.
+  const unsettled = state === "claiming" || state === null;
+  const cleanupAt = row.expires + (unsettled ? 60_000 : 0);
   if (Date.now() < cleanupAt) {
     await storage.setAlarm(cleanupAt);
     return true;
   }
-  let saved = row.finished;
-  if (row.owner && !saved) {
+  let saved = state === "saved";
+  if (unsettled) {
     if (!env.ROOMS) throw new Error("Workspace storage unavailable.");
     const read = await nativeRoomStub({ ROOMS: env.ROOMS }, row.room).fetch(
       "https://internal/private/native/read",

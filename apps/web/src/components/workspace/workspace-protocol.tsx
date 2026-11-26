@@ -261,7 +261,6 @@ function KnowledgeCard({ context }: { context: WorkspaceContext }) {
   }, [room, editable, guidanceAttempt]);
   return (
     <Card id="company-brain" title="Website and docs">
-      {editable && <SourceUrlForm context={context} onSaved={() => setTick(value => value + 1)} />}
       {(Boolean(data?.next) || (data?.counts.sources ?? 0) > 8 || Boolean(filters.q || filters.kind || filters.status)) && <div className={sources.toolbar}>
         {data && (
           <p className={styles.note} role="status">
@@ -563,6 +562,7 @@ function KnowledgeCard({ context }: { context: WorkspaceContext }) {
         </button>
       )}
       <UnsavedChanges dirty={guidanceDraft !== null && guidanceDraft !== guidance} />
+      {editable && data && <SourceUrlForm context={context} onSaved={() => setTick(value => value + 1)} />}
       {editable && (
         <>
           <Field label={c.aiGuidance} hint={c.aiGuidanceHint}>

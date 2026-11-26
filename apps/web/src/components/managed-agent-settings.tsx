@@ -248,15 +248,26 @@ export function ManagedAgentSettings({
                   </p>
                 )
               )}
-              {context.billing && (
-                <button
-                  type="button"
-                  className="button small secondary"
-                  onClick={() => context.go("plan")}
-                >
-                  Plan &amp; usage
-                </button>
-              )}
+              {context.billing &&
+                // Agreed terms renew through Plan & usage, not self-serve checkout.
+                (standard?.status === "demo" &&
+                (!standard.prepaid || standard.prepaid.mode === "prepaid") ? (
+                  <button
+                    type="button"
+                    className="button small secondary"
+                    onClick={() => context.openPlans("period")}
+                  >
+                    Choose a plan
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="button small secondary"
+                    onClick={() => context.go("plan")}
+                  >
+                    Plan &amp; usage
+                  </button>
+                ))}
             </div>
             {canManageWorkspace({
               isManager: context.manager,

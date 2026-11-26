@@ -1,13 +1,11 @@
 .setup { width: 100%; min-width: 0; display: grid; gap: var(--templ-space-5); padding: var(--templ-space-6); border: 1px solid var(--templ-line); border-radius: var(--templ-radius-surface); background: var(--templ-raised); color: var(--templ-text); }
+.intro { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 4px 12px; }
 .intro h2 { margin: 0; font-size: var(--templ-text-lead); line-height: var(--templ-line-heading); letter-spacing: var(--templ-tracking-heading); }
-.intro p, .nameForm p, .notice { margin: 0; color: var(--templ-muted); line-height: 1.5; }
-.intro p { margin-top: 8px; }
+.nameForm p, .notice { margin: 0; color: var(--templ-muted); line-height: 1.5; }
 .options { display: grid; gap: var(--templ-space-4); border-top: 1px solid var(--templ-line); padding-top: var(--templ-space-5); }
 .chatActions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--templ-space-3); }
 .chatActions :is(a, button) { min-height: 44px; }
-.nameChoice header { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 4px 12px; margin: 0 0 var(--templ-space-4); }
-.nameChoice h3 { margin: 0; font-size: var(--templ-text-lead); }
-.nameChoice small { color: var(--templ-muted); font-size: 14px; }
+.intro small { color: var(--templ-muted); font-size: 14px; }
 .widgetLink svg { flex: none; width: 17px; height: 17px; }
 .nameForm { display: grid; gap: var(--templ-space-3); }
 .nameForm label { font-size: 14px; font-weight: 600; }

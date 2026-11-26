@@ -2,7 +2,7 @@
 
 Share a private support link and reply to visitors from one inbox. Add the widget if you want the same chat inside your app. Visitors can ask as guests. If your team enables wallet verification, visitors can also prove they control an address.
 
-[Create your chat on Templ Hosted](https://usetempl.com/create) · [Run Templ on your own domain](docs/self-host.md)
+[Create your chat on Templ Hosted](https://usetempl.com/create) · [Self-host this source](docs/self-host.md)
 
 This example shows what the team receives when a visitor chooses to include app details.
 
@@ -14,7 +14,7 @@ This example shows what the team receives when a visitor chooses to include app 
 
 | Choose | Set it up |
 | --- | --- |
-| **Standalone chat** | In a new hosted workspace, select **Your support chat → Open visitor chat** and send a test question. Use **Copy link** to share the page. Select **Open inbox** and reply from **Cases**. For an existing workspace, open **Settings → Chat → Guest support**, select **Host a support page on Templ** when available, then **Save guest support**. |
+| **Standalone chat** | In a new hosted workspace, select **Your support chat → Open chat** and send a test question. Use **Copy chat link** to share the page. Select **Open inbox** and reply from **Cases**. For an existing workspace, open **Settings → Chat → Guest support**, select **Host a support page on Templ** when available, then **Save guest support** and **Copy support link**. |
 | **Embedded widget** | In **Settings → Chat**, copy the install prompt for your workspace or follow the manual guide. Connect the widget to a Help button on your HTTPS site. Your app can offer the visitor a choice of details to share. |
 | **Both** | Enable the support page and install the widget for the same workspace. Both reach the same team inbox. A visitor who follows the standalone link can describe the problem there. App context is available through the integration on the page where the problem happened. |
 
@@ -62,7 +62,13 @@ The check runs the support worker locally in Workerd with temporary test account
 
 Run `pnpm build` to build the web app. For your deployment, set `NEXT_PUBLIC_TEMPL_SITE_ORIGIN` to your web origin and `NEXT_PUBLIC_TEMPL_API_ORIGIN` to your support worker. Set these values at build time. Your deployment also needs the worker's storage bindings and its own secrets. The public build starts with hosted features off. [Configure web origins, worker storage and chat access](docs/self-host.md)
 
-**Templ Hosted.** Templ runs your chat, inbox and message storage. The trial includes a working link, an inbox and 10 test tickets. To claim an available hosted name, open **Your support chat → Choose a hosted name**, enter the name and select **Reserve name and choose a plan**. Both plans cover all seats. A case counts once when the visitor gets its first substantive answer.
+This checkout verifies the local conversation check and the web build only. It includes no deployment configuration, and the worker rejects any `APP_ORIGIN` outside its built-in list, so your own domain needs a source change first. The guide explains both.
+
+**Templ Hosted.** Enter your website and select **Preview your chat**. You can change the name, icon and color. Try a question in the same chat your visitors will use. If the scanner can’t read your site, try a public docs page.
+
+Practice questions go to Templ’s AI service. The conversation stays in the tab and your inbox stays empty. Select **Sign in to keep your workspace** when you’re ready. You can also choose **Set up without a website**. [Try it with your website](https://usetempl.com/create) · [Practice privacy](https://docs.usetempl.com/ai#practice-privacy)
+
+The trial includes a working link, an inbox and 10 test tickets. To claim an available hosted name, open **Your support chat → Choose a hosted name**, enter the name and select **Reserve name and choose a plan**. Both plans cover all seats. A case counts once when the visitor gets its first substantive answer. The trial limit and the prices below mirror [`plans.ts`](packages/chat/src/plans.ts) in this source.
 
 | Per workspace | Starter | Plus |
 | --- | ---: | ---: |
@@ -72,7 +78,7 @@ Run `pnpm build` to build the web app. For your deployment, set `NEXT_PUBLIC_TEM
 | Each additional case | $0.20 | $0.19 |
 | Templ AI credit included | $0 | $20 |
 
-Choose Starter or Plus at checkout. Pay the USDC amount shown on one of the offered networks. Pay monthly or cover 12 months in one payment. Included cases and AI credit reset monthly. Renew manually. Bring your own AI provider or prepay for Templ AI. On Starter, set a monthly limit before using Templ AI. [Create a hosted workspace](https://usetempl.com/create) · [Pricing](https://docs.usetempl.com/pricing/) · [Stablecoin payments](https://docs.usetempl.com/pricing/stablecoin-payments/)
+Choose Starter or Plus at checkout. Pay the USDC amount shown on one of the offered networks. Pay monthly or cover 12 months in one payment. Included cases and AI credit reset monthly. Renew manually. Bring your own AI provider or prepay for Templ AI. On Starter, set a monthly limit before using Templ AI. [Pricing](https://docs.usetempl.com/pricing/) · [Stablecoin payments](https://docs.usetempl.com/pricing/stablecoin-payments/)
 
 [Connect your own knowledge sources and AI](docs/support-delivery.md#connect-ai)
 

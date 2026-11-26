@@ -25,22 +25,30 @@ export const APP_AI_WORKSPACE = "";
 export const APP_AI_PREFIX = "support-app-answer-v1:";
 const OUTBOX = "support-app-answer-outbox-v1:";
 const JOB_LIFETIME_MS = 10 * 60_000;
+type Outcome = "answered" | "handed-off" | "cancelled" | "failed";
 type Job = AppAnswerRequest & {
   actor: ChatPrincipalId;
   agent: ChatPrincipalId;
   attempts: number;
   dueAt: number;
-  status:
-    | "queued"
-    | "dispatched"
-    | "answered"
-    | "handed-off"
-    | "cancelled"
-    | "failed";
+  status: "queued" | "dispatched" | Outcome;
 };
 const key = (thread: string) => APP_AI_PREFIX + thread;
 const active = (row: Job) =>
   row.status === "queued" || row.status === "dispatched";
+// A job moves forward only: queued, dispatched, then one outcome. Repeating its
+// recorded outcome changes nothing, and no other outcome replaces it.
+async function settle(
+  storage: Storage,
+  name: string,
+  row: Job,
+  status: Outcome,
+) {
+  if (row.status === status) return true;
+  if (!active(row)) return false;
+  await storage.put(name, { ...row, status });
+  return true;
+}
 const unavailable = () =>
   new HttpError(
     409,
@@ -189,8 +197,9 @@ export async function appAnswerAllowed(
     !job ||
     job.jobId !== input.jobId ||
     !active(job) ||
-    job.expiresAt <= now ||
-    job.expiresAt - JOB_LIFETIME_MS <= await lastAssistantPause(storage) ||
+    // Written so a row without a valid expiry is refused, not kept alive.
+    !(job.expiresAt > now) ||
+    !(job.expiresAt - JOB_LIFETIME_MS > (await lastAssistantPause(storage))) ||
     !record ||
     record.room !== `room:${input.workspaceId}` ||
     record.revision !== job.revision ||
@@ -289,6 +298,8 @@ export async function assertAppAnswerWrite(
     throw unavailable();
 }
 
+/** Runs in the transaction that assertAppAnswerWrite admitted and checks the job
+ * again itself: a write that names a job commits only with that job's outcome. */
 export async function finishAppAnswer(
   storage: Storage,
   thread: string,
@@ -297,7 +308,12 @@ export async function finishAppAnswer(
 ) {
   if (typeof id !== "string") return;
   const row = await storage.get<Job>(key(thread));
-  if (row?.jobId === id) await storage.put(key(thread), { ...row, status });
+  if (
+    !row ||
+    row.jobId !== id ||
+    !(await settle(storage, key(thread), row, status))
+  )
+    throw unavailable();
 }
 
 /** A bounded outbox; the bridge accepts retries under the same generation ID. */
@@ -332,7 +348,7 @@ export async function appAnswerAlarm(
         !(await appAnswerAllowed(storage, env, current, now)) ||
         current.attempts >= 8
       ) {
-        await storage.put(name, { ...current, status: "cancelled" });
+        await settle(storage, name, current, "cancelled");
         await storage.delete(outbox);
         return null;
       }
@@ -418,7 +434,7 @@ export async function appAnswerStatus(
           generation:
             active(row) && row.revision !== record?.revision
               ? ("cancelled" as const)
-              : active(row) && row.expiresAt <= Date.now()
+              : active(row) && !(row.expiresAt > Date.now())
                 ? ("failed" as const)
                 : row.status,
         }
@@ -435,6 +451,6 @@ export async function reportAppAnswerFailure(
   )
     return;
   const row = await storage.get<Job>(key(input.conversationId));
-  if (row?.jobId === input.jobId && active(row))
-    await storage.put(key(input.conversationId), { ...row, status: "failed" });
+  if (row?.jobId === input.jobId)
+    await settle(storage, key(input.conversationId), row, "failed");
 }

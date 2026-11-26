@@ -28,7 +28,7 @@ const entry = `
 it("imports linked docs, isolates the preview, and saves its source and edited brand for one signed-in owner", async () => {
   const app = await workerdHarness(entry);
   try {
-    let pages = 0, docs = 0;
+    let pages = 0, docs = 0, linkedGuides = 0;
     await app.restart(
       {
         SUPPORT_SELF_SERVE_SETUP_ENABLED: "true",
@@ -55,13 +55,17 @@ it("imports linked docs, isolates the preview, and saves its source and edited b
         if (url.href === "https://garden.tools/") {
           pages++;
           return new Response(
-            '<html><head><title>Gardening tools</title><meta property="og:site_name" content="Garden"><meta name="theme-color" content="#abc"><link rel="icon" href="/icon.svg"></head><body><main>Track your plants. <a href="/docs">Read the docs</a><a href="https://another.tools/about">Elsewhere</a></main></body></html>',
+            '<html><head><title>Gardening tools</title><meta property="og:site_name" content="Garden"><meta name="theme-color" content="#abc"><link rel="icon" href="/icon.svg"></head><body><main>Track your plants. <a href="/en/reference#start"><span>Documentation</span></a><a href="/en/reference#more">Documentation</a><a href="https://another.tools/about">Docs</a><a href="https://garden.gitbook.io/secrets?token=private">Docs</a><a href="https://garden.gitbook.io/manual" aria-label="User guide">Help</a></main></body></html>',
             { headers: { "content-type": "text/html" } },
           );
         }
-        if (url.href === "https://garden.tools/docs") {
+        if (url.href === "https://garden.tools/en/reference") {
           docs++;
           return new Response("<main><h2>How do I export my journal?</h2><p>Members can export a garden journal from the settings page.</p></main>", { headers: { "content-type": "text/html" } });
+        }
+        if (url.href === "https://garden.gitbook.io/manual") {
+          linkedGuides++;
+          return new Response("<main>Garden members can record a planting date for each plant.</main>", { headers: { "content-type": "text/html" } });
         }
         if (url.href === "https://garden.tools/icon.svg")
           return new Response(
@@ -167,6 +171,13 @@ it("imports linked docs, isolates the preview, and saves its source and edited b
     expect(
       await data(await app.call("/rooms/" + id + "/widget", owner)),
     ).toMatchObject({ appearance: { accent: brand.accent, logo: brand.logo } });
+    const sources = await data(await app.call("/rooms/" + id + "/conversations/knowledge", owner));
+    expect(sources.sources).toEqual(expect.arrayContaining([
+      expect.objectContaining({ url: "https://garden.tools/", status: "ready" }),
+      expect.objectContaining({ url: "https://garden.tools/en/reference", status: "ready" }),
+      expect.objectContaining({ url: "https://garden.gitbook.io/manual", status: "ready" }),
+    ]));
+    expect(sources.counts.sources).toBe(3);
     // Both the source and the charged practice attempt belong to the claimed room.
     const restored = await app.call(
       "/rooms/" + id + "/conversations/knowledge/practice",
@@ -184,6 +195,7 @@ it("imports linked docs, isolates the preview, and saves its source and edited b
     expect([401, 403]).toContain(billing.status);
     expect(pages).toBe(1);
     expect(docs).toBe(1);
+    expect(linkedGuides).toBe(1);
   } finally {
     await app.dispose();
   }

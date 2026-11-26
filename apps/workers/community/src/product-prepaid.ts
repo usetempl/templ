@@ -438,6 +438,8 @@ function rebalanceAi(
     includedRemaining - includedReserved,
   );
 }
+/** The stored record stays flat. Its status decides the outcome fields: a hold
+ * has none, a settlement records its charge, an absorbed attempt never does. */
 export type PrepaidAiReservation = {
   attemptId: string;
   periodId: string;
@@ -445,10 +447,11 @@ export type PrepaidAiReservation = {
   at: number;
   includedHeldUsdNanos: string;
   cashHeldUsdNanos: string;
-  status: "reserved" | "settled" | "absorbed";
-  actualRetailUsdNanos: string | null;
-  settledAt: number | null;
-};
+} & (
+  | { status: "reserved"; actualRetailUsdNanos: null; settledAt: null }
+  | { status: "settled"; actualRetailUsdNanos: string; settledAt: number }
+  | { status: "absorbed"; actualRetailUsdNanos: null; settledAt: number }
+);
 export async function readPrepaidAttempt(
   storage: Reader,
   attemptId: string,
@@ -589,11 +592,22 @@ export async function settleAi(
     if (!natural(period.aiAbsorbedAttempts + 1)) throw fail();
     period.aiAbsorbedAttempts++;
   }
-  row.status = input.actualRetailUsdNanos === null ? "absorbed" : "settled";
-  row.actualRetailUsdNanos = input.actualRetailUsdNanos;
-  row.settledAt = input.at;
+  const settled: PrepaidAiReservation =
+    input.actualRetailUsdNanos === null
+      ? {
+          ...row,
+          status: "absorbed",
+          actualRetailUsdNanos: null,
+          settledAt: input.at,
+        }
+      : {
+          ...row,
+          status: "settled",
+          actualRetailUsdNanos: input.actualRetailUsdNanos,
+          settledAt: input.at,
+        };
   await storage.put(PREPAID_PERIOD_PREFIX + period.id, period);
   await save(storage, account);
-  await storage.put(ATTEMPT + input.attemptId, row);
-  return row;
+  await storage.put(ATTEMPT + input.attemptId, settled);
+  return settled;
 }

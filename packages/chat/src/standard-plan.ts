@@ -45,14 +45,11 @@ export type StandardUsagePeriod = StandardAiRate & {
   aiReviewedThrough: number | null;
 };
 
-export type StandardPlanPeriod = {
+type StandardPlanPeriodBase = {
   id: string;
   startsAt: number;
   endsAt: number;
-  source: "manual-payment" | "founder-approved" | "verified-payment";
   referenceSha256: string;
-  operator: ChatPrincipalId | null;
-  approvedBy: ChatPrincipalId | null;
   reason: string;
   revokedAt: number | null;
   workspaceMonthlyCents: number;
@@ -61,17 +58,45 @@ export type StandardPlanPeriod = {
   confirmedAiResolutions: number;
   chargedCents: number;
   paidCents: number;
-  usage?: StandardUsagePeriod;
-  paymentId?: string;
-  annual?: {
-    startsAt: number;
-    month: number;
-    priceVersion: string;
-    totalCents: number;
-  };
   /** Statement projection; monthly receivables have their own retained ledger. */
   monthlyDebt?: { chargedCents: number; paidCents: number };
 };
+/** The stored and wire record stays one flat object. Its source decides who
+ * recorded it and whether it carries a payment: an operator records manual
+ * and founder-approved months, only founder-approved access names its
+ * approver, and only a verified payment holds a receipt or an annual term. */
+export type StandardPlanPeriod = StandardPlanPeriodBase &
+  (
+    | {
+        source: "manual-payment";
+        operator: ChatPrincipalId;
+        approvedBy: null;
+        usage?: StandardUsagePeriod;
+        paymentId?: never;
+        annual?: never;
+      }
+    | {
+        source: "founder-approved";
+        operator: ChatPrincipalId;
+        approvedBy: ChatPrincipalId;
+        usage?: StandardUsagePeriod;
+        paymentId?: never;
+        annual?: never;
+      }
+    | {
+        source: "verified-payment";
+        operator: null;
+        approvedBy: null;
+        usage: StandardUsagePeriod;
+        paymentId: string;
+        annual?: {
+          startsAt: number;
+          month: number;
+          priceVersion: string;
+          totalCents: number;
+        };
+      }
+  );
 
 /** Billing staff see counters and recorded provenance. This grants no authority. */
 export type StandardPlanView = {

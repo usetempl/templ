@@ -36,6 +36,7 @@ import {
   type SignInMethod,
 } from "./last-sign-in-method";
 import { connectSolanaWallet, type SolanaSigner } from "./solana-wallet";
+import { addSolanaWallet, readAccountMethods } from "./account-methods";
 import { trackEvent } from "./analytics";
 import { CommunityApiError } from "./community-client";
 import { WalletHandoffRequired } from "./wallet-handoff";
@@ -361,6 +362,25 @@ function SignInDialog({
       if (previous?.isConnected) previous.focus();
     };
   }, [checkMethods]);
+  // An email account confirms a wallet-only change with a wallet on that
+  // account. A new wallet is added first, so its sign-in opens no other account.
+  const [emailAccount] = useState(() => {
+    const current = strongOnly ? peekCommunitySession() : undefined;
+    return current?.authMethod === "email" ? current.principalId : undefined;
+  });
+  const [accountWallets, setAccountWallets] = useState<string[]>();
+  const readAccountWallets = useCallback(async () => {
+    if (!emailAccount) return undefined;
+    const { methods } = await readAccountMethods(emailAccount);
+    const addresses = [...methods.wallets, ...methods.solanaWallets].map(
+      ({ address }) => address,
+    );
+    if (alive.current) setAccountWallets(addresses);
+    return addresses;
+  }, [emailAccount]);
+  useEffect(() => {
+    void readAccountWallets().catch(() => {});
+  }, [readAccountWallets]);
   async function perform(name: SignInAction, action: () => Promise<void>) {
     if (actionPending.current) return;
     actionPending.current = true;
@@ -444,6 +464,14 @@ function SignInDialog({
   const connectedLabel =
     connectedAddress &&
     `${connectedAddress.slice(0, connected?.method === "solana" ? 4 : 6)}…${connectedAddress.slice(-4)}`;
+  const accountAddress =
+    connected?.method === "wallet"
+      ? connected.address.toLowerCase()
+      : connected?.signer.address;
+  const newWallet =
+    !!accountWallets &&
+    !!accountAddress &&
+    !accountWallets.includes(accountAddress);
   const dismiss = useDismissDialog(() => onComplete(), { disabled: busy });
   return (
     <dialog
@@ -466,8 +494,9 @@ function SignInDialog({
       </header>
       {strongOnly && (
         <p className={styles.hint}>
-          Confirm your identity with a wallet already on this account. Then
-          review and submit the change again.
+          {emailAccount
+            ? "This change needs a wallet. Sign in with one on your account, or add one here. Then submit the change again."
+            : "Confirm your identity with a wallet already on this account. Then review and submit the change again."}
         </p>
       )}
       {connectCode && (
@@ -628,6 +657,30 @@ function SignInDialog({
                 aria-busy={activeAction === "sign"}
                 onClick={() =>
                   void perform("sign", async () => {
+                    // A failed read stops here: an unknown wallet never signs in.
+                    const onAccount = await readAccountWallets();
+                    if (
+                      emailAccount &&
+                      accountAddress &&
+                      onAccount &&
+                      !onAccount.includes(accountAddress)
+                    ) {
+                      if (!newWallet) return;
+                      if (connected.method === "solana")
+                        await addSolanaWallet(
+                          emailAccount,
+                          async () => connected.signer,
+                        );
+                      else
+                        await attachCommunityWallet(
+                          connected.address,
+                          wallet.signingReady ?? wallet.ready,
+                          undefined,
+                          emailAccount,
+                        );
+                      if (alive.current)
+                        setAccountWallets([...onAccount, accountAddress]);
+                    }
                     if (connected.method === "solana") {
                       const value = await signInWithSolana(
                         async () => connected.signer,
@@ -650,7 +703,13 @@ function SignInDialog({
                 }
               >
                 {activeAction === "sign" && <LoadingSpinner />}
-                {activeAction === "sign" ? "Check your wallet…" : "Sign in"}
+                {activeAction === "sign"
+                  ? "Check your wallet…"
+                  : emailAccount && !accountWallets
+                    ? "Check wallet"
+                    : newWallet
+                      ? "Add wallet and sign in"
+                      : "Sign in"}
               </button>
               <button
                 type="button"

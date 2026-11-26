@@ -117,9 +117,13 @@ export function WorkspacePlan({ context }: { context: WorkspaceContext }) {
                 ? "Usage, agreed prices and amounts due."
                 : needsCustomPricingSetup(billing)
                   ? "Free limits are for testing. Request full access for your customers."
-                  : (supportClosedMessage(billing) ??
-                    freeStartLine(billing) ??
-                    `Balance ${balanceLabel(billing.balance.balanceCents)}.`)
+                  : billing.standardPlan
+                    ? // The plan card states its own terms; the free start
+                      // belongs to resolved-case prices.
+                      (supportClosedMessage(billing) ?? undefined)
+                    : (supportClosedMessage(billing) ??
+                      freeStartLine(billing) ??
+                      `Balance ${balanceLabel(billing.balance.balanceCents)}.`)
               : "See your support balance and resolved cases."
         }
       />

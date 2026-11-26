@@ -23,18 +23,43 @@ type Storage = Pick<
   DurableObjectTransaction,
   "get" | "put" | "delete" | "list" | "setAlarm" | "getAlarm"
 >;
-export type ConnectRequest = {
+type ConnectBase = {
   code: string;
   appName?: string;
   origins: string[];
   pollHash: string;
   expiresAt: number;
-  status: "pending" | "confirming" | "approved" | "denied";
+  nextPollAt: number;
+  interval: number;
+};
+/** The wallet sign-in that claimed this install link. */
+type ConnectActor = { principalId: string; sessionHash: string };
+type UnclaimedConnect = ConnectBase & {
+  status: "pending";
+  principalId?: never;
+  sessionHash?: never;
+  workspaceId?: never;
+};
+type ClaimedConnect = ConnectBase &
+  ConnectActor & { status: "pending"; workspaceId?: never };
+type ChosenConnect = ConnectBase &
+  ConnectActor & { status: "confirming" | "approved"; workspaceId: string };
+type DeniedConnect = ConnectBase &
+  ConnectActor & { status: "denied"; workspaceId?: string };
+/** The stored record stays flat. Its status decides the rest: only a claimed
+ * link can be confirmed or denied, and a confirmed or approved link always
+ * names its workspace. */
+export type ConnectRequest =
+  | UnclaimedConnect
+  | ClaimedConnect
+  | ChosenConnect
+  | DeniedConnect;
+/** What the registry answers the worker: a stored row, or a poll's status. */
+type ConnectReply = ConnectBase & {
+  status: ConnectRequest["status"] | "expired";
   principalId?: string;
   sessionHash?: string;
   workspaceId?: string;
-  nextPollAt: number;
-  interval: number;
 };
 export function connectCode(value: unknown): string {
   if (typeof value !== "string" || !CODE.test(value))
@@ -122,11 +147,7 @@ export async function connectRequest(env: Env, body: Record<string, unknown>) {
         : undefined,
     );
   }
-  return response.json<
-    Omit<ConnectRequest, "status"> & {
-      status: ConnectRequest["status"] | "expired";
-    }
-  >();
+  return response.json<ConnectReply>();
 }
 export async function startConnect(body: Record<string, unknown>, env: Env) {
   const input = connectInput(body);
@@ -207,7 +228,9 @@ export async function pollConnect(
 const recordKey = (code: string) => `${RECORD_PREFIX}${code}`;
 const expiryKey = (row: ConnectRequest) =>
   `${EXPIRY_PREFIX}${String(row.expiresAt).padStart(13, "0")}:${row.code}`;
-function pending(row: ConnectRequest) {
+function pending(
+  row: ConnectRequest,
+): asserts row is UnclaimedConnect | ClaimedConnect {
   if (row.expiresAt <= Date.now())
     throw new HttpError(
       410,
@@ -219,9 +242,15 @@ function pending(row: ConnectRequest) {
       "This install link was already used. Start again in your coding tool.",
     );
 }
-function bound(row: ConnectRequest, body: Record<string, unknown>) {
+function bound(
+  row: ConnectRequest,
+  body: Record<string, unknown>,
+): asserts row is ClaimedConnect | ChosenConnect | DeniedConnect {
+  const actor = principal(body.principalId);
   if (
-    row.principalId !== principal(body.principalId) ||
+    row.principalId === undefined ||
+    row.sessionHash === undefined ||
+    row.principalId !== actor ||
     row.sessionHash !== body.sessionHash
   )
     throw new HttpError(
@@ -321,32 +350,42 @@ export async function connectRecordRequest(
       pending(row);
       return json(row);
     }
+    // Each transition builds the next record from the state it requires.
+    let next: ConnectRequest;
     if (body.op === "claim") {
       pending(row);
       const actor = principal(body.principalId);
+      const sessionHash = body.sessionHash;
       if (
-        typeof body.sessionHash !== "string" ||
-        !/^[0-9a-f]{64}$/.test(body.sessionHash)
+        typeof sessionHash !== "string" ||
+        !/^[0-9a-f]{64}$/.test(sessionHash)
       )
         throw new HttpError(400, "Invalid connection sign-in.");
       if (
         row.principalId &&
-        (row.principalId !== actor || row.sessionHash !== body.sessionHash)
+        (row.principalId !== actor || row.sessionHash !== sessionHash)
       )
         throw new HttpError(
           403,
           "This connection belongs to another wallet sign-in. Start again.",
         );
-      row.principalId = actor;
-      row.sessionHash = body.sessionHash;
-    } else if (["bound", "confirm", "deny"].includes(String(body.op))) {
+      next = { ...row, principalId: actor, sessionHash };
+    } else if (
+      body.op === "bound" ||
+      body.op === "confirm" ||
+      body.op === "deny"
+    ) {
       pending(row);
       bound(row, body);
       if (body.op === "bound") return json(row);
-      if (body.op === "confirm") {
-        row.status = "confirming";
-        row.workspaceId = nativeRoomId(body.workspaceId);
-      } else row.status = "denied";
+      next =
+        body.op === "confirm"
+          ? {
+              ...row,
+              status: "confirming",
+              workspaceId: nativeRoomId(body.workspaceId),
+            }
+          : { ...row, status: "denied" };
     } else if (body.op === "finish") {
       if (row.expiresAt <= Date.now())
         throw new HttpError(
@@ -356,10 +395,13 @@ export async function connectRecordRequest(
       bound(row, body);
       if (row.status !== "confirming" || row.workspaceId !== body.workspaceId)
         throw new HttpError(409, "This install link was already used.");
-      row.status = body.approved === true ? "approved" : "denied";
+      next =
+        body.approved === true
+          ? { ...row, status: "approved" }
+          : { ...row, status: "denied" };
     } else throw new HttpError(400, "Invalid connection action.");
-    await storage.put(recordKey(code), row);
-    return json(row);
+    await storage.put(recordKey(code), next);
+    return json(next);
   });
 }
 export async function expireConnectRequests(storage: Storage) {

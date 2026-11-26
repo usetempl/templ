@@ -162,7 +162,7 @@ export function supportClosedMessage(
       view.standardPlan?.status === "demo" &&
       view.standardPlan.ticketsUsed >= view.standardPlan.ticketsTotal
     )
-      return "The free ticket limit is reached. Finish existing tickets or talk to Templ to unlock new tickets.";
+      return "The free ticket limit is reached. Finish existing tickets or pay for workspace access to take new ones.";
     if (view.mode === "paused")
       return `Support is paused: your balance is ${balanceLabel(view.balance.balanceCents)}. Add balance to turn it back on.`;
     if (view.mode === "suspended")

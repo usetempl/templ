@@ -565,9 +565,12 @@ export async function continueCustomerDebtAccess(
   }
   if (period.revokedAt !== null) return null;
   while (period.endsAt <= now) {
-    const startsAt = period.endsAt;
+    const startsAt: number = period.endsAt;
+    // An annual term keeps its own recorded months. It is refused here, as
+    // its copied term always was.
+    if (period.annual) throw fail();
+    // A debt month carries the captured prices only, never a payment receipt.
     const next: StandardPlanPeriod = {
-      ...period,
       id: pad(startsAt),
       startsAt,
       endsAt: standardPeriodEnd(startsAt),
@@ -581,6 +584,9 @@ export async function continueCustomerDebtAccess(
       operator: approval.approvedBy,
       reason: approval.reason,
       revokedAt: null,
+      workspaceMonthlyCents: period.workspaceMonthlyCents,
+      includedAiResolutions: period.includedAiResolutions,
+      additionalAiResolutionCents: period.additionalAiResolutionCents,
       confirmedAiResolutions: 0,
       chargedCents: 0,
       paidCents: 0,
@@ -598,7 +604,6 @@ export async function continueCustomerDebtAccess(
           }
         : {}),
     };
-    delete next.paymentId;
     checkedPeriod(next);
     if ((await storage.get(STANDARD_PERIOD_PREFIX + next.id)) !== undefined)
       throw fail();
@@ -669,6 +674,24 @@ function checkedReference(value: unknown): Reference {
     throw fail();
   return value as Reference;
 }
+type AccessSource =
+  | { source: "manual-payment"; approvedBy: null }
+  | { source: "founder-approved"; approvedBy: ChatPrincipalId };
+/** Only founder-approved access names its approver. */
+function accessSource(input: {
+  source: "manual-payment" | "founder-approved";
+  approvedBy: ChatPrincipalId | null;
+}): AccessSource | null {
+  if (input.source === "founder-approved")
+    return input.approvedBy === null
+      ? null
+      : { source: input.source, approvedBy: input.approvedBy };
+  if (input.source === "manual-payment")
+    return input.approvedBy === null
+      ? { source: input.source, approvedBy: input.approvedBy }
+      : null;
+  return null;
+}
 export async function grantStandardPeriod(
   storage: Storage,
   input: {
@@ -684,13 +707,8 @@ export async function grantStandardPeriod(
     | typeof PRODUCT_STANDARD_PRICES
     | typeof PRODUCT_STANDARD_QUALIFICATION_PRICES = PRODUCT_STANDARD_PRICES,
 ) {
-  if (
-    !["manual-payment", "founder-approved"].includes(input.source) ||
-    !hash(input.referenceSha256) ||
-    !(input.source === "founder-approved"
-      ? input.approvedBy !== null
-      : input.approvedBy === null)
-  )
+  const access = accessSource(input);
+  if (!access || !hash(input.referenceSha256))
     throw new HttpError(400, "Choose the access source and its reference.");
   const key = REFERENCE + input.referenceSha256;
   const previous = await storage.get<unknown>(key);
@@ -744,9 +762,8 @@ export async function grantStandardPeriod(
     id: pad(input.now),
     startsAt: input.now,
     endsAt: standardPeriodEnd(input.now),
-    source: input.source,
+    ...access,
     referenceSha256: input.referenceSha256,
-    approvedBy: input.approvedBy,
     operator: input.operator,
     reason: input.reason,
     revokedAt: null,
