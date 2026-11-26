@@ -12,6 +12,8 @@ The conversation test starts the support worker under Workerd with temporary acc
 
 ## Configure your installation
 
+To keep an embedded chat in one theme, pass `lockedTheme: "light"` or `lockedTheme: "dark"` to `mountSupportWidget`. Leave it unset to give visitors the theme switch.
+
 - **Web origins.** Set `NEXT_PUBLIC_TEMPL_SITE_ORIGIN` to your HTTPS web origin and `NEXT_PUBLIC_TEMPL_API_ORIGIN` to your HTTPS support-worker origin before building the web app. Set the worker’s `APP_ORIGIN` to the web origin. A browser that sends requests to `127.0.0.1` after deployment is running a build made with the local defaults. [Web configuration](../apps/web/src/lib/site-environment.ts)
 - **Worker and storage.** Deploy the community worker with durable storage in your own account. Its environment lists the object bindings for rooms, identities, subscriptions and quotas. The local harness shows the binding-to-class mapping and the media bucket. Supply your own domains, secrets and persistent storage for the features you enable. [Worker environment](../apps/workers/community/src/common.ts) · [Local binding map](../apps/workers/community/test/workerd-harness.ts)
 - **Chat and keys.** Choose Standard or customer-managed encryption for your workspace. Customer-managed encryption requires your own key services and a recovery process you have tested. If you enable AI, give the agent access to the intended workspace and knowledge sources. [Who can read a conversation](../README.md#who-can-read-messages) · [Agent setup](support-delivery.md#connect-ai)

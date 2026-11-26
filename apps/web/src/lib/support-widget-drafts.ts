@@ -122,3 +122,17 @@ export function read(key: string) {
     delete value.newCaseFrom;
   return value;
 }
+
+/** Restore saved fields only while the visitor has not started a new draft. */
+export function restoreInputs(
+  saved: { text: string; transactionHash?: string },
+  draft: HTMLTextAreaElement,
+  transaction: HTMLInputElement,
+  notice: HTMLElement,
+) {
+  if (draft.value) return false;
+  draft.value = saved.text;
+  if (saved.transactionHash !== undefined) transaction.value = saved.transactionHash;
+  if (draft.value) notice.textContent = "Draft restored from this device.";
+  return true;
+}

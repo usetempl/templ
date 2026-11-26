@@ -108,6 +108,8 @@ export function WorkspaceWidget({
   const [levelBusy, setLevelBusy] = useState(false);
   const [levelError, setLevelError] = useState("");
   const [levelNotice, setLevelNotice] = useState("");
+  const [installation, setInstallation] = useState<{ scope: string; theme: "light" | "dark" }>();
+  const lockedTheme = installation?.scope === scope ? installation.theme : undefined;
   const [loopback, setLoopback] = useState(false);
   // A failed read shows with a retry, never as the "anyone" default.
   const [readError, setReadError] = useState("");
@@ -284,7 +286,7 @@ export function WorkspaceWidget({
 
 const support = mountSupportWidget({
   workspace: "${id}",
-  apiUrl: "${COMMUNITY_API}",
+  apiUrl: "${COMMUNITY_API}",${lockedTheme ? `\n  lockedTheme: "${lockedTheme}",` : ""}
   // Optional wallet verification: pass your app’s EIP-1193 provider here.
   // provider,
   label: "${supportLabel(context.workspace.name.replace(/["\\]/g, ""))}",
@@ -324,13 +326,23 @@ const support = mountSupportWidget({
           title="Embedded widget"
           description="Paste this into your AI coding tool. Your workspace ID is already in it. The tool adds and tests the widget."
         >
+          <fieldset className={styles.installTheme}>
+            <legend>Embedded widget theme</legend>
+            {(["visitor", "light", "dark"] as const).map((theme) => (
+              <label key={theme}>
+                <input type="radio" name="embed-theme" checked={(lockedTheme ?? "visitor") === theme}
+                  onChange={() => setInstallation(theme === "visitor" ? undefined : { scope, theme })} />
+                {{ visitor: "Visitor choice", light: "Always light", dark: "Always dark" }[theme]}
+              </label>
+            ))}
+          </fieldset>
           <IntegrationPrompt
             prompt={installPrompt({
               release: RELEASE,
               workspaceId: id,
               supportUrl: context.supportUrl,
               workspaceFeatures: context.state?.features,
-              workspaceOptions: { loopback },
+              workspaceOptions: { loopback, lockedTheme },
             })}
             label="Copy install prompt"
             families={installFamilies(RELEASE, context.state?.features)}

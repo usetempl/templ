@@ -1,6 +1,6 @@
 import { appAnswerAllowed, appAnswerAlarm, reportAppAnswerFailure } from "./app-ai-replies";
 import { ENCRYPTION_ACCESS_REVISION, revokeEncryptionPrincipal, revokeEncryptionRole } from "./support-encryption-access";
-import { ENCRYPTION_DELETION_REVISION, ownNewChatMode, requireOwnWidgetWallet } from "./support-encryption";
+import { ENCRYPTION_DELETION_REVISION, newCaseEncryptionView, ownNewChatMode, requireOwnWidgetWallet } from "./support-encryption";
 import { OWN_SUPPORT_ENDPOINT } from "@templ/e2ee/protocol";
 import { advanceOwnAuthority, revokeOwnDevice, OWN_AUTHORITY_CHECKPOINT } from "./own-encryption-control";
 import { hostedPrepaidPrincipal, reservePrepaidAi, settlePrepaidAi } from "./product-prepaid-ai";
@@ -1160,6 +1160,17 @@ export class ChannelRoom {
             principal,
             origin: body.origin,
           }),
+        });
+      }
+      if (url.pathname === "/private/support/guest-opening-mode" && request.method === "POST") {
+        const { workspace } = await readJson(request);
+        return this.state.storage.transaction(async local => {
+          const storage = await supportStorage(local, env, this.state.id?.toString() ?? "");
+          const native = await storage.get<NativeRoomRecord>("native-room");
+          if (!native || native.room.id !== workspace || workspace === OWN_SUPPORT_ENDPOINT.workspace ||
+              workspace === (env as Env).TEMPL_SUPPORT_WORKSPACE)
+            throw new HttpError(404, "Workspace not found.");
+          return json({ mode: (await newCaseEncryptionView(storage)) ? "encrypted" : "standard" });
         });
       }
       if (url.pathname === "/private/support/own-new-chat-mode" && request.method === "POST") {

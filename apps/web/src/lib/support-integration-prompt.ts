@@ -247,7 +247,7 @@ export function installPrompt({
   workspaceId?: string;
   supportUrl?: string;
   workspaceFeatures?: InstallPromptWorkspaceFeatures;
-  workspaceOptions?: { loopback?: boolean };
+  workspaceOptions?: { loopback?: boolean; lockedTheme?: "light" | "dark" };
   hosts?: InstallHosts;
 }): string {
   const solana =
@@ -291,7 +291,7 @@ Install:
    - No wallet: setSupportWallet(null). Users can still ask without one.
 4. Make the app's Help button call openSupport(workspaceId).
    If it rejects, show "Support couldn't load. Try again." Let the user press Help again to retry.
-   If the app has no Help button, set SHOW_LAUNCHER to true.
+   If the app has no Help button, set SHOW_LAUNCHER to true.${workspaceOptions.lockedTheme ? `\n   Pass lockedTheme: "${workspaceOptions.lockedTheme}" to mountSupportWidget to keep this embed in that theme and hide its theme switch.` : ""}
    Call loadSupport(workspaceId) when the app shell mounts. Catch its rejection and show the same error with a Retry button.
    Make Retry call loadSupport(workspaceId) again. Hide the error after a successful mount.
    Clear the error and retry handler on sign-out or shell unmount. Ignore late failures after cleanup.

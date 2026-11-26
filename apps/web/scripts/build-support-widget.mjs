@@ -116,7 +116,7 @@ const chunkBytes = {};
 for (const [name, contents] of Object.entries({
   appearance:
     'export { bindWidgetAppearance, FRAME_STYLE } from "./support-widget-appearance";',
-  drafts: 'export { save, read, canPersist, pending } from "./support-widget-drafts";',
+  drafts: 'export { save, read, canPersist, pending, restoreInputs } from "./support-widget-drafts";',
   style: 'export { widgetStyle } from "./support-widget-style";',
   lead: 'export { lead, forms } from "./support-widget-lead";',
   // The context card, with only the context rules it uses. The context

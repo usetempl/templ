@@ -209,7 +209,7 @@ type SupportOpenRequest = {
   form?: SupportForm;
 };
 
-export function TemplSupport({ showLauncher = false }: { showLauncher?: boolean }) {
+export function TemplSupport({ showLauncher = false, lockedTheme }: { showLauncher?: boolean; lockedTheme?: "light" }) {
   const RELEASE = useRelease();
   const {
     supportWidgetVerified,
@@ -366,7 +366,7 @@ export function TemplSupport({ showLauncher = false }: { showLauncher?: boolean 
           const network = networks.find(value => supportPageWallet(value, false)) ?? networks[0];
           standard ??= widgetClient.mountSupportWidget({
             workspace: workspaceId, apiUrl: SITE.community, label: "Templ",
-            container, chatFirst: true, conversationDrawers: true, showLauncher: false,
+            container, chatFirst: true, conversationDrawers: true, showLauncher: false, lockedTheme,
             appearance: { theme: "auto", radius: "soft", logo: "/art/brand/templ-square.svg" },
             intro: TEMPL_SUPPORT_INTRO, transactionField: false,
             ...(location.pathname === "/" ? { wallet: supportPageWallet(network), walletForNetwork: (family: "evm" | "solana") => networks.includes(family) ? supportPageWallet(family) : null, decorateOwnMenu: addOwnChatMenu } : {}),
@@ -450,6 +450,7 @@ export function TemplSupport({ showLauncher = false }: { showLauncher?: boolean 
       window.removeEventListener("hashchange", openFromHash);
     };
   }, [
+    lockedTheme,
     supportWidgetVerified,
     conversationsVerified,
     supportWorkflowVerified,
@@ -471,12 +472,14 @@ export function TemplSupport({ showLauncher = false }: { showLauncher?: boolean 
           if (opening && event.key === "Escape") cancelOpening.current?.();
         }}
         data-templ-own-support=""
+        data-locked-theme={lockedTheme}
         data-startup={startup ? "" : undefined}
         hidden={(!startup && !view) || view === "encrypted"}
       >
         {(startup || opening) && (
           <div className={styles.opening}>
             <ChatLoading
+              themeControl={!lockedTheme}
               name="Templ support"
               logo="/art/brand/templ-square.svg"
               status={startup ? "Opening chat…" : view === "settings" ? "Checking chat settings…" : "Loading conversation…"}

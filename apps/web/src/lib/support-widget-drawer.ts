@@ -184,7 +184,7 @@ export function bindSupportDrawer(host: TailHost, actions: HTMLElement, signal: 
   }, {signal});
   header.addEventListener("click", event => {
     const target = event.target as Node;
-    if (theme.contains(target)) return;
+    if (theme?.contains(target)) return;
     const chosen = panes.find(pane => pane.control.contains(target));
     if (chosen) {
       event.preventDefault();

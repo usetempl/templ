@@ -173,6 +173,8 @@ declare namespace TemplSupport {
     persistDrafts?: boolean;
     /** Hide the floating launcher when your app has its own support button. */
     showLauncher?: boolean;
+    /** Fix this embed to one theme and hide its visitor theme switch. */
+    lockedTheme?: "light" | "dark";
     appearance?: SupportWidgetAppearance;
     /** Up to four common questions, each at most 80 characters. */
     prompts?: string[];

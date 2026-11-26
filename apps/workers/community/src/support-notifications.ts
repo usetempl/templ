@@ -34,6 +34,7 @@ import { aiPrincipals } from "./bots";
 import { currentStaffRoleIds, templStaffAccount, type TemplStaffEnv } from "./templ-staff";
 
 const PREFIX = "support-notification-v1:";
+const PREFERENCE = "support-alert-preference-v1:";
 const COUNT = "support-notification-count-v1";
 const CURSOR = "support-notification-scan-v1";
 const DIAGNOSTICS = "support-notification-diagnostics-v1";
@@ -276,6 +277,15 @@ export async function queueNotificationJob(
   const idFor = (recipient: ChatPrincipalId) => `${conversation ?? "room"}:${recipient}:${input.kind}:${bucket}`;
   const id = idFor(input.recipient);
   if (await storage.get(`${PREFIX}${id}`)) return false;
+  if ((input.kind === "digest" || input.kind === "request") &&
+      !input.facts?.orderFormNotice && !input.facts?.orderFormStaffRemoval) {
+    // Opaque accounts have their own preference. A legacy wallet can belong
+    // to another principal, so only an empty preference range rules it out.
+    const couldReceive = input.recipient.startsWith("account:")
+      ? (await storage.get<{ enabled: boolean }>(PREFERENCE + input.recipient))?.enabled === true
+      : (await storage.list({ prefix: PREFERENCE, limit: 1 })).size > 0;
+    if (!couldReceive) return false;
+  }
   const roomPath = `/inbox/${input.room.slice(5)}`;
   const href = conversation
     ? `${input.appOrigin}${roomPath}?${input.memberLink ? "" : "team=1&"}support=${encodeURIComponent(conversation)}`
@@ -411,7 +421,7 @@ export async function supportNotificationAuthorized(
     return false;
   }
   const pref = await storage.get<{ enabled: boolean }>(
-    `support-alert-preference-v1:${account.principalId}`,
+    PREFERENCE + account.principalId,
   );
   if (pref?.enabled !== true && !job.facts?.orderFormNotice && !job.facts?.orderFormStaffRemoval) return false;
   const native = await storage.get<NativeRoomRecord>("native-room");

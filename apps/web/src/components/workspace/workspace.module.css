@@ -702,3 +702,14 @@
     gap: 2px;
   }
 }
+
+.installTheme {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem 1rem;
+  padding: 0;
+  margin: 0 0 1rem;
+  border: 0;
+}
+.installTheme legend { margin-bottom: .5rem; }
+.installTheme label { display: inline-flex; align-items: center; gap: .375rem; cursor: pointer; }

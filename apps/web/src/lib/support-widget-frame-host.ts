@@ -99,7 +99,8 @@ export function mountSupportWidget(options: SupportWidgetOptions) {
     document.createElement(tag);
   const host = el("div");
   host.setAttribute("data-templ-support", "frame");
-  host.setAttribute("data-theme", options.appearance?.theme ?? "auto");
+  host.dataset.visitorTheme = options.lockedTheme ?? "";
+  host.dataset.theme = host.dataset.visitorTheme || options.appearance?.theme || "auto";
   const root = host.attachShadow({ mode: "open" });
   const style = el("style");
   if (options.styleNonce) style.nonce = options.styleNonce;

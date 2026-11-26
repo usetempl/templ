@@ -1897,6 +1897,15 @@ async function readOwnWidgetMode(env: Env, room: string, origin: string) {
   if (mode === "standard" || mode === "encrypted") return mode;
 }
 
+/** On a new guest's authenticated response, read the same opening policy as
+ * conversation status. Older rooms and missing proofs fall back to a fresh status read. */
+async function guestStartsInStandardChat(env: Env, room: string, origin: string) {
+  if (room === OWN_SUPPORT_ENDPOINT.workspace || room === env.TEMPL_SUPPORT_WORKSPACE)
+    return (await readOwnWidgetMode(env, room, origin)) === "standard";
+  const response = await roomStub(env, room).fetch(internal("/private/support/guest-opening-mode", { workspace: room }));
+  return response.ok && (await response.json<{ mode?: string }>()).mode === "standard";
+}
+
 export async function supportWidgetRoute(
   request: Request,
   env: Env,
@@ -2322,7 +2331,7 @@ export async function supportWidgetRoute(
         const sessionRecord = await record(env, "session", token);
         let principalId: ChatPrincipalId;
         let checked = false;
-        const opening = !credential && !claim && !walletUnavailable && origin === env.APP_ORIGIN;
+        const opening = !credential && !claim && !walletUnavailable;
         if (credential) {
           const read = await early.guest!;
           const stored = read!.stored;
@@ -2454,9 +2463,8 @@ export async function supportWidgetRoute(
         }
         // Read after the guest is saved. This replaces the browser's mode
         // round trip for a first send. Case admission still checks current mode.
-        const newChatMode = opening
-          ? await readOwnWidgetMode(env, room, origin).catch(() => undefined)
-          : undefined;
+        const standardOpening = opening &&
+          await guestStartsInStandardChat(env, room, origin).catch(() => false);
         response = json({
           token,
           expiresAt,
@@ -2464,7 +2472,7 @@ export async function supportWidgetRoute(
           servicePrincipals: [principalId],
           credential,
           level: sessionLevel(session(principalId)),
-          ...(newChatMode === "standard" ? { standardOpening: true } : {}),
+          ...(standardOpening ? { standardOpening: true } : {}),
           ...(claim ? { wallet: claim } : {}),
           ...(checked ? { checked: "turnstile" } : {}),
         });

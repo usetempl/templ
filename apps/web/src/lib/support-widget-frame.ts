@@ -414,6 +414,7 @@ function connect(win: Window, config: Config, port: MessagePort) {
       [
         "label",
         "appearance",
+        "lockedTheme",
         "chatFirst",
         "prompts",
         "intro",

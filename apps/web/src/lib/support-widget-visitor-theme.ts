@@ -2,6 +2,7 @@ import type { TailHost } from "./support-widget";
 
 /** Save only an explicit appearance choice, scoped to this site and workspace. */
 export function addVisitorThemeControl(host: TailHost, menu: HTMLElement, signal: AbortSignal) {
+  if (host.options.lockedTheme) return;
   const widget = (menu.getRootNode() as ShadowRoot).host as HTMLElement;
   const key = `templ:chat-theme:${host.options.workspace}`;
   const siteAppearance = widget.closest("[data-templ-site-appearance]");

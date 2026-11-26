@@ -58,7 +58,7 @@
   display: grid;
   color-scheme: light;
 }
-:global(html[data-theme="dark"]) .opening { color-scheme: dark; }
+:global(html[data-theme="dark"]) .startupPanel:not([data-locked-theme="light"]) .opening { color-scheme: dark; }
 .spinner {
   width: 24px;
   height: 24px;

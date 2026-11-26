@@ -114,6 +114,8 @@ export type SupportWidgetOptions = {
   showLauncher?: boolean;
   /** Match the widget to your app. Defaults to the app's theme and font. */
   appearance?: SupportWidgetAppearance;
+  /** Fix this embed to one theme and hide its visitor theme switch. */
+  lockedTheme?: "light" | "dark";
   /** Keep the hosted page skin while using the workspace button color. */
   fixedAppearance?: boolean;
   /** Start the assistant's typing row once the visitor's send is acknowledged. */
@@ -2652,7 +2654,8 @@ function renderSupportWidget(
   const host = document.createElement("div");
   host.setAttribute("data-templ-support", "");
   let appearance = options.appearance ?? {};
-  host.dataset.theme = appearance.theme ?? "auto";
+  host.dataset.visitorTheme = options.lockedTheme ?? "";
+  host.dataset.theme = options.lockedTheme ?? appearance.theme ?? "auto";
   let boundAppearance:
     | ReturnType<
         typeof import("./support-widget-appearance").bindWidgetAppearance
@@ -3123,15 +3126,10 @@ function renderSupportWidget(
       const value = draftStore.read(draftKey(principal));
       if (!value) return;
       // Whatever the visitor typed in this tab wins over a saved draft.
-      if (!draft.value) {
-        draft.value = value.text;
+      if (draftStore.restoreInputs(value, draft, tx, draftNotice)) {
         newCaseFrom = value.newCaseFrom;
-        if (value.transactionHash !== undefined)
-          tx.value = value.transactionHash;
         if (cards) cards.typed();
         else if (tx.value) void withCards();
-        if (draft.value)
-          draftNotice.textContent = "Draft restored from this device.";
       }
       // An unconfirmed send comes back as its own message, beside any draft.
       const attempt = !pending && draftStore.pending(value.pending);

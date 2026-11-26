@@ -72,6 +72,7 @@ describe.sequential("widget sessions in production Workerd", () => {
     const started = await data(
       await call(`/widget/${workspace}/auth/guest`, {}, {}, second),
     );
+    expect(started.standardOpening).toBe(true);
     const opened = await data(
       await call(
         `/widget/${workspace}/conversations/ask`,

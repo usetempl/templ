@@ -5,7 +5,7 @@ import styles from "./chat-loading.module.css";
 
 export function ChatLoading({
   name, logo, href, loadingHistory = false, unavailable = false, retryLink = false,
-  retry, status, closeControl,
+  retry, status, closeControl, themeControl = true,
 }: {
   name: string;
   logo?: string;
@@ -16,6 +16,7 @@ export function ChatLoading({
   retry?: () => void;
   status?: string;
   closeControl?: ReactNode;
+  themeControl?: boolean;
 }) {
   const connecting = !retry && !unavailable;
   const Title = closeControl ? "strong" : "h1";
@@ -26,7 +27,7 @@ export function ChatLoading({
           ? <Image src={logo} className={styles.logo} alt="" width={36} height={36} loading="eager" unoptimized />
           : <span className={styles.logoPlaceholder} aria-hidden="true" />}
         <Title className={styles.title}>{name}</Title>
-        <span className={styles.theme} aria-hidden="true" />
+        {themeControl && <span className={styles.theme} aria-hidden="true" />}
         <div className={styles.controls} aria-hidden="true">
           <span className={styles.menu}>
             <span className={styles.people} /><span className={styles.bars} />
