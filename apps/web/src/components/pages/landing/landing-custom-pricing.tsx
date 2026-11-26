@@ -26,15 +26,17 @@ export function CustomPricingLink() {
       onPointerEnter={prepare}
       onFocus={prepare}
       onClick={(event) => {
-        event.preventDefault();
-        window.dispatchEvent(
+        if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+        const unhandled = window.dispatchEvent(
           new CustomEvent("templ:open-support", {
+            cancelable: true,
             detail: { trigger: event.currentTarget, form: quoteForm },
           }),
         );
+        if (!unhandled) event.preventDefault();
       }}
     >
-      contact us
+      Ask about volume pricing
     </a>
   );
 }

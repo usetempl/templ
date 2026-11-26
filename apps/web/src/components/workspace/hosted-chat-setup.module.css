@@ -2,15 +2,6 @@
 .intro h2 { margin: 0; font-size: var(--templ-text-lead); line-height: var(--templ-line-heading); letter-spacing: var(--templ-tracking-heading); }
 .intro p, .nameForm p, .notice { margin: 0; color: var(--templ-muted); line-height: 1.5; }
 .intro p { margin-top: 8px; }
-.steps { display: grid; gap: 0; margin: 0; padding: 0; list-style: none; }
-.steps li { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 10px 14px; align-items: center; padding-block: 18px; border-top: 1px solid var(--templ-line); }
-.number { display: grid; place-items: center; width: 28px; height: 28px; border: 1px solid var(--templ-border-strong); border-radius: 50%; color: var(--templ-muted); font-size: 13px; font-weight: 600; }
-.task { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px 20px; }
-.task h3 { margin: 0; color: var(--templ-text); font-size: clamp(17px, 2vw, 20px); line-height: 1.25; }
-.task :is(a, button), .nameRow button { min-height: 44px; }
-.linkRow { grid-column: 2; display: flex; align-items: center; gap: 12px; padding: 8px 10px 8px 14px; border: 1px solid var(--templ-line); border-radius: 7px; background: var(--templ-raised); }
-.linkRow code { flex: 1; min-width: 0; overflow-wrap: anywhere; font: 13px/1.45 var(--templ-font-mono); color: var(--templ-muted); user-select: all; }
-.linkRow button { flex: none; min-height: 36px; }
 .options { display: grid; gap: var(--templ-space-4); border-top: 1px solid var(--templ-line); padding-top: var(--templ-space-5); }
 .chatActions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--templ-space-3); }
 .chatActions :is(a, button) { min-height: 44px; }
@@ -30,18 +21,11 @@
 .widgetLink { justify-self: start; display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 2px 0; border: 0; background: transparent; color: var(--templ-muted); text-align: left; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; font: inherit; font-size: 14px; }
 .widgetLink:hover { color: var(--templ-text); }
 .notice { padding-block: 8px; }
-.overviewToggle { display: block; min-height: 44px; margin: 12px auto 0; padding: 8px 12px; border: 0; background: transparent; color: var(--templ-muted); font: inherit; font-size: 14px; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
-.overviewToggle:focus-visible { outline: 2px solid var(--templ-focus); outline-offset: 2px; }
 @media (max-width: 600px) {
   .setup { padding: 20px 16px; }
   .chatActions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--templ-space-2); }
   .chatActions > :last-child { grid-column: 1 / -1; }
   .chatActions :is(a, button) { padding-inline: var(--templ-space-2); white-space: normal; }
-  .steps li { align-items: start; column-gap: 9px; }
-  .task { display: grid; justify-content: start; gap: 12px; }
-  .task h3 { padding-top: 3px; }
-  .task :is(a, button) { justify-self: start; }
-  .linkRow { grid-column: 1 / -1; }
   .nameRow { flex-direction: column; align-items: stretch; }
   .nameField { flex-basis: auto; }
 }

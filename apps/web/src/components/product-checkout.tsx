@@ -628,7 +628,7 @@ function Checkout({
             <>
               {annualNetwork && (
                 <fieldset className={styles.termChoice} disabled={locked}>
-                  <legend>Pay</legend>
+                  <legend>Billing period</legend>
                   <div>
                     <label><input type="radio" name="payment-term" checked={!annual} onChange={() => setTerm("monthly")} />Monthly</label>
                     <label><input type="radio" name="payment-term" checked={annual} onChange={() => {
@@ -640,7 +640,7 @@ function Checkout({
               )}
               {standard?.starterAvailable && (
                 <label>
-                  Templ Hosted plan
+                  Plan
                   <select
                     value={monthlyPlan}
                     disabled={locked}
@@ -654,7 +654,7 @@ function Checkout({
                 </label>
               )}
               <p className={styles.note}>
-                {annual ? "One payment for 12 months" : "One month"} · {monthlyPrices.includedAnsweredCasesPerMonth} cases per month · All seats
+                {monthlyPrices.includedAnsweredCasesPerMonth} answered cases per month. All team seats included.
               </p>
             </>
           ) : (

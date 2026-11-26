@@ -15,10 +15,10 @@ export function OnboardingSource({ context, practice }: { context: WorkspaceCont
     <Card
       id="ai-setup"
       title="Set up your support AI"
-      description="Add a public page your team uses to answer questions."
+      description="Add a public page from your website or docs."
       actions={
         <button type="button" className={styles.openSetup} onClick={() => context.go("knowledge")}>
-          Open AI setup <IconArrowUpRight aria-hidden="true" size={16} />
+          AI settings <IconArrowUpRight aria-hidden="true" size={16} />
         </button>
       }
     >
@@ -66,9 +66,9 @@ export function SourceUrlForm({
         result.chunks > 0 &&
         !result.error
       ) {
-        setNotice("Page ready for AI replies.");
+        setNotice("Your page is ready.");
       } else if (result.status === "pending") {
-        setNotice("Page saved. Templ will read it before AI can use it.");
+        setNotice("Page saved. Templ is reading it.");
       } else {
         setError(
           "This page has no usable text yet. Check the address or add another page.",

@@ -70,7 +70,8 @@
   min-width: 0;
 }
 .checkout > label,
-.checkout details label {
+.checkout details label,
+.options > label {
   display: grid;
   gap: var(--templ-space-2);
   min-width: 0;
@@ -231,14 +232,14 @@
 .confirmed { display: grid; gap: var(--templ-space-5); padding-block: var(--templ-space-3); }
 
 
-.termChoice { margin: 0; border: 0; padding: 0; }
-.termChoice legend { margin-bottom: .5rem; font-weight: 600; }
-.termChoice > div { display: inline-flex; flex-wrap: wrap; gap: .25rem; }
+.termChoice { min-width: 0; margin: 0; border: 0; padding: 0; }
+.termChoice legend { margin-bottom: var(--templ-space-2); font-size: var(--templ-text-small); font-weight: var(--templ-weight-label); }
+.termChoice > div { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--templ-space-1); }
 .checkout .termChoice label {
-  display: inline-flex; align-items: center; gap: .45rem; min-height: 44px;
-  padding: .45rem .75rem; border: 1px solid var(--templ-border-strong); border-radius: .25rem;
-  cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: var(--templ-space-2); min-height: 44px;
+  padding: var(--templ-space-2); border: 1px solid var(--templ-line); border-radius: var(--templ-radius-control);
+  cursor: pointer; font-size: var(--templ-text-small); text-align: center;
 }
-.termChoice label:has(:checked) { background: var(--templ-surface); border-color: currentColor; }
-.termChoice label:focus-within { outline: 2px solid currentColor; outline-offset: 2px; }
-.termChoice input { margin: 0; accent-color: var(--templ-accent); }
+.termChoice label:has(:checked) { background: var(--templ-surface); border-color: var(--templ-border-strong); font-weight: var(--templ-weight-heading); }
+.termChoice label:focus-within { outline: 2px solid var(--templ-focus); outline-offset: 2px; }
+.termChoice input { flex: none; margin: 0; accent-color: var(--templ-accent); }

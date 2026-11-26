@@ -315,8 +315,8 @@ export function NativeChatCreate({
           )}
         </form>
         <p className={styles.terms}>
-          Test {PRODUCT_LIMITS.freeSupportTickets} tickets free, with{" "}
-          {PRODUCT_LIMITS.freeTeamRepliesPerTicket} team replies per ticket.
+          Try {PRODUCT_LIMITS.freeSupportTickets} free tickets with up to {PRODUCT_LIMITS.freeTeamRepliesPerTicket} team replies each.
+          {" "}Ask AI {PRODUCT_LIMITS.freeAiPracticeQuestions} private questions about your docs.
         </p>
       </section>
       {toast}

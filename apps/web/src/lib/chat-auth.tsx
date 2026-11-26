@@ -430,6 +430,13 @@ function SignInDialog({
   }
   const anyMethod = walletEnabled || solanaEnabled || emailEnabled;
   const usingEmail = emailEnabled && method === "email";
+  const checkingEmail = methodsAvailability === "unknown" &&
+    release.emailSignInVerified === true && !strongOnly && !connectCode;
+  const showEmailChoice = emailEnabled || checkingEmail;
+  const emailInput = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (usingEmail) emailInput.current?.focus();
+  }, [usingEmail, emailChallenge]);
   const connectedAddress =
     connected?.method === "wallet"
       ? connected.address
@@ -502,6 +509,7 @@ function SignInDialog({
               <label htmlFor="chat-email-code">Email code</label>
               <input
                 className={styles.emailInput}
+                ref={emailInput}
                 id="chat-email-code"
                 autoComplete="one-time-code"
                 inputMode="numeric"
@@ -523,7 +531,7 @@ function SignInDialog({
                 {activeAction === "email-verify" && <LoadingSpinner />}Sign in
               </button>
               <button
-                className={styles.secondary}
+                className={styles.textButton}
                 type="button"
                 disabled={busy || resendSeconds > 0}
                 aria-busy={activeAction === "email-start"}
@@ -546,7 +554,7 @@ function SignInDialog({
                 {resendSeconds ? `Resend in ${resendSeconds}s` : "Resend code"}
               </button>
               <button
-                className={styles.secondary}
+                className={styles.textButton}
                 type="button"
                 disabled={busy}
                 onClick={() => {
@@ -564,6 +572,7 @@ function SignInDialog({
               <label htmlFor="chat-sign-in-email">Email address</label>
               <input
                 className={styles.emailInput}
+                ref={emailInput}
                 id="chat-sign-in-email"
                 type="email"
                 autoComplete="email"
@@ -657,11 +666,11 @@ function SignInDialog({
             </div>
           ) : (
             <div className={styles.wallets} aria-label="Sign-in methods">
-              {emailEnabled && (
+              {showEmailChoice && (
                 <button
                   type="button"
                   className={styles.walletOption}
-                  disabled={busy}
+                  disabled={busy || !emailEnabled}
                   onClick={() => {
                     setMethod("email");
                     setError("");
@@ -674,7 +683,7 @@ function SignInDialog({
               {walletEnabled && (
                 <button
                   type="button"
-                  className={styles.walletOption}
+                  className={showEmailChoice ? `${styles.walletOption} secondary` : styles.walletOption}
                   disabled={busy}
                   aria-busy={activeAction === "wallet"}
                   onClick={() => {
@@ -702,7 +711,7 @@ function SignInDialog({
               {solanaEnabled && (
                 <button
                   type="button"
-                  className={styles.walletOption}
+                  className={showEmailChoice ? `${styles.walletOption} secondary` : styles.walletOption}
                   disabled={busy}
                   aria-busy={activeAction === "solana"}
                   onClick={() =>

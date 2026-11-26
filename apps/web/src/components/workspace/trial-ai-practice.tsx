@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Field, ui } from "@/components/ui/ui";
+import { SITE } from "@/lib/site-environment";
 import { chatMutation } from "@/lib/chat-api";
 import {
   CommunityApiError,
@@ -123,7 +124,10 @@ export function TrialAiPractice({ context }: { context: WorkspaceContext }) {
       <small>
         Only your team sees the answer.
         {value &&
-          ` ${value.remaining} free ${value.remaining === 1 ? "question" : "questions"} left.`}
+          ` ${value.remaining} free ${value.remaining === 1 ? "question" : "questions"} left.`}{" "}
+        <a href={SITE.docs + "/ai#practice-privacy"} target="_blank" rel="noreferrer">
+          Who processes this?
+        </a>
       </small>
       {error && (
         <p role="alert">

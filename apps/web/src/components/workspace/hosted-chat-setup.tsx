@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { IconArrowUpRight, IconCode, IconInbox } from "@tabler/icons-react";
+import { IconArrowUpRight, IconCode } from "@tabler/icons-react";
 import { PRODUCT_STARTER_PRICES } from "@templ/chat/plans";
 import { formatUsdCents } from "@templ/chat/resolution-copy";
 import { chatMutation } from "@/lib/chat-api";
@@ -77,35 +77,15 @@ export function HostedChatSetup({ context, paid }: { context: WorkspaceContext; 
     <section className={styles.setup} aria-labelledby="hosted-chat-title">
       <header className={styles.intro}>
         <h2 id="hosted-chat-title">Your support chat</h2>
-        {!paid && <p>Try a conversation before you share your link.</p>}
+        {!paid && <p>Send a test message in chat. Reply from your inbox.</p>}
       </header>
-      {paid ? (
-        <div className={styles.chatActions}>
-          <a className="button secondary" href={link} target="_blank" rel="noopener noreferrer">Open chat <IconArrowUpRight aria-hidden="true" /></a>
-          <CopyButton value={link} label="Copy chat link" />
-          <button type="button" className="button secondary" onClick={() => go("inbox")}>Open inbox</button>
-        </div>
-      ) : <ol className={styles.steps}>
-        <li>
-          <span className={styles.number} aria-hidden="true">1</span>
-          <div className={styles.task}>
-            <h3>Send a test question</h3>
-            <a className="button secondary" href={link} target="_blank" rel="noopener noreferrer">Open visitor chat <IconArrowUpRight aria-hidden="true" /></a>
-          </div>
-          <div className={styles.linkRow}>
-            <code>{link}</code><CopyButton value={link} label="Copy link" />
-          </div>
-        </li>
-        <li>
-          <span className={styles.number} aria-hidden="true">2</span>
-          <div className={styles.task}>
-            <h3>Reply from Cases</h3>
-            <button type="button" className="button secondary" onClick={() => go("inbox")}>
-              <IconInbox aria-hidden="true" /> Open inbox
-            </button>
-          </div>
-        </li>
-      </ol>}
+      <div className={styles.chatActions}>
+        <a className="button secondary" href={link} target="_blank" rel="noopener noreferrer">
+          Open chat <IconArrowUpRight aria-hidden="true" />
+        </a>
+        <CopyButton value={link} label="Copy chat link" />
+        <button type="button" className="button secondary" onClick={() => go("inbox")}>Open inbox</button>
+      </div>
       <div className={styles.options}>
         {managed && !claimed && (
           <section className={styles.nameChoice} aria-labelledby="choose-hosted-name">
