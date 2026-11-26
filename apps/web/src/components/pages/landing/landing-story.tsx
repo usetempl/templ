@@ -1,21 +1,21 @@
 import { IconArrowRight, IconBook2, IconHeadset, IconRobot, IconUser, IconWorld } from "@tabler/icons-react";
-import { SupportWidgetDemo } from "@/components/support-widget-demo";
 import { TemplMark } from "@/components/brand/templ-mark";
-import { transactionExample, transactionExampleAuthors } from "@/lib/standalone-trial-example";
+import hero from "./hero-copy.json";
 import styles from "./landing-story.module.css";
 
 export function LandingStory() {
+  const { example } = hero;
   return (
     <figure id="how" className={styles.stage} aria-label="Example conversation">
       <div id="story" className={styles.transcript}>
         <div className={styles.markLine} aria-hidden="true"><TemplMark decorative className={styles.mark} /><span /></div>
-        <SupportWidgetDemo className={styles.widget} scenario="shared-transaction" presentation
-          appearance={{ theme: "light", radius: "soft", accent: { light: "#727272", dark: "#cccccc" } }}>
-          <ol className={styles.firstPaint} aria-label="Example messages">
-            <li><small>{transactionExampleAuthors.visitor}</small>{transactionExample.question}</li>
-            <li><small>{transactionExampleAuthors.team}</small>{transactionExample.reply}</li>
-          </ol>
-        </SupportWidgetDemo>
+        <p className={styles.site}><small>{example.siteLabel}</small><span>{example.site}</span></p>
+        <ol className={styles.messages} aria-label="Example messages">
+          <li className={styles.guest}><small>{example.guest}</small>{example.question}</li>
+          <li className={styles.fromDocs}><small>{example.ai}</small>{example.answer}</li>
+          <li className={styles.guest}><small>{example.guest}</small>{example.followUp}</li>
+          <li className={styles.fromTeam}><small>{example.team}</small>{example.reply}</li>
+        </ol>
       </div>
     </figure>
   );

@@ -62,11 +62,11 @@ export async function generateMetadata(): Promise<Metadata> {
     icons: { apple: "/apple-touch-icon.png" },
     openGraph: {
       type: "website",
-      images: [{ url: "/art/og/templ-og.png?v=private-support", width: 1200, height: 630, alt: hero.headline }],
+      images: [{ url: "/art/og/templ-og.png?v=docs-chat", width: 1200, height: 630, alt: hero.headline }],
     },
     twitter: {
       card: "summary_large_image",
-      images: [{ url: "/art/og/templ-og.png?v=private-support", alt: hero.headline }],
+      images: [{ url: "/art/og/templ-og.png?v=docs-chat", alt: hero.headline }],
     },
   };
 }

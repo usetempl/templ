@@ -7,7 +7,7 @@ const title = copy("landing.meta.title");
 const description = copy("landing.meta.description");
 const images = [
   {
-    url: "/art/og/templ-og.png?v=private-support",
+    url: "/art/og/templ-og.png?v=docs-chat",
     width: 1200,
     height: 630,
     alt: hero.headline,

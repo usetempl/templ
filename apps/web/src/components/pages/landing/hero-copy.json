@@ -1,7 +1,18 @@
 {
-  "headline": "Add private support to your app.",
+  "headline": "Private support chat that answers from your docs.",
   "description": [
-    "Share a chat link and reply to users from one inbox.",
-    "Let AI handle the questions your docs already cover."
-  ]
+    "Your team joins the chat when AI needs help.",
+    "Try it with your site. No account needed."
+  ],
+  "example": {
+    "siteLabel": "Example chat on",
+    "site": "example.com",
+    "guest": "Guest",
+    "question": "How do I invite a teammate?",
+    "ai": "AI, from your docs",
+    "answer": "Open Settings, then Team, and choose Invite.",
+    "team": "Your team",
+    "followUp": "My invite link expired.",
+    "reply": "I just sent you a fresh one."
+  }
 }

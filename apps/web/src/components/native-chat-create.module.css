@@ -19,6 +19,10 @@
   letter-spacing: -0.045em;
   line-height: 1.02;
 }
+/* The heading takes focus when the step changes. It is not a control. */
+.main h1:focus {
+  outline: none;
+}
 .lede {
   max-width: 44ch;
   margin-top: var(--templ-space-4);
@@ -83,6 +87,8 @@
 
 .colorInput { display: block; width: 56px; height: 42px; cursor: pointer; }
 .textButton { color: var(--templ-text); border: 0; background: transparent; padding: 0; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.textButton:disabled { color: var(--templ-muted); text-decoration: none; cursor: not-allowed; }
+.brandForm { margin-block-end: var(--templ-space-4); }
 .brandFields { display: grid; grid-template-columns: minmax(8rem,1fr) minmax(12rem,2fr) auto; gap: var(--templ-space-4); border: 0; padding: 0; margin: var(--templ-space-5) 0 var(--templ-space-4); }
 .brandFields legend { font-weight: 600; margin-bottom: var(--templ-space-3); }
 @container (max-width: 32rem) { .brandFields { grid-template-columns: 1fr; } }
@@ -132,6 +138,9 @@
   border-radius: var(--templ-radius-surface);
 }
 .practiceNote {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--templ-space-1) var(--templ-space-4);
   margin-block: var(--templ-space-3);
   color: var(--templ-muted);
   font-size: var(--templ-text-small);

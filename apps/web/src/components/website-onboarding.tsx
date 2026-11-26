@@ -27,6 +27,29 @@ type Preview = {
   confirmed: boolean;
 };
 type Restored = Preview | { claiming: true; previewId: string } | null;
+/** Each failure shows beside the action that caused it. */
+type Failure = { text: string; at: "chat" | "brand" | "page" };
+
+// The service writes its errors for visitors. Browsers do not.
+function errorText(reason: unknown) {
+  if (!(reason instanceof Error)) return "Try again.";
+  return /^(Abort|Timeout|Type|Syntax)Error$/.test(reason.name)
+    ? "Templ could not be reached. Try again."
+    : reason.message;
+}
+const refusedSecret = (reason: unknown) =>
+  reason instanceof CommunityApiError &&
+  (reason.details as { reason?: unknown } | undefined)?.reason ===
+    "secret-refused";
+function siteHost(site: string) {
+  try {
+    const url = site.trim().replace(/^https?:\/\//i, "");
+    return new URL("https://" + url).hostname.replace(/^www\./, "");
+  } catch {
+    // The server shows the validation error for an invalid address.
+    return "";
+  }
+}
 
 export function WebsiteOnboarding({ nextPlan }: { nextPlan: boolean }) {
   const auth = useChatAuth();
@@ -39,7 +62,7 @@ export function WebsiteOnboarding({ nextPlan }: { nextPlan: boolean }) {
   const [claiming, setClaiming] = useState("");
 
   const [busy, setBusy] = useState("");
-  const [error, setError] = useState("");
+  const [error, setError] = useState<Failure | null>(null);
   const [slowScan, setSlowScan] = useState(false);
   const scanning = busy === "start";
   useEffect(() => {
@@ -49,6 +72,19 @@ export function WebsiteOnboarding({ nextPlan }: { nextPlan: boolean }) {
   }, [scanning]);
   const lock = useRef(false);
   const interacted = useRef(false);
+  const unsent = useRef("");
+
+  const view = claiming ? "save" : preview || scanning ? "chat" : "site";
+  const heading = useRef<HTMLHeadingElement>(null);
+  const siteInput = useRef<HTMLInputElement>(null);
+  const shown = useRef(view);
+  useEffect(() => {
+    if (shown.current === view) return;
+    shown.current = view;
+    // A restored preview leaves focus where the visitor put it.
+    if (!interacted.current) return;
+    (view === "site" ? siteInput.current : heading.current)?.focus();
+  }, [view]);
 
   function showPreview(value: Preview) {
     restart.current = false;
@@ -71,17 +107,29 @@ export function WebsiteOnboarding({ nextPlan }: { nextPlan: boolean }) {
     return () => abort.abort();
   }, []);
 
-  async function run(action: string, work: () => Promise<void>) {
+  function reset() {
+    restart.current = true;
+    interacted.current = true;
+    setPreview(null);
+    setBrand(null);
+    setClaiming("");
+    setError(null);
+  }
+  async function run(
+    action: string,
+    work: () => Promise<void>,
+    at: Failure["at"] = "page",
+  ) {
     if (lock.current) return;
     lock.current = true;
     interacted.current = true;
     setBusy(action);
-    setError("");
+    setError(null);
     try {
       await work();
     } catch (reason) {
       if (!isChatSignInCanceled(reason))
-        setError(reason instanceof Error ? reason.message : "Try again.");
+        setError({ text: errorText(reason), at });
       if (reason instanceof CommunityApiError && reason.status === 410) {
         restart.current = true;
         setPreview(null);
@@ -97,23 +145,35 @@ export function WebsiteOnboarding({ nextPlan }: { nextPlan: boolean }) {
     event.preventDefault();
     void run("start", async () => {
       setSlowScan(false);
-      showPreview(
-        await communityFetch<Preview>("/onboarding/start", {
+      const scan = () =>
+        communityFetch<Preview>("/onboarding/start", {
           site,
           restart: restart.current,
-        }),
-      );
+        });
+      try {
+        showPreview(await scan());
+      } catch (reason) {
+        // An earlier preview in this browser holds another website. This one replaces it.
+        if (
+          !(reason instanceof CommunityApiError) ||
+          reason.status !== 409 ||
+          restart.current
+        )
+          throw reason;
+        restart.current = true;
+        showPreview(await scan());
+      }
     });
   }
+  const edited =
+    !!preview &&
+    !!brand &&
+    (brand.name !== preview.brand.name ||
+      brand.logo !== preview.brand.logo ||
+      brand.accent !== preview.brand.accent);
   async function confirmBrand() {
     if (!brand || !preview) throw new Error("Enter your website first.");
-    if (
-      preview.confirmed &&
-      brand.name === preview.brand.name &&
-      brand.logo === preview.brand.logo &&
-      brand.accent === preview.brand.accent
-    )
-      return preview;
+    if (preview.confirmed && !edited) return preview;
     const result = await communityFetch<Preview>("/onboarding/confirm", {
       ...brand,
       previewId: preview.previewId,
@@ -121,37 +181,62 @@ export function WebsiteOnboarding({ nextPlan }: { nextPlan: boolean }) {
     showPreview(result);
     return result;
   }
+  function applyBrand(event: FormEvent) {
+    event.preventDefault();
+    void run(
+      "brand",
+      async () => {
+        await confirmBrand();
+      },
+      "brand",
+    );
+  }
   async function ask(question: string, requestId: string): Promise<string> {
-    if (
-      lock.current ||
-      !preview?.ready ||
-      !preview.remaining ||
-      !brand?.name.trim()
-    )
+    if (lock.current || !preview || !brand)
       throw new Error("The preview is not ready.");
+    // The widget's own Retry reaches this without the composer's checks.
+    const blocked = !preview.ready
+      ? "AI couldn’t read this page."
+      : !preview.remaining
+        ? "You’ve used your free AI questions."
+        : !brand.name.trim()
+          ? "Enter a chat name."
+          : "";
+    if (blocked) {
+      setError({ text: blocked, at: "chat" });
+      throw new Error(blocked);
+    }
     lock.current = true;
     setBusy("ask");
-    setError("");
+    setError(null);
+    let sent = false;
     try {
-      const confirmed = await confirmBrand();
+      // Unfinished appearance edits wait for Apply or Save. They cannot fail a question.
+      const current = preview.confirmed ? preview : await confirmBrand();
+      sent = true;
       const reply = await communityFetch<{
         answer: string | null;
         remaining: number;
       }>("/onboarding/ask", {
         question,
         requestId,
-        previewId: confirmed.previewId,
+        previewId: current.previewId,
       });
-      setPreview({ ...confirmed, remaining: reply.remaining });
-      return reply.answer || "I couldn’t find that in the website or docs.";
+      setPreview({ ...current, remaining: reply.remaining });
+      return (
+        reply.answer ||
+        "I can’t answer that from your website or docs. In your live chat, I’d hand it to your team."
+      );
     } catch (reason) {
-      const current = await communityFetch<Restored>(
+      const latest = await communityFetch<Restored>(
         "/onboarding/read",
         {},
       ).catch(() => null);
-      if (current && "brand" in current) setPreview(current);
+      if (latest && "brand" in latest) setPreview(latest);
       if (reason instanceof CommunityApiError && reason.status === 410) reset();
-      setError(reason instanceof Error ? reason.message : "Try again.");
+      // The widget shows its own line for a refused question and deletes the draft.
+      if (!sent || !refusedSecret(reason))
+        setError({ text: errorText(reason), at: "chat" });
       throw reason;
     } finally {
       lock.current = false;
@@ -159,60 +244,65 @@ export function WebsiteOnboarding({ nextPlan }: { nextPlan: boolean }) {
     }
   }
   function save() {
-    void run("save", async () => {
+    void run("signin", async () => {
       if (!claiming) await confirmBrand();
       const session = await auth.signIn();
+      setBusy("save");
       trackEvent("create_submitted");
-      const { id } = await communityFetch<{ id: string }>("/onboarding/claim", {
-        previewId: claiming || preview?.previewId,
-        expectedPrincipalId: session.principalId,
-      });
-      trackEvent("create_completed");
-      router.push("/inbox/" + id + "?tab=" + (nextPlan ? "plan" : "home"));
+      try {
+        const { id } = await communityFetch<{ id: string }>(
+          "/onboarding/claim",
+          {
+            previewId: claiming || preview?.previewId,
+            expectedPrincipalId: session.principalId,
+          },
+        );
+        trackEvent("create_completed");
+        router.push("/inbox/" + id + "?tab=" + (nextPlan ? "plan" : "home"));
+      } catch (reason) {
+        // Once an account holds the preview, the service accepts only its save.
+        const latest = await communityFetch<Restored>(
+          "/onboarding/read",
+          {},
+        ).catch(() => null);
+        if (latest && "claiming" in latest) {
+          setClaiming(latest.previewId);
+          setPreview(null);
+          setBrand(null);
+        }
+        throw reason;
+      }
     });
   }
   const disabled = !!busy || !available;
+  const named = !!brand?.name.trim();
+  const host = preview ? siteHost(preview.site) : "";
+  // The fallback names the scanned website, so editing the chat name cannot change it.
   const suggestion =
-    preview?.suggestion ||
-    (brand ? "What can I do with " + brand.name + "?" : "");
-  const reset = () => {
-    restart.current = true;
-    interacted.current = true;
-    setPreview(null);
-    setBrand(null);
-    setClaiming("");
-    setError("");
-  };
-  let scanHost = "";
-  if (scanning) {
-    try {
-      const url = site.trim().replace(/^https?:\/\//i, "");
-      scanHost = new URL("https://" + url).hostname;
-    } catch {
-      // The server shows the validation error for an invalid address.
-    }
-  }
+    preview?.suggestion || (host ? "What can I do with " + host + "?" : "");
   return (
     <div className={styles.page}>
       <section className={styles.main} aria-labelledby="create-title">
-        <h1 id="create-title">
-          {claiming
+        <h1 id="create-title" ref={heading} tabIndex={-1}>
+          {view === "save"
             ? "Save your workspace"
-            : preview || scanning
+            : view === "chat"
               ? "Try your support chat"
               : "Try Templ with your website"}
         </h1>
-        {!scanning && !preview && !claiming && (
+        {view === "site" && (
           <>
             <p className={styles.lede}>
               See your chat and ask AI about your site. No sign-in needed.
             </p>
             <form className={styles.form} onSubmit={start}>
-              <Field label="Your website">
+              <Field label="Your website" error={error?.text}>
                 <input
+                  ref={siteInput}
                   className={ui.input}
                   autoComplete="url"
                   inputMode="url"
+                  enterKeyHint="go"
                   autoCapitalize="none"
                   autoCorrect="off"
                   spellCheck={false}
@@ -221,6 +311,7 @@ export function WebsiteOnboarding({ nextPlan }: { nextPlan: boolean }) {
                   onChange={(e) => {
                     interacted.current = true;
                     setSite(e.target.value);
+                    setError(null);
                   }}
                   maxLength={2048}
                   required
@@ -240,7 +331,7 @@ export function WebsiteOnboarding({ nextPlan }: { nextPlan: boolean }) {
             </p>
           </>
         )}
-        {(scanning || (preview && brand)) && (
+        {view === "chat" && (
           <>
             {scanning && (
               <div
@@ -262,7 +353,7 @@ export function WebsiteOnboarding({ nextPlan }: { nextPlan: boolean }) {
               </div>
             )}
             <WebsitePracticeChat
-              name={brand?.name.trim() || scanHost || "Your team"}
+              name={brand?.name.trim() || siteHost(site) || "Your team"}
               accent={brand?.accent}
               icon={
                 preview && brand?.logo === preview.brand.logo
@@ -270,79 +361,109 @@ export function WebsiteOnboarding({ nextPlan }: { nextPlan: boolean }) {
                   : ""
               }
               canSend={
-                !disabled &&
-                !!preview?.ready &&
-                preview.remaining > 0 &&
-                !!brand?.name.trim()
+                !disabled && !!preview?.ready && preview.remaining > 0 && named
               }
               suggestion={suggestion}
+              draft={unsent}
               ask={ask}
             />
             {preview && (
-              <p className={styles.practiceNote} role="status">
-                {preview.ready ? (
-                  busy === "ask" ? (
-                    "Finding an answer…"
-                  ) : (
-                    preview.remaining +
-                    " of " +
-                    PRODUCT_LIMITS.freeAiPracticeQuestions +
-                    " free questions left"
-                  )
-                ) : (
-                  <>
-                    AI couldn’t read this page.{" "}
-                    <button className={styles.textButton} onClick={reset}>
-                      Try a public docs page
-                    </button>
-                  </>
+              <p className={styles.practiceNote}>
+                <span role="status">
+                  {!preview.ready
+                    ? "AI couldn’t read this page."
+                    : busy === "ask"
+                      ? "Finding an answer…"
+                      : preview.remaining +
+                        " of " +
+                        PRODUCT_LIMITS.freeAiPracticeQuestions +
+                        " free questions left"}
+                </span>
+                {!preview.ready && (
+                  <button
+                    type="button"
+                    className={styles.textButton}
+                    disabled={disabled}
+                    onClick={reset}
+                  >
+                    Try a public docs page
+                  </button>
                 )}
-                {" · "}
                 <a
                   href="https://docs.usetempl.com/ai#practice-privacy"
                   target="_blank"
                   rel="noreferrer"
                 >
-                  Practice privacy
+                  Who processes my questions?
                 </a>
               </p>
             )}
+            {error?.at === "chat" && (
+              <Callout className={styles.feedback} tone="danger" role="alert">
+                {error.text}
+              </Callout>
+            )}
           </>
         )}
-        {preview && brand && (
+        {view === "chat" && preview && brand && (
           <>
-            <fieldset className={styles.brandFields} disabled={disabled}>
-              <legend>Chat appearance</legend>
-              <Field label="Chat name">
-                <input
-                  className={ui.input}
-                  required
-                  maxLength={80}
-                  value={brand.name}
-                  onChange={(e) => setBrand({ ...brand, name: e.target.value })}
-                />
-              </Field>
-              <Field label="Icon URL" optional>
-                <input
-                  className={ui.input}
-                  type="url"
-                  value={brand.logo}
-                  placeholder="https://example.com/icon.png"
-                  onChange={(e) => setBrand({ ...brand, logo: e.target.value })}
-                />
-              </Field>
-              <Field label="Accent color">
-                <input
-                  className={styles.colorInput}
-                  type="color"
-                  value={brand.accent}
-                  onChange={(e) =>
-                    setBrand({ ...brand, accent: e.target.value })
+            <form className={styles.brandForm} onSubmit={applyBrand}>
+              <fieldset className={styles.brandFields} disabled={disabled}>
+                <legend>Chat appearance</legend>
+                <Field label="Chat name" error={!named && "Enter a chat name."}>
+                  <input
+                    className={ui.input}
+                    required
+                    maxLength={80}
+                    value={brand.name}
+                    onChange={(e) => setBrand({ ...brand, name: e.target.value })}
+                  />
+                </Field>
+                <Field
+                  label="Icon URL"
+                  optional
+                  hint={
+                    brand.logo && brand.logo !== preview.brand.logo
+                      ? "Apply changes to see this icon."
+                      : undefined
                   }
-                />
-              </Field>
-            </fieldset>
+                >
+                  <input
+                    className={ui.input}
+                    type="url"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
+                    value={brand.logo}
+                    placeholder="https://example.com/icon.png"
+                    onChange={(e) => setBrand({ ...brand, logo: e.target.value })}
+                  />
+                </Field>
+                <Field label="Accent color">
+                  <input
+                    className={styles.colorInput}
+                    type="color"
+                    value={brand.accent}
+                    onChange={(e) =>
+                      setBrand({ ...brand, accent: e.target.value })
+                    }
+                  />
+                </Field>
+              </fieldset>
+              <button
+                className="button secondary"
+                disabled={disabled || !edited || !named}
+              >
+                {busy === "brand" ? "Applying…" : "Apply changes"}
+              </button>
+              {error?.at === "brand" && (
+                <Callout className={styles.feedback} tone="danger" role="alert">
+                  {error.text}
+                </Callout>
+              )}
+            </form>
             <button
+              type="button"
               className={styles.textButton}
               disabled={disabled}
               onClick={reset}
@@ -351,13 +472,12 @@ export function WebsiteOnboarding({ nextPlan }: { nextPlan: boolean }) {
             </button>
           </>
         )}
-        {(claiming || preview) && (
+        {(view === "save" || preview) && (
           <div className={styles.save}>
             <button
+              type="button"
               className="button"
-              disabled={
-                disabled || auth.restoring || (!!brand && !brand.name.trim())
-              }
+              disabled={disabled || auth.restoring || (!!brand && !named)}
               onClick={save}
             >
               {busy === "save"
@@ -368,14 +488,24 @@ export function WebsiteOnboarding({ nextPlan }: { nextPlan: boolean }) {
             </button>
           </div>
         )}
+        {view === "save" && (
+          <button
+            type="button"
+            className={styles.textButton}
+            disabled={disabled}
+            onClick={reset}
+          >
+            Change website
+          </button>
+        )}
         {!available && (
           <Callout className={styles.feedback} role="status">
             Workspace setup is unavailable. Try again later.
           </Callout>
         )}
-        {error && (
+        {view !== "site" && error?.at === "page" && (
           <Callout className={styles.feedback} tone="danger" role="alert">
-            {error}
+            {error.text}
           </Callout>
         )}
       </section>

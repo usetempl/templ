@@ -1,14 +1,16 @@
 .stage {
-  grid-column: 7 / -1;
-  --mark-size: clamp(100px, 10vw, 144px);
-  --line-y: 126px;
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  --mark-size: clamp(72px, 6.5vw, 100px);
   --line-weight: calc(var(--mark-size) / 18);
-  --example-first: calc(var(--line-y) - 16px);
-  --example-gap: 40px;
-  --example-inset: calc(var(--mark-size) + 20px);
+  /* The website sits above the line, so the line clears the mark's top and two lines of text. */
+  --line-y: max(calc(var(--mark-size) * .6), 58px);
+  --site-inset: calc(var(--mark-size) + 20px);
+  --example-inset: var(--site-inset);
+  --example-top: 18px;
   --example-ink: var(--fg);
   --example-guest: color-mix(in srgb,var(--fg) 13%,var(--surface-0));
-  --example-team: var(--surface-1);
+  --example-ai: color-mix(in srgb, var(--lp-accent) 25%, var(--surface-0));
   position: relative;
   min-width: 0;
   margin: 0;
@@ -18,12 +20,17 @@
 /* The founder mark has a 56.889-unit horizontal stroke centered at 640 in a 1024-unit viewBox. */
 .markLine .mark { position: absolute; z-index: 1; left: 0; width: var(--mark-size); height: var(--mark-size); top: calc(var(--line-weight) / 2 - var(--mark-size) * .625); }
 .markLine > span:last-child { position: absolute; inset: 0 0 0 calc(var(--mark-size) - 1px); background: linear-gradient(to right, #000 1px, var(--fg) 24px); transform-origin: left; }
-.widget { height: calc(var(--example-first) + var(--example-gap) + 94px); }
-.firstPaint { position: absolute; inset: 0; display: grid; grid-template-rows: var(--example-first) auto; gap: var(--example-gap); padding: 0 0 0 var(--example-inset); margin: 0; list-style: none; align-content: start; }
-.firstPaint li { box-sizing: border-box; width: fit-content; max-width: 100%; padding: 10px 14px; font-size: 16px; line-height: 1.4; color: var(--example-ink); }
-.firstPaint li:first-child { align-self: end; justify-self: start; background: var(--example-guest); border-radius: 14px 14px 4px 14px; }
-.firstPaint li:last-child { justify-self: end; background: var(--example-team); border-radius: 14px 14px 14px 4px; }
-.firstPaint small { display: block; font-size: 12px; line-height: 1.4; font-weight: 600; margin-bottom: 3px; }
+.site { display: flex; flex-direction: column; justify-content: flex-end; box-sizing: border-box; height: var(--line-y); margin: 0; padding: 0 0 10px var(--site-inset); line-height: 1.2; }
+.site small { font-size: 13px; line-height: 1.3; color: var(--fg-2); }
+.site span { font-family: var(--font-mono), monospace; font-size: clamp(18px, 1.7vw, 24px); font-weight: 500; overflow-wrap: anywhere; }
+.messages { display: grid; gap: 8px; margin: calc(var(--line-weight) + var(--example-top)) 0 0; padding: 0 0 0 var(--example-inset); list-style: none; }
+.messages li { box-sizing: border-box; width: fit-content; max-width: 100%; padding: 10px 14px; border: 1px solid transparent; font-size: 16px; line-height: 1.4; color: var(--example-ink); }
+.messages small { display: block; font-size: 12px; line-height: 1.4; font-weight: 600; margin-bottom: 3px; }
+.guest { justify-self: start; background: var(--example-guest); border-radius: 14px 14px 14px 4px; }
+.guest:not(:first-child) { margin-top: 12px; }
+.fromDocs, .fromTeam { justify-self: end; border-radius: 14px 14px 4px 14px; }
+.fromDocs { background: var(--example-ai); }
+.messages .fromTeam { background: var(--surface-0); border-color: var(--border); }
 .story { border-block: 1px solid var(--border); scroll-margin-top: 72px; }
 .storyInner {
   width: min(calc(100% - 2 * var(--lp-gutter)), var(--lp-width));
@@ -117,9 +124,18 @@
 @media (prefers-reduced-motion: no-preference) {
   .markLine > span:last-child { animation: draw-line .5s cubic-bezier(.2,.8,.2,1) .2s backwards; }
 }
+/* Once, in reading order, where the example shares the first screen with the headline. */
+@media (prefers-reduced-motion: no-preference) and (min-width: 1024px) {
+  .messages li { animation: place-message .4s ease-out backwards; }
+  .messages li:nth-child(1) { animation-delay: .6s; }
+  .messages li:nth-child(2) { animation-delay: 1s; }
+  .messages li:nth-child(3) { animation-delay: 1.5s; }
+  .messages li:nth-child(4) { animation-delay: 1.9s; }
+}
 @keyframes draw-line { from { transform: scaleX(0); } }
+@keyframes place-message { from { opacity: .76; transform: translateY(4px); } }
 @media (max-width: 1023px) {
-  .stage { grid-column: 1; width: min(100%,680px); justify-self: end; --mark-size: 88px; }
+  .stage { grid-column: 1; grid-row: auto; width: min(100%,680px); justify-self: start; --mark-size: 88px; }
 }
 @media (max-width: 860px) {
   .steps { grid-template-columns: 1fr; gap: 34px; }
@@ -133,7 +149,8 @@
   .scene { border-right: 0; border-bottom: 1px solid var(--border); border-radius: 11px 11px 0 0; }
 }
 @media (max-width: 600px) {
-  .stage { --mark-size: 68px; --line-y: 132px; --example-first: 84px; --example-gap: 84px; --example-inset: 0px; }
-  .widget { height: calc(var(--example-first) + var(--example-gap) + 92px); }
+  /* The messages use the full width and start below the mark. */
+  .stage { --mark-size: 68px; --example-inset: 0px; --example-top: calc(var(--mark-size) * .35 + 14px); }
+  .messages li { max-width: 92%; }
   .markLine > span:last-child { animation-delay: 0s; animation-duration: .4s; }
 }

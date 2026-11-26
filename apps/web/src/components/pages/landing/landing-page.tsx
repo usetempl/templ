@@ -2,6 +2,7 @@
 
 import hero from "./hero-copy.json";
 import Link from "next/link";
+import Image from "next/image";
 import { useEffect, useRef } from "react";
 import { TemplSupport } from "@/components/templ-support";
 import { SiteFooter, SiteHeader } from "@/components/site-frame";
@@ -60,23 +61,16 @@ export function LandingPage() {
             <Link className={styles.helpLink} href="/create">Try cloud</Link>
           </nav>
           </div>
-          <svg className={styles.homeServer} viewBox="0 0 320 180" role="img" aria-label="A server in slippers holds a coffee mug and says, I work from home.">
-            <g fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <path className={styles.serverPaper} d="M158 12h129a12 12 0 0 1 12 12v17a12 12 0 0 1-12 12H174l-20 13 5-13h-1a12 12 0 0 1-12-12V24a12 12 0 0 1 12-12z" />
-              <text x="222" y="38" textAnchor="middle" fill="currentColor" stroke="none">I work from home.</text>
-              <path d="m101 135-3 17m36-16 5 16m-64-56q-10 8-13 19t15 14m81-30q13 19 31 12" />
-              <path className={styles.serverPaper} d="M75 67 86 55h67l9 9v64l-10 11H84l-9-9z" />
-              <path d="M76 68h76l9-4m-9 5v69" />
-              <rect x="84" y="77" width="60" height="31" rx="6" />
-              <path d="M94 90q3-5 7 0m24 0q3-5 7 0m-26 5q6 8 13-1" />
-              <path d="M87 119h29m-29 7h17" />
-              <circle className={styles.serverLight} cx="136" cy="122" r="3.2" />
-              <path className={styles.serverShoe} d="M86 148q7-6 15 0l3 6c9-3 18 1 18 9l-1 3H83q-4-9 3-18zM133 148q8-5 14 2l4 4c9-3 19 1 20 9l-2 3h-38q-5-10 2-18z" />
-              <path d="m87 158 5 3m46-3 5 3m-57 9h35m12 0h38" />
-              <path className={styles.serverPaper} d="M182 97h24l-2 18q-1 6-10 6t-10-6z" />
-              <path d="M206 99q12-3 9 5-2 5-10 5m-19-18q-4-4 0-8m9 8q4-5-1-10" />
-            </g>
-          </svg>
+          <figure className={styles.comic}>
+            <Image src="/art/guest-at-the-window.svg" width={560} height={420}
+              alt="A guest in an enormous trench coat knocks at a tiny support window. Only their eyes show."
+              loading="lazy" unoptimized />
+            <figcaption>
+              <span>“Who’s there?”</span>
+              <span>“Rather not say.”</span>
+              <span>“Fair enough. How can I help?”</span>
+            </figcaption>
+          </figure>
         </section>
       </main>
       <SiteFooter />

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { CommunityApiError } from "@/lib/community-client";
 import { loadTemplSupportWidget } from "@/lib/templ-support";
 import { widgetMessageId } from "@/lib/support-widget-message-id";
 import type { mountSupportWidget, WidgetMessage } from "@/lib/support-widget";
@@ -12,6 +13,8 @@ type Props = {
   icon: string;
   canSend: boolean;
   suggestion?: string;
+  /** Keeps an unsent question in this tab while the visitor changes websites. */
+  draft?: { current: string };
   ask: (question: string, requestId: string) => Promise<string>;
 };
 
@@ -69,7 +72,24 @@ function practiceTransport(workspace: string, ask: Props["ask"]) {
       if (delivered) return Response.json({ conversation, message: delivered });
       const requestId = requestIds.get(clientId) ?? crypto.randomUUID();
       requestIds.set(clientId, requestId);
-      const answer = await ask(text, requestId);
+      let answer: string;
+      try {
+        answer = await ask(text, requestId);
+      } catch (reason) {
+        if (!(reason instanceof CommunityApiError)) throw reason;
+        // The widget deletes a draft that the service refused for holding a secret.
+        const refused =
+          (reason.details as { reason?: unknown } | undefined)?.reason ===
+          "secret-refused";
+        return Response.json(
+          {
+            error: reason.message,
+            ...(refused ? { reason: "secret-refused" } : {}),
+          },
+          // A 401 would make the widget renew a guest session that practice never has.
+          { status: reason.status === 401 ? 403 : reason.status },
+        );
+      }
       const now = new Date().toISOString();
       const message = {
         id: clientId,
@@ -117,7 +137,7 @@ export function WebsitePracticeChat(props: Props) {
   const [failed, setFailed] = useState(false);
   const [retry, setRetry] = useState(0);
   const [hasDraft, setHasDraft] = useState(false);
-  const [hasAnswer, setHasAnswer] = useState(false);
+  const [asked, setAsked] = useState(false);
   const root = () =>
     container.current?.querySelector("[data-templ-support]")?.shadowRoot;
   useEffect(() => {
@@ -129,10 +149,12 @@ export function WebsitePracticeChat(props: Props) {
       const workspace = widgetMessageId();
       const { transport, visitor } = practiceTransport(
         workspace,
-        async (text, id) => {
-          const result = await latest.current.ask(text, id);
-          if (!lifetime.signal.aborted) setHasAnswer(true);
-          return result;
+        (text, id) => {
+          // The widget keeps a failed question with its own Retry and Discard.
+          setAsked(true);
+          const kept = latest.current.draft;
+          if (kept) kept.current = "";
+          return latest.current.ask(text, id);
         },
       );
       const options = {
@@ -164,9 +186,15 @@ export function WebsitePracticeChat(props: Props) {
       const draft = shadow?.querySelector("textarea");
       if (!shadow || !draft) throw new Error("Chat could not load.");
       draft.maxLength = 800;
-      draft.addEventListener("input", () => setHasDraft(!!draft.value.trim()), {
-        signal: lifetime.signal,
-      });
+      draft.addEventListener(
+        "input",
+        () => {
+          setHasDraft(!!draft.value.trim());
+          const kept = latest.current.draft;
+          if (kept) kept.current = draft.value;
+        },
+        { signal: lifetime.signal },
+      );
       shadow.addEventListener(
         "submit",
         (event) => {
@@ -178,7 +206,13 @@ export function WebsitePracticeChat(props: Props) {
         { capture: true, signal: lifetime.signal },
       );
       await chat.open(false);
-      if (!lifetime.signal.aborted) setMounted(true);
+      if (lifetime.signal.aborted) return;
+      const kept = latest.current.draft?.current.slice(0, 800);
+      if (kept?.trim()) {
+        chat.setQuestion(kept);
+        setHasDraft(true);
+      }
+      setMounted(true);
     }
     void open().catch(() => {
       if (!lifetime.signal.aborted) setFailed(true);
@@ -209,11 +243,15 @@ export function WebsitePracticeChat(props: Props) {
     if (!button) return;
     button.inert = !props.canSend;
     button.setAttribute("aria-disabled", String(!props.canSend));
+    // An inert button otherwise looks ready to send.
+    button.style.opacity = props.canSend ? "" : "0.5";
   }, [props.canSend, mounted]);
   function sendSuggestion() {
     if (!widget.current || !props.suggestion || !props.canSend || hasDraft)
       return;
     widget.current.setQuestion(props.suggestion);
+    // The question now sits in the composer, so a second click cannot repeat it.
+    setHasDraft(true);
     root()?.querySelector<HTMLFormElement>("form.form")?.requestSubmit();
   }
   return (
@@ -228,6 +266,7 @@ export function WebsitePracticeChat(props: Props) {
             onClick={() => {
               setFailed(false);
               setMounted(false);
+              setHasDraft(false);
               setRetry((n) => n + 1);
             }}
           >
@@ -239,7 +278,7 @@ export function WebsitePracticeChat(props: Props) {
         props.canSend &&
         props.suggestion &&
         !hasDraft &&
-        !hasAnswer && (
+        !asked && (
           <button
             className={styles.suggestion}
             type="button"
