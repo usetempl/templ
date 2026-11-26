@@ -1,3 +1,4 @@
+import { guestOnboardingRoute } from "./guest-onboarding";
 export { WorkspaceCostWriter, WorkspaceCostWriterOwn, WorkspaceCostWriterFlex, WorkspaceCostWriterColosseum } from "./workspace-cost-writer";
 export { OwnEncryptionCheckpoint } from "./own-encryption-checkpoint";
 import { canManageWorkspace } from "@templ/chat/moderation-permissions";
@@ -2172,6 +2173,8 @@ async function withOriginRefusals(
   return json(mergeOriginRefusals(counts, widgetDays));
 }
 
+const PREVIEW_CLAIM = Symbol("private-preview-claim");
+
 async function route(
   request: Request,
   env: Env,
@@ -2179,6 +2182,17 @@ async function route(
   cfg: ReturnType<typeof config>,
 ) {
   const url = new URL(request.url);
+  if (url.pathname.startsWith("/onboarding/")) {
+    const scoped = await releaseActivationEnv(env);
+    return guestOnboardingRoute(request, scoped, async () => {
+      const session = await currentSession(request, scoped, false, deps.verifySessionAuthority);
+      if (session.authMethod === "guest") throw new HttpError(403, "Sign in to save your workspace.");
+      return session.principalId;
+    }, (path, body, deadline): Promise<Response> => route(
+      new Request(new URL(path, request.url), { method: "POST", headers: request.headers, body: JSON.stringify(body) }),
+      { ...scoped, [PREVIEW_CLAIM]: true, [CONNECT_DEADLINE]: deadline } as Env, deps, cfg,
+    ));
+  }
   const capture = await connectTrialCaptureRoute(request, env);
   if (capture) return capture;
   const connection =
@@ -3719,7 +3733,8 @@ async function route(
           session.principalId === context.record.room.creator && owner &&
           body.initializeOnly === true && body.hostedPage === true &&
           Object.keys(body).every(key =>
-            ["initializeOnly", "hostedPage", "walletIdentification", "confirmed", "expectedPrincipalId"].includes(key),
+            ["initializeOnly", "hostedPage", "walletIdentification", "confirmed", "expectedPrincipalId"].includes(key) ||
+            ((env as Env & { [PREVIEW_CLAIM]?: boolean })[PREVIEW_CLAIM] === true && ["appearance", "appearanceRevision"].includes(key)),
           );
         const authenticatedAt = emailCreatorSetup
           ? requireTeamInvitationAuth(session, body.confirmed)

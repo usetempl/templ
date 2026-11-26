@@ -176,6 +176,7 @@ export const KNOWLEDGE_OPS = [
   "knowledge.list",
   "knowledge.get",
   "knowledge.add",
+  "knowledge.previewSite",
   "knowledge.sitemap",
   "knowledge.update",
   "knowledge.remove",
@@ -292,10 +293,11 @@ async function refreshSource(
   id: string,
   now: number,
   dependencies: IngestDependencies,
+  includeBrand = false,
 ) {
   const row = sourceRow(db, id);
   if (!row || row.kind !== "doc" || row.origin === "upload" || !row.url) return;
-  const page = await fetchPage(row.url, row.etag, dependencies);
+  const page = await fetchPage(row.url, row.etag, dependencies, includeBrand);
   if (page.kind === "text")
     recordFetch(
       db,
@@ -304,6 +306,7 @@ async function refreshSource(
       now,
     );
   else recordFetch(db, id, page, now);
+  return "brand" in page ? page.brand : undefined;
 }
 
 /** Reads the manager starts (adding a page or a sitemap, Refresh) fetch
@@ -357,7 +360,7 @@ export async function knowledgeOperation(
   // This runs after the object has checked its bound workspace.
   const textFields = (value: unknown): string[] => typeof value === "string" ? [value] : value && typeof value === "object" ? Object.values(value).flatMap(textFields) : [];
   const runMetadata = request.op === "evals.runs.post" && request.args.input && typeof request.args.input === "object" ? Object.fromEntries(Object.entries(request.args.input).filter(([key]) => key !== "results")) : null;
-  const checkedFields = ["knowledge.add", "knowledge.update"].includes(request.op)
+  const checkedFields = ["knowledge.add", "knowledge.previewSite", "knowledge.update"].includes(request.op)
     ? [request.args.title, request.args.text, request.args.url]
     : ["evals.save", "evals.update", "evals.import"].includes(request.op)
       ? [request.args.body, request.args.cases] : [runMetadata];
@@ -569,6 +572,19 @@ export async function knowledgeOperation(
     case "knowledge.get":
       if (!editor) throw new KnowledgeError(403, "admin-only", "Ask a workspace admin for access.");
       return getFaq(db, args.id);
+    case "knowledge.previewSite": {
+      if (!editor) throw new KnowledgeError(403, "admin-only", "Access denied.");
+      const url = checkedPageUrl(args.url);
+      const previous = db.sql.exec("SELECT id FROM kb_sources WHERE url = ?", url).toArray()[0];
+      const id = previous ? String(previous.id) : addSource(db, { kind: "doc", url }, now).id;
+      const cached = readMeta(db, "onboarding.site");
+      if (cached) return JSON.parse(cached);
+      if (!takeManualFetch(db, now)) throw new KnowledgeError(429, "fetch-limit", "Try again later.");
+      const brand = await refreshSource(db, id, now, dependencies, true);
+      const result = { ready: getSource(db, id)?.status === "ready", brand };
+      writeMeta(db, "onboarding.site", JSON.stringify(result));
+      return result;
+    }
     case "knowledge.add": {
       if (!editor) throw new KnowledgeError(403, "admin-only", "Ask a workspace admin for access.");
       const source = addSource(

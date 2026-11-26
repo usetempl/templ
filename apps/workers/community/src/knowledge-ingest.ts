@@ -16,6 +16,8 @@ import {
 } from "./safe-fetch";
 import { KnowledgeError } from "./support-knowledge-schema";
 
+import { websiteBrand, type WebsiteBrand } from "./website-brand";
+
 export type IngestDependencies = SafeFetchDependencies;
 
 const media = (headers: Headers) =>
@@ -147,16 +149,17 @@ export function htmlToText(html: string): { title: string | null; text: string }
 }
 
 export type PageFetch =
-  | { kind: "text"; title: string | null; text: string; etag: string | null }
+  | { kind: "text"; title: string | null; text: string; etag: string | null; brand?: WebsiteBrand }
   | { kind: "unchanged" }
   | { kind: "gone" }
-  | { kind: "failed"; error: string };
+  | { kind: "failed"; error: string; brand?: WebsiteBrand };
 const PAGE_TYPES = ["text/html", "text/plain", "text/markdown", "application/xhtml+xml"];
 /** Reads one docs page: HTML, Markdown or plain text, at most 1 MB. */
 export async function fetchPage(
   url: string,
   etag: string | null,
   dependencies: IngestDependencies = {},
+  includeBrand = false,
 ): Promise<PageFetch> {
   try {
     const response = await safeFetch(
@@ -183,10 +186,13 @@ export async function fetchPage(
       type === "text/html" || type === "application/xhtml+xml"
         ? htmlToText(body)
         : { title: /^#\s+(.+)$/m.exec(body)?.[1]?.trim() ?? null, text: body };
-    if (!page.text.trim()) return { kind: "failed", error: "empty" };
     if ((await Promise.all([page.title ?? "", page.text].map((text) => detectStoredSecret(text)))).some(Boolean))
       return { kind: "failed", error: "secret-refused" };
-    return { kind: "text", title: page.title ? hideAmbiguousHex(page.title) : null, text: hideAmbiguousHex(page.text), etag: response.headers.get("etag") };
+    const brand = includeBrand && (type === "text/html" || type === "application/xhtml+xml")
+      ? await websiteBrand(body, response.url, page.title) : undefined;
+    if (brand && await detectStoredSecret([brand.name, brand.logo].join("\n"))) return { kind: "failed", error: "secret-refused" };
+    if (!page.text.trim()) return { kind: "failed", error: "empty", ...(brand ? { brand } : {}) };
+    return { ...(brand ? { brand } : {}), kind: "text", title: page.title ? hideAmbiguousHex(page.title) : null, text: hideAmbiguousHex(page.text), etag: response.headers.get("etag") };
   } catch (error) {
     return {
       kind: "failed",

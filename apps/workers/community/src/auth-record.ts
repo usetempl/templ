@@ -1,3 +1,4 @@
+import { previewRecord, expirePreview, previewAdmission, expirePreviewAdmissions } from "./guest-onboarding";
 import { connectRecordRequest, expireConnectRequests } from "./connect";
 import { releaseActivationRecordRequest } from "./release-activation";
 import {
@@ -202,11 +203,23 @@ export class AuthRecord {
     this.funnelTask = task;
     if (typeof this.state.waitUntil === "function") this.state.waitUntil(task);
   }
+  private previewTail = Promise.resolve();
+  private serializePreview<T>(work: () => Promise<T>) {
+    const next = this.previewTail.then(work);
+    this.previewTail = next.then(() => undefined, () => undefined);
+    return next;
+  }
   async fetch(request: Request) {
     try {
       const path = new URL(request.url).pathname;
       // A sharded record: the worker names its hash. Only record operations
       // are served under that header.
+      if (path === "/website-preview-budget" && request.method === "POST")
+        return await previewAdmission(this.state.storage, (await readJson(request, 256)).ip);
+      if (path === "/website-preview" && request.method === "POST") {
+        const body = await readJson(request, 4096);
+        return await this.serializePreview(() => previewRecord(this.state.storage, this.env, body));
+      }
       const keyed = request.headers.get(AUTH_RECORD_HEADER);
       if (keyed !== null) {
         if (!/^[0-9a-f]{64}$/.test(keyed))
@@ -647,6 +660,8 @@ export class AuthRecord {
     });
   }
   async alarm() {
+    if (await this.serializePreview(() => expirePreview(this.state.storage, this.env))) return;
+    if (await expirePreviewAdmissions(this.state.storage)) return;
     const connect = await expireConnectRequests(this.state.storage);
     await expireConnectCaptures(this.state.storage);
     if (connect) return;

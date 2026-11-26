@@ -72,7 +72,7 @@ export function onboardingJourney() {
 }
 export function onboardingHeaders(path: string): Record<string, string> {
   if (
-    path !== "/rooms" &&
+    path !== "/rooms" && path !== "/onboarding/claim" &&
     !["/auth/verify", "/auth/solana/verify", "/auth/email/login/verify"].includes(path) &&
     !/^\/connect\/[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}(?:\/(?:approve|deny))?$/.test(
       path,

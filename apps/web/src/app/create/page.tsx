@@ -1,3 +1,4 @@
+import { WebsiteOnboarding } from "@/components/website-onboarding";
 import type { Metadata } from "next";
 import { NativeChatCreate } from "@/components/native-chat-create";
 import { copy as t } from "@/lib/copy";
@@ -8,7 +9,8 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function CreatePage({
   searchParams,
 }: {
-  searchParams: Promise<{ next?: string }>;
+  searchParams: Promise<{ next?: string; manual?: string }>;
 }) {
-  return <NativeChatCreate showPlanAfterCreate={(await searchParams).next === "plan"} />;
+  const { next, manual } = await searchParams;
+  return manual === "1" ? <NativeChatCreate showPlanAfterCreate={next === "plan"} /> : <WebsiteOnboarding nextPlan={next === "plan"} />;
 }
