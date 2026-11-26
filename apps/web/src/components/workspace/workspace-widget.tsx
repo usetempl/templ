@@ -297,7 +297,7 @@ const support = mountSupportWidget({
 // Optional: open it from your own Help button instead of the floating one.
 // Pass showLauncher: false above, then call support.open().`;
   return (
-    <div className={styles.page}>
+    <div data-workspace-settings="" className={styles.page}>
       <PageHeader
         eyebrow="Chat"
         title="Set up visitor chat"

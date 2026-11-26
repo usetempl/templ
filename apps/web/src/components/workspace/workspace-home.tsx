@@ -56,7 +56,7 @@ export function WorkspaceHome({ context }: { context: WorkspaceContext }) {
   }, [manager, room, key, attempt]);
 
   return (
-    <div className={`${styles.page} ${styles.pageNarrow}`}>
+    <div data-workspace-settings="" className={`${styles.page} ${styles.pageNarrow}`}>
       <PageHeader title={workspace.name} />
       <div className={styles.stack}>
         {manager && paid && hasSupportKnowledge(context.state.features) && (

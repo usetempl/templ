@@ -2,6 +2,7 @@ import { formatStandardAiRate } from "@templ/chat/standard-usage";
 import { BUILD_RELEASE, SITE } from "@/lib/config";
 import {
   PRODUCT_LIMITS,
+  PRODUCT_ANNUAL_PRICES as ANNUAL,
   PRODUCT_STANDARD_PRICES as PRICES,
   PRODUCT_STARTER_PRICES as STARTER,
 } from "@templ/chat/plans";
@@ -26,25 +27,19 @@ export function renderLlmsText(
       ),
     )
     .join("\n");
-  const contact = `Use Chat with Templ on ${SITE.origin} to open Templ's support widget.`;
+  const contact = `Use Talk to us on ${SITE.origin} to open Templ's support widget.`;
   return `# Templ
 
-Support inside your crypto app.
-
-Templ adds private support chat and a team inbox.
-Users share the wallet and transaction details your team needs.
-Your AI agent answers or hands off. Your team replies in chat.
+Share a private chat link and reply from Cases. Add a website or sitemap under AI → Website and docs for AI answers or drafts.
 Create a workspace and test ${PRODUCT_LIMITS.freeSupportTickets} integration tickets free.
 Templ AI stays off for these tests unless Templ already approved AI access.
 Each test ticket allows ${PRODUCT_LIMITS.freeTeamRepliesPerTicket} team replies.
 Retries, deleting replies and reopening do not reset this allowance.
 After the free allowance, pay for workspace access to continue.
 Do not create more workspaces to bypass the free limit.
-Open Plan & usage. Select Start paid month and choose an available plan.
-Use an available checkout network. Templ verifies payment before your month starts.
+Under Choose a hosted name, enter an available name and select Reserve name and choose a plan. Choose monthly or annual access and pay in USDC. Existing workspaces can also open Plan & usage. Access starts after payment is verified.
 A pending transfer does not activate access. Ask Templ in chat if payment is unavailable.
 [Read pricing.](${SITE.docs}/pricing)
-Transaction checks appear only when enabled. Feature status appears below.
 
 ## Start
 
@@ -88,8 +83,8 @@ Follow-ups about the same issue add no case.
 Opens, greetings, handoff notices, spam, tests, duplicates, drafts, retries and failed sends do not count.
 Extra answered cases use prepaid credit after the included allowance.
 Normal safety, provider and operating limits still apply.
-Your protocol supplies its human support team. There is no staff-seat fee.
-Templ AI usage costs ${formatStandardAiRate(PRICES)} times the published GPT-6.1 Sol Standard API rates.
+Both plans include all team seats. Annual access costs $${ANNUAL.starter / 100} for Starter or $${ANNUAL.standard / 100} for Plus. Included cases and AI credit reset monthly.
+Templ’s own support chat uses GPT-6.1 Terra. New prepaid workspaces use GPT-6.1 Sol. Prepaid Templ AI usage costs ${formatStandardAiRate(PRICES)} times the published GPT-6.1 Sol Standard API rates.
 The included retail credit covers AI use first. Further use draws from prepaid USDC.
 Apply the published input, cached-input, cache-write and long-context tiers.
 Count reasoning tokens as output once.
@@ -108,14 +103,14 @@ Read [service pricing](${SITE.docs}/pricing/custom-deals#optional-services) for 
 The statement records usage and verified payments. Existing debt and custom agreements keep their collection terms.
 There is no automatic renewal or automatic payment.
 Existing access grants, recorded periods, signed terms and receipts keep their original pricing.
-Accept the offer before a new monthly period starts. Publishing it creates no enrollment or retroactive charges.
+Choose your term before paying. Publishing it creates no enrollment or retroactive charges.
 
 ## Stablecoin payments
 
 Use only payment networks shown as available in your workspace.
 
 Create a payment request in Plan. Pay by direct stablecoin transfer from a wallet you signed in with.
-Templ verifies the transfer before activating a monthly period or adding credit. Each transfer credits once.
+Templ verifies the transfer before activating access or adding credit. Each transfer credits once.
 Payments need no contract or approval. Templ never asks for payment in chat.
 Each network and token has its own release check.
 
@@ -144,15 +139,14 @@ Read ${SITE.origin}/privacy, ${SITE.origin}/terms, ${SITE.origin}/dpa and ${SITE
 
 ## Docs
 
-- [Set up Chief in Codex or Claude Code](${SITE.origin}/chief) or [get the Markdown](${SITE.origin}/chief.md). Chief tracks tasks and relays the project lead’s results or questions. The lead decides how to do the work, what to test and when to ship within your authorization. The guide also covers lead status, chat history on paired devices and private Claude relays.
-- [How Templ works for crypto app support](${SITE.docs}/): Cases reach your team with wallet details and transaction checks.
-- Choose an embedded widget, a standalone chat link, or both. [Set up Templ guest support](${SITE.docs}/install).
+- [Get started with Templ](${SITE.docs}/): Share a chat link and reply from your team inbox.
+- Choose an embedded widget, a standalone chat link, or both. [Install the widget or use a chat link](${SITE.docs}/install).
 - [Fix widget install problems](${SITE.docs}/install/troubleshooting): Check why the widget does not load or questions do not arrive.
-- [Set up your Templ workspace](${SITE.docs}/setup): Choose who can ask and add your team.
+- [Set up your Templ workspace](${SITE.docs}/setup): Try a conversation, claim a name and add AI sources.
 - [Team roles and access](${SITE.docs}/team): See who can read, answer, export and bill.
-- [The support widget your users see](${SITE.docs}/widget): What users see and share.
+- [Chat on your site](${SITE.docs}/widget): What users see and share.
 - [Connected and verified wallets](${SITE.docs}/wallet-verification): What wallet sign-in proves.
-- [Answer cases in the team inbox](${SITE.docs}/inbox): Reply, add notes and mark cases resolved.
+- [Answer cases in the team inbox](${SITE.docs}/inbox): Review an AI draft, reply and clear spam.
 - [Transaction checks on EVM networks and Solana](${SITE.docs}/transaction-checks): What the chain shows and what stays unknown.
 - [AI answers and drafts](${SITE.docs}/ai): Choose who answers each case.
 - [Get alerts for new cases](${SITE.docs}/alerts): Choose how your team receives case alerts.

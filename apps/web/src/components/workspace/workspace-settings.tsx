@@ -60,7 +60,7 @@ export function WorkspaceSettings({ context }: { context: WorkspaceContext }) {
     })
   )
     return (
-      <div className={`${styles.page} ${styles.pageNarrow} ${layout.page}`}>
+      <div data-workspace-settings="" className={`${styles.page} ${styles.pageNarrow} ${layout.page}`}>
         <PageHeader eyebrow="Settings" title="Workspace settings" />
         <div className={layout.sections}>
           <TeamDisplayName
@@ -113,20 +113,20 @@ function WorkspaceConfiguration({ context }: { context: WorkspaceContext }) {
 
 
   return (
-    <div className={`${styles.page} ${styles.pageNarrow} ${layout.page}`}>
+    <div data-workspace-settings="" className={`${styles.page} ${styles.pageNarrow} ${layout.page}`}>
       <PageHeader
         title="Workspace settings"
       />
       <WorkspaceSections
         items={[
-          ...(current?.canEdit ? [{ id: "support-profiles", label: "Chat profiles" }] : []),
           { id: "workspace-general", label: "Workspace" },
+          ...(current?.canEdit ? [{ id: "support-profiles", label: "Chat profiles" }] : []),
           { id: "case-settings", label: "Reply hours" },
           { id: "alerts", label: "Alerts" },
-          { id: "appearance-help", label: "Appearance and help" },
           ...(context.manager
             ? [{ id: "workspace-manager", label: "Ownership" }]
             : []),
+          { id: "appearance-help", label: "Appearance and help" },
         ]}
       />
       <div className={layout.sections}>
@@ -149,7 +149,7 @@ function WorkspaceConfiguration({ context }: { context: WorkspaceContext }) {
             </div>
           </Card>
         ) : current.error || !current.settings ? (
-          <div>
+          <div className={layout.panelBody}>
             <Callout tone="danger" role="alert">
               {current.error ?? "Settings could not load."}
             </Callout>

@@ -105,7 +105,7 @@ export function WorkspacePlan({ context }: { context: WorkspaceContext }) {
     context.billing && usage && isBillingView(usage) ? usage : null;
   const refresh = useCallback(() => setBump((value) => value + 1), []);
   return (
-    <div className={`${styles.page} ${styles.pageNarrow}`}>
+    <div data-workspace-settings="" className={`${styles.page} ${styles.pageNarrow}`}>
       <PageHeader
         eyebrow="Plan"
         title="Plan & usage"

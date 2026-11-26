@@ -733,7 +733,7 @@ export function WorkspaceTeam({ context }: { context: WorkspaceContext }) {
     ) : null;
 
   return (
-    <div className={`${styles.page} ${styles.pageNarrow}`}>
+    <div data-workspace-settings="" className={`${styles.page} ${styles.pageNarrow}`}>
       <UnsavedChanges dirty={Boolean(principal.trim())} />
       <PageHeader
         eyebrow="Team"

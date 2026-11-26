@@ -1,11 +1,13 @@
 "use client";
 
 import { useRef, useState, type FormEvent } from "react";
+import { IconArrowUpRight, IconFileText, IconSitemap } from "@tabler/icons-react";
 import { Card, Field, ui } from "@/components/ui/ui";
 import { trackEvent } from "@/lib/analytics";
 import { addKnowledge } from "@/lib/knowledge-client";
 import type { WorkspaceContext } from "./support-workspace";
-import styles from "./workspace.module.css";
+import styles from "./knowledge-sources.module.css";
+import layout from "./workspace-settings.module.css";
 
 export function OnboardingSource({ context }: { context: WorkspaceContext }) {
   return (
@@ -13,15 +15,13 @@ export function OnboardingSource({ context }: { context: WorkspaceContext }) {
       id="ai-setup"
       title="Set up your support AI"
       description="Add a public page your team uses to answer questions."
+      actions={
+        <button type="button" className={styles.openSetup} onClick={() => context.go("knowledge")}>
+          Open AI setup <IconArrowUpRight aria-hidden="true" size={16} />
+        </button>
+      }
     >
       <SourceUrlForm context={context} />
-      <button
-        type="button"
-        className="button secondary"
-        onClick={() => context.go("knowledge")}
-      >
-        Open AI setup
-      </button>
     </Card>
   );
 }
@@ -88,13 +88,12 @@ export function SourceUrlForm({
 
   return (
     <>
-      <form className={styles.fields} onSubmit={save}>
-        <div className={styles.row} role="group" aria-label="Source type">
+      <form className={styles.sourceForm} onSubmit={save}>
+        <div className={styles.sourceTypes} role="group" aria-label="Source type">
           {(["page", "sitemap"] as const).map((type) => (
             <button
               key={type}
               type="button"
-              className={`button small ${sourceType === type ? "secondary" : "quiet"}`}
               disabled={busy}
               aria-pressed={sourceType === type}
               onClick={() => {
@@ -103,31 +102,32 @@ export function SourceUrlForm({
                 setError("");
               }}
             >
+              {type === "page" ? <IconFileText aria-hidden="true" size={16} /> : <IconSitemap aria-hidden="true" size={16} />}
               {type === "page" ? "Web page" : "Sitemap"}
             </button>
           ))}
         </div>
-        <Field
-          label={
-            sourceType === "page" ? "Public page URL" : "Public sitemap URL"
-          }
-        >
-          <input
-            className={ui.input}
-            type="url"
-            autoComplete="off"
-            placeholder={
-              sourceType === "page"
-                ? "https://example.com/docs"
-                : "https://example.com/sitemap.xml"
+        <div className={styles.sourceEntry}>
+          <Field
+            label={
+              sourceType === "page" ? "Public page URL" : "Public sitemap URL"
             }
-            required
-            value={url}
-            disabled={busy}
-            onChange={(event) => setUrl(event.target.value)}
-          />
-        </Field>
-        <div className={styles.row}>
+          >
+            <input
+              className={ui.input}
+              type="url"
+              autoComplete="off"
+              placeholder={
+                sourceType === "page"
+                  ? "https://example.com/docs"
+                  : "https://example.com/sitemap.xml"
+              }
+              required
+              value={url}
+              disabled={busy}
+              onChange={(event) => setUrl(event.target.value)}
+            />
+          </Field>
           <button
             type="submit"
             className="button"
@@ -142,12 +142,12 @@ export function SourceUrlForm({
         </div>
       </form>
       {notice && (
-        <p className={styles.status} role="status">
+        <p className={layout.feedback} role="status">
           {notice}
         </p>
       )}
       {error && (
-        <p className={styles.error} role="alert">
+        <p className={layout.feedback} role="alert">
           {error}
         </p>
       )}

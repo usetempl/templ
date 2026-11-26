@@ -269,7 +269,7 @@ export function WorkspaceTeamInvites({
           </button>
         </div>
         {saved && (
-          <p role="status" className={styles.hint}>
+          <p role="status" className={styles.small}>
             Invitation saved. Your teammate gets access after signing in with
             that email.
           </p>
@@ -277,7 +277,7 @@ export function WorkspaceTeamInvites({
         {link && (
           <div>
             <CopyInline value={link} label="Copy team invite link" />
-            <p className={styles.hint}>
+            <p className={styles.small}>
               This link appears once. Revoke it if you send it to the wrong
               person.
             </p>
@@ -308,7 +308,7 @@ export function WorkspaceTeamInvites({
                     ? ` for ${invite.recipient}`
                     : ""}
                 </span>
-                <span className={styles.hint}>
+                <span className={styles.small}>
                   Expires {new Date(invite.expiresAt).toLocaleString()}
                 </span>
                 {invite.status === "active" && (

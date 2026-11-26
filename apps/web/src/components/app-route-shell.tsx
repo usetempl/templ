@@ -10,6 +10,7 @@ const DashboardProviders = dynamic(() => import("./app-shell").then(module => mo
 
 export function AppRouteShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  if (pathname === "/") return children;
   if (pathname.startsWith("/help/") || pathname.startsWith("/support-entry/"))
     return children;
   return <DashboardProviders>{children}</DashboardProviders>;

@@ -3,6 +3,7 @@
 import hero from "./hero-copy.json";
 import Link from "next/link";
 import { useEffect, useRef } from "react";
+import { TemplSupport } from "@/components/templ-support";
 import { SiteFooter, SiteHeader } from "@/components/site-frame";
 import { SITE } from "@/lib/site-environment";
 import { LANDING_PREVIEW, LANDING_PREVIEW_BANNER } from "@/lib/landing-preview";
@@ -28,6 +29,7 @@ export function LandingPage() {
   return (
     <div className={styles.page} data-theme="light" ref={page}>
       {LANDING_PREVIEW && <p className={styles.preview} role="note">{LANDING_PREVIEW_BANNER}</p>}
+      <TemplSupport lockedTheme="light" showLauncher />
       <SiteHeader brandOnly />
       <main id="main-content" tabIndex={-1}>
         <section className={styles.hero} aria-labelledby="landing-title">

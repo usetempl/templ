@@ -108,7 +108,6 @@ export function AppShell({ children }: { children: ReactNode }) {
     return () => window.removeEventListener("templ:navigate-chat", openChat);
   }, [router]);
   const segments = pathname.split("/").filter(Boolean);
-  const landing = pathname === "/";
   const publicPage = PUBLIC_PAGES.has(pathname);
   // Workspaces render their own frame: the team's rail or a member's thread.
   const workspace =
@@ -126,12 +125,8 @@ export function AppShell({ children }: { children: ReactNode }) {
     );
   return (
     <>
-      <TemplSupport key={landing ? "landing" : "app"} lockedTheme={landing ? "light" : undefined} showLauncher={landing || pathname === "/create"} />
+      <TemplSupport showLauncher={pathname === "/create"} />
       {pathname.startsWith("/connect/") ? (
-        <main id="main-content" tabIndex={-1}>
-          {children}
-        </main>
-      ) : landing ? (
         <main id="main-content" tabIndex={-1}>
           {children}
         </main>

@@ -2,6 +2,7 @@ import { formatStandardAiRate } from "@templ/chat/standard-usage";
 import { SITE } from "@/lib/site-environment";
 import {
   PRODUCT_LIMITS,
+  PRODUCT_ANNUAL_PRICES as ANNUAL,
   PRODUCT_STANDARD_PRICES as PRICES,
   PRODUCT_STARTER_PRICES as STARTER,
 } from "@templ/chat/plans";
@@ -29,13 +30,8 @@ export function renderAgentsGuide({
     : "";
   return `# Templ support integration
 
-Support inside your crypto app or on a standalone page.
-
-Templ adds private support chat and a team inbox.
-Visitors choose which wallet and transaction details to share.
-Your AI agent answers or hands off. Your team replies in chat.
+Share a private chat link or embed the widget. Reply from Cases. For AI answers or drafts, add a website or sitemap under AI → Website and docs.
 [Test ${PRODUCT_LIMITS.freeSupportTickets} tickets free, without Templ AI. Read pricing.](${SITE.docs}/pricing)
-Transaction checks appear only when enabled.
 
 Connect your AI agent with the backend guide below.
 Ask a question through [Templ's widget](${SITE.origin}/#support).
@@ -45,7 +41,7 @@ Ask a question through [Templ's widget](${SITE.origin}/#support).
 Ask whether the team wants a standalone link, an embedded widget, or both. New teams can use Create your chat, copy the link under Your support chat and reply in Cases. Self-hosted teams share a link on their own domain. For an existing workspace that needs a link, open Settings → Chat → Guest support. Select Host a support page on Templ and Save guest support. Use Copy support link and publish the saved URL on the official site. The page accepts guests and works without the widget script. For both, install the widget for that same workspace. Both entries reach its inbox. Guest sessions are scoped to their site and workspace.
 
 - [Install with your AI](${SITE.docs}/install): create or choose your workspace, copy its install prompt into your AI coding tool, then test the widget.
-- [Wallet support widget](${SITE.docs}/developers/widget): load \`${SITE.origin}/support-widget.js\` in the browser as a hosted ES module with \`import()\`. There is no npm package; don't install one. The guide links to the full install prompt. Call \`captureSupportFailure(workspaceId, failure)\` from your failure handler with the [typed \`app\` fields and limits](${SITE.docs}/developers/widget#capture-failure). Make a "Get help" button call \`openSupport(workspaceId)\`. Pass the wallet the app already connected: \`{ evm: provider }\` with the EIP-1193 provider the user picked${solana ? ", or `{ solana: wallet }` with `useWallet()` from @solana/wallet-adapter-react or the Wallet Standard wallet the user picked" : ""}. Visitors can ask without a wallet unless the workspace requires one; a separate ${solana ? "SIWE or SIWS" : "SIWE"} proof verifies their wallet when they choose to sign in. Reuse the existing wallet connection; do not add a second wallet modal. To pin one build, load \`${SITE.origin}${SUPPORT_WIDGET_LATEST_PATH}\` instead: that file never changes and keeps working for ${SUPPORT_WIDGET_SUPPORT_DAYS} days after a newer version replaces it.
+- [Support widget](${SITE.docs}/developers/widget): load \`${SITE.origin}/support-widget.js\` in the browser as a hosted ES module with \`import()\`. There is no npm package; don't install one. The guide links to the full install prompt. If the team asks to share failure details, call \`captureSupportFailure(workspaceId, failure)\` from your failure handler with the [typed \`app\` fields and limits](${SITE.docs}/developers/widget#capture-failure). Make a "Get help" button call \`openSupport(workspaceId)\`. Pass the wallet the app already connected: \`{ evm: provider }\` with the EIP-1193 provider the user picked${solana ? ", or `{ solana: wallet }` with `useWallet()` from @solana/wallet-adapter-react or the Wallet Standard wallet the user picked" : ""}. Visitors can ask without a wallet unless the workspace requires one; a separate ${solana ? "SIWE or SIWS" : "SIWE"} proof verifies their wallet when they choose to sign in. Reuse the existing wallet connection; do not add a second wallet modal. To pin one build, load \`${SITE.origin}${SUPPORT_WIDGET_LATEST_PATH}\` instead: that file never changes and keeps working for ${SUPPORT_WIDGET_SUPPORT_DAYS} days after a newer version replaces it.
 - [Backend support agent](${SITE.docs}/developers/support-agent): a working Node 22 example using \`TemplChatClient\` from [agent-client.mjs](${SITE.origin}/agent-client.mjs), a server signer and your model adapter. It includes a durable outbox and human handoff.${python}
 - [Current availability](${SITE.origin}/api/status): check the widget, conversation, workflow and AI agent flags before enabling live requests. Downloading code does not prove hosted availability.
 
@@ -79,8 +75,7 @@ Each test ticket allows ${PRODUCT_LIMITS.freeTeamRepliesPerTicket} team replies.
 Retries, deleting replies and reopening do not reset this allowance.
 After the free allowance, pay for workspace access to continue.
 Do not create more workspaces to bypass the free limit.
-Open Plan & usage. Select Start paid month and choose an available plan.
-Use an available checkout network. Templ verifies payment before your month starts.
+Under Choose a hosted name, enter an available name and select Reserve name and choose a plan. Choose monthly or annual access and pay in USDC. Existing workspaces can also open Plan & usage. Access starts after payment is verified.
 A pending transfer does not activate access. Ask Templ in chat if payment is unavailable.
 Check Plan & usage for access, reviewed usage totals and amounts due.
 Missing or unreviewed usage stays unavailable for billing.
@@ -92,8 +87,8 @@ Follow-ups about the same issue add no case.
 Opens, greetings, handoff notices, spam, tests, duplicates, drafts, retries and failed sends do not count.
 Extra answered cases use prepaid credit after the included allowance.
 Normal safety, provider and operating limits still apply.
-Your protocol supplies its human support team. There is no staff-seat fee.
-Templ AI usage costs ${formatStandardAiRate(PRICES)} times the published GPT-6.1 Sol Standard API rates.
+Both plans include all team seats. Annual access costs $${ANNUAL.starter / 100} for Starter or $${ANNUAL.standard / 100} for Plus. Included cases and AI credit reset monthly.
+Templ’s own support chat uses GPT-6.1 Terra. New prepaid workspaces use GPT-6.1 Sol. Prepaid Templ AI usage costs ${formatStandardAiRate(PRICES)} times the published GPT-6.1 Sol Standard API rates.
 The included retail credit covers AI use first. Further use draws from prepaid USDC.
 Apply the published input, cached-input, cache-write and long-context tiers.
 Count reasoning tokens as output once.
@@ -112,7 +107,7 @@ Read [service pricing](${SITE.docs}/pricing/custom-deals#optional-services) for 
 The statement records usage and verified payments. Existing debt and custom agreements keep their collection terms.
 There is no automatic renewal or automatic payment.
 Existing access grants, recorded periods, signed terms and receipts keep their original pricing.
-Accept the offer before a new monthly period starts. Publishing it creates no enrollment or retroactive charges.
+Choose your term before paying. Publishing it creates no enrollment or retroactive charges.
 Read [pricing](${SITE.docs}/pricing) for details.
 Read [privacy](${SITE.origin}/privacy) before sending case contents to a model provider.
 Existing workspace permissions still apply to retained history.

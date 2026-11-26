@@ -55,7 +55,7 @@ export function WorkspaceAi({ context }: { context: WorkspaceContext }) {
   );
   const knowledge = hasSupportKnowledge(context.state?.features);
   return (
-    <div className={`${styles.page} ${styles.pageNarrow} ${layout.page}`}>
+    <div data-workspace-settings="" className={`${styles.page} ${styles.pageNarrow} ${layout.page}`}>
       <PageHeader title="Support AI" />
       <div className={layout.sections}>
         {knowledge && <WorkspaceKnowledge key={`sources:${room}:${account}:${admin}`} context={context} />}
@@ -131,7 +131,7 @@ function AiConfiguration({
   }, [context.room, attempt, onMode]);
   if (error)
     return (
-      <div>
+      <div className={layout.panelBody}>
         <Callout tone="danger" role="alert">
           {error}
         </Callout>

@@ -1,12 +1,10 @@
 # Templ
 
-A visitor can ask about a failed swap as a guest. Your team replies in its inbox, and the visitor reads the answer in the same chat. Visitors who choose to identify themselves can verify a wallet address.
-
-Templ gives your team a standalone support link and an inbox. A visitor can open the link even when your app is down. You can also add the same chat to your app as a widget.
+Share a private support link and reply to visitors from one inbox. Add the widget if you want the same chat inside your app. Visitors can ask as guests. If your team enables wallet verification, visitors can also prove they control an address.
 
 [Create your chat on Templ Hosted](https://usetempl.com/create) · [Run Templ on your own domain](docs/self-host.md)
 
-The diagram shows a Standard chat in an app that offers optional transaction details.
+This example shows what the team receives when a visitor chooses to include app details.
 
 ![One Standard case on a workspace that accepts guests. The message and the details the visitor chose pass the worker's access check. The team and a permitted AI agent read them, and the visitor reads the reply.](docs/support-case.svg)
 
@@ -22,12 +20,12 @@ The diagram shows a Standard chat in an app that offers optional transaction det
 
 Try each entry point you plan to offer in a test workspace. Send a question, reply from the inbox, and reopen the original chat to read the reply. Use a private test destination for any staff alerts. [Hosted setup](https://docs.usetempl.com/install/) · [Manual widget guide](https://docs.usetempl.com/developers/widget/) · [Setup troubleshooting](https://docs.usetempl.com/install/troubleshooting/)
 
-## What the visitor shares
+## What the visitor can share
 
 - **Message.** A workspace can accept guests, ask for a wallet address, or require wallet sign-in. Guest support needs only a message.
 - **Wallet proof.** The visitor signs a sign-in message to prove control of the wallet. The team sees that wallet as verified.
 - **Reported address.** Your app can report the connected address without a signature. The visitor ticks a box to share it. A workspace that asks for an address shows it before Send. The team sees it as not verified.
-- **Transaction and app details.** The visitor can share up to five transaction hashes, the network, and details your app supplies, such as the action and error. The widget sends only the rows the visitor ticks.
+- **Transaction and app details.** If your integration enables transaction details, the visitor can share up to five transaction hashes, the network, and details your app supplies, such as the action and error. The widget sends only the rows the visitor ticks.
 
 Reply notices are a separate opt-in. The visitor can add an email when the workspace offers them.
 

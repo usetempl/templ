@@ -80,7 +80,7 @@ export function HostedChatSetup({ context, paid }: { context: WorkspaceContext; 
         {!paid && <p>Try a conversation before you share your link.</p>}
       </header>
       {paid ? (
-        <div className={styles.linkRow}>
+        <div className={styles.chatActions}>
           <a className="button secondary" href={link} target="_blank" rel="noopener noreferrer">Open chat <IconArrowUpRight aria-hidden="true" /></a>
           <CopyButton value={link} label="Copy chat link" />
           <button type="button" className="button secondary" onClick={() => go("inbox")}>Open inbox</button>
@@ -111,7 +111,7 @@ export function HostedChatSetup({ context, paid }: { context: WorkspaceContext; 
           <section className={styles.nameChoice} aria-labelledby="choose-hosted-name">
             <header>
               <h3 id="choose-hosted-name">Choose a hosted name</h3>
-              <small>{paid ? "Included in your plan" : `From ${formatUsdCents(PRODUCT_STARTER_PRICES.workspaceMonthlyUsdCents)}/month`}</small>
+              {!paid && <small>From {formatUsdCents(PRODUCT_STARTER_PRICES.workspaceMonthlyUsdCents)}/month</small>}
             </header>
             <form className={styles.nameForm} onSubmit={chooseName}>
               <label htmlFor="trial-hosted-name">Hosted name</label>

@@ -340,3 +340,31 @@
     transition: none;
   }
 }
+
+/* Settings cards share a vertical rhythm for fields, notices and actions. */
+:global([data-workspace-settings]) .cardBody {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--templ-space-4);
+  min-width: 0;
+}
+
+:global([data-workspace-settings]) .cardBody > :where(button, a, .badge) {
+  justify-self: start;
+}
+
+:global([data-workspace-settings]) .cardBody > :where(p, ul, ol, form) {
+  margin-block: 0;
+}
+
+:global([data-workspace-settings]) .cardHeader {
+  align-items: center;
+  flex-wrap: wrap;
+  row-gap: var(--templ-space-2);
+}
+
+:global([data-workspace-settings]) .callout > div:has(> button) {
+  display: grid;
+  justify-items: start;
+  gap: var(--templ-space-3);
+}
