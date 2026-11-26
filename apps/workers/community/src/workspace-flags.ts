@@ -151,7 +151,9 @@ const SCOPED_FLAGS = Symbol("workspace-flags");
 const SCOPED_FEATURES = Symbol("workspace-features");
 const SCOPED_WORKSPACE = Symbol("workspace-feature-id");
 const NEW_WORKSPACE_SETUP = Symbol("self-serve-support-setup");
+const TRIAL_AI_ONBOARDING = Symbol("trial-ai-onboarding");
 type ScopedEnv = WorkspaceFlagEnv & {
+  [TRIAL_AI_ONBOARDING]?: boolean;
   [SCOPED_FLAGS]?: StoredFlags;
   [SCOPED_FEATURES]?: WorkspaceFeatures;
   [SCOPED_WORKSPACE]?: string;
@@ -311,10 +313,15 @@ function effective(
   )
     return false;
   const flag = flags[key];
+  if (key === "trialAiPractice" && (env as ScopedEnv)[TRIAL_AI_ONBOARDING]) {
+    const onboarding = env.APP_ORIGIN === "https://usetempl.com"
+      ? activatedReleaseFlag(env, "trialAiPracticeVerified")
+      : env.SUPPORT_SELF_SERVE_SETUP_ENABLED === "true";
+    if (onboarding && released(env, "managedAgent")) return true;
+  }
   if ((env as ScopedEnv)[NEW_WORKSPACE_SETUP] && env.SUPPORT_SELF_SERVE_SETUP_ENABLED === "true" &&
       (env.APP_ORIGIN !== "https://usetempl.com" || activatedReleaseFlag(env, "selfServeSupportOnboardingVerified"))) {
     if (key === "nativeTelegram" && released(env, "teamInvites")) return true;
-    if (key === "trialAiPractice" && released(env, "managedAgent")) return true;
     if ((key === "handoffLearning" || key === "teamReplyLearning") && released(env, "aiDrafts")) return true;
   }
   if (key === "standardMonthlyBilling") return released(env, key);
@@ -479,6 +486,7 @@ export async function workspaceFeatureEnv<T extends WorkspaceFlagEnv>(
   return Object.assign({}, env, {
     [SCOPED_FLAGS]: await currentIssuedFlags(storage, env, flags ?? {}, native),
     [NEW_WORKSPACE_SETUP]: native?.selfServeSupportSetup === true,
+    [TRIAL_AI_ONBOARDING]: native?.trialAiOnboarding === true,
     [SCOPED_FEATURES]: undefined,
     [SCOPED_WORKSPACE]: native?.room.id,
   });

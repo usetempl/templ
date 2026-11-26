@@ -18,6 +18,12 @@ import type { RoomClient } from "./room-client";
 import { HANDOFF_LEARNING_SCHEMA, checkedHandoffLearningResult } from "@templ/chat/support-learning";
 
 export const PREPAID_GPT_MODEL = "gpt-6.1-sol";
+export const PREPAID_GPT_GATEWAY_MODEL = `openai/${PREPAID_GPT_MODEL}`;
+
+export function isPrepaidGptModel(model: unknown): boolean {
+  return model === PREPAID_GPT_MODEL || model === PREPAID_GPT_GATEWAY_MODEL;
+}
+
 export const PREPAID_GPT_REQUEST_BYTES = 96 * 1024;
 type GptBinding = Pick<Ai, "run"> & Partial<Pick<Ai, "gateway">>;
 type CountedRequest = {
@@ -319,7 +325,7 @@ export function fundedGptCaller(input: GptOptions, funding: GptFunding): ModelCa
     try {
       result = record(
         await input.ai.run(
-          "openai/gpt-6.1-sol" as Parameters<Ai["run"]>[0],
+          PREPAID_GPT_GATEWAY_MODEL as Parameters<Ai["run"]>[0],
           body as never,
           {
             signal,
@@ -333,7 +339,9 @@ export function fundedGptCaller(input: GptOptions, funding: GptFunding): ModelCa
           },
         ),
       );
-      model = typeof result.model === "string" ? result.model : "unknown";
+      model = isPrepaidGptModel(result.model)
+        ? PREPAID_GPT_MODEL
+        : typeof result.model === "string" ? result.model : "unknown";
       usage = gptUsage(result.usage);
       if (result.status === "completed" && model === PREPAID_GPT_MODEL)
         outcome = "completed";

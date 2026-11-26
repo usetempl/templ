@@ -96,6 +96,7 @@ export type NativeCreation = {
 export type NativeRoomRecord = NativeCreation & {
   revision: number;
   selfServeSupportSetup?: true;
+  trialAiOnboarding?: true;
   trialCreator?: `0x${string}`;
   supportProfiles?: WorkspaceSupportProfiles;
   supportResponderConfigured?: boolean;
@@ -716,7 +717,12 @@ export async function nativeControlRequest(
         );
       return json(recordView(existing));
     }
-    const record: NativeRoomRecord = { ...value, revision: 1, selfServeSupportSetup: true };
+    const record: NativeRoomRecord = {
+      ...value,
+      revision: 1,
+      selfServeSupportSetup: true,
+      trialAiOnboarding: true,
+    };
     requireConnectDeadline(body.approvalExpiresAt);
     await storage.put("native-room", record);
     await storage.put("room-privacy", {

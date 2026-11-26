@@ -1,7 +1,12 @@
 import { MANAGED_AGENT_LIMITS, spendMonth } from "@templ/chat/managed-agent";
 import { standardAiUsageUsdNanos } from "@templ/chat/standard-usage";
 import { prepaidAiMaximum, PREPAID_AI_LIMITS } from "../product-prepaid-ai";
-import { gptUsage, PREPAID_GPT_MODEL } from "./gpt";
+import {
+  gptUsage,
+  isPrepaidGptModel,
+  PREPAID_GPT_GATEWAY_MODEL,
+  PREPAID_GPT_MODEL,
+} from "./gpt";
 import { TEMPL_SPEND_OBJECT } from "./knowledge-hooks";
 
 export type AiConnectionProbeResult = {
@@ -123,7 +128,7 @@ export async function probeAiConnection(
       await bounded(
         (signal) =>
           env.AI!.run(
-            "openai/gpt-6.1-sol" as Parameters<Ai["run"]>[0],
+            PREPAID_GPT_GATEWAY_MODEL as Parameters<Ai["run"]>[0],
             {
               model: PREPAID_GPT_MODEL,
               instructions:
@@ -160,7 +165,7 @@ export async function probeAiConnection(
       ),
     );
     result.model =
-      raw.model === PREPAID_GPT_MODEL ? PREPAID_GPT_MODEL : "unknown";
+      isPrepaidGptModel(raw.model) ? PREPAID_GPT_MODEL : "unknown";
     result.tier =
       raw.service_tier === "default"
         ? "default"

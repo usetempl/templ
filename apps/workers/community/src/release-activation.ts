@@ -862,7 +862,7 @@ export function activatedReleasedFeatures(
 /** Standard team links share the proved workflow and its serving identity. */
 export function activatedReleaseFlag(
   env: ReleaseActivationEnv,
-  flag: "supportWorkflowVerified" | "selfServeSupportOnboardingVerified",
+  flag: "supportWorkflowVerified" | "selfServeSupportOnboardingVerified" | "trialAiPracticeVerified",
 ): boolean {
   return activatedAvailability(env)?.publicRelease?.[flag] === true;
 }
