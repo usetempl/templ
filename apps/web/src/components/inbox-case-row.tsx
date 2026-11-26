@@ -34,7 +34,7 @@ export function InboxCaseRow({
       <span className={styles.rowAvatar}>{avatar}</span>
       <span className={styles.rowBody}>
         <span className={styles.rowTop}>
-          <strong>
+          <strong title={label || preview}>
             {label || preview}
             {verified && (
               <IconCheck

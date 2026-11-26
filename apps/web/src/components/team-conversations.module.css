@@ -286,6 +286,7 @@
 }
 .list {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 0;
   margin: 0;
   padding: 0;
@@ -326,6 +327,7 @@
 }
 .rowBody {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   flex: 1;
   gap: var(--templ-space-1);
   min-width: 0;
@@ -349,6 +351,7 @@
 }
 .rowTop time {
   flex: none;
+  white-space: nowrap;
   color: var(--templ-muted);
   font-size: var(--templ-text-caption);
   font-variant-numeric: tabular-nums;
@@ -433,6 +436,11 @@
 .tag {
   border: var(--templ-border-width) solid var(--templ-border-strong);
   color: var(--templ-muted);
+}
+.rowMeta .tag {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 /* Who acts next on the row, and the one reason a person must write */
 .turnPill,
