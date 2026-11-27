@@ -2,6 +2,7 @@ import { getAddress, isAddress, type Address } from "viem";
 import type { ChatChainId } from "./chains";
 import type { StandardAiRate } from "./standard-usage";
 import { PRODUCT_ANNUAL_PRICES, PRODUCT_OFFER_VERSION, PRODUCT_STARTER_PRICES, PRODUCT_STANDARD_PRICES } from "./plans";
+import { starterPricesForVersion } from "./standard-plan";
 import { isSolanaAddress } from "./solana";
 import {
   getProductPaymentAsset,
@@ -238,7 +239,7 @@ export function accessPaymentCents(terms: StandardPaymentTerms): number | null {
     return terms.purpose === "period" && terms.annualPriceVersion === undefined
       ? terms.workspaceMonthlyCents : null;
   if (terms.annualPriceVersion !== PRODUCT_ANNUAL_PRICES.publishedOn) return null;
-  if (terms.priceVersion === PRODUCT_STARTER_PRICES.publishedOn &&
+  if (starterPricesForVersion(terms.priceVersion) &&
       terms.workspaceMonthlyCents === PRODUCT_STARTER_PRICES.workspaceMonthlyUsdCents)
     return PRODUCT_ANNUAL_PRICES.starter;
   if (terms.priceVersion === PRODUCT_STANDARD_PRICES.publishedOn &&

@@ -35,7 +35,7 @@ export default async function TermsPage() {
       title="Terms"
       description="Templ helps teams answer support cases. Customers pay agreed software fees. Users ask their team for help. Your manager controls team access. You control your wallet. These terms cover payments, data, service limits and disputes."
       active="terms"
-      updated="24 November 2026"
+      updated="27 November 2026"
     >
       <PolicySection title="Report brand impersonation" id="impersonation">
         <p>
@@ -627,7 +627,7 @@ export default async function TermsPage() {
           The Customer is the controller of user support data. Templ is its
           processor for support, including agreed done-for-you work. Templ is a
           controller for its account, billing, security, legal-intake and
-          analytics data.
+          site statistics. Our <Link href="/privacy#measurement">Privacy notice</Link> explains what we count if you opt in and how to turn it off.
         </p>
         <p>
           The improvement-copy feature has separate rules in{" "}

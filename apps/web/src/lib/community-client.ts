@@ -1,6 +1,5 @@
 import { SITE } from "./site-environment";
 import { PRINCIPAL_HINT_HEADER, principalHint } from "./principal-hint";
-import { onboardingHeaders } from "./onboarding-session";
 
 export const COMMUNITY_API = SITE.community;
 
@@ -44,7 +43,6 @@ export async function communityFetch<T>(
           headers: {
             "Content-Type": "application/json",
             ...(hint ? { [PRINCIPAL_HINT_HEADER]: hint } : {}),
-            ...onboardingHeaders(path),
           },
           body: JSON.stringify(body),
         }),

@@ -12,7 +12,7 @@ pnpm build
 
 The conversation test starts the support worker under Workerd with temporary accounts and storage. It sends a guest message, saves a team reply, and reopens the guest session to read both. The build produces the web application. [Conversation test](../apps/workers/community/test/support-widget-session-workerd.test.ts)
 
-[CI](../.github/workflows/check.yml) runs these same commands. This checkout includes no deployment configuration and no check against a deployed instance. Verify the steps below on your own infrastructure.
+Run these checks locally, then verify a guest message and a team reply on your own installation.
 
 ## Configure your installation
 
@@ -25,6 +25,6 @@ The conversation test starts the support worker under Workerd with temporary acc
 
 Open `/create` on your web origin. The page starts with the website preview. Your worker answers it with `Website previews are unavailable. Try again later.` unless `SUPPORT_SELF_SERVE_SETUP_ENABLED`, `SUPPORT_TRIAL_AI_PRACTICE_ENABLED` and `MANAGED_AGENT_ENABLED` are all `"true"`. Reading the website needs the `SUPPORT_KNOWLEDGE` object binding. Practice answers also need an `AI` binding, `MANAGED_AGENT_GATEWAY_ID` and a positive `MANAGED_AGENT_SPEND_CAP_USD_CENTS`. Without them, select **Set up without a website** for the form that creates a workspace after sign-in. [Preview gate](../apps/workers/community/src/guest-onboarding.ts) · [Preview test and its settings](../apps/workers/community/test/guest-onboarding-workerd.test.ts)
 
-Use a visitor link on your own web domain. Where your release enables hosted support pages, the link uses `/help/<workspace-id>`. Copy it with **Your support chat → Copy chat link**.
+Use a visitor link on your own web domain. Where your release enables hosted support pages, the link uses `/help/<workspace-id>`. Copy it with **Copy chat link**.
 
 Open the link as a guest, send a question, answer from **Cases**, then reopen the original chat to read the reply. You can add an embedded widget for that same workspace later, under **Settings → Chat**. To keep it in one theme, pass `lockedTheme: "light"` or `lockedTheme: "dark"` to `mountSupportWidget`. Leave it unset to give visitors the theme switch. Use a private destination for test notifications. [Widget, standalone link, or both](../README.md#give-visitors-a-way-to-reach-you)

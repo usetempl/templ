@@ -9,6 +9,7 @@ import { isWorkspaceFlagKey } from "@templ/chat/workspace-flags";
 import { featureOn, type WorkspaceFlagEnv } from "./workspace-flags";
 import {
   PRODUCT_OFFER_VERSION,
+  PRODUCT_STARTER_RECORDED_PRICES,
   PRODUCT_TOP_UP,
   PRODUCT_USAGE_PAYMENT_RECIPIENT,
 } from "@templ/chat/plans";
@@ -338,7 +339,13 @@ export async function prepareProductPayment(
       throw new HttpError(400, "Select a plan for a monthly payment.");
     if (selectedPlan === "starter" && !plan.starterAvailable)
       throw new HttpError(409, "Starter is available for new workspaces.");
-    standard = standardPrepaidTerms(standardPurpose, plan.period?.id ?? null, selectedPlan);
+    const reviewed = input.body.reviewedPriceVersion;
+    if (reviewed !== undefined && (selectedPlan !== "starter" || typeof reviewed !== "string"))
+      throw new HttpError(400, "Review your plan before paying.");
+    standard = standardPrepaidTerms(
+      standardPurpose, plan.period?.id ?? null, selectedPlan,
+      selectedPlan === "starter" ? reviewed ?? PRODUCT_STARTER_RECORDED_PRICES.publishedOn : undefined,
+    );
   } else if (input.body.monthlyPlan !== undefined) {
     throw new HttpError(400, "Select a plan for a monthly payment.");
   }

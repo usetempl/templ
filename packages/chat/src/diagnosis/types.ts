@@ -53,7 +53,7 @@ export type ProtocolContractKind =
   | "token"
   | "staking"
   | "other";
-/** Manager-owned protocol profile. Always null in R1 callers. */
+/** Manager-owned protocol profile. */
 export type ProtocolProfileFacts = {
   expectedNetworks: DiagnosisNetwork[];
   contracts: {

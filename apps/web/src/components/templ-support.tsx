@@ -117,7 +117,7 @@ export function TemplSupportLink({
         const unhandled = window.dispatchEvent(
           new CustomEvent(OPEN_EVENT, {
             cancelable: true,
-            detail: { trigger: event.currentTarget },
+            detail: { trigger: event.currentTarget, keyboardOpen: event.detail === 0 },
           }),
         );
         if (!unhandled) {
@@ -175,6 +175,7 @@ export function TemplSupportButton({
           new CustomEvent(OPEN_EVENT, {
             detail: {
               trigger: returnFocusRef?.current ?? event.currentTarget,
+              keyboardOpen: event.detail === 0,
               ...(topic ? { topic } : {}),
               ...(context ? { context } : {}),
             },
@@ -204,6 +205,7 @@ export function useTemplSupportAvailable() {
 
 type SupportOpenRequest = {
   trigger?: HTMLElement;
+  keyboardOpen?: boolean;
   context?: SupportContextInput;
   topic?: TemplSupportTopic;
   form?: SupportForm;
@@ -319,6 +321,10 @@ export function TemplSupport({ showLauncher = false, lockedTheme }: { showLaunch
       event.preventDefault();
       const revision = ++openRevision;
       const detail = (event as CustomEvent<SupportOpenRequest>).detail;
+      standardPanel.current?.toggleAttribute(
+        "data-keyboard-open",
+        detail?.keyboardOpen ?? detail?.trigger?.matches(":focus-visible") ?? false,
+      );
       const requested = supportTopic(detail?.topic);
       retryRequest.current = detail;
       setTopic(requested);
@@ -388,6 +394,7 @@ export function TemplSupport({ showLauncher = false, lockedTheme }: { showLaunch
           standard.setContext(detail?.context);
           await standard.open(false);
           if (revision !== openRevision || !workspace()) return;
+          if (location.pathname === "/") trackEvent("hosted_support_opened");
           setView("ready");
         } else {
           standard?.close();

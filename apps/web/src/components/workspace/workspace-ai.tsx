@@ -9,8 +9,11 @@ import {
   type SupportAiMode,
   type SupportSettings,
 } from "@templ/chat/support";
+import { isBillingView } from "@/lib/product-offer";
 import { copy as t, type MessageKey } from "@/lib/copy";
 import { aiDraftModeLabel } from "@/lib/copy/room";
+import { offersHostedNames, recoverHostedName } from "./hosted-chat-name";
+import { useWorkspaceHash, useWorkspaceSectionFocus } from "./workspace-sections";
 import { chatMutation } from "@/lib/chat-api";
 import { communityFetch, roomPath } from "@/lib/community-client";
 import { ManagedAgentSettings } from "@/components/managed-agent-settings";
@@ -54,6 +57,21 @@ export function WorkspaceAi({ context }: { context: WorkspaceContext }) {
     },
     context.state?.bots?.some((bot) => bot.principalId === account),
   );
+  const [nameError, setNameError] = useState(false);
+  const product = context.state?.product;
+  const paid = product && isBillingView(product) && product.standardPlan?.status === "paid";
+  const hasHostedName = context.workspace?.hostedName;
+  const activating = useWorkspaceHash() === "#managed-ai";
+  useWorkspaceSectionFocus([AI_AGENT_SECTION, "managed-ai"]);
+  useEffect(() => {
+    if (!activating || !offersHostedNames || hasHostedName || !context.manager || !paid || !account) return;
+    const controller = new AbortController();
+    void recoverHostedName(room, account, true, controller.signal).then(
+      () => { if (!controller.signal.aborted) setNameError(false); },
+      () => { if (!controller.signal.aborted) setNameError(true); },
+    );
+    return () => controller.abort();
+  }, [room, account, context.manager, paid, hasHostedName, activating]);
   const knowledge = hasSupportKnowledge(context.state?.features);
   return (
     <div data-workspace-settings="" className={`${styles.page} ${styles.pageNarrow} ${layout.page}`}>
@@ -62,6 +80,9 @@ export function WorkspaceAi({ context }: { context: WorkspaceContext }) {
           Telegram handoffs
         </button>
       )} />
+      {activating && nameError && <Callout role="alert">Your hosted name could not be confirmed.{" "}
+        <button type="button" className="button secondary" onClick={() => context.go("home")}>Check your chat link</button>
+      </Callout>}
       <div className={layout.sections}>
         {knowledge && <WorkspaceKnowledge key={`sources:${room}:${account}:${admin}`} context={context} />}
         {!admin && (

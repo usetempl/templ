@@ -1,5 +1,12 @@
+import { PRODUCT_STARTER_PRICES, PRODUCT_STARTER_RECORDED_PRICES } from "./plans";
 import type { ChatPrincipalId } from "./principal";
 import type { StandardAiRate } from "./standard-usage";
+
+export function starterPricesForVersion(version?: string) {
+  if (version === PRODUCT_STARTER_PRICES.publishedOn) return PRODUCT_STARTER_PRICES;
+  if (version === PRODUCT_STARTER_RECORDED_PRICES.publishedOn) return PRODUCT_STARTER_RECORDED_PRICES;
+  return undefined;
+}
 
 export type StandardPaymentMode = "prepaid" | "debt" | "custom";
 export type MonthlySupportPlan = "starter" | "standard";

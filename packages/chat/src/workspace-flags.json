@@ -142,6 +142,12 @@
     "killSwitch": "SUPPORT_TRIAL_AI_PRACTICE_ENABLED",
     "name": "Free AI practice questions"
   },
+  "cryptoSupportResearch": {
+    "releaseFlag": "managedAgentVerified",
+    "workspaceOnly": true,
+    "killSwitch": "MANAGED_AGENT_ENABLED",
+    "name": "Public crypto support research"
+  },
   "managedAgent": {
     "releaseFlag": "managedAgentVerified",
     "killSwitch": "MANAGED_AGENT_ENABLED",

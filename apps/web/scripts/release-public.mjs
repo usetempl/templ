@@ -231,7 +231,18 @@ export function releasePublicEnv(manifest = readReleaseManifest()) {
 
 /** Web bundles keep availability closed until the request supplies activation. */
 export function webBuildEnv(manifest = readReleaseManifest()) {
+  const widgetManifest = JSON.parse(readFileSync(
+    new URL("../src/lib/support-widget-versions.json", import.meta.url), "utf8",
+  ));
+  const widget = widgetManifest.versions.find(({ id }) => id === widgetManifest.latest);
+  if (!widget) throw new Error("The current widget is missing from its manifest.");
+  const framehost = widget.chunks.framehost;
   return {
+    TEMPL_WIDGET_ASSETS: JSON.stringify({
+      path: widget.path,
+      sourceSha256: widget.sourceSha256,
+      framehost: framehost ? { path: framehost.path, sha384: framehost.sha384 } : null,
+    }),
     ...releasePublicEnv(manifest),
     TEMPL_RELEASE_PUBLIC: JSON.stringify(buildRelease(manifest)),
   };

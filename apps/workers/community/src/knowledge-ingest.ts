@@ -180,6 +180,7 @@ export async function fetchPage(
   dependencies: IngestDependencies = {},
   includeBrand = false,
   findSuggestion = false,
+  sameHost = false,
 ): Promise<PageFetch> {
   try {
     const response = await fetchWebsiteAsset(
@@ -188,6 +189,7 @@ export async function fetchPage(
         maxBytes: KNOWLEDGE_LIMITS.pageBytes,
         timeoutMs: 10_000,
         maxRedirects: 3,
+        sameHost,
         allowQuery: false,
         headers: {
           accept: "text/html, text/markdown, text/plain",

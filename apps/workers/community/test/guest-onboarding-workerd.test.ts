@@ -90,7 +90,7 @@ function fixtures() {
       if (url.href === "https://garden.tools/") {
         f.pages++;
         return new Response(
-          '<html><head><title>Gardening tools</title><meta property="og:site_name" content="Garden"><meta name="theme-color" content="#abc"><link rel="icon" href="/icon.svg"></head><body><main>Track your plants. <a href="/en/reference#start"><span>Documentation</span></a><a href="/en/reference#more">Documentation</a><a href="https://another.tools/about">Docs</a><a href="https://garden.gitbook.io/secrets?token=private">Docs</a><a href="https://garden.gitbook.io/manual" aria-label="User guide">Help</a></main></body></html>',
+          '<html><head><title>Gardening tools</title><meta name="theme-color" content="#abc"></head><body><main>Track your plants. <a href="/en/reference#start"><span>Documentation</span></a><a href="/en/reference#more">Documentation</a><a href="https://another.tools/about">Docs</a><a href="https://garden.gitbook.io/secrets?token=private">Docs</a><a href="https://garden.gitbook.io/manual" aria-label="User guide">Help</a></main><div hidden><meta property="og:site_name" content="Garden"><link rel="icon" href="/icon.svg"></div></body></html>',
           { headers: { "content-type": "text/html" } },
         );
       }

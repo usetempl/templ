@@ -3,6 +3,7 @@ import { checkedManagedAnswer, spendMonth } from "@templ/chat/managed-agent";
 import { standardAiUsageUsdNanos } from "@templ/chat/standard-usage";
 import { prepaidAiMaximum } from "../product-prepaid-ai";
 import { detectStoredSecret } from "../secret-guard";
+import { readKnowledgeContext } from "../support-knowledge-kb";
 import {
   KnowledgeError,
   readMeta,
@@ -13,7 +14,7 @@ import { fundedGptCaller, type GptFunding } from "./gpt";
 import {
   GROUNDED_SYSTEM,
   GROUNDED_VERIFIER_SYSTEM,
-  groundedContext,
+  groundedPassages,
   groundedSafeText,
   groundedSensitive,
   groundedSources,
@@ -58,7 +59,7 @@ function saveAttempts(db: KnowledgeDb, ids: string[]) {
 
 // A practice question can make two calls. Each holds its own maximum against
 // Templ's budget. Neither call can write a customer's balance or usage ledger.
-function trialFunding(meter: TemplMeter, cap: number): GptFunding {
+export function templFundedInference(meter: Pick<TemplMeter, "reserve" | "settle">, cap: number): GptFunding {
   const holds = new Map<string, { month: string; cents: number }>();
   return {
     async reserve(input) {
@@ -115,7 +116,7 @@ export async function trialPractice(
     (await detectStoredSecret(question))
   )
     throw error(400, "Enter a product question of up to 800 characters.");
-  const sources = await groundedContext(db, null, Date.now());
+  const sources = await groundedPassages(db, null, Date.now(), question);
   sources.hits = (
     await Promise.all(
       sources.hits.map(async (hit) => {
@@ -146,7 +147,7 @@ export async function trialPractice(
   if (groundedSensitive(question)) return handoff;
   const model = fundedGptCaller(
     { ai: env.AI, gatewayId },
-    trialFunding(meter, cap),
+    templFundedInference(meter, cap),
   );
   const result = await model({
     system: GROUNDED_SYSTEM,
@@ -200,7 +201,8 @@ export async function trialPractice(
     throw error(503, "AI could not check this practice answer.");
   if (
     !groundedVerifierAccepted(verification, hits) ||
-    (await groundedContext(db, null, Date.now())).version !== sources.version
+    (await readKnowledgeContext(db, { storageGrant: null, now: Date.now() }))
+      .version !== sources.version
   )
     return handoff;
   return { remaining, answer: answer.text };

@@ -3,7 +3,6 @@ import { bindSupportDrawer } from "./support-widget-drawer";
 import { drawerNotices } from "./support-widget-drawer-notices";
 import { drawerStyle } from "./support-widget-drawer-style";
 
-/** Wallet verification and reply notifications for the configured support chat. */
 export function visitorMenu(host: TailHost, actions: HTMLElement, signal: AbortSignal) {
   const { menu, panel, refreshMenu } = bindSupportDrawer(host, actions, signal, drawerNotices);
   host.style.textContent += drawerStyle + `
@@ -16,9 +15,19 @@ export function visitorMenu(host: TailHost, actions: HTMLElement, signal: AbortS
   const provider = host.options.wallet?.evm;
   if (provider) host.walletName = address => import("./support-wallet-name")
     .then(module => module.verifiedWalletName(address, provider));
-  return { panel, refresh: refreshMenu };
+  return { menu, panel, refresh: refreshMenu };
 }
 
 export function addOwnChatMenu(host: TailHost, actions: HTMLElement) {
   return visitorMenu(host, actions, host.lifetime!).refresh;
+}
+
+export function addCryptoChatMenu(host: TailHost, actions: HTMLElement) {
+  const { menu, refresh } = visitorMenu(host, actions, host.lifetime!);
+  const help = host.el("a", "Emergency help for a scam or hack", "drawer-section");
+  help.href = "https://securityalliance.org/sos";
+  help.target = "_blank";
+  help.rel = "noopener noreferrer";
+  menu.append(help);
+  return refresh;
 }

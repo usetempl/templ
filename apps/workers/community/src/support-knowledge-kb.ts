@@ -542,6 +542,26 @@ export type KnowledgeQueryArgs = {
   storageGrant?: StorageUploadGrant | null;
   now?: number;
 };
+const CONTEXT = "s.era = 'current' AND s.visibility = 'member-safe' AND s.archived_at IS NULL AND s.status = 'ready' AND s.kind IN ('doc', 'faq', 'saved-reply') AND (s.origin <> 'upload' OR ? = 1)";
+const CONTEXT_ROW = "c.id AS chunk_id, c.seq AS chunk_seq, c.text, s.*";
+/** Every answerable source and its chunk generation. Read in the same transaction as the passages it versions. */
+const contextSources = (db: KnowledgeDb, uploads: number) => db.sql.exec(
+  `SELECT s.id, s.kind, s.title, s.url, s.origin, s.updated_at, s.body_sha256, (SELECT value FROM meta WHERE key = 'knowledge.context.source:' || s.id) AS generation FROM kb_sources s WHERE ${CONTEXT} ORDER BY s.id`,
+  uploads,
+).toArray();
+const contextVersion = (uploadsAllowed: boolean, sources: Record<string, unknown>[]) =>
+  sha256Hex(JSON.stringify({ uploadsAllowed, sources }));
+function contextHit(row: Record<string, unknown>): KnowledgeContextPage["hits"][number] {
+  const excerpt = hideAmbiguousHex(String(row.text));
+  if (!excerpt.trim() || excerpt.length > KNOWLEDGE_LIMITS.chunkChars)
+    throw new KnowledgeError(503, "knowledge-context-invalid", "A knowledge source cannot be read completely.");
+  return {
+    sourceId: `kb:${row.chunk_id}`, kind: row.kind as KnowledgeContextPage["hits"][number]["kind"],
+    title: hideAmbiguousHex(String(row.title)), excerpt,
+    ...(row.kind === "doc" && row.url ? { url: hideAmbiguousHex(String(row.url)) } : {}),
+    era: "current", visibility: "member-safe", updatedAt: iso(Number(row.updated_at)),
+  };
+}
 /** A stable page of complete current sources. Source edits invalidate later pages. */
 export async function readKnowledgeContext(
   db: KnowledgeDb,
@@ -554,34 +574,68 @@ export async function readKnowledgeContext(
       (after && args.version === undefined))
     throw new KnowledgeError(400, "knowledge-context-cursor", "Use the previous knowledge page and version.");
   const uploadsAllowed = brainUploadUseAllowed(db, args.storageGrant, args.now ?? Date.now());
-  const allowed = "s.era = 'current' AND s.visibility = 'member-safe' AND s.archived_at IS NULL AND s.status = 'ready' AND s.kind IN ('doc', 'faq', 'saved-reply') AND (s.origin <> 'upload' OR ? = 1)";
   const snapshot = db.transaction(() => ({
-    sources: db.sql.exec(
-      `SELECT s.id, s.kind, s.title, s.url, s.origin, s.updated_at, s.body_sha256, (SELECT value FROM meta WHERE key = 'knowledge.context.source:' || s.id) AS generation FROM kb_sources s WHERE ${allowed} ORDER BY s.id`,
-      uploadsAllowed ? 1 : 0,
-    ).toArray(),
+    sources: contextSources(db, uploadsAllowed ? 1 : 0),
     rows: db.sql.exec(
-      `SELECT c.id AS chunk_id, c.seq AS chunk_seq, c.text, s.* FROM kb_chunks c JOIN kb_sources s ON s.id = c.source_id WHERE ${allowed} AND (s.id > ? OR (s.id = ? AND c.seq > ?)) ORDER BY s.id, c.seq LIMIT 65`,
+      `SELECT ${CONTEXT_ROW} FROM kb_chunks c JOIN kb_sources s ON s.id = c.source_id WHERE ${CONTEXT} AND (s.id > ? OR (s.id = ? AND c.seq > ?)) ORDER BY s.id, c.seq LIMIT 65`,
       uploadsAllowed ? 1 : 0, after?.[1] ?? "", after?.[1] ?? "", after ? Number(after[2]) : 0,
     ).toArray(),
   }));
-  const version = await sha256Hex(JSON.stringify({ uploadsAllowed, sources: snapshot.sources }));
+  const version = await contextVersion(uploadsAllowed, snapshot.sources);
   if (args.version !== undefined && args.version !== version)
     throw new KnowledgeError(409, "knowledge-context-changed", "Knowledge changed. Read it again from the first page.");
   const rows = snapshot.rows.slice(0, 64);
-  const hits: KnowledgeContextPage["hits"] = rows.map((row) => {
-    const excerpt = hideAmbiguousHex(String(row.text));
-    if (!excerpt.trim() || excerpt.length > KNOWLEDGE_LIMITS.chunkChars)
-      throw new KnowledgeError(503, "knowledge-context-invalid", "A knowledge source cannot be read completely.");
-    return {
-      sourceId: `kb:${row.chunk_id}`, kind: row.kind as KnowledgeContextPage["hits"][number]["kind"],
-      title: hideAmbiguousHex(String(row.title)), excerpt,
-      ...(row.kind === "doc" && row.url ? { url: hideAmbiguousHex(String(row.url)) } : {}),
-      era: "current", visibility: "member-safe", updatedAt: iso(Number(row.updated_at)),
-    };
-  });
+  const hits: KnowledgeContextPage["hits"] = rows.map(contextHit);
   const last = rows.at(-1);
   return { hits, nextCursor: snapshot.rows.length > 64 && last ? `${last.id}:${last.chunk_seq}` : null, version };
+}
+/** Complete current passages for one question within `maxBytes` of serialized hits: its full-text
+ * matches first, then each source's passages in turn. Hits keep source order and the version of
+ * readKnowledgeContext, read in one transaction, so a later edit fails the same version check. */
+export async function selectKnowledgeContext(
+  db: KnowledgeDb,
+  args: { text: string; maxBytes: number; storageGrant?: StorageUploadGrant | null; now?: number },
+): Promise<Pick<KnowledgeContextPage, "hits" | "version">> {
+  const uploadsAllowed = brainUploadUseAllowed(db, args.storageGrant, args.now ?? Date.now());
+  const uploads = uploadsAllowed ? 1 : 0;
+  const match = ftsQuery(args.text.replace(/\s+/g, " ").trim().slice(0, KNOWLEDGE_LIMITS.queryChars));
+  // A serialized hit takes at least 160 bytes, so this many rows of each list can fill the bound.
+  const rows = Math.ceil(args.maxBytes / 160);
+  const snapshot = db.transaction(() => {
+    let matched: Record<string, unknown>[] = [];
+    if (match)
+      try {
+        matched = db.sql.exec(
+          `SELECT ${CONTEXT_ROW}, bm25(kb_fts) AS score FROM kb_fts JOIN kb_chunks c ON c.id = kb_fts.chunk_id JOIN kb_sources s ON s.id = c.source_id WHERE kb_fts MATCH ? AND ${CONTEXT} ORDER BY score, s.id, c.seq LIMIT ?`,
+          match, uploads, rows,
+        ).toArray();
+      } catch {
+        /* A question the index cannot parse still gets each source's passages. */
+      }
+    return {
+      sources: contextSources(db, uploads),
+      matched,
+      spread: db.sql.exec(
+        `SELECT ${CONTEXT_ROW} FROM kb_chunks c JOIN kb_sources s ON s.id = c.source_id WHERE ${CONTEXT} ORDER BY c.seq, s.id LIMIT ?`,
+        uploads, rows,
+      ).toArray(),
+    };
+  });
+  const version = await contextVersion(uploadsAllowed, snapshot.sources);
+  const chosen = new Map<string, { source: string; seq: number; hit: KnowledgeContextPage["hits"][number] }>();
+  let bytes = 2;
+  for (const row of [...snapshot.matched, ...snapshot.spread]) {
+    if (chosen.has(String(row.chunk_id))) continue;
+    const hit = contextHit(row);
+    const size = new TextEncoder().encode(JSON.stringify(hit)).length + (chosen.size ? 1 : 0);
+    if (bytes + size > args.maxBytes) continue;
+    bytes += size;
+    chosen.set(String(row.chunk_id), { source: String(row.id), seq: Number(row.chunk_seq), hit });
+  }
+  const hits = [...chosen.values()]
+    .sort((a, b) => a.source < b.source ? -1 : a.source > b.source ? 1 : a.seq - b.seq)
+    .map(({ hit }) => hit);
+  return { hits, version };
 }
 
 function ftsQuery(text: string): string | null {

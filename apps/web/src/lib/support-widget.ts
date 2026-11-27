@@ -3,7 +3,7 @@ import { ordinaryGuestReturn, supportStorageKey } from "./support-widget-return"
 import { conversationModules } from "./support-widget-conversation-modules";
 import { transactionExample } from "./standalone-trial-example";
 import { widgetMessageId as requestId } from "./support-widget-message-id";
-import { widgetErrorMessage } from "./support-widget-error";
+import { BAD_HASH, SIGN_IN_AGAIN, UNAVAILABLE, WALLET_CHANGED, widgetErrorMessage } from "./support-widget-error";
 import type {
   ChatMessage,
   TeamConversation,
@@ -39,14 +39,10 @@ import { WIDGET_DARK_BASE, WIDGET_LIGHT_BASE } from "./support-widget-theme";
 declare const __TEMPL_WIDGET_BUILD__: string | undefined;
 const WIDGET_BUILD =
   typeof __TEMPL_WIDGET_BUILD__ == "string" ? __TEMPL_WIDGET_BUILD__ : "dev";
-const SIGN_IN_AGAIN = "Sign in again to keep your case.";
-const WALLET_CHANGED = "Your wallet changed. Sign in again.";
 const LOAD_FAILED = "Chat didn’t load. Reload the page.";
-const UNAVAILABLE = "Support is unavailable. Try again.";
 /** "No, I still need help" when the team can't take the request back. */
 const NOT_TAKING =
   "This team can’t take new cases right now. Try again later.";
-const BAD_HASH = "This doesn't look like a transaction ID.";
 
 /** An EIP-1193 provider. The widget calls only eth_accounts, eth_chainId,
  * eth_requestAccounts (from a Sign in click) and personal_sign. */
@@ -2764,9 +2760,8 @@ function renderSupportWidget(
   composer.insertBefore(attachToggle, draft);
   const attach = el("div", undefined, "attach");
   attach.hidden = true;
-  const attachId = `templ-attach-${Math.random().toString(36).slice(2)}`;
-  attach.id = attachId;
-  attachToggle.setAttribute("aria-controls", attachId);
+  attach.id = "templ-attach";
+  attachToggle.setAttribute("aria-controls", attach.id);
   const tx = el("input");
   tx.hidden = attachToggle.hidden = options.transactionField !== true;
   tx.placeholder = "Transaction ID or link";
@@ -3206,7 +3201,7 @@ function renderSupportWidget(
       minimumLevel = "signed";
       sessionChanged();
     }
-    const text = widgetErrorMessage(reason);
+    const text = tailHost.errorText(reason);
     // Rewriting the same alert would announce it again.
     if (active && error.textContent !== text) error.textContent = text;
   };

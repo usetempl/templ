@@ -47,13 +47,17 @@ function subscribeToHash(change: () => void) {
   return () => window.removeEventListener("hashchange", change);
 }
 
+export function useWorkspaceHash() {
+  return useSyncExternalStore(subscribeToHash, () => window.location.hash, () => "");
+}
+
 export function WorkspaceSections({
   items,
 }: {
   items: { id: string; label: string }[];
 }) {
   useWorkspaceSectionFocus(items.map((item) => item.id));
-  const hash = useSyncExternalStore(subscribeToHash, () => window.location.hash, () => "");
+  const hash = useWorkspaceHash();
   return (
     <nav className={styles.sectionNav} aria-label="Page sections">
       {items.map(({ id, label }) => (

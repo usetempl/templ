@@ -1,3 +1,4 @@
+import { CRYPTO_SUPPORT_WORKSPACE } from "./crypto-support";
 import { requireConnectDeadline } from "./connect-deadline";
 import { revokeEncryptionPrincipal } from "./support-encryption-access";
 import { finalizeStorageManagerTransfer, type StorageBillingEnv } from "./brain-storage-billing";
@@ -27,12 +28,6 @@ import { principal } from "./principal";
 import { visibility, admitRoomMember } from "./room-privacy";
 import { initializeProducts, readProductState, productFunded, productMode, standardPlanForState } from "./product-entitlements";
 import { markWorkspaceStep } from "./funnel-metrics";
-import { WORKSPACE_ONBOARDING } from "./onboarding-metrics";
-import {
-  JOURNEY_ID,
-  ONBOARDING_TRAFFIC,
-  ONBOARDING_POLICY,
-} from "@templ/chat/onboarding";
 import { accentColor } from "./room-appearance";
 import { profileMediaHash } from "@templ/chat/profiles";
 import type { WorkspaceSupportProfiles } from "@templ/chat/support";
@@ -49,7 +44,7 @@ export const WORKSPACE_FEATURES_HEADER = "X-Templ-Workspace-Features";
 export const NATIVE_UUID =
   /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 export const NATIVE_CATALOG = "native-room-catalog:v1";
-export const NATIVE_CREATIONS_PER_DAY = 200;
+export const CONNECT_TRIAL_CREATIONS_PER_DAY = 200;
 export const NATIVE_ROOMS_PER_CREATOR = 1000;
 export const NATIVE_SLUG_PATTERN = /^[a-z0-9](?:[a-z0-9-]{1,30}[a-z0-9])?$/;
 export const RESERVED_NATIVE_SLUGS = new Set([
@@ -65,8 +60,11 @@ export const RESERVED_NATIVE_SLUGS = new Set([
   "contact",
   "create",
   "connect",
+  "crypto",
   // The Data Processing Agreement page.
   "dpa",
+  "eth",
+  "ethereum",
   "explore",
   "feedback",
   "preview",
@@ -369,7 +367,7 @@ export async function nativeCatalogRequest(
       createdTotal,
       createdLast24Hours,
       totalLimit: NATIVE_ROOMS_PER_CREATOR,
-      dailyLimit: NATIVE_CREATIONS_PER_DAY,
+      dailyLimit: CONNECT_TRIAL_CREATIONS_PER_DAY,
     });
   }
   // Workspace deletion: its catalog records, and a deleted id is never
@@ -431,12 +429,22 @@ export async function nativeCatalogRequest(
     return json({ slug, expiresAt });
   }
   if (body.op === "resolve-slug") {
-    const slug = nativeSlug(body.slug);
+    const requested = typeof body.slug === "string" ? body.slug.trim().toLowerCase() : "";
+    const cryptoAlias = requested === "crypto" || requested === "eth" || requested === "ethereum";
+    const slug = cryptoAlias ? requested : nativeSlug(body.slug);
     const id = await storage.get<string>(`native-slug:${slug}`);
+    if (cryptoAlias && (!id || id === CRYPTO_SUPPORT_WORKSPACE)) {
+      const room = await storage.get<NativeRoom>(`native-index:${CRYPTO_SUPPORT_WORKSPACE}`);
+      if (!room || room.id !== CRYPTO_SUPPORT_WORKSPACE ||
+          !requireCurrentRoom(room).hostedName || room.visibility !== "public" ||
+          (room.slug !== "crypto" && room.slug !== "ethereum") ||
+          await storage.get(`native-slug:${room.slug}`) !== room.id)
+        throw new HttpError(404, "Chat not found.");
+      return json({ id: room.id, hostedName: true });
+    }
     if (!id) throw new HttpError(404, "Chat not found.");
     const room = await storage.get<NativeRoom>(`native-index:${id}`);
-    if (!room || requireCurrentRoom(room).slug !== slug)
-      throw new HttpError(404, "Chat not found.");
+    if (!room || requireCurrentRoom(room).slug !== slug) throw new HttpError(404, "Chat not found.");
     return json({ id, ...(room.hostedName === true ? { hostedName: true } : {}) });
   }
   if (body.op === "claim-slug") {
@@ -502,13 +510,6 @@ export async function nativeCatalogRequest(
       (await storage.get<number[]>(`native-rate:${proposed.room.creator}`)) ??
       []
     ).filter((time) => time > now - 86_400_000);
-    const recent = (
-      await Promise.all(
-        aliases.map((id) => storage.get<number[]>(`native-rate:${id}`)),
-      )
-    )
-      .flatMap((times) => times ?? [])
-      .filter((time) => time > now - 86_400_000);
     if (count >= NATIVE_ROOM_PILOT_LIMIT)
       throw new HttpError(
         429,
@@ -521,12 +522,21 @@ export async function nativeCatalogRequest(
         `This account has reached its limit of ${NATIVE_ROOMS_PER_CREATOR} workspaces.`,
         86400,
       );
-    if (recent.length >= NATIVE_CREATIONS_PER_DAY)
-      throw new HttpError(
-        429,
-        `You can create up to ${NATIVE_CREATIONS_PER_DAY} workspaces a day.`,
-        86400,
-      );
+    if (proposed.trialOperator || body.approvalExpiresAt !== undefined) {
+      const recent = (
+        await Promise.all(
+          aliases.map((id) => storage.get<number[]>(`native-rate:${id}`)),
+        )
+      )
+        .flatMap((times) => times ?? [])
+        .filter((time) => time > now - 86_400_000);
+      if (recent.length >= CONNECT_TRIAL_CREATIONS_PER_DAY)
+        throw new HttpError(
+          429,
+          `You can create up to ${CONNECT_TRIAL_CREATIONS_PER_DAY} workspaces a day.`,
+          86400,
+        );
+    }
     const creation: NativeCreation = {
       ...proposed,
       room: { ...proposed.room, createdAt: new Date(now).toISOString() },
@@ -753,21 +763,6 @@ export async function nativeControlRequest(
       nowMs: Date.parse(value.room.createdAt),
       starterAvailable: true,
     });
-    const onboarding = body.onboarding as
-      | { journey?: unknown; traffic?: unknown }
-      | undefined;
-    if (
-      onboarding &&
-      typeof onboarding.journey === "string" &&
-      JOURNEY_ID.test(onboarding.journey) &&
-      typeof onboarding.traffic === "string" &&
-      Object.hasOwn(ONBOARDING_TRAFFIC, onboarding.traffic)
-    )
-      await storage.put(WORKSPACE_ONBOARDING, {
-        journey: onboarding.journey,
-        traffic: value.trialOperator ? "test" : onboarding.traffic,
-        expiresAt: Date.now() + ONBOARDING_POLICY.retentionDays * 86_400_000,
-      });
     await markWorkspaceStep(storage, "workspace_created", Date.now());
     return json(recordView(record), 201);
   }

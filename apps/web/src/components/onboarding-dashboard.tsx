@@ -66,7 +66,8 @@ export function OnboardingDashboard({
   }, [principal, days, traffic, key]);
   return (
     <section aria-labelledby="onboarding-cohorts">
-      <h2 id="onboarding-cohorts">Signup journeys</h2>
+      <h2 id="onboarding-cohorts">Past signup journeys</h2>
+      <p>Templ has stopped linking signup steps. Earlier records expire after 90 days.</p>
       <div className={styles.controls}>
         <label>
           Signup period

@@ -8,14 +8,7 @@ import {
   type FunnelEvent,
   type WorkspaceFunnelStep,
 } from "@templ/chat/funnel";
-import { config, HttpError, json, readJson, type Env } from "./common";
-import {
-  sendOnboardingEvents,
-  WORKSPACE_ONBOARDING,
-  type WorkspaceOnboarding,
-} from "./onboarding-metrics";
-import type { OnboardingEvent } from "@templ/chat/onboarding";
-
+import { HttpError, json, readJson } from "./common";
 /** Onboarding counts live in one instance of the operator metrics object,
  * apart from the sampled cost shards. */
 export type FunnelEnv = {
@@ -67,7 +60,6 @@ type StepMarker = {
   at: number;
   sent: boolean;
   event: FunnelEvent;
-  onboardingSent?: boolean;
 };
 type MarkerStorage = {
   get<T>(key: string): Promise<T | undefined>;
@@ -107,75 +99,6 @@ export async function flushWorkspaceSteps(
     prefix: STEP_PREFIX,
     limit: 64,
   });
-  const scope = await storage.get<WorkspaceOnboarding>(WORKSPACE_ONBOARDING);
-  if (scope && scope.expiresAt > Date.now()) {
-    const native = await storage.get<{ room: { id?: string } }>("native-room");
-    // Widget milestones live in AuthRecord. A native workspace copies its
-    // canonical reference there after commit; that object has no native-room
-    // record, so it cannot send this reference back to itself.
-    if (native?.room.id && !scope.widgetSynced) {
-      if (!env.AUTH_RECORDS) return false;
-      try {
-        const response = await env.AUTH_RECORDS.get(
-          env.AUTH_RECORDS.idFromName(
-            `${config(env as Env).namespace}:widget-config:${native.room.id}`,
-          ),
-        ).fetch(
-          new Request("https://internal/widget-onboarding", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              journey: scope.journey,
-              traffic: scope.traffic,
-              expiresAt: scope.expiresAt,
-            }),
-            signal: AbortSignal.timeout(2000),
-          }),
-        );
-        await response.body?.cancel();
-        if (!response.ok) return false;
-        scope.widgetSynced = true;
-        await storage.put(WORKSPACE_ONBOARDING, scope);
-      } catch {
-        return false;
-      }
-    }
-    const unsent = [...markers].filter(
-      ([, marker]) => marker.event.outcome === "done" && !marker.onboardingSent,
-    );
-    const events: OnboardingEvent[] = unsent.map(([, marker]) => ({
-      journey: scope.journey,
-      traffic: scope.traffic,
-      name: `server_${marker.event.step}`,
-      at: marker.at,
-    }));
-    const created = unsent.find(
-      ([, marker]) => marker.event.step === "workspace_created",
-    );
-    if (created)
-      events.push({
-        journey: scope.journey,
-        traffic: scope.traffic,
-        name: "server_signed_in",
-        at: created[1].at,
-      });
-    for (
-      let offset = 0;
-      offset < events.length;
-      offset += FUNNEL_POLICY.maxBatch
-    )
-      if (
-        !(await sendOnboardingEvents(
-          env,
-          events.slice(offset, offset + FUNNEL_POLICY.maxBatch),
-        ))
-      )
-        return false;
-    for (const [key, marker] of unsent) {
-      marker.onboardingSent = true;
-      await storage.put(key, marker);
-    }
-  }
   const pending = [...markers].filter(([, marker]) => !marker.sent);
   if (!pending.length) return true;
   const events = pending

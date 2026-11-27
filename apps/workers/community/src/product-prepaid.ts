@@ -1,7 +1,8 @@
 import { annualPeriodIdAt } from "./product-annual-access";
 import type { ChatPrincipalId } from "@templ/chat/principal";
 import { normalizeChatPrincipal } from "@templ/chat/principal";
-import { PRODUCT_STARTER_PRICES, PRODUCT_TOP_UP } from "@templ/chat/plans";
+import { PRODUCT_TOP_UP } from "@templ/chat/plans";
+import { starterPricesForVersion } from "@templ/chat/standard-plan";
 import type {
   StandardPaymentMode,
   StandardPrepaidPeriod,
@@ -66,10 +67,13 @@ export async function setStarterAiLimit(
   return cents;
 }
 
-/** The reserved cost also counts against the limit until a request settles. */
+/** The period's included credit needs no limit. The billing manager's limit
+ * admits prepaid cash beyond it, so its $0 default spends no cash. The
+ * reserved cost also counts until a request settles. */
 export async function starterAiRemaining(storage: Reader, period: StandardPrepaidPeriod) {
-  if (period.priceVersion !== PRODUCT_STARTER_PRICES.publishedOn) return undefined;
-  const limit = BigInt(await readStarterAiLimit(storage)) * 10_000_000n;
+  if (!starterPricesForVersion(period.priceVersion)) return undefined;
+  const limit = amount(period.includedAiCreditUsdNanos) +
+    BigInt(await readStarterAiLimit(storage)) * 10_000_000n;
   const remaining = limit - amount(period.aiUsageUsdNanos) - amount(period.aiReservedUsdNanos);
   return remaining > 0n ? remaining : 0n;
 }

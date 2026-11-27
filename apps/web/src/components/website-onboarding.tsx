@@ -285,6 +285,27 @@ export function WebsiteOnboarding({ nextPlan }: { nextPlan: boolean }) {
   // The fallback names the scanned website, so editing the chat name cannot change it.
   const suggestion =
     preview?.suggestion || (host ? "What can I do with " + host + "?" : "");
+  const showSaveAfterChat = preview && preview.remaining < PRODUCT_LIMITS.freeAiPracticeQuestions;
+  const saveAction = (view === "save" || preview) && (
+    <div className={styles.save}>
+      <button
+        type="button"
+        className="button"
+        disabled={disabled || auth.restoring || (!!brand && !named)}
+        onClick={save}
+      >
+        {(busy === "signin" || busy === "save") && <ActivityDots />}
+        {busy === "save"
+          ? "Saving your workspace…"
+          : auth.session
+            ? "Save workspace"
+            : "Sign in to keep your workspace"}
+      </button>
+      {error?.at === "page" && (
+        <Callout className={styles.feedback} tone="danger" role="alert">{error.text}</Callout>
+      )}
+    </div>
+  );
   return (
     <div className={styles.page}>
       <section className={styles.main} aria-labelledby="create-title">
@@ -405,6 +426,7 @@ export function WebsiteOnboarding({ nextPlan }: { nextPlan: boolean }) {
             )}
           </>
         )}
+        {showSaveAfterChat && saveAction}
         {view === "chat" && preview && brand && (
           <>
             <form className={styles.brandForm} onSubmit={applyBrand}>
@@ -473,23 +495,7 @@ export function WebsiteOnboarding({ nextPlan }: { nextPlan: boolean }) {
             </button>
           </>
         )}
-        {(view === "save" || preview) && (
-          <div className={styles.save}>
-            <button
-              type="button"
-              className="button"
-              disabled={disabled || auth.restoring || (!!brand && !named)}
-              onClick={save}
-            >
-              {(busy === "signin" || busy === "save") && <ActivityDots />}
-              {busy === "save"
-                ? "Saving your workspace…"
-                : auth.session
-                  ? "Save workspace"
-                  : "Sign in to keep your workspace"}
-            </button>
-          </div>
-        )}
+        {!showSaveAfterChat && saveAction}
         {view === "save" && (
           <button
             type="button"
@@ -503,11 +509,6 @@ export function WebsiteOnboarding({ nextPlan }: { nextPlan: boolean }) {
         {!available && (
           <Callout className={styles.feedback} role="status">
             Workspace setup is unavailable. Try again later.
-          </Callout>
-        )}
-        {view !== "site" && error?.at === "page" && (
-          <Callout className={styles.feedback} tone="danger" role="alert">
-            {error.text}
           </Callout>
         )}
       </section>

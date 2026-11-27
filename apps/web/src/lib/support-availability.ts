@@ -26,12 +26,14 @@ export function capabilityVerified(
 
 /** EVM widget sign-in remains limited to externally owned wallets. */
 export const WIDGET_WALLET_SUPPORT = "eoa-only" as const;
+const evmSignIn = Object.freeze(["evm"] as const);
+const evmAndSolanaSignIn = Object.freeze(["evm", "solana"] as const);
 export function widgetSignInNetworks(
   release: object,
 ): readonly ("evm" | "solana")[] {
   return flagOn(release, "supportWidgetSolanaVerified")
-    ? ["evm", "solana"]
-    : ["evm"];
+    ? evmAndSolanaSignIn
+    : evmSignIn;
 }
 
 /** Each named capability reads its own flags from this request. */

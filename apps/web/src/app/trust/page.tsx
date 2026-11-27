@@ -31,7 +31,7 @@ export default async function TrustPage() {
       title="Trust"
       description="What Templ never does, who can read a case, who gets your data and how long it stays."
       active="trust"
-      updated="20 November 2026"
+      updated="27 November 2026"
     >
       <PolicySection title="What Templ never does" id="never">
         <p>Support messages cannot move funds or ask your wallet to sign.</p>
@@ -125,6 +125,12 @@ export default async function TrustPage() {
           feature and whether it&apos;s on.
         </p>
         <ul className={styles.providers}>
+          <li className={styles.provider}>
+            <div className={styles.providerHead}><strong>Plausible</strong></div>
+            <p className={styles.line}>
+              Plausible counts visits to the landing page, chat and workspace dashboard. It briefly processes IP addresses and browser details. It receives a generic page name.
+            </p>
+          </li>
           {providers(RELEASE).map((provider) => (
             <li key={provider.id} className={styles.provider}>
               <div className={styles.providerHead}>

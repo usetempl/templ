@@ -3,8 +3,14 @@
 import { canManageWorkspace } from "@templ/chat/moderation-permissions";
 
 import { useEffect, useState, type FormEvent } from "react";
+import type { ChatRoomId, ChatState } from "@templ/chat/index";
 import type { ManagedAgentView } from "@templ/chat/managed-agent";
+import {
+  normalizeChatPrincipal,
+  type ChatPrincipalId,
+} from "@templ/chat/principal";
 import type { SupportAiMode } from "@templ/chat/support";
+import { SUPPORT_TEAM_ROLES, standardTeamRole } from "@templ/chat/team-roles";
 import { isBillingView } from "@/lib/product-offer";
 import { UnsavedChanges } from "./workspace/unsaved-changes";
 import { chatMutation } from "@/lib/chat-api";
@@ -15,7 +21,6 @@ import { GoldenSetPanel } from "./golden-set";
 import styles from "@/components/workspace/workspace.module.css";
 import layout from "@/components/workspace/workspace-settings.module.css";
 
-/** Words on this page. Plain actions and outcomes; nothing it can't back. */
 export const MANAGED_COPY = {
   title: "Templ AI",
   description:
@@ -24,6 +29,11 @@ export const MANAGED_COPY = {
     "Add this account on the Team page as an AI agent. It answers only after that.",
   account: "Templ AI account",
   copy: "Copy account ID",
+  teamAccess: "Visitors see “AI agent” on its replies. You can remove access on the Team page.",
+  consent:
+    "Allow Templ AI to read and answer this workspace’s private cases.",
+  give: (on: boolean) => (on ? "Give access" : "Turn on Templ AI"),
+  joined: "Templ AI joined your team.",
   planUntil: (date: string) => `Templ AI access runs until ${date}.`,
   noPlan: "Templ AI needs an active service agreement for this workspace.",
   spend: (used: string, cap: string) => `This month: ${used} of ${cap}.`,
@@ -42,6 +52,59 @@ const day = (iso: string) =>
     month: "short",
     day: "numeric",
   });
+const AGENT_ROLE = "ai-agent";
+
+/** Adds the workspace's Templ AI account to the team the way the Team page
+ * adds an AI agent: the standard role, the AI label before access, then the
+ * role. The account is the one the worker names in its managed view. Each
+ * route rechecks the caller's authority and confirmation and audits itself. */
+async function grantTeamAccess(
+  room: ChatRoomId,
+  account: ChatPrincipalId | undefined,
+  principal: ChatPrincipalId,
+) {
+  const wanted = SUPPORT_TEAM_ROLES[AGENT_ROLE];
+  const { roles } = await communityFetch<ChatState>(roomPath(room, "channels"));
+  const role = roles.find((item) => item.id === AGENT_ROLE);
+  if (!role)
+    await chatMutation(account, roomPath(room, "roles"), {
+      id: AGENT_ROLE,
+      name: wanted.name,
+      mode: "manual",
+      moderationPermissions: [...wanted.permissions],
+      confirmed: true,
+    });
+  else if (role.mode !== "manual" || !standardTeamRole(role))
+    throw new Error(
+      `The “${role.name}” role has different permissions. Ask Templ for help before granting access.`,
+    );
+  try {
+    await chatMutation(account, roomPath(room, "bots"), {
+      principalId: principal,
+      displayName: "AI agent",
+      confirmed: true,
+    }).catch((reason: unknown) => {
+      // Already labeled (409): the read-back decides.
+      if ((reason as { status?: number }).status !== 409) throw reason;
+    });
+    const { bots } = await communityFetch<{
+      bots: { principalId: string }[];
+    }>(roomPath(room, "bots"));
+    if (!bots.some((bot) => bot.principalId === principal))
+      throw new Error("Try again.");
+  } catch (reason) {
+    throw new Error(
+      `No access was given, because the AI label wasn’t saved. ${
+        reason instanceof Error && reason.message ? reason.message : "Try again."
+      }`,
+    );
+  }
+  await chatMutation(account, roomPath(room, `roles/${AGENT_ROLE}/assign`), {
+    principalId: principal,
+    granted: true,
+    confirmed: true,
+  });
+}
 
 export function ManagedAgentSettings({
   context,
@@ -55,7 +118,8 @@ export function ManagedAgentSettings({
   const [failed, setFailed] = useState(false);
   const [enabled, setEnabled] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
-  const [busy, setBusy] = useState(false);
+  const [consent, setConsent] = useState(false);
+  const [busy, setBusy] = useState<"save" | "join" | null>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [attempt, setAttempt] = useState(0);
@@ -103,7 +167,7 @@ export function ManagedAgentSettings({
   async function save(event: FormEvent) {
     event.preventDefault();
     if (!confirmed || busy || !dirty) return;
-    setBusy(true);
+    setBusy("save");
     setError("");
     setNotice("");
     try {
@@ -119,7 +183,39 @@ export function ManagedAgentSettings({
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : MANAGED_COPY.error);
     } finally {
-      setBusy(false);
+      setBusy(null);
+    }
+  }
+  /** One confirmed step: team access for the managed account, then Templ AI
+   * on. A refused step stops the rest. */
+  async function join(principal: ChatPrincipalId) {
+    if (!view || !consent || busy || dirty) return;
+    setBusy("join");
+    setError("");
+    setNotice("");
+    try {
+      await grantTeamAccess(room, account, principal);
+      const next = view.settings.enabled
+        ? await communityFetch<ManagedAgentView>(
+            roomPath(room, "conversations/managed"),
+          )
+        : await chatMutation<ManagedAgentView>(
+            account,
+            roomPath(room, "conversations/managed"),
+            { enabled: true, confirmed: true },
+          );
+      setView(next);
+      setEnabled(next.settings.enabled);
+      if (!next.onTeam) throw new Error(MANAGED_COPY.error);
+      setConsent(false);
+      setNotice(MANAGED_COPY.joined);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : MANAGED_COPY.error);
+      // An earlier step may have saved. The worker's view shows what it kept.
+      setAttempt((value) => value + 1);
+    } finally {
+      setBusy(null);
+      context.reload();
     }
   }
   const ready = view.state === "ready";
@@ -127,9 +223,43 @@ export function ManagedAgentSettings({
   const standard =
     product && isBillingView(product) ? product.standardPlan : undefined;
   const prepaid = Boolean(standard) || view.model === "gpt-6.1-sol";
+  // Paid AI reports a missing limit or credit with the budget states.
+  const fundsStop =
+    view.model === "gpt-6.1-sol" &&
+    (view.state === "no-budget" || view.state === "workspace-cap");
+  let creditNote = "AI uses your included credit first, then prepaid USDC.";
+  if (standard?.starterAiLimitCents !== undefined) {
+    if (fundsStop && view.state === "workspace-cap") {
+      creditNote = "Raise your monthly AI limit in Plan & usage.";
+    } else if (fundsStop) {
+      creditNote = "Check your AI credit and monthly limit in Plan & usage.";
+    } else if (standard.period?.usage?.includedAiCreditCents) {
+      creditNote = "AI uses your included credit first. You choose how much extra to spend in Plan & usage.";
+    } else {
+      creditNote = "Templ AI uses prepaid USDC up to your monthly limit.";
+    }
+  } else if (standard && fundsStop) {
+    creditNote = "Add prepaid USDC in Plan & usage.";
+  }
   // An installed responder can answer even if the optional managed service is off.
   const anotherResponder = context.state?.bots?.some(bot => bot.principalId !== view.principal);
   const serviceName = anotherResponder ? "Additional hosted AI" : MANAGED_COPY.title;
+  const canManage = canManageWorkspace({
+    isManager: context.manager,
+    permissions: context.state?.viewer?.permissions,
+  });
+  const target = normalizeChatPrincipal(view.principal);
+  // A paid workspace without its own AI agent gives Templ AI team access here,
+  // after one confirmation. Payment alone adds nothing. The plan comes from
+  // the workspace state, which a payment refreshes.
+  const joinable =
+    canManage &&
+    standard?.status === "paid" &&
+    !view.onTeam &&
+    !anotherResponder &&
+    Boolean(target?.startsWith("account:"));
+  // Without team access Templ AI answers nothing, so joining turns it on.
+  const toggle = canManage && !(joinable && !view.settings.enabled);
   const status: Record<ManagedAgentView["state"], string> = {
     ready:
       defaultMode === "off"
@@ -173,10 +303,7 @@ export function ManagedAgentSettings({
             </Badge>
           }
           footer={
-            canManageWorkspace({
-              isManager: context.manager,
-              permissions: context.state?.viewer?.permissions,
-            }) ? (
+            toggle ? (
               <>
                 <label className={ui.check}>
                   <input
@@ -190,9 +317,9 @@ export function ManagedAgentSettings({
                 <button
                   type="submit"
                   className="button"
-                  disabled={!confirmed || busy || !dirty}
+                  disabled={!confirmed || busy !== null || !dirty}
                 >
-                  {busy && <Spinner />}
+                  {busy === "save" && <Spinner />}
                   {MANAGED_COPY.save}
                 </button>
               </>
@@ -200,7 +327,34 @@ export function ManagedAgentSettings({
           }
         >
           <div className={layout.panelBody}>
-            {view.settings.enabled && !view.onTeam && (
+            {joinable && (
+              <div className={layout.inset}>
+                <h3>Team access</h3>
+                <p>{MANAGED_COPY.teamAccess}</p>
+                <p className={styles.muted}>
+                  {MANAGED_COPY.account}: <code>{target}</code>
+                </p>
+                <label className={ui.check}>
+                  <input
+                    type="checkbox"
+                    checked={consent}
+                    disabled={busy !== null}
+                    onChange={(event) => setConsent(event.target.checked)}
+                  />
+                  {MANAGED_COPY.consent}
+                </label>
+                <button
+                  type="button"
+                  className="button small"
+                  disabled={!consent || busy !== null || dirty}
+                  onClick={() => target && void join(target)}
+                >
+                  {busy === "join" && <Spinner />}
+                  {MANAGED_COPY.give(view.settings.enabled)}
+                </button>
+              </div>
+            )}
+            {view.settings.enabled && !view.onTeam && !joinable && (
               <div className={layout.inset}>
                 <p>{MANAGED_COPY.addToTeam}</p>
                 <p className={styles.muted}>
@@ -230,12 +384,8 @@ export function ManagedAgentSettings({
                     ? MANAGED_COPY.planUntil(day(view.grant.endsAt))
                     : MANAGED_COPY.noPlan}
               </p>
-              {/* With no budget the badge already says so. */}
               {prepaid ? (
-                <p>
-                  AI work uses your included credit, then prepaid USDC. Check
-                  Plan & usage for your balance.
-                </p>
+                <p>{creditNote}</p>
               ) : (
                 view.state !== "no-budget" && (
                   <p>
@@ -269,22 +419,19 @@ export function ManagedAgentSettings({
                   </button>
                 ))}
             </div>
-            {canManageWorkspace({
-              isManager: context.manager,
-              permissions: context.state?.viewer?.permissions,
-            }) && (
+            {toggle && (
               <label className={`${ui.check} ${layout.choice}`}>
                 <input
                   type="checkbox"
                   checked={enabled}
-                  disabled={busy || standard?.status === "demo"}
+                  disabled={busy !== null || standard?.status === "demo"}
                   onChange={(event) => {
                     setEnabled(event.target.checked);
                     setConfirmed(false);
                     setNotice("");
                   }}
                 />
-                {MANAGED_COPY.toggle}
+                {prepaid && standard?.status === "paid" && !view.settings.enabled ? "Turn on AI for visitors" : MANAGED_COPY.toggle}
               </label>
             )}
             {dirty && !notice && (

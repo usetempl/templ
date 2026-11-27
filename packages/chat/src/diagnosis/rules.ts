@@ -9,8 +9,7 @@ import type {
   RuleId,
 } from "./types";
 
-/** A change to any rule condition, template or table bumps this version.
- * rules.test.ts pins it together with RULE_IDS. */
+/** A change to any rule condition, template or table bumps this version. */
 export const DIAGNOSIS_ENGINE_VERSION: DiagnosisEngineVersion = "dx-5";
 /** Stored diagnoses from these engines keep the current output shape. */
 export const SUPPORTED_STORED_ENGINES: readonly string[] = [

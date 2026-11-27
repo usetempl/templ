@@ -7,11 +7,12 @@ export type NetworkInfo = {
   native: string;
 };
 
-/** Names and explorer hosts match SUPPORT_WALLET_CHAINS and
- * LEGACY_EXIT_CHAINS in ../chains and the staff panel, row for row. The engine keeps its own copy so it never
- * imports the wallet and checkout modules at runtime; r1-parity.test.ts pins
- * the drift. A row here only names a network: which chains Templ reads is
- * decided by the worker's keyed provider pairs and the release manifest. */
+/** Names and explorer hosts match SUPPORT_WALLET_CHAINS in ../chains,
+ * LEGACY_EXIT_CHAINS in ../legacy-exit-chains and the staff panel, row for
+ * row. The engine keeps its own copy so it never imports the wallet and
+ * checkout modules at runtime. A row here only names a network: which chains
+ * Templ reads is decided by the worker's keyed provider pairs and the release
+ * manifest. */
 export const NETWORK_INFO: Readonly<Record<string, NetworkInfo>> = {
   "eip155:1": { name: "Ethereum", explorer: "etherscan.io", native: "ETH" },
   "eip155:10": {
@@ -55,7 +56,7 @@ export const NETWORK_INFO: Readonly<Record<string, NetworkInfo>> = {
     explorer: "robinhoodchain.blockscout.com",
     native: "ETH",
   },
-  // Legacy exits (LEGACY_EXIT_CHAINS in ../chains): named, never read.
+  // Legacy exits (LEGACY_EXIT_CHAINS in ../legacy-exit-chains): named, never read.
   "eip155:100": { name: "Gnosis", explorer: "gnosisscan.io", native: "xDAI" },
   "eip155:250": { name: "Fantom", explorer: "ftmscan.com", native: "FTM" },
   solana: { name: "Solana", explorer: "solscan.io", native: "SOL" },

@@ -15,7 +15,7 @@ import {
 } from "@/lib/community-client";
 import { chatMutation } from "@/lib/chat-api";
 import { SITE } from "@/lib/site-environment";
-import { SUPPORT_WIDGET_LATEST } from "@/lib/support-widget-release";
+import { currentWidgetAssets } from "@/lib/current-widget-assets";
 import { Card, CopyBlock, CopyInline, Spinner, ui } from "@/components/ui/ui";
 import type { WorkspaceContext } from "./support-workspace";
 import styles from "./workspace.module.css";
@@ -74,7 +74,7 @@ export function WidgetFrameMode({
       });
     return () => controller.abort();
   }, [room, account, live, attempt]);
-  const framehost = SUPPORT_WIDGET_LATEST.chunks.framehost;
+  const framehost = currentWidgetAssets.framehost;
   if (!live || !framehost) return null;
   if (required === null)
     return (

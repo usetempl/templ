@@ -1,3 +1,4 @@
+import { DEFAULT_SUPPORT_MODEL, CRYPTO_SUPPORT_MODEL } from "@templ/chat/support-models";
 import {
   MANAGED_AGENT_LIMITS,
   MANAGED_ANSWER_SCHEMA,
@@ -17,11 +18,12 @@ import type { ModelCaller } from "./anthropic";
 import type { RoomClient } from "./room-client";
 import { HANDOFF_LEARNING_SCHEMA, checkedHandoffLearningResult } from "@templ/chat/support-learning";
 
-export const PREPAID_GPT_MODEL = "gpt-6.1-sol";
+export const PREPAID_GPT_MODEL = DEFAULT_SUPPORT_MODEL;
+type SupportModel = typeof DEFAULT_SUPPORT_MODEL | typeof CRYPTO_SUPPORT_MODEL;
 export const PREPAID_GPT_GATEWAY_MODEL = `openai/${PREPAID_GPT_MODEL}`;
 
-export function isPrepaidGptModel(model: unknown): boolean {
-  return model === PREPAID_GPT_MODEL || model === PREPAID_GPT_GATEWAY_MODEL;
+export function isPrepaidGptModel(model: unknown, expected: SupportModel = PREPAID_GPT_MODEL): boolean {
+  return model === expected || model === "openai/" + expected;
 }
 
 export const PREPAID_GPT_REQUEST_BYTES = 96 * 1024;
@@ -172,13 +174,13 @@ function costUsage(usage: StandardAiTokenUsage): WorkspaceCostUsage {
 }
 
 /** One fixed, text-only request; counting and inference share this complete material. */
-export function prepaidGptRequest(system: string, user: string, format: "answer" | "handoff-learning" = "answer") {
+export function prepaidGptRequest(system: string, user: string, format: "answer" | "handoff-learning" = "answer", model: SupportModel = PREPAID_GPT_MODEL) {
   return {
-    model: PREPAID_GPT_MODEL,
+    model,
     instructions: system,
     input: [{ role: "user", content: [{ type: "input_text", text: user }] }],
-    max_output_tokens: MANAGED_AGENT_LIMITS.maxOutputTokens,
-    reasoning: { effort: "medium" },
+    max_output_tokens: model === CRYPTO_SUPPORT_MODEL ? 4096 : MANAGED_AGENT_LIMITS.maxOutputTokens,
+    reasoning: { effort: model === CRYPTO_SUPPORT_MODEL ? "xhigh" : "medium" },
     service_tier: "default",
     store: false,
     stream: false,
@@ -226,6 +228,7 @@ export type GptFunding = {
 type GptOptions = {
   ai: GptBinding;
   gatewayId: string;
+  model?: SupportModel;
   observeCost?(event: WorkspaceCostEvent): void;
 };
 
@@ -245,8 +248,9 @@ export function prepaidGptCaller(input: GptOptions & { billing: RoomClient }): M
 }
 
 export function fundedGptCaller(input: GptOptions, funding: GptFunding): ModelCaller {
+  const expectedModel = input.model ?? PREPAID_GPT_MODEL;
   return async ({ system, user, format = "answer", purpose = "other", onCostAttempt }) => {
-    const body = prepaidGptRequest(system, user, format);
+    const body = prepaidGptRequest(system, user, format, expectedModel);
     const serialized = JSON.stringify(body),
       requestBytes = new TextEncoder().encode(serialized).length;
     if (requestBytes > PREPAID_GPT_REQUEST_BYTES)
@@ -267,7 +271,7 @@ export function fundedGptCaller(input: GptOptions, funding: GptFunding): ModelCa
       held = await funding.reserve({
         attemptId,
         requestBytes,
-        model: PREPAID_GPT_MODEL,
+        model: expectedModel,
         maxOutputTokens: body.max_output_tokens,
         requestSha256: await sha256Hex(serialized),
         ...(inputTokens === null ? {} : { inputTokens }),
@@ -293,7 +297,7 @@ export function fundedGptCaller(input: GptOptions, funding: GptFunding): ModelCa
       schemaVersion: 1 as const,
       attemptId,
       provider: "cloudflare" as const,
-      requestedModel: PREPAID_GPT_MODEL,
+      requestedModel: expectedModel,
       purpose,
     };
     const emit = (
@@ -325,7 +329,7 @@ export function fundedGptCaller(input: GptOptions, funding: GptFunding): ModelCa
     try {
       result = record(
         await input.ai.run(
-          PREPAID_GPT_GATEWAY_MODEL as Parameters<Ai["run"]>[0],
+          ("openai/" + expectedModel) as Parameters<Ai["run"]>[0],
           body as never,
           {
             signal,
@@ -339,11 +343,11 @@ export function fundedGptCaller(input: GptOptions, funding: GptFunding): ModelCa
           },
         ),
       );
-      model = isPrepaidGptModel(result.model)
-        ? PREPAID_GPT_MODEL
+      model = isPrepaidGptModel(result.model, expectedModel)
+        ? expectedModel
         : typeof result.model === "string" ? result.model : "unknown";
       usage = gptUsage(result.usage);
-      if (result.status === "completed" && model === PREPAID_GPT_MODEL)
+      if (result.status === "completed" && model === expectedModel)
         outcome = "completed";
     } catch {
       /* Terminal failure releases this hold and records absorbed exposure. */
@@ -388,7 +392,7 @@ export function fundedGptCaller(input: GptOptions, funding: GptFunding): ModelCa
       }
     }
     const pricedUsage =
-      model === PREPAID_GPT_MODEL && standardTier && usage
+      model === expectedModel && standardTier && usage
         ? standardAiUsageUsdNanos(model, usage)
         : null;
     const validUsage =
@@ -427,7 +431,7 @@ export function fundedGptCaller(input: GptOptions, funding: GptFunding): ModelCa
       };
     }
     const standardUsage =
-      model === PREPAID_GPT_MODEL && standardTier ? usage : null;
+      model === expectedModel && standardTier ? usage : null;
     if (refused) return { kind: "refusal", usage: {}, standardUsage };
     if (
       outcome !== "completed" ||

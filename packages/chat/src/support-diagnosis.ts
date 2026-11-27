@@ -10,8 +10,7 @@
  *
  * Types and pure helpers only, with no imports, so the web and the agent
  * client can load it. It never imports ./diagnosis/*: the status and
- * category unions are copies that support-diagnosis.test.ts checks against
- * the engine's types. */
+ * category unions are copies of the engine's types. */
 
 export const SUPPORT_DIAGNOSIS_TRIGGERS = [
   "staff",

@@ -161,6 +161,9 @@ it("answers a question without applying unfinished appearance edits, then shows 
   });
   render(<WebsiteOnboarding nextPlan={false} />);
   await screen.findByText("25 of 25 free questions left");
+  const saveIndex = () => screen.getAllByRole("button").indexOf(screen.getByRole("button", { name: "Sign in to keep your workspace" }));
+  const editIndex = () => screen.getAllByRole("button").indexOf(screen.getByRole("button", { name: "Apply changes" }));
+  expect(saveIndex()).toBeGreaterThan(editIndex());
   fireEvent.change(screen.getByLabelText(/Icon URL/), {
     target: { value: "https://garden.tools/large.png" },
   });
@@ -183,6 +186,8 @@ it("answers a question without applying unfinished appearance edits, then shows 
     },
   ]);
   expect(await screen.findByText("24 of 25 free questions left")).toBeTruthy();
+
+  expect(saveIndex()).toBeLessThan(editIndex());
 
   fails = true;
   fireEvent.click(screen.getByRole("button", { name: "Ask in chat" }));

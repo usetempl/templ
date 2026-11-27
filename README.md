@@ -10,13 +10,13 @@ This example shows what the team receives when a visitor chooses to include app 
 
 [How a message reaches the team, how retries work, and where AI joins](docs/support-delivery.md)
 
-Run the chat simulations locally with `pnpm test:simulation`. If one fails, rerun it with the seed in the error message.
+Run the chat simulations locally with `pnpm test:simulation`. If one fails, rerun it with the seed in the error message. To compare answers about Bitcoin, Ethereum, Solana and wallets, run the [crypto support benchmark](apps/scripts/src/support-agent/crypto-benchmark/README.md). Its example runs locally without a model account.
 
 ## Give visitors a way to reach you
 
 | Choose | Set it up |
 | --- | --- |
-| **Standalone chat** | In a new hosted workspace, select **Your support chat → Open chat** and send a test question. Use **Copy chat link** to share the page. Select **Open inbox** and reply from **Cases**. For an existing workspace, open **Settings → Chat → Guest support**, select **Host a support page on Templ** when available, then **Save guest support** and **Copy support link**. |
+| **Standalone chat** | In a new hosted workspace, select **Open chat** and send a test question. Use **Copy chat link** to share the page. Select **Open inbox** and reply from **Cases**. For an existing workspace, open **Settings → Chat → Guest support**, select **Host a support page on Templ** when available, then **Save guest support** and **Copy support link**. |
 | **Embedded widget** | In **Settings → Chat**, copy the install prompt for your workspace or follow the manual guide. Connect the widget to a Help button on your HTTPS site. Your app can offer the visitor a choice of details to share. |
 | **Both** | Enable the support page and install the widget for the same workspace. Both reach the same team inbox. A visitor who follows the standalone link can describe the problem there. App context is available through the integration on the page where the problem happened. |
 
@@ -66,11 +66,11 @@ Run `pnpm build` to build the web app. For your deployment, set `NEXT_PUBLIC_TEM
 
 This checkout verifies the local conversation check and the web build only. It includes no deployment configuration, and the worker rejects any `APP_ORIGIN` outside its built-in list, so your own domain needs a source change first. The guide explains both.
 
-**Templ Hosted.** Enter your website and select **Preview your chat**. You can change the name, icon and color. Try a question in the same chat your visitors will use. If the scanner can’t read your site, try a public docs page.
+**Templ Hosted.** Enter your website and select **Preview your chat**. You can change the name, icon and color. Ask up to 25 free questions in the same chat your visitors will use. If the scanner can’t read your site, try a public docs page.
 
 Practice questions go to Templ’s AI service. The conversation stays in the tab and your inbox stays empty. Select **Sign in to keep your workspace** when you’re ready. You can also choose **Set up without a website**. [Try it with your website](https://usetempl.com/create) · [Practice privacy](https://docs.usetempl.com/ai#practice-privacy)
 
-The trial includes a working link, an inbox and 10 test tickets. To claim an available hosted name, open **Your support chat → Choose a hosted name**, enter the name and select **Reserve name and choose a plan**. Both plans cover all seats. A case counts once when the visitor gets its first substantive answer. The trial limit and the prices below mirror [`plans.ts`](packages/chat/src/plans.ts) in this source.
+The trial includes a working link, an inbox and 10 test tickets. To claim an available hosted name, enter the name under **Choose a hosted name** and select **Reserve name and choose a plan**. Both plans cover all seats. A case counts once when the visitor gets its first substantive answer. The trial limit and the prices below mirror [`plans.ts`](packages/chat/src/plans.ts) in this source.
 
 | Per workspace | Starter | Plus |
 | --- | ---: | ---: |
@@ -78,9 +78,9 @@ The trial includes a working link, an inbox and 10 test tickets. To claim an ava
 | Annual price | 290 USDC | 990 USDC |
 | Answered cases included | 100 | 500 |
 | Each additional case | $0.20 | $0.19 |
-| Templ AI credit included | $0 | $20 |
+| Monthly AI credit | $5 | $20 |
 
-Choose Starter or Plus at checkout. Pay the USDC amount shown on one of the offered networks. Pay monthly or cover 12 months in one payment. Included cases and AI credit reset monthly. Renew manually. Bring your own AI provider or prepay for Templ AI. On Starter, set a monthly limit before using Templ AI. [Pricing](https://docs.usetempl.com/pricing/) · [Stablecoin payments](https://docs.usetempl.com/pricing/stablecoin-payments/)
+Choose Starter or Plus at checkout. Pay the USDC amount shown on one of the offered networks. Pay monthly or cover 12 months in one payment. Included cases and AI credit reset monthly. Renew manually. Templ AI uses your included credit first. To spend more on Starter, add USDC and set a monthly spending limit. You can also connect your own AI provider. [Pricing](https://docs.usetempl.com/pricing/) · [Stablecoin payments](https://docs.usetempl.com/pricing/stablecoin-payments/)
 
 [Connect your own knowledge sources and AI](docs/support-delivery.md#connect-ai)
 

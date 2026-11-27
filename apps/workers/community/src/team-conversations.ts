@@ -1,3 +1,4 @@
+import { reserveCryptoQuestion } from "./crypto-support";
 import { appAiEnabled, appAnswerStatus, assertAppAnswerWrite, finishAppAnswer } from "./app-ai-replies";
 import { canManageWorkspace } from "@templ/chat/moderation-permissions";
 import { featureOn } from "./workspace-flags";
@@ -104,6 +105,8 @@ import {
   supportJourney,
   writeSupportContext,
   writeHandoff,
+  cryptoAgentFirst,
+  agentFirstError,
   memberVerificationRequested,
   staffPreviewReason,
   agentState,
@@ -1871,6 +1874,7 @@ async function postMessage(
   const sequence =
     ((await storage.get<number>(`channel-sequence:${record.id}`)) ?? 0) + 1;
   try {
+    if (role === "member") await reserveCryptoQuestion(storage, context.room, record.member, context.aliases, now, context.headers.get("X-Client-IP-Digest"));
     await reserveSupportMessage(storage, now, role);
   } catch (error) {
     if (
@@ -2194,6 +2198,7 @@ async function acceptEncryptedContent(
   assertMessageBudgetAvailable(
     context.headers.get(MESSAGE_BUDGET_AVAILABLE_HEADER) !== "false",
   );
+  if (role === "member" && message) await reserveCryptoQuestion(storage, context.room, record.member, context.aliases, now, context.headers.get("X-Client-IP-Digest"));
   await reserveSupportMessage(storage, now, role);
   let next: TeamConversationRecord = {
     ...record,
@@ -3308,6 +3313,17 @@ async function conversationRoomRoute(
         context.isBot)
     )
       throw new HttpError(400, "Ask for a person from your own case.");
+    // On the crypto desk a request for a person reuses a saved handoff and
+    // opens none (cryptoAgentFirst). Its message goes to the AI agent; a
+    // request without a message is refused before anything opens.
+    const agentFirst = cryptoAgentFirst(context.room);
+    if (
+      agentFirst &&
+      memberHandoff !== undefined &&
+      !existing?.handoff &&
+      !(typeof context.body.text === "string" && context.body.text.trim())
+    )
+      throw agentFirstError();
     if (!existing && widgetGuest(context.headers))
       await reserveGuestOpen(storage, context);
     const opened = await openFor(
@@ -3332,7 +3348,7 @@ async function conversationRoomRoute(
         recordWidgetAccess(support, context.headers, now);
       await storage.put(`support-workflow-v1:${record.id}`, support);
     }
-    if (memberHandoff !== undefined && !record.handoff) {
+    if (memberHandoff !== undefined && !record.handoff && !agentFirst) {
       const support = await supportRecord(storage, record);
       await writeHandoff(storage, context, record, support, {
         at: now,

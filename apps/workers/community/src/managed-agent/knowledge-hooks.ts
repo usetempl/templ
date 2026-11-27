@@ -1,4 +1,6 @@
-import { trialPractice } from "./trial-practice";
+import { CRYPTO_MONTHLY_BUDGET_CENTS, CRYPTO_SUPPORT_MODEL } from "@templ/chat/support-models";
+import { CRYPTO_SUPPORT_WORKSPACE } from "../crypto-support";
+import { trialPractice, templFundedInference } from "./trial-practice";
 import { verifyGroundedReceipt } from "./grounded";
 import { workspaceFeatureEnvFor } from "../workspace-flags";
 import { recordWorkspaceCost } from "../workspace-cost-recording";
@@ -23,7 +25,7 @@ import {
 } from "../support-knowledge-schema";
 import { anthropicCaller } from "./anthropic";
 import { TRIAL_RECEIPT_HEADERS } from "./knowledge-client";
-import { prepaidGptCaller } from "./gpt";
+import { prepaidGptCaller, fundedGptCaller } from "./gpt";
 import type { ManagedJob } from "./room";
 import { managedPrincipal } from "./principal";
 import { roomClient, type RoomClientEnv } from "./room-client";
@@ -48,6 +50,7 @@ import {
   setGoldenManual,
   templSpendRequest,
   workspaceSpend,
+  reserveSpend, settleSpend, saveWorkspaceSpend,
   type StoredJob,
 } from "./store";
 import type { GoldenCaseView } from "@templ/chat/golden-set";
@@ -281,13 +284,31 @@ export async function runnerDeps(
     ...(env.AI &&
     /^[a-z0-9][a-z0-9-]{0,63}$/.test(env.MANAGED_AGENT_GATEWAY_ID ?? "")
       ? {
-          prepaidModel: (billing: import("./room-client").RoomClient) =>
-            prepaidGptCaller({
-              ai: env.AI!,
-              gatewayId: env.MANAGED_AGENT_GATEWAY_ID!,
-              billing,
-              observeCost,
-            }),
+          prepaidModel: (billing: import("./room-client").RoomClient, sponsoredResearch?: boolean) => {
+            const options = { ai: env.AI!, gatewayId: env.MANAGED_AGENT_GATEWAY_ID!, observeCost };
+            if (room !== "room:" + CRYPTO_SUPPORT_WORKSPACE || !sponsoredResearch) return prepaidGptCaller({ ...options, billing });
+            const cap = CRYPTO_MONTHLY_BUDGET_CENTS;
+            return fundedGptCaller({ ...options, model: CRYPTO_SUPPORT_MODEL }, templFundedInference({
+              async reserve(month, id, cents) {
+                return db.transaction(() => {
+                  const now = Date.now();
+                  const current = workspaceSpend(db, now);
+                  if (current.month !== month) return false;
+                  const admitted = reserveSpend(current.record, { id, cents, cap, now, sponsored: true });
+                  saveWorkspaceSpend(db, month, current.record);
+                  return admitted;
+                });
+              },
+              async settle(month, id, cents) {
+                db.transaction(() => {
+                  const { record } = workspaceSpend(db, Date.parse(month + "-01T00:00:00Z"));
+                  if (!record.reservations[id]) throw new Error("Unconfirmed sponsored AI usage.");
+                  settleSpend(record, id, cents);
+                  saveWorkspaceSpend(db, month, record);
+                });
+              },
+            }, cap));
+          },
         }
       : {}),
     roomClient:

@@ -2,11 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import { IconCopy } from "@tabler/icons-react";
-import { SITE_FUNNEL_PATHS } from "@templ/chat/funnel";
 import Link from "next/link";
 import { trackEvent } from "@/lib/analytics";
 import { startInstallPrompt } from "@/lib/support-integration-prompt";
-import { SITE } from "@/lib/site-environment";
 import styles from "./landing-install.module.css";
 
 export const CREATE_CHAT_URL = "/create";
@@ -35,18 +33,7 @@ export function InstallPromptButton({ className }: { className?: string }) {
     }
     setStatus("copied");
     trackEvent("prompt_copied");
-    try {
-      if (location.origin === SITE.origin)
-        void fetch(`${SITE.community}${SITE_FUNNEL_PATHS.prompt_copied}`, {
-          method: "POST",
-          credentials: "omit",
-          cache: "no-store",
-          keepalive: true,
-          referrerPolicy: "no-referrer",
-        }).catch(() => {});
-    } catch {
-      // Optional measurement never blocks the copied prompt.
-    }
+
   }
   return (
     <div className={styles.install}>

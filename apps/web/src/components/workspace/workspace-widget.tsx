@@ -23,7 +23,7 @@ import {
   type WidgetAppearance,
 } from "@templ/chat/widget-appearance";
 import { WidgetAppearanceEditor } from "./widget-appearance-editor";
-import { SUPPORT_WIDGET_LATEST_PATH } from "@/lib/support-widget-release";
+import { currentWidgetAssets } from "@/lib/current-widget-assets";
 import type { SupportMinimumLevel } from "@templ/chat/support";
 import { IntegrationPrompt } from "@/components/pages/landing/integration-prompt";
 import { SupportLink } from "@/components/team-conversations";
@@ -282,7 +282,7 @@ export function WorkspaceWidget({
       if (currentScope.current === scope) setAppearanceSaving(undefined);
     }
   }
-  const snippet = `import { mountSupportWidget } from "${SITE.origin}${SUPPORT_WIDGET_LATEST_PATH}";
+  const snippet = `import { mountSupportWidget } from "${SITE.origin}${currentWidgetAssets.path}";
 
 const support = mountSupportWidget({
   workspace: "${id}",

@@ -5,6 +5,7 @@ import { formatStandardAiRate } from "@templ/chat/standard-usage";
 
 import type { StandardPlanView } from "@templ/chat/standard-plan";
 import { PRODUCT_STARTER_PRICES, PRODUCT_STANDARD_PRICES, PRODUCT_LIMITS, PRODUCT_TOP_UP } from "@templ/chat/plans";
+import { starterPricesForVersion } from "@templ/chat/standard-plan";
 import { useChatAuth } from "@/lib/chat-auth";
 import { normalizeChatRoomId } from "@/lib/chat-room-id";
 import { saveStarterAiLimit } from "@/lib/product-client";
@@ -30,9 +31,11 @@ export function StandardWorkspacePlan({
   const period = plan.period;
   const usage = paid ? period?.usage : undefined;
   const startingPrice = plan.starterAvailable && (
-    !period || period.usage?.priceVersion === PRODUCT_STARTER_PRICES.publishedOn
+    !period || starterPricesForVersion(period.usage?.priceVersion)
   ) ? PRODUCT_STARTER_PRICES : PRODUCT_STANDARD_PRICES;
   const starterActive = plan.starterAiLimitCents !== undefined;
+  // A Starter month keeps the AI credit recorded with its payment, including $0.
+  const recordedAiCredit = Boolean(period?.usage?.includedAiCreditCents);
   const included = period?.includedAiResolutions ?? plan.includedAiResolutions;
   const aiPrice =
     period?.additionalAiResolutionCents ?? plan.additionalAiResolutionCents;
@@ -234,9 +237,8 @@ export function StandardWorkspacePlan({
                 each.
               </p>
               <p className={styles.note}>
-                {startingPrice === PRODUCT_STARTER_PRICES
-                  ? "Starter includes no Templ AI credit. Add prepaid USDC and set a monthly limit to use Templ AI."
-                  : `AI use costs ${formatStandardAiRate(startingPrice)}× GPT-6.1 Sol’s standard API rates.`}
+                AI use costs {formatStandardAiRate(startingPrice)}× GPT-6.1
+                Sol’s standard API rates. The included credit covers it first.
               </p>
             </div>
           )}
@@ -284,6 +286,7 @@ export function StandardWorkspacePlan({
           workspace={workspace}
           period={period.id}
           initialCents={plan.starterAiLimitCents}
+          includedCredit={recordedAiCredit}
         />
       )}
       {prepaid && (
@@ -304,7 +307,9 @@ export function StandardWorkspacePlan({
           <p className={styles.note}>
             {agreedBilling
               ? "USDC pays recorded charges first. The rest stays as credit. Your agreed rates and credit terms stay unchanged."
-              : starterActive
+              : starterActive && recordedAiCredit
+                ? "AI work uses included credit first, then prepaid USDC up to your AI limit. Extra answered cases also use prepaid USDC."
+                : starterActive
                 ? "Extra answered cases and Templ AI use prepaid USDC. Your AI limit applies only to Templ AI."
                 : currentPrepaid
                 ? "AI work uses included credit first, then prepaid USDC. AI pauses when funds cannot cover the next request."
@@ -362,10 +367,11 @@ export function StandardWorkspacePlan({
   );
 }
 
-function StarterAiLimit({ workspace, period, initialCents }: {
+function StarterAiLimit({ workspace, period, initialCents, includedCredit }: {
   workspace: string;
   period: string;
   initialCents: number;
+  includedCredit: boolean;
 }) {
   const auth = useChatAuth();
   const [saved, setSaved] = useState(initialCents);
@@ -410,7 +416,12 @@ function StarterAiLimit({ workspace, period, initialCents }: {
           onChange={(event) => setDollars(event.target.value)}
         />
       </label>
-      <p className={styles.note}>Set $0 to stop new Templ AI requests. Requests already running can finish.</p>
+      <p className={styles.note}>
+        {includedCredit
+          ? "Templ AI uses the included credit first. Set $0 to stop new requests once it is used up."
+          : "Set $0 to stop new Templ AI requests."}{" "}
+        Requests already running can finish.
+      </p>
       <div className={styles.actions}>
         <button type="submit" className="button" disabled={busy || cents === null || cents === saved || cents > PRODUCT_TOP_UP.maxUsdCents}>
           Save AI limit

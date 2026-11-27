@@ -43,8 +43,6 @@ const GOLDEN_QUEUED = "managed.golden.queued";
 const GOLDEN_MANUAL = "managed.golden.manual";
 const GOLDEN_PARTIAL = "managed.golden.partial";
 const pad15 = (value: number) => String(value).padStart(15, "0");
-/** A reservation the runner never settled (it stopped mid-call) is let go
- * after this long. */
 export const RESERVATION_MS = 10 * 60_000;
 
 export type StoredJob = {
@@ -61,6 +59,7 @@ export type StoredJob = {
   /** An accepted reply awaiting its conditional managed resolution. */
   close?: { case: number; reply: { id: string; revision: number } };
   handoff?: import("@templ/chat/managed-agent").ManagedHandoffReason;
+  technicalHandoff?: { id: string; revision: number };
   /** Learning inference is never repeated after an uncertain attempt. */
   learning?: {
     id: string;
@@ -166,7 +165,7 @@ export function nextJobDue(db: KnowledgeDb): number | null {
 export type SpendRecord = {
   spentCents: number;
   calls: number;
-  reservations: Record<string, { cents: number; at: number }>;
+  reservations: Record<string, { cents: number; at: number; sponsored?: true }>;
 };
 function readSpend(
   read: () => SpendRecord | null,
@@ -181,9 +180,11 @@ function readSpend(
     calls: Number.isSafeInteger(stored?.calls) ? stored!.calls : 0,
     reservations: { ...(stored?.reservations ?? {}) },
   };
-  for (const [id, held] of Object.entries(record.reservations ?? {}))
-    if (expire && now - held.at > RESERVATION_MS)
-      delete record.reservations[id];
+  for (const [id, held] of Object.entries(record.reservations)) {
+    if (!expire || now - held.at <= RESERVATION_MS) continue;
+    if (held.sponsored) settleSpend(record, id, held.cents);
+    else releaseSpend(record, id);
+  }
   return record;
 }
 const heldCents = (record: SpendRecord) =>
@@ -192,12 +193,15 @@ const heldCents = (record: SpendRecord) =>
 /** Holds `cents` against a monthly cap. False when the cap has no room. */
 export function reserveSpend(
   record: SpendRecord,
-  input: { id: string; cents: number; cap: number; now: number },
+  input: { id: string; cents: number; cap: number; now: number; sponsored?: true },
 ): boolean {
   if (input.cap <= 0) return false;
   if (record.spentCents + heldCents(record) + input.cents > input.cap)
     return false;
-  record.reservations[input.id] = { cents: input.cents, at: input.now };
+  record.reservations[input.id] = {
+    cents: input.cents, at: input.now,
+    ...(input.sponsored && { sponsored: true }),
+  };
   return true;
 }
 /** Lets a hold go with nothing spent (the call never ran). */

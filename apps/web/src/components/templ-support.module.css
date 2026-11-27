@@ -49,6 +49,13 @@
   visibility: hidden;
   opacity: 0;
 }
+.startupPanel:focus {
+  outline: none;
+}
+.startupPanel[data-keyboard-open]:focus-visible {
+  outline: var(--templ-focus-width) solid var(--templ-focus);
+  outline-offset: 2px;
+}
 :global(html:not([data-templ-open-support])) .startupPanel[data-startup]:not(:target) {
   display: none;
 }

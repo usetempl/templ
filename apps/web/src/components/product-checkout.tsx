@@ -4,6 +4,7 @@ import Link from "next/link";
 import type { ChatRoomId } from "@templ/chat/index";
 import { topUpBonusCents } from "@templ/chat/resolution-pricing";
 import { PRODUCT_ANNUAL_PRICES, PRODUCT_STARTER_PRICES, PRODUCT_STANDARD_PRICES, PRODUCT_TOP_UP } from "@templ/chat/plans";
+import { starterPricesForVersion } from "@templ/chat/standard-plan";
 import type { MonthlySupportPlan } from "@templ/chat/standard-plan";
 import {
   PRODUCT_CHECKOUT_OPTIONS,
@@ -73,12 +74,13 @@ type CheckoutProps = {
   assertCurrent: () => void;
   onConfirmed: (payment: ProductPaymentIntent) => void;
   purpose?: "period" | "credit";
+  request?: ProductPaymentIntent;
 };
 export function ProductCheckout(props: CheckoutProps) {
   const auth = useChatAuth();
   return (
     <Checkout
-      key={`${props.room}:${auth.session?.principalId}:${props.purpose}:${props.usage && isBillingView(props.usage) && props.usage.standardPlan ? `standard:${props.usage.standardPlan.period?.id}:${props.usage.standardPlan.status}` : props.usage && isBillingView(props.usage) && props.usage.usageBilling ? "usage" : "prepaid"}`}
+      key={`${props.room}:${auth.session?.principalId}:${props.purpose}:${props.request?.id}:${props.usage && isBillingView(props.usage) && props.usage.standardPlan ? `standard:${props.usage.standardPlan.period?.id}:${props.usage.standardPlan.status}` : props.usage && isBillingView(props.usage) && props.usage.usageBilling ? "usage" : "prepaid"}`}
       {...props}
     />
   );
@@ -89,6 +91,7 @@ function Checkout({
   assertCurrent,
   onConfirmed,
   purpose,
+  request,
 }: CheckoutProps) {
   const auth = useChatAuth();
   const wallet = useWallet();
@@ -109,7 +112,7 @@ function Checkout({
   const expectedPeriod = standard?.period?.id ?? null;
   const [monthlyPlan, setMonthlyPlan] = useState<MonthlySupportPlan>(() =>
     standard?.starterAvailable &&
-    (!expectedPeriod || standard.period?.usage?.priceVersion === PRODUCT_STARTER_PRICES.publishedOn)
+    (!expectedPeriod || starterPricesForVersion(standard.period?.usage?.priceVersion))
       ? "starter"
       : "standard",
   );
@@ -162,9 +165,9 @@ function Checkout({
   );
   const [symbol, setSymbol] = useState<ProductPaymentAssetSymbol>("USDC");
   const [payer, setPayer] = useState<string>();
-  const [intent, setIntent] = useState<ProductPaymentIntent>();
+  const [intent, setIntent] = useState(request);
   const [requests, setRequests] = useState<ProductPaymentIntent[]>([]);
-  const [hash, setHash] = useState("");
+  const [hash, setHash] = useState(request?.submittedTx ?? "");
   const [error, setError] = useState("");
   const [statusError, setStatusError] = useState("");
   const [phase, setPhase] = useState("");
@@ -182,11 +185,6 @@ function Checkout({
       mounted.current = false;
     };
   }, []);
-  useEffect(() => {
-    setIntent(undefined);
-    setHash("");
-    setError("");
-  }, [room, auth.session?.principalId]);
   // A plan payment asks an email account to sign in with its wallet. That
   // refusal goes once the wallet session arrives.
   const authMethod = auth.session?.authMethod;
@@ -654,13 +652,15 @@ function Checkout({
                       setMonthlyPlan(event.target.value === "starter" ? "starter" : "standard")
                     }
                   >
-                    <option value="starter">Starter {formatUsd(annual ? PRODUCT_ANNUAL_PRICES.starter : PRODUCT_STARTER_PRICES.workspaceMonthlyUsdCents)}/{annual ? "year" : "month"}</option>
-                    <option value="standard">Plus {formatUsd(annual ? PRODUCT_ANNUAL_PRICES.standard : PRODUCT_STANDARD_PRICES.workspaceMonthlyUsdCents)}/{annual ? "year" : "month"}</option>
+                    <option value="starter">Starter · {(annual ? PRODUCT_ANNUAL_PRICES.starter : PRODUCT_STARTER_PRICES.workspaceMonthlyUsdCents) / 100} USDC/{annual ? "year" : "month"}</option>
+                    <option value="standard">Plus · {(annual ? PRODUCT_ANNUAL_PRICES.standard : PRODUCT_STANDARD_PRICES.workspaceMonthlyUsdCents) / 100} USDC/{annual ? "year" : "month"}</option>
                   </select>
                 </label>
               )}
               <p className={styles.note}>
-                {monthlyPrices.includedAnsweredCasesPerMonth} answered cases per month. All team seats included.
+                {monthlyPrices.includedAnsweredCasesPerMonth} answered cases per month.{" "}
+                {formatUsd(monthlyPrices.includedAiCreditUsdCents)} AI credit included
+                each month. Add credit when you need more AI.
               </p>
             </>
           ) : (
@@ -856,7 +856,10 @@ function Checkout({
                                 : ("standard-credit" as const),
                             expectedPeriod,
                             ...(standardPurpose === "period" && standard?.starterAvailable
-                              ? { monthlyPlan }
+                              ? {
+                                  monthlyPlan,
+                                  ...(monthlyPlan === "starter" ? { reviewedPriceVersion: monthlyPrices.publishedOn } : {}),
+                                }
                               : {}),
                             confirmed: true as const,
                           }

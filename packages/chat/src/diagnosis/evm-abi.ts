@@ -18,8 +18,7 @@ import type {
   Hex,
 } from "./types";
 
-/** Builtin error selectors, signatures and reasons. evm-abi.test.ts
- * recomputes every selector from its signature. */
+/** Builtin error selectors, signatures and reasons. */
 export const BUILTIN_ERRORS: readonly {
   selector: Hex;
   signature: string;
@@ -174,7 +173,7 @@ const BUILTIN_ABI = parseAbi(
   BUILTIN_ERRORS.map((item) => `error ${item.signature}`),
 ) as Abi;
 
-/** Event topics. evm-abi.test.ts recomputes each from its signature. */
+/** Event signatures; EVENT_TOPICS holds their topics. */
 export const EVENT_SIGNATURES = {
   transfer: "Transfer(address indexed from,address indexed to,uint256 value)",
   approval:

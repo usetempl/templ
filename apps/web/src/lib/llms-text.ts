@@ -32,7 +32,7 @@ export function renderLlmsText(
 
 Share a private chat link and reply from Cases. Add a website or sitemap under AI → Website and docs for AI answers or drafts.
 Create a workspace and test ${PRODUCT_LIMITS.freeSupportTickets} integration tickets free.
-Your team answers free test tickets. When Workspace shows Try your AI, an Admin can test questions privately against the workspace’s docs.
+Your team answers free test tickets. An Admin can open AI and use Test your AI to ask up to ${PRODUCT_LIMITS.freeAiPracticeQuestions} private questions about the workspace’s docs.
 Each test ticket allows ${PRODUCT_LIMITS.freeTeamRepliesPerTicket} team replies.
 Retries, deleting replies and reopening do not reset this allowance.
 After the free allowance, pay for workspace access to continue.
@@ -75,7 +75,7 @@ Early features apply to selected workspaces. They do not change public availabil
 
 ## Templ Hosted pricing
 
-Templ Hosted Starter for new workspaces costs $${STARTER.workspaceMonthlyUsdCents / 100}/month for ${STARTER.includedAnsweredCasesPerMonth} answered cases. Each extra case costs $${(STARTER.additionalAnsweredCaseUsdCents / 100).toFixed(2)}. Starter uses prepaid Templ AI with a monthly limit. Plus costs $${PRICES.workspaceMonthlyUsdCents / 100}/month per workspace.
+Templ Hosted Starter for new workspaces costs $${STARTER.workspaceMonthlyUsdCents / 100}/month. It includes ${STARTER.includedAnsweredCasesPerMonth} answered cases and $${STARTER.includedAiCreditUsdCents / 100} in retail AI credit each month. Each extra case costs $${(STARTER.additionalAnsweredCaseUsdCents / 100).toFixed(2)}. Plus costs $${PRICES.workspaceMonthlyUsdCents / 100}/month per workspace.
 It includes ${PRICES.includedAnsweredCasesPerMonth} answered cases and $${PRICES.includedAiCreditUsdCents / 100} in retail AI credit each month.
 Each additional answered case costs $${(PRICES.additionalAnsweredCaseUsdCents / 100).toFixed(2)}.
 A case counts once after its first answer reaches the user.
@@ -85,7 +85,7 @@ Extra answered cases use prepaid credit after the included allowance.
 Normal safety, provider and operating limits still apply.
 Both plans include all team seats. Annual access costs $${ANNUAL.starter / 100} for Starter or $${ANNUAL.standard / 100} for Plus. Included cases and AI credit reset monthly.
 Templ’s own support chat uses GPT-6.1 Terra. New prepaid workspaces use GPT-6.1 Sol. Prepaid Templ AI usage costs ${formatStandardAiRate(PRICES)} times the published GPT-6.1 Sol Standard API rates.
-The included retail credit covers AI use first. Further use draws from prepaid USDC.
+The included retail credit covers AI use first. Further use draws from prepaid USDC. On Starter, raise the monthly AI limit in Plan & usage to allow it.
 Apply the published input, cached-input, cache-write and long-context tiers.
 Count reasoning tokens as output once.
 Legitimate AI answers, verification, Telegram team drafts and follow-ups use credit, including work on unresolved cases.
@@ -95,7 +95,7 @@ There is no separate confirmed-resolution fee under this offer.
 Your own AI uses your provider account. Its delivered answers count toward the same case allowance.
 Ticketing and standard features are included, subject to current availability.
 Normal product support and feedback are included.
-Optional done-for-you setup costs $${PRICES.guidedOnboardingUsdCents / 100} once.
+Self-serve plans have no setup fee. Optional done-for-you setup costs $${PRICES.guidedOnboardingUsdCents / 100} once.
 It includes discovery, one app integration, AI configured and tested against your docs and FAQs, routing tests and handover.
 The ${PRICES.guidedOnboardingWorkdays}-business-day schedule starts after scope is agreed and the required access and materials are ready.
 Work outside the agreed scope has a separate price. Agree on scope and estimated cost before work starts.

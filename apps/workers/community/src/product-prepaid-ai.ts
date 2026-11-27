@@ -3,6 +3,7 @@ import {
   PRODUCT_STANDARD_PRICES,
   PRODUCT_STARTER_PRICES,
 } from "@templ/chat/plans";
+import { starterPricesForVersion } from "@templ/chat/standard-plan";
 import {
   standardAiUsageUsdNanos,
   captureStandardAiRate,
@@ -343,7 +344,7 @@ export async function reservePrepaidAi(
       undefined,
       "prepaid-period-required",
     );
-  const rateCardVersion = period.priceVersion === PRODUCT_STARTER_PRICES.publishedOn
+  const rateCardVersion = starterPricesForVersion(period.priceVersion)
     ? PRODUCT_STARTER_PRICES.aiRateCardVersion
     : PRODUCT_STANDARD_AI_RATES.version;
   if (

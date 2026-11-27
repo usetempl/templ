@@ -16,7 +16,7 @@ import { ProductPaymentRequestDetails } from "./product-payment-request";
 type RequestListProps = {
   room: ChatRoomId;
   account?: ChatPrincipalId;
-  onOpen: () => void;
+  onOpen: (request: ProductPaymentIntent) => void;
   onCredited?: () => void;
 };
 export function ProductPaymentRequests(props: RequestListProps) {
@@ -125,7 +125,7 @@ function RequestList({ room, account, onOpen, onCredited }: RequestListProps) {
                 .finally(() => setBusy(false));
             }}
           />
-          <button type="button" onClick={onOpen}>
+          <button type="button" onClick={() => onOpen(request)}>
             Open payment request
           </button>
         </div>

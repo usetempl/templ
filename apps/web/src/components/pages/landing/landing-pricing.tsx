@@ -21,11 +21,11 @@ export function LandingPricing() {
           <table aria-label="Templ Hosted plans">
             <thead><tr><th scope="col">Plan</th><th scope="col">Starter</th><th scope="col">Plus</th></tr></thead>
             <tbody>
-              <tr className={styles.price}><th scope="row">Per month</th><td>{dollars(STARTER.workspaceMonthlyUsdCents)}</td><td>{dollars(PLUS.workspaceMonthlyUsdCents)}</td></tr>
-              <tr><th scope="row">Per year · 2 months free</th><td>{dollars(ANNUAL.starter)}</td><td>{dollars(ANNUAL.standard)}</td></tr>
+              <tr className={styles.price}><th scope="row">Monthly (USDC)</th><td>{dollars(STARTER.workspaceMonthlyUsdCents)}</td><td>{dollars(PLUS.workspaceMonthlyUsdCents)}</td></tr>
+              <tr><th scope="row">Yearly (USDC) · 2 months free</th><td>{dollars(ANNUAL.starter)}</td><td>{dollars(ANNUAL.standard)}</td></tr>
               <tr><th scope="row">Answered cases included monthly</th><td>{STARTER.includedAnsweredCasesPerMonth}</td><td>{PLUS.includedAnsweredCasesPerMonth}</td></tr>
               <tr><th scope="row">More cases on demand</th><td>{dollars(STARTER.additionalAnsweredCaseUsdCents)} each</td><td>{dollars(PLUS.additionalAnsweredCaseUsdCents)} each</td></tr>
-              <tr><th scope="row">Monthly AI credit</th><td>{dollars(STARTER.includedAiCreditUsdCents)}</td><td>{dollars(PLUS.includedAiCreditUsdCents)}</td></tr>
+              <tr><th scope="row">AI credit included monthly</th><td>{dollars(STARTER.includedAiCreditUsdCents)}</td><td>{dollars(PLUS.includedAiCreditUsdCents)}</td></tr>
             </tbody>
           </table>
         </section>

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { SiteStatisticsPreference } from "@/components/site-statistics-preference";
 import { CORPUS_LIMITS, PRODUCT_LIMITS } from "@templ/chat/plans";
 import { EVAL_LIMITS } from "@templ/chat/support-eval";
 import { PolicyPage, PolicySection } from "@/components/policy-page";
@@ -34,7 +35,7 @@ export default async function PrivacyPage() {
       title="Privacy"
       description="How Templ uses and keeps the information you share."
       active="privacy"
-      updated="24 November 2026"
+      updated="27 November 2026"
     >
       <p>
         {
@@ -630,12 +631,8 @@ export default async function PrivacyPage() {
               </td>
             </tr>
             <tr>
-              <td>{"Google Analytics"}</td>
-              <td>
-                {
-                  "Receives approved fixed browser events and network metadata only if measurement is enabled. It receives no case text, wallets or private case URLs."
-                }
-              </td>
+              <td>Plausible Analytics</td>
+              <td>Counts visits to three areas on usetempl.com. It receives a generic page name and uses the IP address and browser details briefly to count visitors each day.</td>
             </tr>
           </tbody>
         </table>
@@ -758,24 +755,22 @@ export default async function PrivacyPage() {
       </PolicySection>
       <PolicySection title="10. How we count service use" id="measurement">
         <p>
-          {
-            "Templ measures onboarding with its own service. Google Analytics collection stays off."
-          }
+          If you turn on site statistics, we count visits to the landing page, support chat and workspace dashboard on usetempl.com.
+          Every chat has the same label in our statistics. Every workspace does too.
+          We send only that label to Plausible. We leave out the page you came from,
+          the actual chat link, wallet addresses, email addresses and anything you type.
+          We do not measure your steps through sign-in, onboarding or checkout.
         </p>
         <p>
-          We link onboarding actions with a random session cookie on Templ’s
-          website. It works across tabs and expires when the browser session
-          ends, or after 30 days. Signing out or changing accounts resets it.
-          Browser tracking respects Do Not Track and Global Privacy Control.
+          Plausible uses your IP address and browser details to count a visitor once per day
+          on this site and estimate location and device type. It discards the raw IP address
+          and browser details. It keeps a record of each visit under a daily identifier that changes the next day.
+          We use no analytics cookies. Statistics are off by default. You can turn them off here at any time.
+          We also honor Do Not Track and Global Privacy Control. Read <a href="https://plausible.io/data-policy">how Plausible counts visits</a>.
         </p>
-        <p>
-          Journey records contain fixed actions, service timestamps and a
-          customer, operator, test or unclassified label. They contain no
-          wallets, account identifiers, emails, message text or page URLs. The
-          service links workspace milestones through a random journey reference.
-          Operators see aggregate conversion rates, drop-offs and elapsed times.
-          Journey records stay for {ONBOARDING_POLICY.retentionDays} days.
-        </p>
+        <p><SiteStatisticsPreference /></p>
+        <p>Templ previously linked onboarding steps with a random cookie.
+          Existing journey records expire after {ONBOARDING_POLICY.retentionDays} days.</p>
         <p>
           {
             "General service counts use daily totals and fixed step or failure codes. They carry no accounts, wallets, workspaces, message text, emails, addresses or URLs. These daily counts stay for "
@@ -793,11 +788,6 @@ export default async function PrivacyPage() {
         <p>
           {
             "The widget loads no browser analytics code on the Customer website. That website may run its own analytics under its own notice."
-          }
-        </p>
-        <p>
-          {
-            "Optional Google measurement uses an isolated frame and a random tab identifier. It receives only approved fixed events. Google still receives browser and network metadata. Consent must come first where law requires it."
           }
         </p>
         <p>

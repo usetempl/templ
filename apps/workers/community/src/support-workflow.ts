@@ -159,6 +159,7 @@ import { queueStaffPush } from "./staff-push";
 import { staffPushHold } from "./staff-push-hold";
 import { personRequest } from "@templ/chat/person-intent";
 import { readSupportProfiles } from "./support-contact-profiles";
+import { CRYPTO_SUPPORT_WORKSPACE } from "./crypto-support";
 
 type Storage = DurableObjectTransaction;
 const SETTINGS = "support-settings-v1";
@@ -821,6 +822,19 @@ export function recordWidgetAccess(
     };
   }
 }
+/** The public crypto desk keeps its people for problems its AI agent tried
+ * and could not solve. There a member's own request for a person, from any
+ * client, reuses the handoff the AI agent or a person saved and opens none.
+ * The member's message still reaches the AI agent. */
+export const cryptoAgentFirst = (room: string) =>
+  room === "room:" + CRYPTO_SUPPORT_WORKSPACE;
+export const agentFirstError = () =>
+  new HttpError(
+    409,
+    "Describe the problem in a message. If the AI agent can't solve it, a person from the team will answer.",
+    undefined,
+    "agent-first",
+  );
 /** Records a message on the thread's support record and its case, and
  * queues the notifications. Returns the conversation record, which a new
  * request on a thread a person owns changes (AI drafts only). */
@@ -920,9 +934,11 @@ export async function recordSupportMessage(
         current: record.handoff,
         now: context.now,
       });
-      if (asked.opened)
-        await writeHandoff(storage, context, record, data, asked.handoff);
-      else if (asked.changed) {
+      if (asked.opened) {
+        // On the crypto desk the AI agent reads this request first.
+        if (!cryptoAgentFirst(context.room))
+          await writeHandoff(storage, context, record, data, asked.handoff);
+      } else if (asked.changed) {
         record.handoff = asked.handoff;
         record.revision++;
         await storage.put(`conversation-v1:${record.id}`, record);
@@ -1952,9 +1968,10 @@ export async function supportThreadRoute(
         current: record.handoff,
         now: context.now,
       });
-      if (asked.opened)
+      if (asked.opened) {
+        if (cryptoAgentFirst(context.room)) throw agentFirstError();
         await writeHandoff(storage, context, record, data, asked.handoff);
-      else if (asked.changed) {
+      } else if (asked.changed) {
         // A handoff the AI agent or a person opened just before the tap
         // becomes the member's own: only a person's reply or a resolution
         // clears it. It was already alerted and recorded once.

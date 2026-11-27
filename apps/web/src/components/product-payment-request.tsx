@@ -148,6 +148,7 @@ export function ProductPaymentRequestDetails({
       ? `${request.expectedFinalitySeconds} seconds`
       : `${finalityMinutes} ${finalityMinutes === 1 ? "minute" : "minutes"}`;
   const checkAgain = onCheck &&
+    !reviewing &&
     !closed &&
     !request.verificationReviewRequired && (
       <>
@@ -403,14 +404,13 @@ export function ProductPaymentRequestDetails({
           )}
           <Link href="/terms">Payment terms</Link>
         </div>
-        {reviewing && checkAgain}
         {recoveryActions}
       </section> : (
         <button type="button" className={styles.help} onClick={() => setHelpFor(request.id)}>
           Payment details and help
         </button>
       )}
-      {!reviewing && checkAgain}
+      {checkAgain}
     </section>
   );
 }

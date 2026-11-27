@@ -1,8 +1,7 @@
 import type { EvmNetwork, Hex } from "./types";
 
 /** Reviewed addresses. A label never comes from a contract's own symbol() or
- * name(). Stablecoin rows match PRODUCT_PAYMENT_ASSETS
- * (known-addresses.test.ts pins the drift). */
+ * name(). Stablecoin rows match PRODUCT_PAYMENT_ASSETS. */
 export type KnownEvmToken = {
   network: EvmNetwork;
   address: Hex;

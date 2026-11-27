@@ -19,6 +19,27 @@ export type ReviewResult = "shown" | "sent" | "busy" | "cancelled";
 export const leadStyles =
   ".lead-content .primary{width:100%}.lead-content input{width:100%;padding:8px;border:1px solid var(--b2);border-radius:var(--rc);background:var(--s);color:var(--t);font:inherit}.lead-content label{display:grid;gap:5px;font-size:13px}.lead-content p{color:var(--m);font-size:15px}.starter>.quiet{display:none}.tail[data-state=hatch]>button:first-child{display:none}@media(max-width:480px){.stamp-state{display:none!important}.head{padding:9px 12px;gap:8px}.avatar{width:30px;height:30px;border-radius:9px}.body{padding:10px 12px}.form{padding:7px 10px}.starter{padding:9px}.starter>.suggestions{display:none}.suggestions{margin-top:8px;gap:5px}.suggestions button{padding:4px 9px;min-height:28px;font-size:13px}.tools{display:flex}.lead-sheet{padding:12px}}";
 
+function questionLimitMessage(reason: unknown) {
+  const { reason: code, retryAfter = 0 } = (reason ?? {}) as {
+    reason?: string;
+    retryAfter?: number;
+  };
+  if (
+    code !== "crypto-question-limit" ||
+    !(retryAfter > 0 && retryAfter <= 86_400)
+  )
+    return;
+  const now = new Date();
+  const at = new Date(
+    Math.ceil((+now + retryAfter * 1000) / 60_000) * 60_000,
+  );
+  const day =
+    at.getDate() === now.getDate()
+      ? ""
+      : `on ${at.toLocaleDateString("en-GB", { weekday: "long" })} `;
+  return `You can send again ${day}at ${at.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}.`;
+}
+
 export function consent(
   host: TailHost,
   form: HTMLFormElement,
@@ -26,6 +47,8 @@ export function consent(
   state: () => { conversation: string | null; state?: string },
 ) {
   const { el, client, draft } = host;
+  const errorText = host.errorText;
+  host.errorText = (reason) => questionLimitMessage(reason) ?? errorText(reason);
   const summary = el("section", undefined, "consent card nudge");
   host.style.textContent +=
     ".joined{text-align:center}.consent{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden;margin:8px;padding:16px;font-size:15px;line-height:1.5;border:1px solid var(--b);border-radius:var(--rc);background:var(--s)}.consent .summary-rows{flex:1;min-height:0;overflow:auto;overscroll-behavior:contain}.consent>b,.consent>button{flex:none}.panel:has(.consent:not([hidden]))>.body{display:none}.consent .row{flex-wrap:wrap}.consent p{margin:10px 0;overflow-wrap:anywhere}.consent .said{white-space:pre-wrap;max-height:9em;overflow:auto}.consent>label{display:flex;gap:8px;align-items:start}.consent .primary{width:100%}.consent .quiet{display:block;margin:8px auto 0}";

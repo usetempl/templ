@@ -138,12 +138,10 @@ import type { FunnelEnv } from "./funnel-metrics";
 import {
   browserOnboardingRoute,
   operatorOnboardingRoute,
-  onboardingTraffic,
   onboardingOptOut,
 } from "./onboarding-metrics";
 import {
   ONBOARDING_HEADER,
-  JOURNEY_ID,
   browserOnboardingEvent,
 } from "@templ/chat/onboarding";
 import {
@@ -3496,19 +3494,6 @@ async function route(
         internalPost("/private/native/create", {
           creation,
           approvalExpiresAt,
-          ...(JOURNEY_ID.test(request.headers.get(ONBOARDING_HEADER) ?? "") &&
-            !onboardingOptOut(request)
-            ? {
-                onboarding: {
-                  journey: request.headers.get(ONBOARDING_HEADER),
-                  traffic: onboardingTraffic(
-                    env,
-                    session,
-                    !!creation.trialOperator,
-                  ),
-                },
-              }
-            : {}),
         }),
       );
     } catch (error) {

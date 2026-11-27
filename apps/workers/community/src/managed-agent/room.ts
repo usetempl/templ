@@ -1,7 +1,18 @@
+import { HOSTED_SOCIAL_REPLIES } from "@templ/chat/support-ai-interactions";
+import { CRYPTO_MONTHLY_BUDGET_CENTS, supportModel } from "@templ/chat/support-models";
+import { CRYPTO_SUPPORT_WORKSPACE } from "../crypto-support";
 import type { SupportAiGrounding } from "@templ/chat/support-drafts";
+import { cryptoServiceReplies } from "./crypto-triage";
+import type { StandardPrepaidPeriod } from "@templ/chat/standard-plan";
 import { GROUNDED_POLICY } from "./grounded";
 import { canManageWorkspace } from "@templ/chat/moderation-permissions";
 import { prepaidAiMode } from "../product-prepaid-ai";
+import {
+  sponsoredSupport,
+  readPrepaidAccount,
+  readStarterAiLimit,
+  starterAiRemaining,
+} from "../product-prepaid";
 import { isOperatorAdmin } from "../operator-admin";
 import { probePrepaidGptCount } from "./gpt";
 import {
@@ -13,7 +24,7 @@ import {
   acceptManagedQualification,
   MANAGED_QUALIFICATION_TRIAL,
 } from "../managed-agent-trial-access";
-import { featureOn, managedResolutionBillingOn } from "../workspace-flags";
+import { featureOn, managedResolutionBillingOn, type WorkspaceFlagEnv } from "../workspace-flags";
 import { modelDiagnosisFacts } from "@templ/chat/diagnosis/model-facts";
 import { sharedTransactionHashes } from "../support-secret-sinks";
 /** Managed AI in the room: the manager's switch, the routes, the checks on
@@ -167,9 +178,11 @@ export async function readManagedSettings(
  * Stored order forms retain their native validation and end-date checks. */
 export async function managedGrant(
   storage: Pick<Storage, "get">,
-  env: ProductGrantsEnv,
+  env: ProductGrantsEnv & WorkspaceFlagEnv,
   now: number,
+  room?: string,
 ): Promise<{ active: boolean; endsAt: string | null }> {
+  if (await cryptoResearchGrant(storage, env, room)) return { active: true, endsAt: null };
   const orderForm = await activeProductOrderForm(storage, now);
   if (orderForm?.service === "managed-ai")
     return { active: true, endsAt: iso(orderForm.endsAt) };
@@ -246,7 +259,7 @@ export function nativeModelAvailable(
 }
 /** Why the managed agent makes no call now, from the room's side, or
  * "ready". Spend is checked again, with the real counters, before each
- * call. */
+ * call. A paid period passes its funds stop from `prepaidFundsStop`. */
 export function managedState(input: {
   enabled: boolean;
   onTeam: boolean;
@@ -254,6 +267,7 @@ export function managedState(input: {
   env: ManagedRoomEnv;
   usedCents: number;
   prepaid?: boolean;
+  prepaidStop?: "no-budget" | "workspace-cap" | null;
 }): ManagedAgentState {
   if (!input.enabled) return "off";
   if (!input.onTeam) return "not-on-team";
@@ -261,6 +275,7 @@ export function managedState(input: {
   if (!killSwitchOn(input.env)) return "kill-switch";
   if (!nativeModelAvailable(input.env, Boolean(input.prepaid))) return "no-key";
   const cap = workspaceCapCents();
+  if (input.prepaid && input.prepaidStop) return input.prepaidStop;
   if (!input.prepaid && !cap) return "no-budget";
   if (
     !input.prepaid &&
@@ -284,10 +299,11 @@ async function onTeam(
 /** Clarifying questions the managed account sent on this member request,
  * from its reply provenance (deleted with each message). */
 export async function clarifyingAsked(
-  storage: Pick<Storage, "list">,
+  storage: Pick<Storage, "list" | "get">,
   thread: string,
   seq: number,
   principal: ChatPrincipalId,
+  cryptoDesk = false,
 ) {
   const listed = await storage.list<{
     case?: number;
@@ -295,13 +311,13 @@ export async function clarifyingAsked(
     ai?: { reason?: string } | null;
   }>({ prefix: `${PROVENANCE_PREFIX}${thread}:`, limit: 1_000 });
   let count = 0;
-  for (const stored of listed.values())
-    if (
-      stored?.case === seq &&
-      stored.author === principal &&
-      stored.ai?.reason === "clarifying-question"
-    )
-      count++;
+  for (const [key, stored] of listed) {
+    if (stored?.case !== seq || stored.author !== principal || stored.ai?.reason !== "clarifying-question") continue;
+    if (!cryptoDesk) { count++; continue; }
+    const id = Number(key.split(":").at(-1));
+    const sent = await storage.get<ChatMessage>(messageKey(thread, id));
+    if (sent?.text !== HOSTED_SOCIAL_REPLIES.offTopic && !cryptoServiceReplies.has(sent?.text ?? "")) count++;
+  }
   return count;
 }
 
@@ -321,7 +337,11 @@ async function profileBindings(
   return metricKeyBindings(metrics);
 }
 
+async function cryptoResearchGrant(storage: Pick<Storage, "get">, env: WorkspaceFlagEnv, room?: string) {
+  return room === "room:" + CRYPTO_SUPPORT_WORKSPACE && await sponsoredSupport(storage) && await featureOn(env, storage, "cryptoSupportResearch");
+}
 async function groundedPeriod(storage: Storage, context: ConversationContext) {
+  if (await cryptoResearchGrant(storage, envOf(context), context.room)) return "sponsored" as const;
   const selected = await prepaidAiMode(storage, context.now, envOf(context));
   const period = selected.period;
   return selected.mode === "prepaid" &&
@@ -330,6 +350,22 @@ async function groundedPeriod(storage: Storage, context: ConversationContext) {
     context.now < period.endsAt
     ? period
     : null;
+}
+/** The funds refusals paid admission (`reservePrepaidAi`) makes before any
+ * hold: no room left under Starter's monthly limit after settled and reserved
+ * usage, or no included credit or prepaid cash. Reads the ledger only; each
+ * request is still held against its own maximum. Included credit is a
+ * month's budget, so a Plus month without funds has used it up. */
+export async function prepaidFundsStop(
+  storage: Pick<Storage, "get">,
+  period: StandardPrepaidPeriod,
+): Promise<"no-budget" | "workspace-cap" | null> {
+  if ((await starterAiRemaining(storage, period)) === 0n)
+    return BigInt(period.includedAiCreditUsdNanos) > 0n || (await readStarterAiLimit(storage)) ? "workspace-cap" : "no-budget";
+  const { cashAvailableUsdNanos } = await readPrepaidAccount(storage);
+  if (BigInt(period.includedAiAvailableUsdNanos) + BigInt(cashAvailableUsdNanos) > 0n)
+    return null;
+  return BigInt(period.includedAiCreditUsdNanos) > 0n ? "workspace-cap" : "no-budget";
 }
 async function groundedVerdict(
   storage: Storage,
@@ -415,6 +451,7 @@ async function groundedVerdict(
       record.id,
       seq,
       await managedPrincipal(context.room),
+      context.room === "room:" + CRYPTO_SUPPORT_WORKSPACE,
     )) >= MANAGED_AGENT_LIMITS.clarifyingPerCase
   )
     return { ok: false as const, reason: "clarify-used" as const };
@@ -473,7 +510,7 @@ async function verdictFor(
       enabledFromHeader(context.headers.get(DIAGNOSIS_NETWORKS_HEADER)),
     ),
     clarifyingAsked: meta.clarifying
-      ? await clarifyingAsked(storage, record.id, seq, principal)
+      ? await clarifyingAsked(storage, record.id, seq, principal, context.room === "room:" + CRYPTO_SUPPORT_WORKSPACE)
       : 0,
   });
 }
@@ -493,13 +530,14 @@ async function settingsView(
   const env = envOf(context);
   const principal = await managedPrincipal(context.room);
   const settings = await readManagedSettings(storage);
-  const grant = await managedGrant(storage, env, context.now);
+  const grant = await managedGrant(storage, env, context.now, context.room);
   const status = await managedKnowledgeCall<{
     spend: { month: string; usedCents: number };
     golden: ManagedAgentView["golden"];
   }>(env, context.room, "status");
   const team = await onTeam(context, principal);
-  const prepaid = Boolean(await groundedPeriod(storage, context));
+  const period = await groundedPeriod(storage, context);
+  const prepaid = Boolean(period);
   return {
     principal,
     settings: {
@@ -513,12 +551,13 @@ async function settingsView(
       env,
       usedCents: prepaid ? 0 : status.spend.usedCents,
       prepaid,
+      prepaidStop: period && period !== "sponsored" ? await prepaidFundsStop(storage, period) : null,
     }),
     onTeam: team,
     grant,
-    spend: { ...status.spend, capCents: workspaceCapCents() },
+    spend: { ...status.spend, capCents: period === "sponsored" ? CRYPTO_MONTHLY_BUDGET_CENTS : workspaceCapCents() },
     golden: status.golden,
-    model: prepaid ? "gpt-6.1-sol" : MANAGED_AGENT_MODEL,
+    model: prepaid ? supportModel(period === "sponsored" ? context.room.slice(5) : undefined) : MANAGED_AGENT_MODEL,
   };
 }
 
@@ -824,7 +863,7 @@ async function assertManagedClose(
     !(await readManagedSettings(storage)).enabled ||
     !killSwitchOn(env) ||
     !(await onTeam(context, principal)) ||
-    !(await managedGrant(storage, env, context.now)).active
+    !(await managedGrant(storage, env, context.now, context.room)).active
   )
     throw unavailable();
   const { data, effective } = await readAiState(storage, record);
@@ -935,11 +974,12 @@ async function runnerState(
   const thread = context.query.get("thread");
   const principal = await managedPrincipal(context.room);
   const settings = await readManagedSettings(storage);
-  const grant = await managedGrant(storage, envOf(context), context.now);
+  const grant = await managedGrant(storage, envOf(context), context.now, context.room);
   const paidPeriod = await groundedPeriod(storage, context);
   const base = {
     principal,
     prepaid: Boolean(paidPeriod),
+    sponsoredResearch: paidPeriod === "sponsored",
     readinessPolicy: paidPeriod ? GROUNDED_POLICY : "golden_v1",
     enabled: settings.enabled,
     grant: grant.active,
@@ -997,7 +1037,7 @@ async function runnerState(
       context.now,
     ),
     clarifyingAsked: seq
-      ? await clarifyingAsked(storage, record.id, seq, principal)
+      ? await clarifyingAsked(storage, record.id, seq, principal, context.room === "room:" + CRYPTO_SUPPORT_WORKSPACE)
       : 0,
   };
 }
@@ -1149,7 +1189,7 @@ export async function queueManagedJob(
         Boolean(await groundedPeriod(storage, context)),
       ) &&
       (await onTeam(context, principal)) &&
-      (await managedGrant(storage, env, context.now)).active
+      (await managedGrant(storage, env, context.now, context.room)).active
     )
       context.typing.presence.note({
         principal,

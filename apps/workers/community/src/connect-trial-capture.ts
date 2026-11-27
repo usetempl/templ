@@ -25,7 +25,7 @@ import { verifySessionAuthority } from "./chain";
 import { sessionIdentity, walletSignsIn } from "./linked-wallets";
 import {
   NATIVE_CATALOG,
-  NATIVE_CREATIONS_PER_DAY,
+  CONNECT_TRIAL_CREATIONS_PER_DAY,
   NATIVE_ROOMS_PER_CREATOR,
   nativeRoomId,
 } from "./native-rooms";
@@ -88,7 +88,7 @@ type Capture = {
     createdTotal: number;
     createdLast24Hours: number;
     totalLimit: typeof NATIVE_ROOMS_PER_CREATOR;
-    dailyLimit: typeof NATIVE_CREATIONS_PER_DAY;
+    dailyLimit: typeof CONNECT_TRIAL_CREATIONS_PER_DAY;
   };
   registrySnapshot?: { code: string; pollHash: string; status: string };
   invalid?: true;
@@ -323,7 +323,7 @@ async function capacity(env: Env, current: Awaited<ReturnType<typeof issuer>>) {
     Number(result.createdLast24Hours) < 0 ||
     Number(result.createdLast24Hours) > Number(result.createdTotal) ||
     result.totalLimit !== NATIVE_ROOMS_PER_CREATOR ||
-    result.dailyLimit !== NATIVE_CREATIONS_PER_DAY
+    result.dailyLimit !== CONNECT_TRIAL_CREATIONS_PER_DAY
   )
     throw unavailable();
   return result as Capture["inventory"];

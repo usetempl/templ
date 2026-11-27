@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { SITE } from "./lib/site-environment";
+import { APP_ENVIRONMENT, SITE } from "./lib/site-environment";
 
 type FeatureDirective = "connect-src" | "frame-src" | "img-src";
 /** Hosts a feature adds to the app's policy, by directive. Each entry is an exact https origin. There is no script-src entry:
@@ -38,6 +38,7 @@ export function contentSecurityPolicy(nonce: string) {
       "'self'",
       SITE.community,
       SITE.community.replace("https:", "wss:"),
+      ...(APP_ENVIRONMENT === "production" ? ["https://plausible.io/api/event"] : []),
       ...featureHosts("connect-src"),
     ),
     ...(featureHosts("frame-src").length

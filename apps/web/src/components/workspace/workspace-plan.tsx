@@ -40,7 +40,7 @@ import styles from "./workspace.module.css";
  * budget, statements and receipts. Everyone else sees whether Support is
  * taking new requests. */
 export function WorkspacePlan({ context }: { context: WorkspaceContext }) {
-  const { room, account, revision } = context;
+  const { room, account, revision, reload } = context;
   const [bump, setBump] = useState(0);
   const key = `${room}:${account}:${revision}`;
   const [loaded, setLoaded] = useState<{
@@ -104,6 +104,16 @@ export function WorkspacePlan({ context }: { context: WorkspaceContext }) {
   const billing =
     context.billing && usage && isBillingView(usage) ? usage : null;
   const refresh = useCallback(() => setBump((value) => value + 1), []);
+  // While the workspace still shows the trial, a verified payment reloads
+  // it too, so Home stops offering the trial checkout.
+  const trial =
+    known !== undefined &&
+    isBillingView(known) &&
+    known.standardPlan?.status === "demo";
+  const credited = useCallback(() => {
+    refresh();
+    if (trial) reload();
+  }, [refresh, reload, trial]);
   return (
     <div data-workspace-settings="" className={`${styles.page} ${styles.pageNarrow}`}>
       <PageHeader
@@ -183,8 +193,8 @@ export function WorkspacePlan({ context }: { context: WorkspaceContext }) {
               <ProductPaymentRequests
                 room={room}
                 account={account}
-                onOpen={context.openPlans}
-                onCredited={refresh}
+                onOpen={context.openPayment}
+                onCredited={credited}
               />
             )}
             {!billing.standardPlan && !billing.usageBilling && (

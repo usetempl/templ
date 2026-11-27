@@ -17,8 +17,6 @@ import {
   type FunnelEnv,
 } from "./funnel-metrics";
 import { sessionPrincipals, type ServiceSession } from "./service-principals";
-import { JOURNEY_ID, ONBOARDING_HEADER } from "@templ/chat/onboarding";
-import { onboardingTraffic, sendOnboardingEvents, onboardingOptOut } from "./onboarding-metrics";
 
 const DAY = 86_400_000;
 
@@ -209,13 +207,6 @@ export function finishFunnelObservation(
       candidate.method === request.method && candidate.path.test(path),
   );
   if (!route) return;
-  const journey = request.headers.get(ONBOARDING_HEADER);
-  if (route.signIn && response.ok && journey && JOURNEY_ID.test(journey) && !onboardingOptOut(request)) {
-    const at = Date.now(), copy = response.clone();
-    context.waitUntil(copy.json<ServiceSession>().then((session) => sendOnboardingEvents(env, [{
-      journey, name: "server_signed_in", at, traffic: onboardingTraffic(env, session),
-    }])).catch(() => false));
-  }
   const method = route.signIn ? { method: route.signIn } : {};
   if (response.status >= 400) {
     const copy = response.clone();

@@ -1,5 +1,4 @@
 import {
-  addOnboardingEvent,
   browserOnboardingEvent,
   JOURNEY_ID,
   ONBOARDING_POLICY,
@@ -35,9 +34,9 @@ export type WorkspaceOnboarding = {
   expiresAt: number;
   widgetSynced?: boolean;
 };
-/** Copies only the canonical workspace reference into its private settings object. */
+/** Validate requests from older workers during rollout, then discard the reference. */
 export async function receiveWidgetOnboardingScope(
-  storage: DurableObjectStorage,
+  _storage: DurableObjectStorage,
   body: Record<string, unknown>,
 ) {
   if (
@@ -51,20 +50,6 @@ export async function receiveWidgetOnboardingScope(
     Number(body.expiresAt) > Date.now() + ONBOARDING_POLICY.retentionDays * DAY
   )
     throw new HttpError(400, "Invalid onboarding reference.");
-  await storage.transaction(async (local) => {
-    const previous = await local.get<WorkspaceOnboarding>(WORKSPACE_ONBOARDING);
-    if (
-      previous &&
-      (previous.journey !== body.journey ||
-        previous.traffic !== body.traffic ||
-        previous.expiresAt !== body.expiresAt)
-    )
-      throw new HttpError(
-        409,
-        "The workspace already has an onboarding reference.",
-      );
-    if (!previous) await local.put(WORKSPACE_ONBOARDING, body);
-  });
   return json({ ok: true });
 }
 export function onboardingTraffic(
@@ -100,54 +85,17 @@ export function onboardingTraffic(
 export const onboardingOptOut = (request: Request) =>
   ["1", "yes"].includes(request.headers.get("DNT") ?? "") ||
   request.headers.get("Sec-GPC") === "1";
-export async function sendOnboardingEvents(
-  env: FunnelEnv,
-  events: OnboardingEvent[],
-) {
-  if (!env.COST_METRICS) return false;
-  try {
-    const response = await env.COST_METRICS.get(
-      env.COST_METRICS.idFromName(INSTANCE),
-    ).fetch(
-      new Request("https://internal/onboarding/ingest", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ events }),
-        signal: AbortSignal.timeout(2000),
-      }),
-    );
-    await response.body?.cancel();
-    return response.ok;
-  } catch {
-    return false;
-  }
-}
 /** First-party app route, after the origin check and request limiter. */
 export async function browserOnboardingRoute(
   request: Request,
-  env: FunnelEnv & OperatorAdminEnv,
-  session: () => Promise<ServiceSession | null>,
+  _env: FunnelEnv & OperatorAdminEnv,
+  _session: () => Promise<ServiceSession | null>,
 ) {
   if (new URL(request.url).pathname !== "/funnel/journey") return null;
   if (request.method !== "POST") throw new HttpError(404, "Not found.");
   const value = browserOnboardingEvent(await readJson(request, 512));
   if (!value) throw new HttpError(400, "Invalid onboarding event.");
-  if (onboardingOptOut(request)) return json({ recorded: false });
-  const actor = await session();
-  const traffic = onboardingTraffic(env, actor),
-    at = Date.now();
-  const events: OnboardingEvent[] = [
-    { journey: value.journey, name: value.name, traffic, at },
-  ];
-  if (actor)
-    events.push({
-      journey: value.journey,
-      name: "server_signed_in",
-      traffic,
-      at,
-    });
-  const recorded = await sendOnboardingEvents(env, events);
-  return json({ recorded }, recorded ? 200 : 503);
+  return json({ recorded: false });
 }
 export async function operatorOnboardingRoute(
   request: Request,
@@ -244,24 +192,7 @@ export async function onboardingMetricsRequest(
     )
   )
     throw new HttpError(400, "Invalid onboarding batch.");
-  await storage.transaction(async (local) => {
-    for (const event of body.events as OnboardingEvent[]) {
-      const index = `index:${event.journey}`;
-      const key =
-        (await local.get<string>(index)) ??
-        `${PREFIX}${new Date(event.at).toISOString().slice(0, 10)}:${event.journey}`;
-      const previous = await local.get<OnboardingJourney>(key);
-      const next = addOnboardingEvent(previous, event);
-      const nextKey = `${PREFIX}${new Date(next.startedAt).toISOString().slice(0, 10)}:${event.journey}`;
-      await local.put(nextKey, next);
-      if (nextKey !== key) await local.delete(key);
-      if (!previous || nextKey !== key) await local.put(index, nextKey);
-    }
-    if (!(await local.get("collected-since")))
-      await local.put("collected-since", now);
-    if ((await local.getAlarm()) === null) await local.setAlarm(now + DAY);
-  });
-  return json({ ok: true });
+  return json({ recorded: false });
 }
 export async function pruneOnboarding(
   storage: DurableObjectStorage,
@@ -309,21 +240,5 @@ export async function workspaceOnboarding(
       )))
   )
     throw new HttpError(404, "Workspace not found.");
-  const scope = await storage.get<WorkspaceOnboarding>(WORKSPACE_ONBOARDING);
-  if (
-    !scope ||
-    scope.expiresAt <= Date.now() ||
-    !JOURNEY_ID.test(scope.journey)
-  )
-    return json({ recorded: false });
-  const events: OnboardingEvent[] = [
-    {
-      journey: scope.journey,
-      traffic: scope.traffic,
-      name: input.name,
-      at: Date.now(),
-    },
-  ];
-  const recorded = await sendOnboardingEvents(env, events);
-  return json({ recorded }, recorded ? 200 : 503);
+  return json({ recorded: false });
 }

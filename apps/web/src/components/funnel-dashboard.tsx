@@ -40,8 +40,7 @@ export function FunnelDashboardPanel() {
     <main className={styles.page}>
       <h1>Onboarding funnel</h1>
       <p>
-        How many teams reach each setup step, and why attempts fail. Only Templ
-        operators can see this page.
+        Setup and service counts for Templ operators.
       </p>
       {auth.restoring ? (
         <p role="status">Checking sign-in…</p>
@@ -66,10 +65,9 @@ export function FunnelDashboardPanel() {
         <div key={`${principal}:${revision}`}>
           <OnboardingDashboard principal={principal} />
           <section>
-            <h3>Historical totals</h3>
+            <h3>Daily service totals</h3>
             <p>
-              These totals mix traffic types and milestone dates. Use signup
-              journeys for conversion rates.
+              Totals include repeat attempts and tests. Each action counts on the day it happens.
             </p>
             <Funnel principal={principal} />
           </section>

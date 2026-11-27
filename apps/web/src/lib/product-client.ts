@@ -38,6 +38,7 @@ export function prepareProductPayment(
     payer: string;
     purpose?: "standard-period" | "standard-annual" | "standard-credit";
     monthlyPlan?: MonthlySupportPlan;
+    reviewedPriceVersion?: string;
     expectedPeriod?: string | null;
     confirmed?: true;
   },

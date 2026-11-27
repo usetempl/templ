@@ -169,7 +169,7 @@ export async function websiteBrand(
         if (anchorText.length < 120) anchorText += chunk.text.slice(0, 120 - anchorText.length);
       },
     })
-    .on("head meta", {
+    .on("meta", {
       element(tag) {
         const key = (
           tag.getAttribute("property") ||
@@ -194,7 +194,7 @@ export async function websiteBrand(
           css += chunk.text.slice(0, 65_536 - css.length);
       },
     })
-    .on("head link[rel][href]", {
+    .on("link[rel][href]", {
       element(tag) {
         const rel = (tag.getAttribute("rel") || "").toLowerCase().split(/\s+/);
         const href = tag.getAttribute("href");

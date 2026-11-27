@@ -1,9 +1,23 @@
+import { DEFAULT_SUPPORT_MODEL, CRYPTO_SUPPORT_WORKSPACE, CRYPTO_SUPPORT_MODEL, CRYPTO_REPLY_LIMIT } from "@templ/chat/support-models";
+import { researchCryptoDocs } from "../crypto-research";
+import {
+  CRYPTO_CLARIFY_REPLY,
+  CRYPTO_SCAM_REPLY,
+  CRYPTO_TRIAGE_SYSTEM,
+  INVESTMENT_REFUSAL,
+  cryptoTopic,
+  type CryptoTopic,
+} from "./crypto-triage";
+import { HOSTED_SOCIAL_REPLIES, requestsTokenPadding } from "@templ/chat/support-ai-interactions";
 import {
   GROUNDED_POLICY,
   GROUNDED_SYSTEM,
+  CRYPTO_GROUNDED_SYSTEM,
   GROUNDED_VERIFIER_SYSTEM,
   GROUNDED_SUMMARY,
   groundedContext,
+  groundedPassages,
+  isScopeRefusal,
   groundedSensitive,
   groundedMemberTurn,
   groundedSources,
@@ -46,6 +60,9 @@ import {
  * - Ask AI: a draft that answers the person's question.
  * A handoff, an answer that fails a check, a failed call or a member
  * message older than the 90-second deadline goes to a person instead.
+ * On the public crypto desk one bounded classification decides first: only
+ * a concrete unresolved technical issue goes to a person, and every other
+ * request gets the desk's fixed reply.
  *
  * Before any model call: the kill switch, the model transport, and both monthly caps
  * (held before the call, settled after it). If any of them stops the call,
@@ -171,7 +188,7 @@ export type RunnerDeps = {
   roomClient(manager: string): RoomClient;
   /** Null when no model transport is configured. */
   model: ModelCaller | null;
-  prepaidModel?: (client: RoomClient) => ModelCaller;
+  prepaidModel?: (client: RoomClient, sponsoredResearch?: boolean) => ModelCaller;
   prepaid?: boolean;
   templMeter: TemplMeter;
   now(): number;
@@ -195,6 +212,7 @@ export type JobOutcome =
   | `stopped:${ManagedAgentStop}`;
 
 type RoomState = {
+  sponsoredResearch?: boolean;
   prepaid?: boolean;
   readinessPolicy?: "grounded_v1" | "golden_v1";
   storageGrant?: StorageUploadGrant | null;
@@ -332,7 +350,7 @@ export async function meteredCall(
       return result;
     }
     const actual = result.standardUsage
-      ? standardAiUsageUsdNanos("gpt-6.1-sol", result.standardUsage, 1)
+      ? standardAiUsageUsdNanos(deps.room === "room:" + CRYPTO_SUPPORT_WORKSPACE ? CRYPTO_SUPPORT_MODEL : DEFAULT_SUPPORT_MODEL, result.standardUsage, 1)
       : null;
     // Unknown provider cost retains the conservative operating charge; it never charges the customer.
     const spent =
@@ -671,14 +689,17 @@ function promptMessages(
   }));
 }
 
+/** `ifLatest` makes the room refuse the page once a newer message arrives. */
 async function handoff(
   client: RoomClient,
   thread: string,
   reason: ManagedHandoffReason,
+  ifLatest?: { id: string; revision: number },
 ) {
   const result = await client.post(`/conversations/${thread}/workflow`, {
     action: "handoff",
     reason,
+    ...(ifLatest ? { ifLatest } : {}),
   });
   return result.status < 300
     ? "handed-off"
@@ -733,9 +754,14 @@ async function runGroundedAnswer(input: {
   writeAs: "reply" | "suggestion" | "ask-ai";
   toPerson(reason: ManagedHandoffReason, decline: string): Promise<JobOutcome>;
   storeSummary(): Promise<boolean>;
+  /** Whether a sent partial answer may also page a person. */
+  pages(): Promise<boolean>;
 }): Promise<JobOutcome> {
   const { deps, client, job, state, answer, context, latest } = input;
-  const hits = groundedSources(answer, context);
+  const model = state.sponsoredResearch ? CRYPTO_SUPPORT_MODEL : DEFAULT_SUPPORT_MODEL;
+  if (state.sponsoredResearch && [...answer.text].length > CRYPTO_REPLY_LIMIT) return input.toPerson("unsure", "unavailable");
+  const scopeRefusal = state.sponsoredResearch && isScopeRefusal(answer, true);
+  const hits = scopeRefusal ? [] : groundedSources(answer, context);
   if (
     !latest ||
     !state.caseSeq ||
@@ -745,25 +771,28 @@ async function runGroundedAnswer(input: {
     (await detectStoredSecret(answer.text))
   )
     return input.toPerson(answer.handoffReason ?? "unsure", "unavailable");
-  const verification = await meteredCall(
-    deps,
-    GROUNDED_VERIFIER_SYSTEM,
-    JSON.stringify({
-      answer: answer.text,
-      passages: hits.map((hit) => ({
-        sourceId: hit.sourceId,
-        text: hit.excerpt,
-        url: hit.url,
-      })),
-    }),
-    state.sharedHashes,
-    "other",
-  );
-  if (
-    verification.kind === "stopped" ||
-    !groundedVerifierAccepted(verification, hits)
-  )
-    return input.toPerson("unsure", "unavailable");
+  if (!scopeRefusal) {
+    const verification = await meteredCall(
+      deps,
+      GROUNDED_VERIFIER_SYSTEM,
+      JSON.stringify({
+        answer: answer.text,
+        passages: hits.map((hit) => ({
+          sourceId: hit.sourceId,
+          ...(state.sponsoredResearch ? { title: hit.title } : {}),
+          text: hit.excerpt,
+          url: hit.url,
+        })),
+      }),
+      state.sharedHashes,
+      "other",
+    );
+    if (
+      verification.kind === "stopped" ||
+      !groundedVerifierAccepted(verification, hits, model)
+    )
+      return input.toPerson("unsure", "unavailable");
+  }
   const highWater = Math.max(0, ...(state.evidence ?? []).map((row) => row.n));
   const built = groundedFigures(answer.text, hits, highWater);
   if (!built) return input.toPerson("unsure", "unavailable");
@@ -771,8 +800,10 @@ async function runGroundedAnswer(input: {
     answer.action === "handoff" ||
     answer.confidence !== "high" ||
     groundedSensitive(input.memberText);
-  if (partial && input.writeAs === "reply") await input.storeSummary();
+  const page = partial && input.writeAs === "reply" && (await input.pages());
+  if (page) await input.storeSummary();
   const token = await saveGroundedReceipt(deps.db, {
+    model,
     context,
     hits,
     text: built.text,
@@ -784,7 +815,7 @@ async function runGroundedAnswer(input: {
     audience: input.writeAs === "reply" ? "member" : "team",
     resolvable:
       input.writeAs === "reply" && answer.action === "resolve" && !partial,
-    clarifying: answer.action === "clarify",
+    clarifying: answer.action === "clarify" && !scopeRefusal,
   });
   const provenance = {
     reason:
@@ -795,7 +826,7 @@ async function runGroundedAnswer(input: {
         : "draft",
     sources: groundedProvenanceSources(hits),
     confidence: partial ? "medium" : answer.confidence,
-    model: "gpt-6.1-sol",
+    model,
     ...(answer.summary ? { summary: titleBytes(answer.summary, 500) } : {}),
     tools: ["knowledge", "source-check"],
     grounding: groundedProvenance(deps.db, token),
@@ -822,7 +853,7 @@ async function runGroundedAnswer(input: {
   const managed = {
     claims: [],
     comparisons: [],
-    clarifying: answer.action === "clarify",
+    clarifying: answer.action === "clarify" && !scopeRefusal,
     grounded: token,
   };
   const ifLatest = { id: latest.id, revision: latest.revision ?? 1 };
@@ -855,13 +886,21 @@ async function runGroundedAnswer(input: {
       : input.toPerson("unsure", "unavailable");
   }
   if (input.writeAs !== "reply") return "drafted";
-  if (partial) {
+  if (page) {
     job.handoff = answer.handoffReason ?? "unsure";
+    // The crypto desk's page holds only while the thread ends where it was classified.
+    const sent = result.body.message as Message | undefined;
+    if (state.sponsoredResearch)
+      job.technicalHandoff =
+        sent && /^[1-9][0-9]{0,14}$/.test(sent.id)
+          ? { id: sent.id, revision: sent.revision ?? 1 }
+          : ifLatest;
     saveJob(deps.db, job);
-    return handoff(client, job.thread!, job.handoff);
+    return handoff(client, job.thread!, job.handoff, job.technicalHandoff);
   }
   if (answer.action === "clarify") return "clarified";
-  if (answer.action !== "resolve") return "answered";
+  // A partial answer that pages no one still never resolves the case.
+  if (answer.action !== "resolve" || partial) return "answered";
   const message = result.body.message as Message | undefined;
   if (!message || !/^[1-9][0-9]{0,14}$/.test(message.id)) return "answered";
   job.close = {
@@ -914,7 +953,7 @@ export async function runLearningJob(
   const members = new Set([state.member ?? "", ...(state.formerMembers ?? [])]);
   if (members.has(accepted.author) || accepted.author === deps.principal) return "skipped";
   const selected = state.prepaid
-    ? deps.prepaidModel ? { ...deps, prepaid: true, model: deps.prepaidModel(client) } : null
+    ? deps.prepaidModel ? { ...deps, prepaid: true, model: deps.prepaidModel(client, state.sponsoredResearch) } : null
     : deps;
   if (!selected || callStop(selected)) return "skipped";
   let context: GroundedContext;
@@ -985,7 +1024,12 @@ export async function runJob(
   if (!job.thread || !job.manager) return "skipped";
   const client = deps.roomClient(job.manager);
   if (job.close) return closeAnsweredCase(client, job);
-  if (job.handoff) return handoff(client, job.thread, job.handoff);
+  // A crypto desk retry repeats only a classified technical page, bound to its message.
+  if (job.handoff)
+    return job.technicalHandoff ||
+      deps.room !== "room:" + CRYPTO_SUPPORT_WORKSPACE
+      ? handoff(client, job.thread, job.handoff, job.technicalHandoff)
+      : "skipped";
   const read = await readRequest(client, job.thread);
   if (!read.ok) return retryable(read.status) ? "retry" : "skipped";
   const { state, messages } = read;
@@ -1028,14 +1072,35 @@ export async function runJob(
     instruction = request.instruction
       ? redactForModel(request.instruction).text
       : null;
-  } else {
-    if (!latest || !member.has(latest.author)) return "skipped";
-    if (
-      now - job.at > MANAGED_AGENT_LIMITS.handoffDeadlineMs &&
-      state.mode === "answers"
-    )
-      return handoff(client, job.thread, "unsure");
-  }
+  } else if (!latest || !member.has(latest.author)) return "skipped";
+  const late =
+    !askAi &&
+    now - job.at > MANAGED_AGENT_LIMITS.handoffDeadlineMs &&
+    state.mode === "answers";
+  if (late && !state.sponsoredResearch)
+    return handoff(client, job.thread, "unsure");
+  const lastMember = [...messages]
+    .reverse()
+    .find((message) => member.has(message.author));
+  const memberText = redactForModel(
+    currentTurn ? currentTurn.text : (lastMember?.text ?? ""),
+  ).text;
+  const caseMessages = () =>
+    promptMessages(
+      messages
+        .filter(
+          (message) =>
+            Date.parse(message.createdAt) >= (state.caseOpenedAt ?? Infinity),
+        )
+        .slice(-8),
+      member,
+      deps.principal,
+      state.sharedHashes,
+    ).map((message) => ({ ...message, text: message.text.slice(-1000) }));
+  const callDeps =
+    paidGrounded && deps.prepaidModel
+      ? { ...deps, prepaid: true, model: deps.prepaidModel(client, state.sponsoredResearch) }
+      : deps;
   let paidContext: GroundedContext | null = null;
   const storeSummary = async () => {
     if (!paidGrounded || !latest || !state.caseSeq) return false;
@@ -1049,6 +1114,7 @@ export async function runJob(
           })
         ).version;
       const token = await saveGroundedReceipt(deps.db, {
+        model: state.sponsoredResearch ? CRYPTO_SUPPORT_MODEL : DEFAULT_SUPPORT_MODEL,
         context: { version, hits: [] },
         hits: [],
         text: GROUNDED_SUMMARY,
@@ -1090,10 +1156,32 @@ export async function runJob(
       return false;
     }
   };
+  let topic: CryptoTopic | undefined;
+  /** The public crypto desk pages a person only for a concrete unresolved
+   * technical issue. One classification per run; a failure reads as other. */
+  const pages = async () => {
+    if (!state.sponsoredResearch) return true;
+    try {
+      topic ??= callDeps.prepaid
+        ? cryptoTopic(
+            await meteredCall(
+              callDeps,
+              CRYPTO_TRIAGE_SYSTEM,
+              JSON.stringify({ question: memberText, messages: caseMessages() }),
+              state.sharedHashes,
+            ),
+          )
+        : "other";
+    } catch {
+      topic = "other";
+    }
+    return topic === "technical";
+  };
   const toPerson = async (
     reason: ManagedHandoffReason,
     decline_: string,
   ): Promise<JobOutcome> => {
+    if (state.sponsoredResearch && !askAi) return escalate(reason);
     const stored = await storeSummary();
     return askAi
       ? stored
@@ -1101,7 +1189,70 @@ export async function runJob(
         : decline(client, job.thread!, job.request!, decline_)
       : handoff(client, job.thread!, reason);
   };
+  /** The crypto desk's way to a person. A technical page is saved with the
+   * message it classified, so a retry never classifies again. */
+  const escalate = async (
+    reason: ManagedHandoffReason,
+  ): Promise<JobOutcome> => {
+    if (await pages()) {
+      await storeSummary();
+      job.handoff = reason;
+      job.technicalHandoff = latest
+        ? { id: latest.id, revision: latest.revision ?? 1 }
+        : undefined;
+      saveJob(deps.db, job);
+      return handoff(client, job.thread!, reason, job.technicalHandoff);
+    }
+    if (askAi) return toPerson(reason, "handoff");
+    if (state.mode !== "answers") return "skipped";
+    let context: GroundedContext;
+    try {
+      context = paidContext ?? {
+        version: (
+          await readKnowledgeContext(deps.db, {
+            storageGrant: state.storageGrant,
+            now: deps.now(),
+          })
+        ).version,
+        hits: [],
+      };
+    } catch {
+      return "skipped";
+    }
+    return runGroundedAnswer({
+      deps: callDeps,
+      client,
+      job,
+      state,
+      latest: latest!,
+      answer: {
+        action: "clarify",
+        text:
+          topic === "scam"
+            ? CRYPTO_SCAM_REPLY
+            : topic === "investing"
+              ? INVESTMENT_REFUSAL
+              : CRYPTO_CLARIFY_REPLY,
+        confidence: "high",
+        sources: [],
+        facts: [],
+        claims: [],
+        comparisons: [],
+        handoffReason: null,
+        summary: "",
+      },
+      context,
+      memberText,
+      writeAs: "reply",
+      // A fixed reply never pages anyone, even when it cannot be sent.
+      toPerson: async () => "skipped",
+      storeSummary: async () => false,
+      pages: async () => false,
+    });
+  };
+  if (late) return escalate("unsure");
   if (currentTurn?.person) {
+    if (state.sponsoredResearch) return escalate("person");
     await storeSummary();
     return handoff(client, job.thread, "person");
   }
@@ -1111,7 +1262,9 @@ export async function runJob(
       return "retry";
     return askAi
       ? decline(client, job.thread, job.request!, "unavailable")
-      : handoff(client, job.thread, "transaction");
+      : state.sponsoredResearch
+        ? escalate("transaction")
+        : handoff(client, job.thread, "transaction");
   }
   let guidance;
   try {
@@ -1135,27 +1288,27 @@ export async function runJob(
     }
   }
   const audience = askAi ? "team" : "member";
-  const lastMember = [...messages]
-    .reverse()
-    .find((message) => member.has(message.author));
-  const memberText = redactForModel(
-    currentTurn ? currentTurn.text : (lastMember?.text ?? ""),
-  ).text;
   const frame = (state.frame ?? null) as Record<string, unknown> | null;
   const addresses = [
     (frame?.product as { address?: string } | undefined)?.address,
   ].filter((value): value is string => typeof value === "string");
+  const purePadding = state.sponsoredResearch && !askAi && requestsTokenPadding(memberText);
   if (paidGrounded) {
+    if (state.sponsoredResearch && !purePadding && !groundedSensitive(memberText) && !askAi) {
+      try { await researchCryptoDocs(deps.db, deps.room, memberText, deps.now()); }
+      catch { /* The saved sources are still available when a website is down. */ }
+    }
     try {
-      paidContext = await groundedContext(
+      paidContext = await groundedPassages(
         deps.db,
         state.storageGrant,
         deps.now(),
+        instruction ? `${memberText} ${instruction}` : memberText,
       );
     } catch {
       return toPerson("unsure", "unavailable");
     }
-    if (!paidContext.hits.length || !deps.prepaidModel)
+    if ((!paidContext.hits.length && !purePadding && !state.sponsoredResearch) || !deps.prepaidModel)
       return toPerson("unsure", "unavailable");
   }
   const hits =
@@ -1178,30 +1331,19 @@ export async function runJob(
   );
   const evidence = allEvidence.filter((row) => !row.withdrawn);
   const clarifyingAsked = state.clarifyingAsked ?? 0;
-  const callDeps =
-    paidGrounded && deps.prepaidModel
-      ? { ...deps, prepaid: true, model: deps.prepaidModel(client) }
-      : deps;
+  if (paidGrounded && paidContext && purePadding) {
+    const refusal: ManagedAnswer = { action: "clarify", text: HOSTED_SOCIAL_REPLIES.offTopic, confidence: "high", sources: [], facts: [], claims: [], comparisons: [], handoffReason: null, summary: "" };
+    return runGroundedAnswer({ deps: callDeps, client, job, state, latest: latest!, answer: refusal, context: paidContext, memberText, writeAs, toPerson, storeSummary, pages });
+  }
   const result = await meteredCall(
     callDeps,
-    paidGrounded ? GROUNDED_SYSTEM : MANAGED_SYSTEM_PROMPT,
+    paidGrounded ? (state.sponsoredResearch ? CRYPTO_GROUNDED_SYSTEM : GROUNDED_SYSTEM) : MANAGED_SYSTEM_PROMPT,
     paidGrounded
       ? JSON.stringify({
           question: memberText,
           teamQuestion: instruction,
           guidance: { ...guidance, text: redactForModel(guidance.text).text },
-          messages: promptMessages(
-            messages
-              .filter(
-                (message) =>
-                  Date.parse(message.createdAt) >=
-                  (state.caseOpenedAt ?? Infinity),
-              )
-              .slice(-8),
-            member,
-            deps.principal,
-            state.sharedHashes,
-          ).map((message) => ({ ...message, text: message.text.slice(-1000) })),
+          messages: caseMessages(),
           passages: hits,
           clarifyingAsked,
         })
@@ -1264,6 +1406,7 @@ export async function runJob(
       writeAs,
       toPerson,
       storeSummary,
+      pages,
     });
   if (answer.action === "handoff")
     return toPerson(answer.handoffReason ?? "unsure", "handoff");

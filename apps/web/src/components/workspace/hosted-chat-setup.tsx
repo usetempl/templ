@@ -5,18 +5,16 @@ import { IconArrowUpRight, IconCode } from "@tabler/icons-react";
 import { PRODUCT_STARTER_PRICES } from "@templ/chat/plans";
 import { formatUsdCents } from "@templ/chat/resolution-copy";
 import { chatMutation } from "@/lib/chat-api";
-import { communityFetch, roomPath } from "@/lib/community-client";
+import { offersHostedNames, recoverHostedName, type NameHold } from "./hosted-chat-name";
+import { roomPath } from "@/lib/community-client";
 import { SITE } from "@/lib/site-environment";
 import { ActivityDots, CopyButton, ui } from "@/components/ui/ui";
 import type { WorkspaceContext } from "./support-workspace";
 import styles from "./hosted-chat-setup.module.css";
 
-type NameHold = { slug: string; expiresAt: number };
-
 export function HostedChatSetup({ context, paid }: { context: WorkspaceContext; paid: boolean }) {
   const { account, room, workspace, id, revision, openPlans, go } = context;
   const confirmed = workspace.hostedName ? workspace.slug : null;
-  const managed = new URL(SITE.origin).hostname === "usetempl.com" || new URL(SITE.origin).hostname === "templ.vip";
   const [name, setName] = useState("");
   const [claimed, setClaimed] = useState(confirmed);
   const [hold, setHold] = useState<NameHold | null>(null);
@@ -31,27 +29,21 @@ export function HostedChatSetup({ context, paid }: { context: WorkspaceContext; 
   // After a confirmed payment or an interrupted checkout, recover the owner's
   // reservation from the catalog. A paid plan can claim a new name without a second checkout.
   useEffect(() => {
-    if (claimed || !managed || !account) return;
+    if (claimed || !offersHostedNames || !account) return;
     const controller = new AbortController();
-    async function recover() {
-      const { hold: saved } = await communityFetch<{ hold: NameHold | null }>(slugPath, undefined, controller.signal);
-      controller.signal.throwIfAborted();
+    void recoverHostedName(room, account, paid, controller.signal).then(({ hold: saved, claimed: slug }) => {
+      if (controller.signal.aborted) return;
       setHold(saved);
       if (saved) setName(saved.slug);
-      if (paid && saved) {
-        const result = await chatMutation<{ slug?: string; hostedName?: boolean }>(account, slugPath,
-          { slug: saved.slug, hostedName: true }, undefined, controller.signal);
-        if (result.slug !== saved.slug || !result.hostedName) throw new Error("Your name could not be confirmed.");
-        controller.signal.throwIfAborted();
-        setClaimed(result.slug);
+      if (slug) {
+        setClaimed(slug);
         setMessage("Your hosted chat link is ready.");
       }
-    }
-    void recover().catch(reason => {
+    }).catch(reason => {
       if (!controller.signal.aborted) setMessage(reason instanceof Error ? reason.message : "Your reserved name could not load.");
     });
     return () => controller.abort();
-  }, [account, claimed, managed, paid, revision, retry, slugPath]);
+  }, [account, claimed, paid, revision, retry, room]);
 
   async function chooseName(event: FormEvent) {
     event.preventDefault();
@@ -73,7 +65,7 @@ export function HostedChatSetup({ context, paid }: { context: WorkspaceContext; 
       setBusy(false);
     }
   }
-  const choosingName = managed && !claimed;
+  const choosingName = offersHostedNames && !claimed;
   return (
     <section className={styles.setup} aria-labelledby="hosted-chat-title">
       <header className={styles.intro}>

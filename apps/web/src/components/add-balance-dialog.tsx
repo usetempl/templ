@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { IconX } from "@tabler/icons-react";
 import type { ChatRoomId } from "@templ/chat/index";
+import type { ProductPaymentIntent } from "@templ/chat/product-payment";
 import { useChatAuth } from "@/lib/chat-auth";
 import {
   RESOLUTION_DEFINITION,
@@ -25,26 +26,31 @@ export function AddBalanceDialog({
   assertCurrent,
   onConfirmed,
   onPlanReady,
+  onSetUpAi,
   onClose,
   purpose,
+  request,
 }: {
   room: ChatRoomId;
   assertCurrent: () => void;
   onConfirmed: () => void;
   onPlanReady?: () => void;
+  onSetUpAi?: () => void;
   onClose: () => void;
   purpose?: "period" | "credit";
+  request?: ProductPaymentIntent;
 }) {
   const auth = useChatAuth();
   const dialog = useRef<HTMLDialogElement>(null);
   const usageKey = `${room}:${auth.session?.principalId}`;
   const [result, setResult] = useState<{
     key: string;
+    refresh: number;
     usage?: ProductUsage;
     error?: string;
   }>();
   const [refresh, setRefresh] = useState(0);
-  const [verified, setVerified] = useState<{ key: string; accessTransaction?: string }>();
+  const [verified, setVerified] = useState<{ key: string; accessTransaction?: string; firstPlan: boolean }>();
   const usage = result?.key === usageKey ? result.usage : undefined;
   const error = result?.key === usageKey ? result.error : undefined;
   const standard =
@@ -58,12 +64,13 @@ export function AddBalanceDialog({
     const controller = new AbortController();
     void readProduct(room, controller.signal)
       .then((usage) => {
-        if (!controller.signal.aborted) setResult({ key: usageKey, usage });
+        if (!controller.signal.aborted) setResult({ key: usageKey, refresh, usage });
       })
       .catch((reason) => {
         if (!controller.signal.aborted)
           setResult({
             key: usageKey,
+            refresh,
             error:
               reason instanceof Error
                 ? reason.message
@@ -74,6 +81,8 @@ export function AddBalanceDialog({
   }, [room, usageKey, refresh]);
   const planActive = Boolean(verified?.key === usageKey && verified.accessTransaction && standard?.status === "paid" &&
     standard.period?.paymentId?.split(":")[1] === verified.accessTransaction);
+  const setUpAi = planActive && verified?.firstPlan ? onSetUpAi : undefined;
+  const checkingPlan = verified?.key === usageKey && verified.accessTransaction && !planActive && result?.refresh !== refresh;
   const dismiss = useDismissDialog(onClose);
   return (
     <dialog
@@ -118,7 +127,9 @@ export function AddBalanceDialog({
         {verified?.key === usageKey && (
           <div className={styles.confirmed} role="status">
             <strong>{planActive ? "Your hosted plan is active." : "Payment verified."}</strong>
-            <button type="button" className={styles.primary} onClick={planActive && onPlanReady ? onPlanReady : onClose}>Back to workspace</button>
+            {checkingPlan ? <span><ActivityDots /> Checking your plan…</span> : <button type="button" className={styles.primary} onClick={setUpAi ?? (planActive && onPlanReady ? onPlanReady : onClose)}>
+              {setUpAi ? "Turn on AI for visitors" : "Back to workspace"}
+            </button>}
           </div>
         )}
         {usage && !standard && (
@@ -133,9 +144,10 @@ export function AddBalanceDialog({
             room={room}
             usage={usage}
             purpose={purpose}
+            request={request}
             assertCurrent={assertCurrent}
             onConfirmed={payment => {
-              setVerified({ key: usageKey, accessTransaction:
+              setVerified({ key: usageKey, firstPlan: payment.standard?.expectedPeriod === null, accessTransaction:
                 payment.standard && payment.standard.purpose !== "credit" && payment.processedTransaction?.outcome === "credited"
                   ? payment.processedTransaction.tx : undefined });
               setRefresh((value) => value + 1);

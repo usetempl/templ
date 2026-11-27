@@ -1,99 +1,60 @@
 "use client";
 
-import { ANALYTICS_SOURCES, type AnalyticsEvent } from "./analytics-events";
-import {
-  onboardingAllowed,
-  onboardingJourney,
-  resetOnboardingJourney,
-} from "./onboarding-session";
-import { SITE } from "./site-environment";
+import type { AnalyticsEvent } from "./analytics-events";
+import { APP_ENVIRONMENT, SITE } from "./site-environment";
 
-type Pending = {
-  journey: string;
-  name: AnalyticsEvent;
-  path: string;
-  attempts: number;
+export function browserBlocksStatistics() {
+  return (
+    navigator.webdriver ||
+    navigator.doNotTrack === "1" ||
+    navigator.doNotTrack === "yes" ||
+    (navigator as Navigator & { globalPrivacyControl?: boolean })
+      .globalPrivacyControl === true
+  );
+}
+
+export const statisticsPreference = "templ-allow-site-statistics";
+
+const pages: Partial<Record<AnalyticsEvent, string>> = {
+  landing_view: "/",
+  hosted_support_opened: "/chat",
+  workspace_home_viewed: "/workspace",
 };
-const pending: Pending[] = [];
-let sending = false;
-let generation = 0;
-let workspace: string | undefined;
-export function analyticsWorkspace(id?: string) {
-  workspace = id;
-}
-export function resetAnalyticsJourney() {
-  generation++;
-  pending.length = 0;
-  resetOnboardingJourney();
-}
-async function drain() {
-  if (sending) return;
-  sending = true;
-  const version = generation;
-  try {
-    while (pending.length && version === generation) {
-      if (!onboardingAllowed()) {
-        resetAnalyticsJourney();
-        return;
-      }
-      const event = pending[0];
-      try {
-        const response = await fetch(`${SITE.community}${event.path}`, {
-          method: "POST",
-          credentials: "include",
-          cache: "no-store",
-          keepalive: true,
-          referrerPolicy: "no-referrer",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ journey: event.journey, name: event.name }),
-          signal: AbortSignal.timeout(5000),
-        });
-        if (!response.ok && (response.status >= 500 || response.status === 429))
-          throw new Error("retry");
-        await response.body?.cancel();
-        if (version === generation) pending.shift();
-      } catch {
-        if (version !== generation) return;
-        if (++event.attempts >= 3) pending.shift();
-        else
-          await new Promise((resolve) =>
-            setTimeout(resolve, event.attempts * 1500),
-          );
-      }
-    }
-  } finally {
-    sending = false;
-    if (pending.length) void drain();
-  }
-}
-/** Fixed first-party events. Analytics never waits inside a product action. */
+
 export function trackEvent(name: AnalyticsEvent) {
+  if (!Object.hasOwn(pages, name)) return;
+  const page = pages[name];
+  if (
+    !page ||
+    typeof window === "undefined" ||
+    APP_ENVIRONMENT !== "production" ||
+    window.self !== window.top ||
+    location.origin !== "https://usetempl.com" ||
+    location.origin !== SITE.origin ||
+    browserBlocksStatistics()
+  )
+    return;
   try {
-    if (!Object.hasOwn(ANALYTICS_SOURCES, name)) return;
-    const journey = onboardingJourney();
-    if (!journey) return;
-    const match = /^\/inbox\/([0-9a-f-]+)(?:\/|$)/.exec(location.pathname);
-    const id = match?.[1] ?? workspace;
-    const path =
-      id &&
-      (ANALYTICS_SOURCES[name] === "workspace" ||
-        ANALYTICS_SOURCES[name] === "billing")
-        ? `/rooms/${id}/onboarding`
-        : "/funnel/journey";
     if (
-      pending.length < 128 &&
-      !pending.some(
-        (event) =>
-          event.journey === journey &&
-          event.name === name &&
-          event.path === path,
-      )
+      localStorage.getItem(statisticsPreference) !== "yes" ||
+      localStorage.getItem("plausible_ignore") === "true"
     )
-      pending.push({ journey, name, path, attempts: 0 });
-    void drain();
-    if (name === "create_completed" || name === "connect_completed")
-      resetOnboardingJourney();
+      return;
+    void fetch("https://plausible.io/api/event", {
+      method: "POST",
+      credentials: "omit",
+      referrerPolicy: "no-referrer",
+      cache: "no-store",
+      keepalive: true,
+      redirect: "error",
+      headers: { "Content-Type": "text/plain" },
+      body: JSON.stringify({
+        name: "pageview",
+        domain: "usetempl.com",
+        url: SITE.origin + page,
+      }),
+    }).catch(() => {});
   } catch {
-    /* Measurement cannot change support, navigation or wallet actions. */
+    return;
   }
 }

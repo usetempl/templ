@@ -1,12 +1,13 @@
 "use client";
 import { hasSupportKnowledge } from "@templ/chat/workspace-flags";
-import { analyticsWorkspace, trackEvent } from "@/lib/analytics";
+import { trackEvent } from "@/lib/analytics";
 
 import { canManageWorkspace } from "@templ/chat/moderation-permissions";
 
 import {
   Fragment,
   useCallback,
+  useRef,
   useEffect,
   useState,
   useSyncExternalStore,
@@ -32,6 +33,7 @@ import type {
   TeamConversationStatus,
 } from "@templ/chat/index";
 import type { ChatPrincipalId } from "@templ/chat/principal";
+import type { ProductPaymentIntent } from "@templ/chat/product-payment";
 import { useChatAuth } from "@/lib/chat-auth";
 import { isChatSignInCanceled } from "@/lib/chat-auth-cancellation";
 import {
@@ -237,6 +239,8 @@ export type WorkspaceContext = {
     section?: string,
   ) => void;
   openPlans: (purpose?: "period" | "credit") => void;
+  /** Opens checkout on an existing payment request. */
+  openPayment: (request: ProductPaymentIntent) => void;
 };
 
 function readTab(): WorkspaceTab | null {
@@ -309,7 +313,10 @@ function Workspace({ id, supportUrl }: WorkspaceEntry) {
     setConversation(readConversation());
   }, []);
   const pushHistory = useWorkspaceHistory(id, readHistory);
-  const [plansOpen, setPlansOpen] = useState<"period" | "credit" | null>(null);
+  const [plansOpen, setPlansOpen] = useState<{
+    purpose: "period" | "credit";
+    request?: ProductPaymentIntent;
+  } | null>(null);
   const [signInError, setSignInError] = useState("");
   // A staff link opened in a phone browser with no wallet: point to the
   // wallet app first. Signing in here stays one tap away.
@@ -460,21 +467,17 @@ function Workspace({ id, supportUrl }: WorkspaceEntry) {
     setTabValue(visible);
     setConversation(null);
   }, [current, tab, visible, pushHistory]);
+  const product = state?.product;
+  const trialCheckout = manager && (visible === "home" || visible === "plan") &&
+    product && isBillingView(product) && product.standardPlan?.status === "demo" && product.mode !== "exempt";
+  const countAdminView = Boolean(team && admin && workspace && current && !trialCheckout && !plansOpen && tab !== "plan" && visible !== "plan");
+  const countedWorkspace = useRef<string | undefined>(undefined);
   useEffect(() => {
-    if (!admin) return;
-    analyticsWorkspace(id);
-    const viewed = {
-      home: "workspace_home_viewed",
-      widget: "widget_settings_viewed",
-      team: "team_viewed",
-      knowledge: "brain_viewed",
-      plan: "plan_viewed",
-    } as const;
-    if (tab && Object.hasOwn(viewed, tab))
-      trackEvent(viewed[tab as keyof typeof viewed]);
-    else if (!tab) trackEvent("workspace_home_viewed");
-    return () => analyticsWorkspace(undefined);
-  }, [admin, id, tab]);
+    if (countAdminView && countedWorkspace.current !== id) {
+      trackEvent("workspace_home_viewed");
+      countedWorkspace.current = id;
+    }
+  }, [countAdminView, id]);
 
   // The Needs you count powers the rail badge, the tab title and icon, and
   // the optional browser alert; the same read gives the views bar and Home
@@ -679,7 +682,13 @@ function Workspace({ id, supportUrl }: WorkspaceEntry) {
     reload,
     revision,
     go,
-    openPlans: (purpose) => setPlansOpen(purpose ?? "period"),
+    openPlans: (purpose) =>
+      setPlansOpen({ purpose: purpose === "credit" ? "credit" : "period" }),
+    openPayment: (request) =>
+      setPlansOpen({
+        purpose: request.standard?.purpose === "credit" ? "credit" : "period",
+        request,
+      }),
   };
   const accessScope = [
     id,
@@ -704,9 +713,6 @@ function Workspace({ id, supportUrl }: WorkspaceEntry) {
       image: workspace.image,
       href: nativeRoomHref({ id }),
     });
-  const product = state?.product;
-  const trialCheckout = manager && (visible === "home" || visible === "plan") &&
-    product && isBillingView(product) && product.standardPlan?.status === "demo" && product.mode !== "exempt";
   const settingsView = visible !== "inbox" && visible !== "knowledge";
   const rail = (
     <>
@@ -796,9 +802,13 @@ function Workspace({ id, supportUrl }: WorkspaceEntry) {
       {plansOpen && billing && (
         <AddBalanceDialog
           room={room}
-          purpose={plansOpen}
+          purpose={plansOpen.purpose}
+          request={plansOpen.request}
           onClose={() => setPlansOpen(null)}
           onConfirmed={reload}
+          onSetUpAi={admin && team && state?.features?.managedAgent && !state.bots?.length
+            ? () => { setPlansOpen(null); go("knowledge", null, "managed-ai"); }
+            : undefined}
           onPlanReady={team ? () => { setPlansOpen(null); go("home"); } : undefined}
           assertCurrent={() => {
             if (communitySessionRevision() !== sessionRevision)

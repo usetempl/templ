@@ -1,11 +1,13 @@
+export const BAD_HASH = "This doesn't look like a transaction ID.";
+export const WALLET_CHANGED = "Your wallet changed. Sign in again.";
 /** Only reviewed visitor-facing copy may enter the widget's error line. */
-const UNAVAILABLE = "Support is unavailable. Try again.";
-const SIGN_IN = "Sign in again to keep your case.";
+export const UNAVAILABLE = "Support is unavailable. Try again.";
+export const SIGN_IN_AGAIN = "Sign in again to keep your case.";
 const SECRET =
   "This looks like a wallet recovery phrase, so it wasn't sent. Don't share it with anyone.";
 const PUBLIC_COPY = /* @__PURE__ */ new Set([
   UNAVAILABLE,
-  SIGN_IN,
+  SIGN_IN_AGAIN,
   SECRET,
   "Support could not load. Reload this page.",
   "Contact could not load. Reload this page.",
@@ -14,7 +16,7 @@ const PUBLIC_COPY = /* @__PURE__ */ new Set([
   "Connect a Solana wallet on this website.",
   "Sign in with your wallet to contact support.",
   "This team asks you to sign in with your wallet.",
-  "Your wallet changed. Sign in again.",
+  WALLET_CHANGED,
   "Your wallet changed. Try again.",
   "The wallet sign-in does not match this website.",
   "Couldn’t check your wallet. Sign in again.",
@@ -32,7 +34,7 @@ const PUBLIC_COPY = /* @__PURE__ */ new Set([
   "Support tools are being tested.",
   "This link could not open your case.",
   "The check couldn't load. Try again.",
-  "This doesn't look like a transaction ID.",
+  BAD_HASH,
   "This doesn't look like a transaction ID. Paste the hash or the explorer link.",
   "This doesn't look like a transaction ID. Paste the hash, signature or explorer link.",
   "Wait a moment before sending again.",
@@ -70,7 +72,7 @@ export function widgetErrorMessage(reason: unknown) {
   if (value?.reason === "access-level-required")
     return "This team asks you to sign in with your wallet.";
   if (value?.reason === "session-ended" || value?.status === 401)
-    return SIGN_IN;
+    return SIGN_IN_AGAIN;
   if (value?.status === 429) return "Wait a moment before sending again.";
   return UNAVAILABLE;
 }

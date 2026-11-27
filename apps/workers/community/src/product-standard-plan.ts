@@ -2,11 +2,13 @@ import {
   PRODUCT_LIMITS,
   PRODUCT_ANNUAL_PRICES,
   PRODUCT_STARTER_PRICES,
+  PRODUCT_STARTER_RECORDED_PRICES,
   PRODUCT_STANDARD_PRICES,
   PRODUCT_STANDARD_QUALIFICATION_PRICES,
   PRODUCT_STANDARD_AI_RATES,
   PRODUCT_RESOLUTION_RULES,
 } from "@templ/chat/plans";
+import { starterPricesForVersion } from "@templ/chat/standard-plan";
 import {
   normalizeChatPrincipal,
   type ChatPrincipalId,
@@ -278,10 +280,10 @@ function matchesPeriodDates(value: Record<string, unknown>, startsAt: number) {
       !natural(annual.startsAt) || !natural(annual.month) || annual.month >= PRODUCT_ANNUAL_PRICES.months ||
       annual.priceVersion !== PRODUCT_ANNUAL_PRICES.publishedOn || value.source !== "verified-payment" ||
       !object(value.usage)) return false;
-  const prices = value.usage.priceVersion === PRODUCT_STARTER_PRICES.publishedOn ? PRODUCT_STARTER_PRICES :
-    value.usage.priceVersion === PRODUCT_STANDARD_PRICES.publishedOn ? PRODUCT_STANDARD_PRICES : null;
+  const prices = starterPricesForVersion(String(value.usage.priceVersion)) ??
+    (value.usage.priceVersion === PRODUCT_STANDARD_PRICES.publishedOn ? PRODUCT_STANDARD_PRICES : null);
   return prices !== null && value.workspaceMonthlyCents === prices.workspaceMonthlyUsdCents &&
-    annual.totalCents === (prices === PRODUCT_STARTER_PRICES ? PRODUCT_ANNUAL_PRICES.starter : PRODUCT_ANNUAL_PRICES.standard) &&
+    annual.totalCents === ("aiRateCardVersion" in prices ? PRODUCT_ANNUAL_PRICES.starter : PRODUCT_ANNUAL_PRICES.standard) &&
     startsAt === billingMonthBoundary(annual.startsAt, annual.month) &&
     value.endsAt === billingMonthBoundary(annual.startsAt, annual.month + 1);
 }
@@ -506,7 +508,7 @@ export async function standardPlanView(
     ...(account.mode === "prepaid" && (await storage.get(STARTER_AVAILABLE)) === true
       ? { starterAvailable: true as const, annualAvailable: true as const }
       : {}),
-    ...(paid && period.usage?.priceVersion === PRODUCT_STARTER_PRICES.publishedOn
+    ...(paid && starterPricesForVersion(period.usage?.priceVersion)
       ? { starterAiLimitCents: await readStarterAiLimit(storage) }
       : {}),
     prepaid: {
@@ -817,8 +819,18 @@ export function standardPrepaidTerms(
   purpose: StandardPaymentTerms["purpose"],
   expectedPeriod: string | null,
   plan: MonthlySupportPlan = "standard",
+  reviewedStarterVersion: string = PRODUCT_STARTER_PRICES.publishedOn,
 ): StandardPaymentTerms {
-  const prices = plan === "starter" ? PRODUCT_STARTER_PRICES : PRODUCT_STANDARD_PRICES;
+  if (plan !== "starter") return termsForPrices(purpose, expectedPeriod, PRODUCT_STANDARD_PRICES);
+  const prices = starterPricesForVersion(reviewedStarterVersion);
+  if (!prices) throw new HttpError(409, "Refresh checkout to review the current Starter offer.");
+  return termsForPrices(purpose, expectedPeriod, prices);
+}
+function termsForPrices(
+  purpose: StandardPaymentTerms["purpose"],
+  expectedPeriod: string | null,
+  prices: typeof PRODUCT_STANDARD_PRICES | typeof PRODUCT_STARTER_PRICES | typeof PRODUCT_STARTER_RECORDED_PRICES,
+): StandardPaymentTerms {
   return {
     purpose,
     ...(purpose === "annual" ? { annualPriceVersion: PRODUCT_ANNUAL_PRICES.publishedOn } : {}),
@@ -829,8 +841,8 @@ export function standardPrepaidTerms(
     additionalAnsweredCaseCents: prices.additionalAnsweredCaseUsdCents,
     includedAiCreditCents: prices.includedAiCreditUsdCents,
     ...captureStandardAiRate(prices),
-    aiRateCardVersion: plan === "starter"
-      ? PRODUCT_STARTER_PRICES.aiRateCardVersion
+    aiRateCardVersion: "aiRateCardVersion" in prices
+      ? prices.aiRateCardVersion
       : PRODUCT_STANDARD_AI_RATES.version,
   };
 }
@@ -891,8 +903,8 @@ export async function activateVerifiedStandardPeriod(
   const annual = terms.purpose === "annual";
   if (annual) {
     // Annual access is offered only to eligible, self-serve prepaid workspaces.
-    const selected = terms.priceVersion === PRODUCT_STARTER_PRICES.publishedOn ? "starter" : "standard";
-    const offer = standardPrepaidTerms("annual", terms.expectedPeriod, selected);
+    const prices = starterPricesForVersion(terms.priceVersion) ?? PRODUCT_STANDARD_PRICES;
+    const offer = termsForPrices("annual", terms.expectedPeriod, prices);
     if (Object.keys(offer).length !== Object.keys(terms).length ||
         Object.entries(offer).some(([key, value]) => terms[key as keyof StandardPaymentTerms] !== value))
       throw fail();

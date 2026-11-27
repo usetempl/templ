@@ -18,7 +18,7 @@ export default async function DpaPage() {
       title="Data Processing Addendum"
       description="The data duties of Templ and your support team."
       active="dpa"
-      updated="20 November 2026"
+      updated="27 November 2026"
     >
       <p>
         {
@@ -921,7 +921,7 @@ export default async function DpaPage() {
         </p>
         <p>
           {
-            "Customer-appointed agents and integrations follow section 6. Google Analytics is optional controller-side measurement. It is not authorized to receive Customer support content."
+            "Customer-appointed agents and integrations follow section 6. Templ uses Plausible for its own site statistics. Templ sends no customer support content to Plausible."
           }
         </p>
       </PolicySection>

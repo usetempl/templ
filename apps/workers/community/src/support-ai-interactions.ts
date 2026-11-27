@@ -19,6 +19,7 @@ const socialTexts = new Set<string>(Object.values(HOSTED_SOCIAL_REPLIES));
 function isSocialReply(context: ConversationContext, record: TeamConversationRecord, author: unknown, text?: string) {
   if (text === "Hi! How can we help?") return true;
   if (!text || !socialTexts.has(text) || !context.isBot || context.appOrigin !== "https://usetempl.com" || record.room !== context.room) return false;
+  if (text === HOSTED_SOCIAL_REPLIES.offTopic && typeof author === "string" && author === context.viewer.principalId && context.registeredBots?.includes(context.viewer.principalId)) return true;
   if (record.room !== `room:${OWN_SUPPORT_ENDPOINT.workspace}`) return false;
   const principal = hostedPrepaidPrincipal(record.room.slice(5));
   return principal !== null && author === principal && context.registeredBots?.includes(principal) === true;

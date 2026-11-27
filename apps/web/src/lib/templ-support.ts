@@ -1,8 +1,5 @@
 import type { createSupportClient, mountSupportWidget } from "./support-widget";
-import {
-  SUPPORT_WIDGET_LATEST,
-  SUPPORT_WIDGET_LATEST_PATH,
-} from "./support-widget-release";
+import { currentWidgetAssets } from "./current-widget-assets";
 
 type SupportRelease = {
   supportWidgetVerified: boolean;
@@ -89,18 +86,7 @@ export function createTemplSupportWidgetLoader(
 export const loadTemplSupportWidget = createTemplSupportWidgetLoader(() => {
   // Resolve in the browser so the server packager does not treat this public
   // module as a file-system dependency.
-  const asset = new URL(SUPPORT_WIDGET_LATEST_PATH, window.location.origin)
+  const asset = new URL(currentWidgetAssets.path, window.location.origin)
     .href;
   return import(/* webpackIgnore: true */ /* turbopackIgnore: true */ asset);
 });
-
-/** Templ's checked support workspace may show the optional stamp art. */
-export function loadTemplSupportArt(): Promise<
-  typeof import("./support-widget-art")
-> {
-  const asset = new URL(
-    SUPPORT_WIDGET_LATEST.chunks.art!.path,
-    window.location.origin,
-  ).href;
-  return import(/* webpackIgnore: true */ /* turbopackIgnore: true */ asset);
-}
