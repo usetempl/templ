@@ -13,8 +13,6 @@ const HEX = [..."0123456789abcdef"];
 const LETTERS = [..."abcdefghijklmnopqrstuvwxyz"];
 const address = (draw: Rng) => getAddress(`0x${draw.text(HEX, 40)}`);
 
-/** A connected wallet whose resolver answers both ENS records. `chains` are
- * its answers to successive network checks; the last one repeats. */
 function wallet(
   draw: Rng,
   records: { connected: Address; primary: string; forward: Address },

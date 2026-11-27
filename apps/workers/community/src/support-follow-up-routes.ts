@@ -151,9 +151,7 @@ function specialistActor(context: ConversationContext): FollowUpActor {
 const widget = (context: ConversationContext) =>
   context.headers.get("X-Support-Widget") !== null;
 
-/* ---------------------------------------------------------------------- */
 /* Thread follow-ups                                                        */
-/* ---------------------------------------------------------------------- */
 
 async function threadFollowUpRoute(
   storage: Storage,
@@ -284,9 +282,7 @@ async function threadFollowUpRoute(
   throw notFound();
 }
 
-/* ---------------------------------------------------------------------- */
 /* Queue                                                                    */
-/* ---------------------------------------------------------------------- */
 
 const QUEUE_VIEWS: readonly SupportFollowUpQueueView[] = [
   "open",
@@ -533,9 +529,7 @@ async function queueRoute(
   });
 }
 
-/* ---------------------------------------------------------------------- */
 /* Entry points                                                             */
-/* ---------------------------------------------------------------------- */
 
 /** The follow-up routes at the top of `conversationRoomRoute`.
  * Null for every path it does not own, so the conversation module goes on

@@ -71,7 +71,6 @@ export type DecodedTransaction = {
 export function isUnlimitedAllowance(raw: bigint): boolean {
   return raw >= 1n << 255n;
 }
-/** The chain's explorer page for an address. */
 export function addressExplorerUrl(
   chainId: ChatChainId,
   address: `0x${string}`,

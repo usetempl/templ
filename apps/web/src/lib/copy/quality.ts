@@ -46,7 +46,6 @@ export const QUALITY_COPY = {
   presetLifted: "The AI agent answers new cases again.",
   presetTransactions: "Drafts only when the user shares a transaction",
   presetConfirm: "Changing the preset asks for a valid wallet session.",
-  // Quality settings.
   qualityTitle: "Answer reviews",
   qualityDescription:
     "Sample resolved cases so a person on your team checks the answer.",
@@ -68,7 +67,6 @@ export const QUALITY_COPY = {
     "Start cases with a shared transaction in AI drafts only.",
   transactionsToggle: "Draft transaction replies",
   saveTransactions: "Save setting",
-  // The Quality tab.
   // The thread panel.
   panelTitle: "Answer quality",
   panelNote: "Only your team sees labels and reviews.",
@@ -82,7 +80,6 @@ export const QUALITY_COPY = {
   labelSaved: "Label saved.",
   labelCleared: "Label cleared.",
   labeledBy: (who: string) => `Labeled by ${who}`,
-  // Reviews.
   reviewsTitle: "Reviews",
   reviewsEmpty:
     "Nothing to review. Sampled cases show up here after they're resolved.",
@@ -187,7 +184,6 @@ export const QUALITY_COPY = {
   contractsFilter: "Status",
   contractsAll: "All",
   contractsEmpty: "No contracts with this status.",
-  // Protocol profile.
   profileTitle: "Protocol",
   profileIntro:
     "Contracts, products and metrics your team and AI agent can look up by address.",
@@ -214,7 +210,6 @@ export const QUALITY_COPY = {
   officialSitesHint:
     "Migration guides must link to one of these. One per line.",
   saveSites: "Save sites",
-  // Knowledge.
   aiGuidance: "AI guidance",
   aiGuidanceHint:
     "Set tone and when to ask a person. AI still needs clear sources and follows Templ’s safety rules.",

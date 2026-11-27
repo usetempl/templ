@@ -669,9 +669,7 @@ export function legacyOrder(a: LegacyFact, b: LegacyFact): number {
   );
 }
 
-/* ---------------------------------------------------------------------- */
 /* Knowledge sources                                                       */
-/* ---------------------------------------------------------------------- */
 
 export const KNOWLEDGE_KINDS = ["doc", "faq", "profile", "saved-reply"] as const;
 export type KnowledgeKind = (typeof KNOWLEDGE_KINDS)[number];

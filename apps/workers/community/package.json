@@ -13,7 +13,6 @@
     "@solana/web3.js": "1.98.4",
     "@templ/chat": "workspace:*",
     "@templ/e2ee": "workspace:*",
-    "buffer": "6.0.3",
     "tldts": "7.0.19",
     "viem": "2.55.0"
   },

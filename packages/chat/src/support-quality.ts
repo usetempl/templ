@@ -7,9 +7,7 @@
 import type { ChatPrincipalId } from "./principal";
 import type { SupportHandoffReason } from "./support";
 
-/* ---------------------------------------------------------------------- */
 /* Reply labels                                                            */
-/* ---------------------------------------------------------------------- */
 
 export const REPLY_LABELS = [
   "correct",
@@ -61,9 +59,7 @@ export type ReplyLabelEntry = {
   at: string;
 };
 
-/* ---------------------------------------------------------------------- */
 /* Review rubric                                                           */
-/* ---------------------------------------------------------------------- */
 
 export const RUBRIC_ITEMS = ["facts", "scope", "evidence", "next-step"] as const;
 export type RubricItem = (typeof RUBRIC_ITEMS)[number];
@@ -107,9 +103,7 @@ export function checkedRubric(value: unknown): Rubric | null {
   return out;
 }
 
-/* ---------------------------------------------------------------------- */
 /* Sampling and settings                                                   */
-/* ---------------------------------------------------------------------- */
 
 export type SampleRule =
   /** The AI agent answered and no person replied. */
@@ -334,9 +328,7 @@ export function checkedQualitySettings(
 export const samplingOn = (settings: SupportQualitySettings) =>
   settings.sampling.randomPercent > 0 || settings.sampling.rules.length > 0;
 
-/* ---------------------------------------------------------------------- */
 /* Reviews                                                                 */
-/* ---------------------------------------------------------------------- */
 
 export const REVIEW_STATES = ["queued", "in-review", "scored", "skipped"] as const;
 export type ReviewState = (typeof REVIEW_STATES)[number];
@@ -427,9 +419,7 @@ export function sampleReasonText(
   }
 }
 
-/* ---------------------------------------------------------------------- */
 /* Trends                                                                  */
-/* ---------------------------------------------------------------------- */
 
 export const TREND_DIMENSIONS = [
   "category",
@@ -518,9 +508,7 @@ export function isoWeek(at: number): string {
   return `${year}-W${String(week).padStart(2, "0")}`;
 }
 
-/* ---------------------------------------------------------------------- */
 /* Knowledge-gap list                                                      */
-/* ---------------------------------------------------------------------- */
 
 /** Why a closed request counts toward a gap. */
 export const GAP_SIGNALS = [

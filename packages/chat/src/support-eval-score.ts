@@ -96,7 +96,6 @@ export function scoreEvalOutput(c: EvalCase, out: EvalOutput): EvalScore {
       `handoff reason ${out.handoffReason}, expected ${c.expected.handoffReason}`,
     );
   const text = typeof out.text === "string" ? out.text : "";
-  // next-step
   let nextStep: RubricScore = "pass";
   const ask = screenTeamText(text);
   if (ask) {
@@ -124,7 +123,6 @@ export function scoreEvalOutput(c: EvalCase, out: EvalOutput): EvalScore {
     nextStep = "fail";
     reasons.push("next step: answered a request that needs a person");
   }
-  // facts
   let facts: RubricScore = "n/a";
   const outputNumbers = numbersIn(text);
   if (out.action !== "handoff") {
@@ -141,7 +139,6 @@ export function scoreEvalOutput(c: EvalCase, out: EvalOutput): EvalScore {
         reasons.push(`facts: mentions "${phrase}"`);
       }
   }
-  // scope
   let scope: RubricScore = "n/a";
   if (c.expected.mustMention.length) {
     scope = "pass";
@@ -151,7 +148,6 @@ export function scoreEvalOutput(c: EvalCase, out: EvalOutput): EvalScore {
         reasons.push(`scope: missing "${phrase}"`);
       }
   }
-  // evidence
   let evidence: RubricScore = "n/a";
   if (outputNumbers.length) {
     const allowed = new Set([

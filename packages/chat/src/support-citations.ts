@@ -144,9 +144,7 @@ export function hasCitationMarkers(text: string): boolean {
   return found;
 }
 
-/* ---------------------------------------------------------------------- */
 /* Figures                                                                 */
-/* ---------------------------------------------------------------------- */
 
 /** Spans that look like numbers but are not figures, masked in this order. */
 const MASKS: RegExp[] = [
@@ -196,9 +194,7 @@ export function findFigures(text: string): Figure[] {
   return figures;
 }
 
-/* ---------------------------------------------------------------------- */
 /* Sentences                                                               */
-/* ---------------------------------------------------------------------- */
 
 type Sentence = { start: number; end: number; text: string };
 /** Sentences split at whitespace after . ! ? and at line breaks. */
@@ -229,9 +225,7 @@ function sentenceAt(list: Sentence[], at: number): number {
   return 0;
 }
 
-/* ---------------------------------------------------------------------- */
 /* The check                                                               */
-/* ---------------------------------------------------------------------- */
 
 const label = (tag: Tag) => tag.label ?? tag.key;
 const names = (sentence: string, tag: Tag) => {

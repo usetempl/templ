@@ -147,7 +147,6 @@ export async function standardWebhookSignature(
   const key = fromBase64(secret.startsWith("whsec_") ? secret.slice(6) : secret);
   return `v1,${toBase64(await hmacRaw(key, `${id}.${timestamp}.${body}`))}`;
 }
-/** Hex SHA-256 of a text. */
 export async function sha256Hex(value: string): Promise<string> {
   return hex(new Uint8Array(await crypto.subtle.digest("SHA-256", encoder.encode(value))));
 }

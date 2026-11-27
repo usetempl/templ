@@ -350,9 +350,7 @@ export function updateSupportWorkflow(
   );
 }
 
-/* ---------------------------------------------------------------------- */
 /* Cases, evidence and Ask AI (team only)                                  */
-/* ---------------------------------------------------------------------- */
 
 /** A thread's member requests, newest first, 20 per page. */
 export function readCases(

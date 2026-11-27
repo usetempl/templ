@@ -184,9 +184,7 @@ const isHexData = (value: unknown): value is Hex =>
 const stripControl = (value: string) =>
   value.replace(/[\p{Cc}\p{Cf}]/gu, "").trim();
 
-/* ---------------------------------------------------------------------- */
 /* Layer 1: structure and builtin decoding                                  */
-/* ---------------------------------------------------------------------- */
 
 function selectorOf(data: Hex): Hex | null {
   return data.length >= 10 ? (lower(data.slice(0, 10)) as Hex) : null;
@@ -276,9 +274,7 @@ function working(
 const flatten = (calls: Working[]): Working[] =>
   calls.flatMap((call) => [call, ...call.nested]);
 
-/* ---------------------------------------------------------------------- */
 /* Layer 2: target facts through the two reviewed providers                 */
-/* ---------------------------------------------------------------------- */
 
 const decodeRead = (
   result: Result | undefined,
@@ -378,9 +374,7 @@ export async function readTargetFacts(
   }
 }
 
-/* ---------------------------------------------------------------------- */
 /* Layer 3: verified ABIs                                                   */
-/* ---------------------------------------------------------------------- */
 
 class LookupUnavailable extends Error {}
 const NAME = /^[A-Za-z_$][A-Za-z0-9_$]{0,63}$/;
@@ -650,9 +644,7 @@ export async function lookupVerifiedAbi(
   return entry;
 }
 
-/* ---------------------------------------------------------------------- */
 /* Rendering                                                                */
-/* ---------------------------------------------------------------------- */
 
 type Render = {
   chainId: ChatChainId;
@@ -814,9 +806,7 @@ function renderArgs(
   }));
 }
 
-/* ---------------------------------------------------------------------- */
 /* Flags                                                                    */
-/* ---------------------------------------------------------------------- */
 
 /** Permit2 amounts are uint160; the top half of that range reads as unlimited,
  * the way isUnlimitedAllowance treats uint256. */
@@ -925,9 +915,7 @@ function namedAssets(decoded: Decoded): Address[] {
   return assets.filter((entry): entry is Address => entry !== null);
 }
 
-/* ---------------------------------------------------------------------- */
 /* Universal Router commands                                                */
-/* ---------------------------------------------------------------------- */
 
 /** Each command byte with its input, rendered as a nested call of the
  * router; a command outside the table shows as unreadable. */
@@ -1013,9 +1001,7 @@ function routerCommands(
   });
 }
 
-/* ---------------------------------------------------------------------- */
 /* Assembly                                                                 */
-/* ---------------------------------------------------------------------- */
 
 function targetBlock(
   render: Render,
@@ -1225,9 +1211,7 @@ export async function decodeTransactionCalls(
   };
 }
 
-/* ---------------------------------------------------------------------- */
 /* The service-wide ABI catalog                                             */
-/* ---------------------------------------------------------------------- */
 
 function cacheEntry(value: unknown): AbiCacheEntry | null {
   if (!value || typeof value !== "object") return null;

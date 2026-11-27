@@ -189,7 +189,6 @@ export async function handleRecoveryRoute(
   return json(result, "pending" in result ? 202 : 200);
 }
 
-// ---------------------------------------------------------------------------
 // Object calls
 
 type Stub = { fetch(request: Request): Promise<Response> };
@@ -304,7 +303,6 @@ const identity = (
   mode: partition.mode,
 });
 
-// ---------------------------------------------------------------------------
 // Plan
 
 async function plan(
@@ -405,7 +403,6 @@ async function plan(
   };
 }
 
-// ---------------------------------------------------------------------------
 // Restore and undo
 
 async function readPlan(env: RecoveryEnv, id: unknown) {

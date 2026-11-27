@@ -487,7 +487,6 @@ export function WorkspaceActivity({
         }
       />
       <div className={styles.stack}>
-        {/* The month's line about Templ's reads. */}
         <TemplReadsLine room={room} />
         <div className={ui.tabs} role="group" aria-label="Show">
           {STREAMS.filter((item) => readLog || item.value !== "reads").map(

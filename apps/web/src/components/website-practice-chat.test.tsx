@@ -121,7 +121,6 @@ simulate(
       ask,
     };
 
-    // Nothing is sent while the visitor writes before the preview is ready.
     const scanning = await mount(props);
     await waitFor(() =>
       expect(sendButton().getAttribute("aria-disabled")).toBe("true"),
@@ -134,7 +133,6 @@ simulate(
     expect(chip()).toBeNull();
     expect(draft.current).toBe(written);
 
-    // The unsent question returns after the website changes, still held.
     scanning.unmount();
     const ready = await mount(props);
     await waitFor(() => expect(composer().value).toBe(written));
@@ -149,7 +147,6 @@ simulate(
     );
     shadow().querySelector("form")!.requestSubmit();
     expect(widget.submitted).toEqual([written]);
-    // A written question hides the suggestion, so a click cannot replace it.
     expect(chip()).toBeNull();
 
     // A retried message keeps one request ID, and a delivered one is not asked again.
@@ -230,7 +227,6 @@ simulate(
     );
     expect(ask).toHaveBeenCalledTimes(5);
 
-    // A failed answer ends the typing state until the next accepted question.
     let fail!: () => void;
     ask.mockImplementationOnce((_text, _id, received) => {
       accept = received;
@@ -267,7 +263,6 @@ simulate(
     answer("Here is the answer.");
     expect(texts(await read(thread)).at(-1)).toBe("Here is the answer.");
 
-    // On the next website the cleared composer offers the suggested question once.
     ready.unmount();
     await mount({ ...props, canSend: true });
     const suggest = await screen.findByRole("button", {

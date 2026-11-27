@@ -102,9 +102,7 @@ const notDeidentified = (kinds: ResidualKind[]) =>
   );
 
 
-/* ---------------------------------------------------------------------- */
 /* The draft                                                               */
-/* ---------------------------------------------------------------------- */
 
 type Turn = { role: EvalTurn["role"]; text: string; id: number; at: number; author: string };
 async function caseTurns(
@@ -484,9 +482,7 @@ export async function threadEvalAction(
   return json({ eval: saved }, 201);
 }
 
-/* ---------------------------------------------------------------------- */
 /* Room-level eval routes                                                  */
-/* ---------------------------------------------------------------------- */
 
 const agentAccessDenied = () =>
   new HttpError(403, "The manager hasn't let AI agents read eval cases.", undefined, "eval-agent-access");

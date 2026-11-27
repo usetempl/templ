@@ -566,9 +566,7 @@ export function parseEvidenceInput(
   };
 }
 
-/* ---------------------------------------------------------------------- */
 /* Stored values (read-time checks; fail closed)                           */
-/* ---------------------------------------------------------------------- */
 
 const ISO = (value: unknown) =>
   typeof value === "string" && Number.isFinite(Date.parse(value));

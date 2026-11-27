@@ -680,9 +680,7 @@ function reopen(c: SupportCase, at: number, reason: SupportCaseReopenReason) {
   c.excluded = c.excluded.filter((entry) => entry !== "spam");
 }
 
-/* ---------------------------------------------------------------------- */
 /* Marker                                                                  */
-/* ---------------------------------------------------------------------- */
 
 function checkedMarker(raw: unknown): LedgerMarker | null {
   const marker = raw as LedgerMarker | undefined;
@@ -739,9 +737,7 @@ export async function ensureLedgerMarker(
   return started.state;
 }
 
-/* ---------------------------------------------------------------------- */
 /* Synthesis (lazy on first touch, and the backfill)                       */
-/* ---------------------------------------------------------------------- */
 
 /** The thread as it stood before the event that first touched it. Callers
  * have already applied that event to the support record (a member message
@@ -944,9 +940,7 @@ export async function synthesizeThreadLedger(
   await storage.put(workflowKey(record.id), data);
 }
 
-/* ---------------------------------------------------------------------- */
 /* Events                                                                  */
-/* ---------------------------------------------------------------------- */
 
 /** The latest case, or null when there is none (never requested, or pruned).
  * A case that fails its checks is rebuilt with `source: "repaired"`. */
@@ -1586,9 +1580,7 @@ export async function readCaseRef(
   return c;
 }
 
-/* ---------------------------------------------------------------------- */
 /* Needs reply, pulse and report                                           */
-/* ---------------------------------------------------------------------- */
 
 /** The most waiting requests a count reads before it reports "more". */
 const WAITING_CAP = PRODUCT_LIMITS.supportOpenRecords;
@@ -1974,9 +1966,7 @@ export async function supportCaseReport(
   return report;
 }
 
-/* ---------------------------------------------------------------------- */
 /* Retention and the ledger's alarm consumer                               */
-/* ---------------------------------------------------------------------- */
 
 /** The index keys a stored case row names: its awaiting row, its date
  * index row and its team-wait row. Read from the raw value, so a row that

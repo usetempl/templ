@@ -123,9 +123,7 @@ export function builtinFunctions(selector: Hex): readonly BuiltinFunction[] {
   return bySelector.get(selector.toLowerCase() as Hex) ?? [];
 }
 
-/* ---------------------------------------------------------------------- */
 /* Uniswap Universal Router commands                                        */
-/* ---------------------------------------------------------------------- */
 
 /** One byte per command; the low six bits pick the command and 0x80 lets it
  * revert without failing the bundle. The input layouts follow the router's
@@ -307,9 +305,7 @@ export const UNIVERSAL_ROUTER_COMMANDS: Readonly<
 };
 export const UNIVERSAL_ROUTER_COMMAND_MASK = 0x3f;
 
-/* ---------------------------------------------------------------------- */
 /* Labels                                                                   */
-/* ---------------------------------------------------------------------- */
 
 export type KnownAddress = {
   label: string;

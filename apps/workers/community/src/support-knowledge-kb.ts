@@ -531,9 +531,7 @@ export function nextDue(db: KnowledgeDb): number | null {
   return row?.at === null || row?.at === undefined ? null : Number(row.at);
 }
 
-/* ---------------------------------------------------------------------- */
 /* Query                                                                   */
-/* ---------------------------------------------------------------------- */
 
 export type KnowledgeQueryArgs = {
   text: string;

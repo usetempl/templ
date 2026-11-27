@@ -263,9 +263,7 @@ export function excerptStates(excerpt: string, number: string): boolean {
   return pattern.test(excerpt.replace(/(\d),(?=\d{3}\b)/g, "$1"));
 }
 
-/* ---------------------------------------------------------------------- */
 /* Metering                                                                */
-/* ---------------------------------------------------------------------- */
 
 /** Why no call can be made now, before any spend is held. */
 export function callStop(
@@ -401,9 +399,7 @@ export async function meteredCall(
   return result;
 }
 
-/* ---------------------------------------------------------------------- */
 /* One request                                                             */
-/* ---------------------------------------------------------------------- */
 
 function knowledgeHits(
   db: KnowledgeDb,
@@ -1379,9 +1375,7 @@ export async function runJob(
   return "skipped";
 }
 
-/* ---------------------------------------------------------------------- */
 /* The golden set                                                          */
-/* ---------------------------------------------------------------------- */
 
 /** Queues a golden-set run. Never a second one while one waits or runs;
  * otherwise at most hourly unless `force` (a person's "Check again", which
@@ -1623,9 +1617,7 @@ export async function runGoldenPart(
   return "done";
 }
 
-/* ---------------------------------------------------------------------- */
 /* The alarm                                                               */
-/* ---------------------------------------------------------------------- */
 
 /** Works up to `jobsPerRun` due jobs. Returns what each did. */
 export async function runManagedJobs(deps: RunnerDeps): Promise<JobOutcome[]> {

@@ -107,9 +107,7 @@ const natural = (value: unknown): value is number =>
 const isPlain = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
-/* ---------------------------------------------------------------------- */
 /* Stored shapes                                                           */
-/* ---------------------------------------------------------------------- */
 
 export type StoredDraftRequest = {
   v: 1;
@@ -241,9 +239,7 @@ const statusOf = (
     ? "expired"
     : request.status;
 
-/* ---------------------------------------------------------------------- */
 /* Errors                                                                  */
-/* ---------------------------------------------------------------------- */
 
 export const personOnly = () =>
   new HttpError(
@@ -267,9 +263,7 @@ const invalidProvenance = (error: unknown): never => {
   throw error;
 };
 
-/* ---------------------------------------------------------------------- */
 /* Settings                                                                */
-/* ---------------------------------------------------------------------- */
 
 /** The number check setting: "off" when absent, "hold" when unreadable. */
 export function citationSetting(settings: unknown): "off" | "hold" {
@@ -327,9 +321,7 @@ export function parseCaseSettings(
   return out;
 }
 
-/* ---------------------------------------------------------------------- */
 /* Helpers                                                                 */
-/* ---------------------------------------------------------------------- */
 
 /** The thread's latest message, as `ifLatest` names it. */
 async function latestMessage(
@@ -430,9 +422,7 @@ function textOf(value: unknown, limit: number): string {
   return text;
 }
 
-/* ---------------------------------------------------------------------- */
 /* Ask AI: requests                                                        */
-/* ---------------------------------------------------------------------- */
 
 export type DraftActionInput = {
   thread: string;
@@ -633,9 +623,7 @@ export async function declineAiDraft(
   return request;
 }
 
-/* ---------------------------------------------------------------------- */
 /* Drafts                                                                  */
-/* ---------------------------------------------------------------------- */
 
 /** Makes room for one more draft in the case: at most 20 open drafts, and
  * past 20 in all the oldest closed draft is removed first. */
@@ -954,9 +942,7 @@ export async function dismissAiDraft(
   return draft;
 }
 
-/* ---------------------------------------------------------------------- */
 /* Held agent replies and provenance on replies                            */
-/* ---------------------------------------------------------------------- */
 
 export type HeldReply = {
   draft: string;
@@ -1334,9 +1320,7 @@ export async function deleteMessageProvenance(
   await storage.delete(provenanceKey(thread, messageId));
 }
 
-/* ---------------------------------------------------------------------- */
 /* Reads for the case detail and the agents' list                          */
-/* ---------------------------------------------------------------------- */
 
 export function requestView(
   request: StoredDraftRequest,
@@ -1543,9 +1527,7 @@ export async function draftRequestPage(
   };
 }
 
-/* ---------------------------------------------------------------------- */
 /* Activity details and deletion                                           */
-/* ---------------------------------------------------------------------- */
 
 /** Problem kinds only, for an activity entry. */
 export const problemKinds = (problems: readonly CitationProblem[]) =>

@@ -208,9 +208,7 @@ export function handoffView(
     : { at: iso(handoff.at), reason: handoff.reason, by: handoff.by };
 }
 
-/* ---------------------------------------------------------------------- */
 /* "Talk to a person": the member's own handoff                            */
-/* ---------------------------------------------------------------------- */
 
 /** `{action:"ask-person"}`, plus the widget's `expectedPrincipalId`. Any
  * other key is refused. */

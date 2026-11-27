@@ -174,14 +174,12 @@ function WorkspaceConfiguration({ context }: { context: WorkspaceContext }) {
             {context.state?.features?.quality === true && (
               <CategoryRule context={context} />
             )}
-            {/* The workspace export and deletion sections. */}
             <WorkspaceExport
               room={context.room}
               account={context.account}
               manager={context.manager}
               enabled={context.state?.features?.workspaceExport === true}
             />
-            {/* Team alert destinations. */}
             <WorkspaceAlerts key={`alerts:${key}`} context={context} />
             {/* Templ's improvement copy, counts only. */}
             <ImprovementCopyCard key={`corpus:${key}`} room={context.room} />

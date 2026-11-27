@@ -68,9 +68,7 @@ import type { ChatEvent } from "@templ/chat/events";
 type Storage = DurableObjectTransaction;
 type ReadStorage = Pick<DurableObjectStorage, "get" | "list">;
 
-/* ---------------------------------------------------------------------- */
 /* Keys                                                                    */
-/* ---------------------------------------------------------------------- */
 
 export const FOLLOW_UP_PREFIX = "support-follow-up-v1:";
 export const FOLLOW_UP_CLIENT_PREFIX = "support-follow-up-client-v1:";
@@ -125,9 +123,7 @@ export const watchActiveKey = (thread: string, id: string) =>
 export const watchDueKey = (at: number, thread: string, id: string) =>
   `${WATCH_DUE_PREFIX}${pad16(at)}:${thread}:${id}`;
 
-/* ---------------------------------------------------------------------- */
 /* Records                                                                 */
-/* ---------------------------------------------------------------------- */
 
 export type StoredWatchSpec =
   | { kind: "tx"; network: SupportNetwork; hash: string }
@@ -378,9 +374,7 @@ export const ownerKeyOf = (f: Pick<StoredFollowUp, "owner" | "group">) =>
 export const openIndexKey = (f: StoredFollowUp) =>
   `${FOLLOW_UP_OPEN_PREFIX}${ownerKeyOf(f)}:${pad16(f.createdAt)}:${f.thread}:${followUpId(f.seq, f.n)}`;
 
-/* ---------------------------------------------------------------------- */
 /* Timers                                                                  */
-/* ---------------------------------------------------------------------- */
 
 export type FollowUpEventKind =
   | "remind"
@@ -459,9 +453,7 @@ export async function syncIndexes(
       await storage.put(key, value);
 }
 
-/* ---------------------------------------------------------------------- */
 /* Counts                                                                  */
-/* ---------------------------------------------------------------------- */
 
 type ThreadCounts = { open: number; overdue: number };
 export async function threadCounts(
@@ -549,9 +541,7 @@ async function countWrite(storage: Storage, now: number, openDelta: number) {
   });
 }
 
-/* ---------------------------------------------------------------------- */
 /* The member line                                                          */
-/* ---------------------------------------------------------------------- */
 
 function checkedLine(value: unknown): FollowUpLineCache | null {
   const line = value as FollowUpLineCache | null | undefined;
@@ -715,9 +705,7 @@ export async function commitAlarmLine(
   );
 }
 
-/* ---------------------------------------------------------------------- */
 /* Views                                                                   */
-/* ---------------------------------------------------------------------- */
 
 export function watchView(
   watch: StoredWatch | null,
@@ -772,9 +760,7 @@ export function followUpView(
   };
 }
 
-/* ---------------------------------------------------------------------- */
 /* Who acts                                                                */
-/* ---------------------------------------------------------------------- */
 
 export type FollowUpActor =
   | { kind: "person"; principal: ChatPrincipalId; lead: boolean }
@@ -956,9 +942,7 @@ function assertKeys(body: Record<string, unknown>, allowed: Set<string>) {
 const CLIENT_ID =
   /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
-/* ---------------------------------------------------------------------- */
 /* Notifications and alerts                                                */
-/* ---------------------------------------------------------------------- */
 
 /** Queues a text-free email job per recipient (delivery rechecks access at
  * send time) and never to a registered bot or the actor. */
@@ -1014,9 +998,7 @@ async function alertFollowUp(
 /** Current members of a follow-up's group, read from routing settings. */
 export type GroupMembers = (group: string) => Promise<ChatPrincipalId[]>;
 
-/* ---------------------------------------------------------------------- */
 /* Create                                                                   */
-/* ---------------------------------------------------------------------- */
 
 export type CreateInput = Record<string, unknown>;
 export type CreateOptions = {
@@ -1308,9 +1290,7 @@ export async function createFollowUp(
   return { followUp: f, created: true };
 }
 
-/* ---------------------------------------------------------------------- */
 /* Change                                                                   */
-/* ---------------------------------------------------------------------- */
 
 export type ChangeOptions = CreateOptions & {
   /** Validates and stores a watch (support-watches.ts), person only. */
@@ -1707,9 +1687,7 @@ export async function changeFollowUp(
   return f;
 }
 
-/* ---------------------------------------------------------------------- */
 /* Closing by a watch                                                       */
-/* ---------------------------------------------------------------------- */
 
 /** A watch whose condition held while its follow-up still waited on
  * earlier steps: it checks no more, and closes the follow-up once nothing
@@ -1804,9 +1782,7 @@ export async function closeMetWatches(
   return last;
 }
 
-/* ---------------------------------------------------------------------- */
 /* Request lifecycle                                                        */
-/* ---------------------------------------------------------------------- */
 
 /** The team can't resolve a request while any follow-up of the thread is
  * open or blocked. */
@@ -1953,9 +1929,7 @@ export async function discardUnreadableFollowUp(
   });
 }
 
-/* ---------------------------------------------------------------------- */
 /* Deletion                                                                 */
-/* ---------------------------------------------------------------------- */
 
 async function deleteOne(
   storage: Storage,
@@ -2095,9 +2069,7 @@ export async function deleteThreadFollowUps(
   return deleted;
 }
 
-/* ---------------------------------------------------------------------- */
 /* Alarm consumer                                                           */
-/* ---------------------------------------------------------------------- */
 
 const DUE_KEY = /^support-follow-up-due-v1:([0-9]{16}):(tc-[0-9a-f]{32}):(.+)$/;
 export type FollowUpAlarmEnv = AlertEnv & {

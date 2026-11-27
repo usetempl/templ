@@ -348,9 +348,7 @@ export async function positionRoute(
   return json({ position: result }, 202);
 }
 
-/* ---------------------------------------------------------------------- */
 /* Reads in the room alarm                                                  */
-/* ---------------------------------------------------------------------- */
 
 export type PositionReaders = {
   evm: typeof readEvmPosition;

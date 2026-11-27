@@ -163,7 +163,6 @@ async function createDigest(kind: IncidentKind, note: string | null) {
   return sha256Hex(JSON.stringify({ kind, note }));
 }
 
-// ---------------------------------------------------------------------------
 // Durable Object side (`COST_METRICS` instance `ops-incidents-v1`)
 
 type IncidentStorage = Pick<
@@ -519,7 +518,6 @@ async function incidentsInstanceRoute(
   throw new HttpError(404, "Not found.");
 }
 
-// ---------------------------------------------------------------------------
 // Worker side
 
 export type IncidentsEnv = OperatorAdminEnv & {

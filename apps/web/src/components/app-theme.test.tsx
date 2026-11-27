@@ -15,7 +15,6 @@ function open(path: string) {
   history.replaceState(null, "", path);
   route.pathname = location.pathname;
 }
-/** A full page load: a new document, the layout's first-paint script, then the app. */
 function load(path: string, page: ReactElement) {
   cleanup();
   delete html.dataset.appearance;
@@ -64,7 +63,6 @@ simulate(
     expect(html.dataset.theme).toBe("dark");
     expect(load(elsewhere, <AppTheme />).painted).toBe("dark");
 
-    // The page switch saves each choice.
     expect(load(create, onboarding).painted).toBe("light");
     expect(control().getAttribute("aria-pressed")).toBe("false");
     fireEvent.click(control());
@@ -72,7 +70,6 @@ simulate(
     expect(saved()).toBe("dark");
     expect(control().getAttribute("aria-pressed")).toBe("true");
 
-    // The saved dark choice outlives a reload, in onboarding too.
     expect(load(create, onboarding).painted).toBe("dark");
     expect(html.dataset.theme).toBe("dark");
     expect(html.dataset.appearance).toBe("dark");
@@ -83,7 +80,6 @@ simulate(
     expect(saved()).toBe("light");
     expect(control().getAttribute("aria-pressed")).toBe("false");
 
-    // A saved light choice now overrides the dark system on the other pages.
     expect(load(elsewhere, <AppTheme />).painted).toBe("light");
     expect(html.dataset.appearance).toBe("light");
   },

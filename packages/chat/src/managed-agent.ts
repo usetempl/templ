@@ -138,9 +138,7 @@ export type ManagedAgentView = {
 export const MANAGED_JOB_KINDS = ["ask-ai", "member-message", "handoff-learning", "golden"] as const;
 export type ManagedJobKind = (typeof MANAGED_JOB_KINDS)[number];
 
-/* ---------------------------------------------------------------------- */
 /* The model's answer                                                      */
-/* ---------------------------------------------------------------------- */
 
 export const MANAGED_ANSWER_ACTIONS = ["reply", "resolve", "clarify", "handoff"] as const;
 export type ManagedAnswerAction = (typeof MANAGED_ANSWER_ACTIONS)[number];

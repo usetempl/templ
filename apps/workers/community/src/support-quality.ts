@@ -101,9 +101,7 @@ const queueKey = (sampledAt: number, thread: string, seq: number) =>
 const QUEUE_KEY =
   /^support-review-queue-v1:([0-9]{16}):(tc-[0-9a-f]{32}):([0-9]{8})$/;
 
-/* ---------------------------------------------------------------------- */
 /* Who is asking                                                           */
-/* ---------------------------------------------------------------------- */
 
 export type QualityViewer = {
   principal: ChatPrincipalId;
@@ -143,9 +141,7 @@ export const leadOnly = () =>
     "lead-only",
   );
 
-/* ---------------------------------------------------------------------- */
 /* The quality record                                                      */
-/* ---------------------------------------------------------------------- */
 
 type StoredLabel = {
   message: number;
@@ -328,9 +324,7 @@ export async function deleteCaseQuality(
   return deleted;
 }
 
-/* ---------------------------------------------------------------------- */
 /* Settings                                                                */
-/* ---------------------------------------------------------------------- */
 
 export async function qualitySettings(
   storage: Pick<Storage, "get">,
@@ -373,9 +367,7 @@ export async function checkedSettingsBody(
   return settings;
 }
 
-/* ---------------------------------------------------------------------- */
 /* Labels                                                                  */
-/* ---------------------------------------------------------------------- */
 
 /** The request a team reply belongs to: the newest case opened before it.
  * A reply after a close and before the next request belongs to the closed
@@ -514,9 +506,7 @@ export async function labelReply(
   return qualityView(read, q);
 }
 
-/* ---------------------------------------------------------------------- */
 /* Sampling                                                                */
-/* ---------------------------------------------------------------------- */
 
 type Trigger =
   | { trigger: "close" }
@@ -699,9 +689,7 @@ export async function reconcileSampling(
   return sampled;
 }
 
-/* ---------------------------------------------------------------------- */
 /* Reviews                                                                 */
-/* ---------------------------------------------------------------------- */
 
 export async function reviewAction(
   storage: Storage,
@@ -902,9 +890,7 @@ export async function pruneQualityCounters(storage: Storage, now: number) {
   }
 }
 
-/* ---------------------------------------------------------------------- */
 /* Category at resolve                                                     */
-/* ---------------------------------------------------------------------- */
 
 /** Records when a person or the AI agent set the category of the current
  * request, on that request's quality record (deleted with the case).
@@ -978,9 +964,7 @@ export async function requireCategoryBeforeResolve(
   );
 }
 
-/* ---------------------------------------------------------------------- */
 /* Trends                                                                  */
-/* ---------------------------------------------------------------------- */
 
 const READ_BATCH = 128;
 async function batchGet<T>(storage: Pick<Storage, "get">, keys: string[]) {
@@ -1111,9 +1095,7 @@ export async function supportTrends(
   return trends;
 }
 
-/* ---------------------------------------------------------------------- */
 /* Knowledge-gap list                                                      */
-/* ---------------------------------------------------------------------- */
 
 type StoredGaps = SupportKnowledgeGaps & {
   states: Record<string, { state: GapState; updatedOn: string | null }>;

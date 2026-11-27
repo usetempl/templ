@@ -47,9 +47,7 @@ const expired = () =>
     "alert-grant-expired",
   );
 
-/* ---------------------------------------------------------------------- */
 /* Room side: `/private/support/alerts/<op>`, reached only from the worker. */
-/* ---------------------------------------------------------------------- */
 
 type Room = { storage: DurableObjectStorage };
 type Grant = { principal: ChatPrincipalId; expiresAt: number };
@@ -144,9 +142,7 @@ export async function memberAlertsPrivateRoute(state: Room, request: Request, en
   }
 }
 
-/* ---------------------------------------------------------------------- */
 /* Worker edge: `/alerts/member/*` from the app origin, `/alerts/unsubscribe`. */
-/* ---------------------------------------------------------------------- */
 
 type MemberAlertEnv = Env & Partial<EmailEnv>;
 async function memberAlertEnvFor(env: MemberAlertEnv, workspace: string) {

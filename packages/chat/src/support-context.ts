@@ -108,9 +108,7 @@ export function parseAppContextInput(
   }
 }
 
-/* ---------------------------------------------------------------------- */
 /* A member removes one shared detail (CONTEXT-MEMBER-REMOVAL)             */
-/* ---------------------------------------------------------------------- */
 
 /** One shared detail: the note, the network, one transaction by hash, or
  * one typed field. */

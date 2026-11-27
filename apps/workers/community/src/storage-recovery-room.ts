@@ -105,7 +105,6 @@ export async function restoreStartupLock(
   )
     await storage.put(RECOVERY_LOCK_KEY, { ...lock, at: Date.now() });
 }
-// ---------------------------------------------------------------------------
 // The lock
 
 /** Refuses every room request except the recovery routes while a restore is
@@ -141,7 +140,6 @@ export async function recoveryAlarmHold(
   return true;
 }
 
-// ---------------------------------------------------------------------------
 // Access snapshot and reconcile
 
 export type RecoverySnapshot = {
@@ -604,7 +602,6 @@ export async function recoveryRedeleteAlarm(
   });
 }
 
-// ---------------------------------------------------------------------------
 // Routes
 
 /** The room's `/private/recovery/*` routes. */

@@ -94,9 +94,7 @@ const factsOnly = (diagnosis: Diagnosis): DiagnosisFacts => ({
   staff: { ...diagnosis.staff, nextSteps: [] },
 });
 
-/* ---------------------------------------------------------------------- */
 /* Keys and records                                                        */
-/* ---------------------------------------------------------------------- */
 
 export const DIAGNOSIS_RECORD_PREFIX = "support-diagnosis-v1:";
 export const DIAGNOSIS_LEASE_PREFIX = "support-diagnosis-run-v1:";
@@ -280,9 +278,7 @@ async function listThreadRecords(
   );
 }
 
-/* ---------------------------------------------------------------------- */
 /* Reads for other features                                                */
-/* ---------------------------------------------------------------------- */
 
 /** A thread's stored diagnoses, newest first, as facts without next steps.
  * Callers check the reader's current access first. */
@@ -339,9 +335,7 @@ export async function citableDiagnoses(
     }));
 }
 
-/* ---------------------------------------------------------------------- */
 /* Deletion                                                                */
-/* ---------------------------------------------------------------------- */
 
 /** A case's stored checks (the case ledger's prune). */
 export async function deleteCaseDiagnoses(
@@ -421,9 +415,7 @@ export async function sweepOrphanDiagnoses(
   return done ? now + DAY_MS : now + 1_000;
 }
 
-/* ---------------------------------------------------------------------- */
 /* Views                                                                   */
-/* ---------------------------------------------------------------------- */
 
 function explorerFor(diagnosis: Diagnosis): string | null {
   if (!diagnosis.network) return null;
@@ -520,9 +512,7 @@ export function diagnosisView(
   };
 }
 
-/* ---------------------------------------------------------------------- */
 /* Counters, quotas and the headroom guard                                 */
-/* ---------------------------------------------------------------------- */
 
 async function roomCounters(
   storage: Storage,
@@ -599,9 +589,7 @@ export async function assertDiagnosisHeadroom(storage: Storage, now: number) {
   }
 }
 
-/* ---------------------------------------------------------------------- */
 /* Planning                                                                */
-/* ---------------------------------------------------------------------- */
 
 export type DiagnosisThreadFacts = {
   member?: string;
@@ -971,9 +959,7 @@ export async function planDiagnosis(input: PlanInput): Promise<PlanOutcome> {
   return { kind: "plan", plan, lease };
 }
 
-/* ---------------------------------------------------------------------- */
 /* Commit                                                                  */
-/* ---------------------------------------------------------------------- */
 
 export type CommitBody = {
   lease: string;
@@ -1273,9 +1259,7 @@ export async function abortDiagnosis(
   } satisfies ThreadCounters);
 }
 
-/* ---------------------------------------------------------------------- */
 /* Rating and the list                                                     */
-/* ---------------------------------------------------------------------- */
 
 /** "Was this check right?" People only. */
 export async function rateDiagnosis(
@@ -1421,9 +1405,7 @@ export async function diagnosisList(
   };
 }
 
-/* ---------------------------------------------------------------------- */
 /* Request parsing                                                         */
-/* ---------------------------------------------------------------------- */
 
 /** The subject of a run request: `{hash, network?}` or `{link}`. */
 export function parseRunSubject(value: unknown): {
@@ -1498,9 +1480,7 @@ export function enabledFromHeader(value: string | null): DiagnosisNetwork[] {
   return out.slice(0, 16);
 }
 
-/* ---------------------------------------------------------------------- */
 /* Automatic runs                                                          */
-/* ---------------------------------------------------------------------- */
 
 export type DiagnosisJob = {
   v: 1;

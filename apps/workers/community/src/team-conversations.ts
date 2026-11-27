@@ -507,9 +507,7 @@ const notFound = () => new HttpError(404, CONVERSATION_NOT_FOUND_ERROR);
 const natural = (value: unknown): value is number =>
   Number.isSafeInteger(value) && (value as number) >= 0;
 
-/* ---------------------------------------------------------------------- */
 /* Authority                                                               */
-/* ---------------------------------------------------------------------- */
 
 /** Who is on the team right now, from server-verified authority only. A
  * display name, a bot registration, a token role or unrelated moderation
@@ -698,9 +696,7 @@ export async function conversationScope(
   return ids;
 }
 
-/* ---------------------------------------------------------------------- */
 /* Views                                                                   */
-/* ---------------------------------------------------------------------- */
 
 function postBlockedReason(
   record: TeamConversationRecord,
@@ -901,9 +897,7 @@ function conversationRoomLimits(product: RoomProduct) {
   };
 }
 
-/* ---------------------------------------------------------------------- */
 /* Quotas and caps                                                         */
-/* ---------------------------------------------------------------------- */
 
 /** Rolling 24-hour counter kept as bounded timestamps. */
 async function consumeRolling(
@@ -962,9 +956,7 @@ export async function accountQuotaRequest(
   return json({ ok: true, used: Object.keys(live).length, limit });
 }
 
-/* ---------------------------------------------------------------------- */
 /* Opening and reopening                                                   */
-/* ---------------------------------------------------------------------- */
 
 async function emit(
   context: ConversationContext,
@@ -1145,9 +1137,7 @@ async function openFor(
   return { record, opened: true, created: true };
 }
 
-/* ---------------------------------------------------------------------- */
 /* Widget guests                                                           */
-/* ---------------------------------------------------------------------- */
 
 /** A widget member without a wallet proof. Set only by the worker. */
 function widgetGuest(headers: Headers) {
@@ -1459,9 +1449,7 @@ export async function verifyWidgetMember(
   return { moved: false, conversation: thread.id, linked: other.id };
 }
 
-/* ---------------------------------------------------------------------- */
 /* Messages                                                                */
-/* ---------------------------------------------------------------------- */
 
 function replyTextHash(text: string, replyIntent: unknown) {
   if (replyIntent === undefined) return messageTextHash(text);
@@ -1989,9 +1977,7 @@ async function postMessage(
   return { message: rendered, record: next, ...assisted };
 }
 
-/* ---------------------------------------------------------------------- */
 /* Routes                                                                  */
-/* ---------------------------------------------------------------------- */
 
 /** The encrypted relay shares native access, admission, case counts and
  * retention. No ChatMessage with pretend/empty text is ever constructed. */
@@ -2319,8 +2305,7 @@ async function memberReopen(
   support.state = "open";
   support.reopened++;
   support.reopenedAt = context.now;
-  // "Did this solve it? No": the reopen alert and the escalation wait
-  //.
+  // "Did this solve it? No": the reopen alert and the escalation wait.
   await applyCaseEventWithAlerts(storage, context, record, support, {
     kind: "status",
     at: context.now,
@@ -3365,8 +3350,7 @@ async function conversationRoomRoute(
         revision: record.revision + 1,
       };
       await save(storage, record);
-      // A new wait starts when the request is still unanswered
-      //.
+      // A new wait starts when the request is still unanswered.
       await applyCaseEventWithAlerts(
         storage,
         context,
@@ -4068,8 +4052,7 @@ async function conversationRoomRoute(
     support.state = resolved ? "resolved" : "open";
     if (resolved && !(await isStaffPreview(storage, context, next)) && record.member !== context.canary)
       await markWorkspaceStep(storage, "first_resolution", now);
-    // A reopen alerts the team and starts the escalation wait
-    //.
+    // A reopen alerts the team and starts the escalation wait.
     await applyCaseEventWithAlerts(storage, context, next, support, {
       kind: "status",
       at: now,
@@ -4125,8 +4108,7 @@ async function conversationRoomRoute(
       revision: record.revision + 1,
     };
     await save(storage, next);
-    // Taking back a stop starts a new wait when the request is unanswered
-    //.
+    // Taking back a stop starts a new wait when the request is unanswered.
     await applyCaseEventWithAlerts(
       storage,
       context,
@@ -4175,9 +4157,7 @@ async function readPage(
 }
 export type { ChatEvent };
 
-/* ---------------------------------------------------------------------- */
 /* Worker side                                                             */
-/* ---------------------------------------------------------------------- */
 
 export type ConversationEnv = {
   ROOMS: DurableObjectNamespace;

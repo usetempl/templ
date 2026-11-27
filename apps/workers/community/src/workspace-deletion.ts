@@ -260,7 +260,6 @@ export function refuseClosedWorkspace(
   );
 }
 
-// ---------------------------------------------------------------------------
 // Room object: `/private/workspace-deletion` (the worker is the only caller)
 
 async function bumpPermissions(storage: Storage) {
@@ -468,7 +467,6 @@ export async function workspaceDeletionRoomRequest(
   });
 }
 
-// ---------------------------------------------------------------------------
 // Outside objects
 
 type DeletionEnv = Env &
@@ -613,7 +611,6 @@ async function purgeKnowledge(env: DeletionEnv, workspace: string) {
   return (await response.json<{ done?: unknown }>()).done === true;
 }
 
-// ---------------------------------------------------------------------------
 // Catalog (`native-room-catalog:v1`)
 
 type Tombstone = {
@@ -766,7 +763,6 @@ export async function deletionCatalogRequest(
   return null;
 }
 
-// ---------------------------------------------------------------------------
 // The deletion job (room alarm consumer `workspace-deletion`)
 
 /** Applies `patch` to the stored state (read again, so a count a batch
@@ -1248,7 +1244,6 @@ async function outsideStep(
   return true;
 }
 
-// ---------------------------------------------------------------------------
 // Worker routes
 
 type Session = ServiceSession & {

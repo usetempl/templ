@@ -2294,8 +2294,7 @@ export async function supportThreadRoute(
             conversationRevision: record.revision,
           });
         }
-        // A team reopen alerts the team and starts the escalation wait
-        //.
+        // A team reopen alerts the team and starts the escalation wait.
         await applyCaseEventWithAlerts(storage, context, record, data, {
           kind: "status",
           at: context.now,

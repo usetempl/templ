@@ -150,9 +150,7 @@ export async function live(
   const guestTag = () => (read(local, keys.guest) ?? "").slice(56);
   const familyTag = (entry: Entry) => entry.c.slice(24, 32);
 
-  /* ---------------------------------------------------------------- */
   /* This tab's session                                                */
-  /* ---------------------------------------------------------------- */
   function cache() {
     const session = current();
     const entry = member();
@@ -320,9 +318,7 @@ export async function live(
       client.adopt({ ...session, chainId: wallet.chainId });
   }
 
-  /* ---------------------------------------------------------------- */
   /* Renewal of a remembered session                                   */
-  /* ---------------------------------------------------------------- */
   let renewal: ReturnType<typeof setTimeout> | undefined;
   function planRenewal() {
     clearTimeout(renewal);
@@ -338,9 +334,7 @@ export async function live(
     );
   }
 
-  /* ---------------------------------------------------------------- */
   /* Waiting on the team                                               */
-  /* ---------------------------------------------------------------- */
   let pageSeen = false;
   /** Each page the widget reads says whether the visitor waits: their own
    * message is the newest one and under a day old, or a person was asked. */
@@ -575,9 +569,7 @@ export async function live(
       }
   };
 
-  /* ---------------------------------------------------------------- */
   /* The member socket                                                  */
-  /* ---------------------------------------------------------------- */
   let socket: WebSocket | undefined,
     connecting = false,
     off = false,
@@ -751,9 +743,7 @@ export async function live(
     else void connect();
   });
 
-  /* ---------------------------------------------------------------- */
   /* Sessions                                                           */
-  /* ---------------------------------------------------------------- */
   let token = current()?.token;
   client.onSessionChange(() => {
     const session = current();

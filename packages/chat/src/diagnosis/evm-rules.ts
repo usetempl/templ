@@ -569,7 +569,6 @@ export function evmStatus(
   return { status, finality, foundIndex: index, via: null };
 }
 
-/** Evaluates every EVM rule. */
 export function evaluateEvm(
   input: EvmDiagnosisInput,
   book: EvidenceBook,

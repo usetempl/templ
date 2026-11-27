@@ -123,9 +123,7 @@ export async function diagnosisWorkerRoute(
   return strip(committed);
 }
 
-/* ---------------------------------------------------------------------- */
 /* Automatic runs in the room alarm                                        */
-/* ---------------------------------------------------------------------- */
 
 type JobPlan = {
   plan: DiagnosisRunPlan;

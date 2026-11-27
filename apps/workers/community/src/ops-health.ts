@@ -626,7 +626,6 @@ export async function pruneOpsHealth(
   return (await storage.list({ prefix: "ops-", limit: 1 })).size > 0;
 }
 
-// ---------------------------------------------------------------------------
 // Worker side: `/health/support` and `/operator/health`.
 
 export type HealthDeps = {

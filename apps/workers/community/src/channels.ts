@@ -921,8 +921,7 @@ export class ChannelRoom {
           clientId: write.clientId,
           nowMs,
         });
-        // The first refusal of a reason in a UTC day alerts the team
-        //.
+        // The first refusal of a reason in a UTC day alerts the team.
         if (counted.first)
           await emitRefusalAlert(
             local,

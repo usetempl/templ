@@ -218,9 +218,6 @@ importers:
       '@templ/e2ee':
         specifier: workspace:*
         version: link:../../../packages/e2ee
-      buffer:
-        specifier: 6.0.3
-        version: 6.0.3
       tldts:
         specifier: 7.0.19
         version: 7.0.19

@@ -48,7 +48,6 @@ export function builtinInstructionReason(
   return "other";
 }
 
-/** Transaction-level errors. */
 export function transactionErrorReason(name: string): FailureReason {
   if (name === "InsufficientFundsForFee") return "fee-balance";
   if (name === "InsufficientFundsForRent") return "rent";

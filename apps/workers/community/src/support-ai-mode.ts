@@ -109,9 +109,7 @@ const isAiModeCause = (value: unknown): value is SupportAiModeCause =>
   (SUPPORT_AI_MODE_CAUSES as readonly unknown[]).includes(value);
 const iso = (value: number) => new Date(value).toISOString();
 
-/* ---------------------------------------------------------------------- */
 /* Errors                                                                  */
-/* ---------------------------------------------------------------------- */
 
 /** A registered bot tried a member-facing write in a drafts-only request. */
 export function aiDraftsOnlyError(): HttpError {
@@ -157,9 +155,7 @@ export function aiModeLimitError(): HttpError {
   );
 }
 
-/* ---------------------------------------------------------------------- */
 /* Stored values and inputs                                                */
-/* ---------------------------------------------------------------------- */
 
 /** The stricter of two modes: answers < drafts < off. */
 export function stricterAiMode(
@@ -245,9 +241,7 @@ export function parseAiModeBody(body: unknown): {
   return { mode: body.mode, takeOver: body.takeOver === true };
 }
 
-/* ---------------------------------------------------------------------- */
 /* Rules                                                                   */
-/* ---------------------------------------------------------------------- */
 
 /** The mode for the thread's current case. A control set in an earlier case
  * no longer applies. When the ledger can't say which case is current (not

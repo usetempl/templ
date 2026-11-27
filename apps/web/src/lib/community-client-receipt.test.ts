@@ -12,7 +12,6 @@ simulate(
     const replies: Response[] = [];
     vi.stubGlobal("fetch", async () => replies.shift()!);
 
-    // Several accepted questions wait at once. Each answer arrives later, in pieces.
     const sends = Array.from({ length: draw.int(2, 4) }, (_, index) => {
       const failed = index === 1 || (index > 1 && draw.chance(0.3));
       const body = failed
@@ -95,7 +94,6 @@ simulate(
       expect(received).not.toHaveBeenCalled();
     }
 
-    // An ordinary answer needs no announcement.
     const received = vi.fn();
     replies.push(Response.json({ remaining: 3 }));
     expect(

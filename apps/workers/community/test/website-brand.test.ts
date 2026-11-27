@@ -75,7 +75,6 @@ simulate(
         random.pick(["", "#setup"]);
       const site = `https://${name}${path || "/"}`;
       expect(websiteUrl(padded(random, typed)), typed).toBe(site);
-      // A normalized page is already in its saved form.
       expect(websiteUrl(site)).toBe(site);
 
       const cdn = host(random);

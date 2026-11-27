@@ -129,9 +129,7 @@ const bumpRevision = (db: KnowledgeDb) =>
 const profileLimit = () =>
   new KnowledgeError(409, "profile-limit", "The profile holds up to 10,000 contracts.");
 
-/* ---------------------------------------------------------------------- */
 /* Settings                                                                */
-/* ---------------------------------------------------------------------- */
 
 type RegistrySettings = {
   url: string;
@@ -236,9 +234,7 @@ function checkDocHost(db: KnowledgeDb, entry: ProfileContractInput) {
     throw new KnowledgeError(422, "profile-url", "Use an https link on one of your official sites.");
 }
 
-/* ---------------------------------------------------------------------- */
 /* Entries                                                                 */
-/* ---------------------------------------------------------------------- */
 
 export function listProfile(
   db: KnowledgeDb,
@@ -492,9 +488,7 @@ export function profileSlice(
   };
 }
 
-/* ---------------------------------------------------------------------- */
 /* Imports                                                                 */
-/* ---------------------------------------------------------------------- */
 
 const IMPORT_ID = /^imp-[0-9a-f]{16}$/;
 export function startImport(db: KnowledgeDb, now: number) {
@@ -739,9 +733,7 @@ export function applyImport(
   };
 }
 
-/* ---------------------------------------------------------------------- */
 /* Registry                                                                */
-/* ---------------------------------------------------------------------- */
 
 export const REGISTRY_PAUSE_SHARE = 0.2;
 /** Applies a registry file's rows. Registry rows only touch registry
@@ -863,9 +855,7 @@ export function registryRows(
   return file.contracts;
 }
 
-/* ---------------------------------------------------------------------- */
 /* ABIs and metrics                                                        */
-/* ---------------------------------------------------------------------- */
 
 const ABI_ENTRY_MAX_CHARS = 4_096;
 const sortKeys = (value: unknown): unknown =>

@@ -95,9 +95,7 @@ async function digest(value: unknown): Promise<string> {
     .join("");
 }
 
-/* ---------------------------------------------------------------------- */
 /* Reads                                                                   */
-/* ---------------------------------------------------------------------- */
 
 /** The case frame, or null when none was saved or it fails its checks
  * (logged with a fixed label and no content). */
@@ -180,9 +178,7 @@ export async function caseEvidenceSummary(
   };
 }
 
-/* ---------------------------------------------------------------------- */
 /* Writes                                                                  */
-/* ---------------------------------------------------------------------- */
 
 /** Every free-text field of a frame change goes through the phrase check. */
 async function screenFrame(set: Partial<SupportFrameValues>) {
@@ -466,9 +462,7 @@ export async function withdrawCaseEvidence(
   return rows.find((entry) => entry.n === n) ?? row;
 }
 
-/* ---------------------------------------------------------------------- */
 /* Deletion                                                                */
-/* ---------------------------------------------------------------------- */
 
 /** Deletes up to `budget` keys of case `seq`: its frame, evidence rows,
  * counter and the retry markers that point at it. Returns the keys

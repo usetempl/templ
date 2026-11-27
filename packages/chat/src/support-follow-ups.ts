@@ -96,7 +96,6 @@ export const FOLLOW_UP_LIMITS = {
   /** A watch that has not closed after this many days blocks its follow-up
    * and tells the owner. */
   watchMaxDays: 30,
-  /** Queue pages. */
   queuePage: 50,
   queuePageMax: 100,
 } as const;
@@ -241,9 +240,7 @@ export function currentFollowUp<
   return ready ?? active[0];
 }
 
-/* ---------------------------------------------------------------------- */
 /* Calendar days in the workspace's time zone                               */
-/* ---------------------------------------------------------------------- */
 
 export const FOLLOW_UP_DAY = /^(\d{4})-(\d{2})-(\d{2})$/;
 const DAY_MS = 86_400_000;
@@ -380,9 +377,7 @@ export function followUpMemberText(
   return `Waiting on the team: ${label}.`;
 }
 
-/* ---------------------------------------------------------------------- */
 /* Chain-state watches                                                      */
-/* ---------------------------------------------------------------------- */
 
 /** What a watch waits for under the selected transaction-check read policy.
  * EVM: a settled transaction or a block number reached. Solana: a finalized
@@ -480,9 +475,7 @@ export function parseFollowUpWatch(
   return null;
 }
 
-/* ---------------------------------------------------------------------- */
 /* Views                                                                    */
-/* ---------------------------------------------------------------------- */
 
 /** The member line on a conversation. Members, the team and specialists get
  * the same object. It carries no owner, title, note, link or due date. */

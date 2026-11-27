@@ -242,9 +242,7 @@ export async function endFamily(env: Env, hash: string) {
   await answer.body?.cancel();
 }
 
-/* ---------------------------------------------------------------------- */
 /* Shard side                                                              */
-/* ---------------------------------------------------------------------- */
 
 type ShardStorage = Pick<DurableObjectTransaction, "get" | "put" | "delete">;
 const isFamily = (value: unknown): value is RememberedFamily => {

@@ -83,9 +83,7 @@ function listMeta(db: KnowledgeDb, prefix: string, limit: number) {
 const deleteMeta = (db: KnowledgeDb, key: string) =>
   db.sql.exec("DELETE FROM meta WHERE key = ?", key);
 
-/* ---------------------------------------------------------------------- */
 /* Jobs                                                                    */
-/* ---------------------------------------------------------------------- */
 
 const isGolden = (row: { value: string }) => {
   try {
@@ -163,9 +161,7 @@ export function nextJobDue(db: KnowledgeDb): number | null {
   }
 }
 
-/* ---------------------------------------------------------------------- */
 /* This workspace's spend                                                  */
-/* ---------------------------------------------------------------------- */
 
 export type SpendRecord = {
   spentCents: number;
@@ -369,9 +365,7 @@ export async function templSpendRequest(
   });
 }
 
-/* ---------------------------------------------------------------------- */
 /* The golden set                                                          */
-/* ---------------------------------------------------------------------- */
 
 export type GoldenLast = { run: GoldenRun; gate: GoldenGate };
 export type GoldenEval = { key: string; case: EvalCase };
@@ -438,7 +432,6 @@ export const setGoldenPartial = (db: KnowledgeDb, value: unknown) =>
   writeMeta(db, GOLDEN_PARTIAL, JSON.stringify(value));
 export const clearGoldenPartial = (db: KnowledgeDb) =>
   deleteMeta(db, GOLDEN_PARTIAL);
-/** Whether a golden job waits in the queue. */
 export const goldenJobQueued = (db: KnowledgeDb) =>
   listMeta(db, JOB, 1_000).some(isGolden);
 
