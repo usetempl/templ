@@ -43,7 +43,7 @@ button,input,textarea{font:inherit;color:inherit;accent-color:var(--a)}button{cu
 .composer{display:flex;align-items:center;gap:8px;padding:6px;overflow:hidden;border:1px solid var(--b2);border-radius:var(--rc);background:var(--s)}.composer:focus-within,.panel .sign-step[data-state=current]{border-color:var(--af)}\
 .composer textarea{flex:1;min-width:0;min-height:44px;max-height:148px;padding:10px 0;border:0;outline:0;background:none;resize:none;overscroll-behavior:none}.composer textarea::placeholder{color:var(--f)}\
 .send{display:flex;flex:none;align-items:center;gap:6px;height:44px;min-width:44px;justify-content:center;padding:0 10px;border-radius:var(--rc);font-weight:680}.send[aria-busy=true]{opacity:1;cursor:progress}.send[aria-busy=true] svg{animation:blink 1.2s infinite}\
-.tools{display:flex;align-items:center;gap:0;flex:none}.tools .quiet{display:grid;place-items:center;flex:none;width:44px;height:44px;padding:0;font-size:0}.tools svg{width:18px;height:18px}.tools .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}\
+.tools{display:flex;align-items:center;gap:0;flex:none}.tools .quiet{display:grid;place-items:center;flex:none;width:44px;height:44px;padding:0;font-size:0}.tools svg{width:18px;height:18px}.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}\
 .spacer{flex:1}.quiet{padding:5px 8px;border-radius:var(--rc);color:var(--m);font-size:14px;font-weight:600}\
 .attach{margin-top:8px}.attach input{width:100%;height:38px;padding:0 11px;border:1px solid var(--b2);border-radius:var(--rc);outline:0;background:var(--bg)}\
 .safety{margin:0 0 12px;color:var(--m);font-size:12px}\

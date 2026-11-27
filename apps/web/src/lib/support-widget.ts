@@ -1545,6 +1545,7 @@ const loadBranding = (): Promise<typeof import("./support-widget-art")> =>
     : import("./support-widget-art");
 
 export type TailHost = {
+  renderChatControls?: typeof import("./support-widget-welcome").welcome.firstOpen;
   transcript?: ReturnType<typeof followTranscript>;
   lifetime?: AbortSignal;
   options: SupportWidgetOptions;
@@ -1648,7 +1649,7 @@ export type TailHost = {
 };
 /** The typing dots and the lines under the newest message. */
 const TAIL_STYLE =
-  ".dots{display:flex;gap:4px;padding:6px 0 3px}.dots i{width:6px;height:6px;border-radius:9px;background:var(--m);animation:blink 1.2s infinite}.dots i:nth-child(2){animation-delay:.2s}.dots i:nth-child(3){animation-delay:.4s}.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}.nudge{padding:10px 12px;border:1px solid var(--b);border-radius:var(--rb,14px);background:var(--s)}@media(prefers-reduced-motion:reduce){.dots i{animation:none}}";
+  ".dots{display:flex;gap:4px;padding:6px 0 3px}.dots i{width:6px;height:6px;border-radius:9px;background:var(--m);animation:blink 1.2s infinite}.dots i:nth-child(2){animation-delay:.2s}.dots i:nth-child(3){animation-delay:.4s}.nudge{padding:10px 12px;border:1px solid var(--b);border-radius:var(--rb,14px);background:var(--s)}@media(prefers-reduced-motion:reduce){.dots i{animation:none}}";
 function typingLine(el: TailHost["el"], part: string): [string, unknown[], (node: HTMLElement) => void] {
   // The same key and signature keep the animation running when the first send gets its thread ID.
   return ["~" + part, [], (node) => {
@@ -1733,6 +1734,8 @@ const loadWelcome = (): Promise<typeof import("./support-widget-welcome")> =>
   typeof __TEMPL_WIDGET_WELCOME__ === "string"
     ? chunk(__TEMPL_WIDGET_WELCOME__)
     : import("./support-widget-welcome");
+const withWelcome = <TResult>(action: (module: typeof import("./support-widget-welcome").welcome) => TResult) =>
+  loadWelcome().then(({ welcome }) => action(welcome), () => {});
 /** Everything the widget loads on first use besides the context card. */
 export const extras = {
   bindEmail(host: TailHost) {
@@ -1750,7 +1753,7 @@ export const extras = {
     button.disabled = !enabled || !thread || busy;
     button.title = !enabled ? "Email notices unavailable" : !thread ? "Send a message first." : "Get email notices";
   },
-  ready: () => loadWelcome().then(({ welcome }) => welcome.ready(), () => {}),
+  ready: () => withWelcome(welcome => welcome.ready()),
   async guest(host: TailHost) {
     if (
       (host.options.guestLink ?? location.hash ?? "").startsWith(
@@ -1759,25 +1762,11 @@ export const extras = {
     )
       await (await loadGuest()).guest.resume(host);
   },
-  starter(
-    ...args: Parameters<
-      typeof import("./support-widget-welcome").welcome.starter
-    >
-  ) {
-    void loadWelcome().then(
-      ({ welcome }) => welcome.starter(...args),
-      () => {},
-    );
+  starter(...args: Parameters<typeof import("./support-widget-welcome").welcome.starter>) {
+    void withWelcome(welcome => welcome.starter(...args));
   },
-  questions(
-    ...args: Parameters<
-      typeof import("./support-widget-welcome").welcome.questions
-    >
-  ) {
-    void loadWelcome().then(
-      ({ welcome }) => welcome.questions(...args),
-      () => {},
-    );
+  questions(...args: Parameters<typeof import("./support-widget-welcome").welcome.questions>) {
+    void withWelcome(welcome => welcome.questions(...args));
   },
   firstOpen(
     ...args: Parameters<
@@ -1785,32 +1774,16 @@ export const extras = {
     >
   ) {
     const [host, tools] = args;
+    if (host.renderChatControls) return host.renderChatControls(...args);
     if (host.options.chatFirst && !host.policy && !tools.closest<HTMLElement>(".panel")?.hidden)
       void conversationModules().catch(() => {});
-    void loadWelcome().then(
-      ({ welcome }) => { if (!host.lifetime?.aborted) welcome.firstOpen(...args); },
-      () => {},
-    );
+    void withWelcome(welcome => { if (!host.lifetime?.aborted) welcome.firstOpen(...args); });
   },
-  welcome(
-    ...args: Parameters<
-      typeof import("./support-widget-welcome").welcome.welcome
-    >
-  ) {
-    void loadWelcome().then(
-      ({ welcome }) => welcome.welcome(...args),
-      () => {},
-    );
+  welcome(...args: Parameters<typeof import("./support-widget-welcome").welcome.welcome>) {
+    void withWelcome(welcome => welcome.welcome(...args));
   },
-  identity(
-    ...args: Parameters<
-      typeof import("./support-widget-welcome").welcome.identity
-    >
-  ) {
-    void loadWelcome().then(
-      ({ welcome }) => welcome.identity(...args),
-      () => {},
-    );
+  identity(...args: Parameters<typeof import("./support-widget-welcome").welcome.identity>) {
+    void withWelcome(welcome => welcome.identity(...args));
   },
   fullPage(style: HTMLStyleElement) {
     style.textContent +=
@@ -1845,7 +1818,8 @@ export const extras = {
     }
     const last = thread ? messages.at(-1) : undefined;
     const expected = ((thread ? info?.aiReplyExpected : undefined) ?? host.policy?.aiReplyExpected) === true;
-    const typingDuringSend = pending === "sending" && expected && !host.options.replyAfterReceipt;
+    const afterReceipt = host.options.replyAfterReceipt;
+    const typingDuringSend = pending === "sending" && expected && !afterReceipt;
     if (!last) return typingDuringSend ? [typingLine(el, "typing agent")] : [];
     const id = Number(last.id),
       mine = own(last.author),
@@ -1878,7 +1852,10 @@ export const extras = {
     if (!resolved && !held && typing !== "team" && !info?.encryption && info?.aiReplyExpected !== false && (
       pending !== undefined ? typingDuringSend :
       mine && (typing === "agent" || (expected && (fresh || host.replyWaits?.has(thread!) || age < 300_000)))
-    )) parts.push("typing agent");
+    )) {
+      if (!afterReceipt || !last.clientId || host.renderChatControls)
+        parts.push("typing agent");
+    }
     else if (!resolved && fresh && !pending && !held && !info?.diagnosisRunning)
       parts.push("received");
     else if (!resolved && !pending) {

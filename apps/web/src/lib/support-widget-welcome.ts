@@ -26,13 +26,11 @@ export const welcome = {
     strong.textContent = title ?? "How can we help?";
     node.prepend(
       strong,
-      document.createTextNode(
-        title
+      title
           ? typeof intro?.text === "string"
             ? intro.text.trim().slice(0, 200)
             : ""
           : "Ask a question or describe an issue.",
-      ),
     );
   },
   questions(
@@ -130,6 +128,11 @@ export const welcome = {
         }, () => {conversationFailed = true;});
       void conversationLoad.then(() => host.render()); return;
     }
+    if (conversation && host.options.replyAfterReceipt && !host.renderChatControls) {
+      host.renderChatControls = welcome.firstOpen;
+      host.render();
+      return;
+    }
     if (conversation?.chatFirstControls(host, parent, peopleView, handedOff, busy, conversationStyle, conversations)) {
       if (host.options.decorateOwnMenu && host.options.container) {
         const update = decoratedMenus.get(host) ?? host.options.decorateOwnMenu(host, parent);
@@ -138,14 +141,14 @@ export const welcome = {
       } else if (host.options.conversationDrawers) prepareDrawer?.(host, parent);
       return;
     }
-    const welcome = host.welcome;
+    const welcomeBlock = host.welcome;
     const contacts = peopleView.workspaceContacts(host);
-    let people = welcome.querySelector<HTMLElement>(".support-contacts");
+    let people = welcomeBlock.querySelector<HTMLElement>(".support-contacts");
     if (contacts) {
       if (!people) {
         people = host.el("section", undefined, "support-contacts");
         people.append(host.el("h3", "Team"), host.el("div"));
-        welcome.append(people);
+        welcomeBlock.append(people);
         peopleView.refreshContacts(host);
         host.style.textContent += ".support-contacts{font-size:13px}.support-contacts h3{font-size:inherit}.support-contacts>div>div{display:flex;align-items:center;gap:8px;padding:5px}.support-contacts i{display:grid;place-items:center;width:30px;height:30px}.support-contacts img{width:100%;height:100%;border-radius:50%;object-fit:cover}.support-contacts small{display:block;color:var(--m)}";
       }
@@ -161,16 +164,11 @@ export const welcome = {
       const label = button.textContent ?? "";
       button.setAttribute("aria-label", label);
       if (button !== host.emailButton) button.title = label;
-      const mark = host.icon(i === 1 ? "wallet" : "chat");
-      if (i !== 1)
-        mark
-          .querySelector("path")!
-          .setAttribute(
-            "d",
-            i === 0
-              ? "M8 7a4 4 0 1 0 8 0a4 4 0 1 0-8 0M4 21v-2a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v2"
-              : "M4 5h16v14H4zM4 5l8 7 8-7",
-          );
+      const mark = i === 1
+        ? host.icon("wallet")
+        : host.icon("chat", i === 0
+          ? "M8 7a4 4 0 1 0 8 0a4 4 0 1 0-8 0M4 21v-2a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v2"
+          : "M4 5h16v14H4zM4 5l8 7 8-7");
       button.replaceChildren(mark, host.el("span", label, "sr"));
     }
   },
@@ -211,7 +209,7 @@ export const welcome = {
         const tick = el("span", undefined, "tick");
         tick.append(host.icon("chat", "M5 12l5 5 9-10"));
         const text = el("div");
-        text.append(document.createTextNode(strong), el("span", rest));
+        text.append(strong, el("span", rest));
         item.append(tick, text);
         trust.append(item);
       }
