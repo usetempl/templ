@@ -10,6 +10,8 @@ This example shows what the team receives when a visitor chooses to include app 
 
 [How a message reaches the team, how retries work, and where AI joins](docs/support-delivery.md)
 
+Run the chat simulations locally with `pnpm test:simulation`. If one fails, rerun it with the seed in the error message.
+
 ## Give visitors a way to reach you
 
 | Choose | Set it up |

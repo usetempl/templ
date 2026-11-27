@@ -1,4 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { expect } from "vitest";
+import type { ChatEvent } from "./events";
+import { simulate } from "./simulation.test.helpers";
 import {
   isLoopbackOrigin,
   WIDGET_REMEMBER_CREDENTIAL,
@@ -6,52 +8,43 @@ import {
   WIDGET_REMEMBER_STATEMENT,
   WIDGET_SIGN_IN_STATEMENT,
 } from "./widget-wallet";
-import type { ChatEvent } from "./events";
 
-describe("remembered widget sign-in", () => {
-  it("extends today's statement word for word with the 30-day line", () => {
+const HEX = "0123456789abcdef";
+
+simulate(
+  "a remembered sign-in extends today's statement and reads only a family id and a secret",
+  (random) => {
     expect(WIDGET_REMEMBER_DAYS).toBe(30);
-    expect(WIDGET_REMEMBER_STATEMENT.startsWith(`${WIDGET_SIGN_IN_STATEMENT} `)).toBe(true);
+    expect(
+      WIDGET_REMEMBER_STATEMENT.startsWith(`${WIDGET_SIGN_IN_STATEMENT} `),
+    ).toBe(true);
     expect(WIDGET_REMEMBER_STATEMENT).toContain(
       "You'll stay signed in on this site for 30 days, or until you sign out.",
     );
     expect(WIDGET_REMEMBER_STATEMENT).not.toMatch(/\n/);
-  });
-  it("reads a key as a family id and a secret", () => {
-    expect(WIDGET_REMEMBER_CREDENTIAL.test(`${"a".repeat(32)}.${"b".repeat(64)}`)).toBe(true);
-    for (const value of [
-      `${"a".repeat(31)}.${"b".repeat(64)}`,
-      `${"A".repeat(32)}.${"b".repeat(64)}`,
-      `${"a".repeat(32)}${"b".repeat(64)}`,
-    ])
-      expect(WIDGET_REMEMBER_CREDENTIAL.test(value), value).toBe(false);
-  });
-});
 
-describe("development origins", () => {
-  it("names only localhost, 127.0.0.1 and [::1], exactly", () => {
-    for (const value of [
-      "http://localhost:5173",
-      "http://localhost",
-      "https://localhost:3000",
-      "http://127.0.0.1:8080",
-      "http://[::1]:3000",
-    ])
-      expect(isLoopbackOrigin(value), value).toBe(true);
-    for (const value of [
-      "http://localhost.evil.example",
-      "http://localhost:5173/",
-      "http://app.example",
-      "http://127.0.0.2",
-      "ftp://localhost",
-      null,
-    ])
-      expect(isLoopbackOrigin(value), String(value)).toBe(false);
-  });
-});
+    for (let key = 0; key < 20; key++) {
+      const family = random.text(HEX, 32);
+      const secret = random.text(HEX, 64);
+      const credential = `${family}.${secret}`;
+      expect(WIDGET_REMEMBER_CREDENTIAL.test(credential), credential).toBe(
+        true,
+      );
+      const at = random.int(0, credential.length - 1);
+      for (const damaged of [
+        credential.slice(0, at) + credential.slice(at + 1),
+        credential.slice(0, at) + random.pick([...HEX]) + credential.slice(at),
+        credential.slice(0, at) +
+          random.pick([..."ABCDEFg -_"]) +
+          credential.slice(at + 1),
+        `${family}${secret}`,
+        `${secret}.${family}`,
+        ` ${credential}`,
+        `${credential}\n`,
+      ])
+        expect(WIDGET_REMEMBER_CREDENTIAL.test(damaged), damaged).toBe(false);
+    }
 
-describe("team-only events", () => {
-  it("accepts only the team audience", () => {
     const event: ChatEvent = {
       id: "1",
       type: "conversation.updated",
@@ -62,5 +55,31 @@ describe("team-only events", () => {
     // @ts-expect-error Only "team" names an audience.
     const wrong: ChatEvent = { ...event, audience: "member" };
     expect(wrong).toBeTruthy();
-  });
-});
+  },
+);
+
+simulate(
+  "only localhost, 127.0.0.1 and [::1] name a development origin, exactly",
+  (random) => {
+    for (let project = 0; project < 20; project++) {
+      const scheme = random.pick(["http", "https"]);
+      const host = random.pick(["localhost", "127.0.0.1", "[::1]"]);
+      const port = random.chance(0.3) ? "" : `:${random.int(1_024, 65_535)}`;
+      const origin = `${scheme}://${host}${port}`;
+      expect(isLoopbackOrigin(origin), origin).toBe(true);
+      for (const other of [
+        `${scheme}://${host}.evil.example${port}`,
+        `${scheme}://evil.example.${host}${port}`,
+        `${scheme}://user@${host}${port}`,
+        `${scheme}://${random.pick(["127.0.0.2", "0.0.0.0", "[::2]", "app.example"])}${port}`,
+        `${random.pick(["ftp", "ws", "file"])}://${host}${port}`,
+        `${origin}${random.pick(["/", "/widget", "?next=1", "#top"])}`,
+        origin.toUpperCase(),
+        ` ${origin}`,
+      ])
+        expect(isLoopbackOrigin(other), other).toBe(false);
+    }
+    for (const value of [null, undefined, 5_173, ["http://localhost"]])
+      expect(isLoopbackOrigin(value), String(value)).toBe(false);
+  },
+);

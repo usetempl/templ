@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { simulate } from "@templ/chat/simulation.test.helpers";
 import type { ReactNode } from "react";
 import { beforeEach, expect, it, vi } from "vitest";
 import { ChatSignInCanceledError } from "@/lib/chat-auth-cancellation";
@@ -42,7 +43,6 @@ vi.mock("next/link", () => ({
     <a href={href}>{children}</a>
   ),
 }));
-// The page decides what the chat shows and what a send may do. The widget has its own tests.
 vi.mock("./website-practice-chat", () => ({
   WebsitePracticeChat: (props: ChatProps) => (
     <div
@@ -105,49 +105,38 @@ beforeEach(() => {
   vi.resetAllMocks();
 });
 
-it("previews a bare domain and replaces an earlier preview that holds another website", async () => {
-  const starts: Body[] = [];
+simulate("a visitor retries a failed scan and replaces a preview if its site differs", async draw => {
+  const input = draw.pick(["garden.tools", "http://garden.tools", "https://garden.tools"]);
+  let failures = draw.int(1, 2);
+  const attempts = failures;
+  const conflict = draw.chance(0.5);
+  const expected: Body[] = [];
   api({
     read: () => null,
-    start: (body) => {
-      starts.push(body);
-      if (!body.restart)
-        throw new CommunityApiError(
-          "Start a new preview to change websites.",
-          409,
-        );
+    start: body => {
+      if (failures-- > 0) throw new SyntaxError("Unexpected token '<'");
+      if (conflict && !body.restart)
+        throw new CommunityApiError("Start a new preview to change websites.", 409);
       return garden({ confirmed: false });
     },
   });
   render(<WebsiteOnboarding nextPlan={false} />);
-  enterWebsite("garden.tools");
+  for (let failure = 0; failure < attempts; failure++) {
+    enterWebsite(input);
+    expected.push({site: input, restart: false});
+    expect((await screen.findByRole("alert")).textContent).toBe("Templ could not be reached. Try again.");
+    expect(website().value).toBe(input);
+    await waitFor(() => expect(document.activeElement).toBe(website()));
+  }
+  enterWebsite(input);
+  expected.push({site: input, restart: false});
+  if (conflict) expected.push({site: input, restart: true});
   expect(await screen.findByText("25 of 25 free questions left")).toBeTruthy();
-  expect(starts).toEqual([
-    { site: "garden.tools", restart: false },
-    { site: "garden.tools", restart: true },
-  ]);
+  expect(calls("start")).toEqual(expected);
   expect(screen.queryByRole("alert")).toBeNull();
   expect(chat().name).toBe("Garden");
   await waitFor(() => expect(chat().canSend).toBe("true"));
-  expect(screen.getByTestId("suggestion").textContent).toBe(
-    "How do I export my journal?",
-  );
-});
-
-it("returns to the website field with a plain line when the scan response cannot be read", async () => {
-  api({
-    read: () => null,
-    start: () => {
-      throw new SyntaxError("Unexpected token '<'");
-    },
-  });
-  render(<WebsiteOnboarding nextPlan={false} />);
-  enterWebsite("garden.tools");
-  expect((await screen.findByRole("alert")).textContent).toBe(
-    "Templ could not be reached. Try again.",
-  );
-  expect(website().value).toBe("garden.tools");
-  await waitFor(() => expect(document.activeElement).toBe(website()));
+  expect(screen.getByTestId("suggestion").textContent).toBe("How do I export my journal?");
 });
 
 it("answers a question without applying unfinished appearance edits, then shows why the next one failed", async () => {

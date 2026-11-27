@@ -1,19 +1,36 @@
-import { fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import type { ReactElement } from "react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, beforeEach, expect, vi } from "vitest";
 import { APP_THEME_KEY, APP_THEME_SCRIPT } from "@/lib/app-theme";
+import { simulate } from "@templ/chat/simulation.test.helpers";
 
 const route = vi.hoisted(() => ({ pathname: "" }));
 vi.mock("next/navigation", () => ({ usePathname: () => route.pathname }));
-import { AppTheme, AppThemeSwitch } from "./app-theme";
+import { AppTheme, AppThemeSwitch } from "@/components/app-theme";
 
 const html = document.documentElement;
-// The layout runs this script before the page first paints.
-const firstPaint = () => new Function(APP_THEME_SCRIPT)();
+const control = () => screen.getByRole("button", { name: "Dark mode" });
+const saved = () => localStorage.getItem(APP_THEME_KEY);
 function open(path: string) {
   history.replaceState(null, "", path);
   route.pathname = location.pathname;
 }
-const control = () => screen.getByRole("button", { name: "Dark mode" });
+/** A full page load: a new document, the layout's first-paint script, then the app. */
+function load(path: string, page: ReactElement) {
+  cleanup();
+  delete html.dataset.appearance;
+  delete html.dataset.theme;
+  open(path);
+  new Function(APP_THEME_SCRIPT)();
+  const painted = html.dataset.theme;
+  return { painted, view: render(page) };
+}
+const onboarding = (
+  <>
+    <AppTheme />
+    <AppThemeSwitch />
+  </>
+);
 
 beforeEach(() => {
   // The visitor's system is dark and no choice is saved.
@@ -22,7 +39,6 @@ beforeEach(() => {
     addEventListener() {},
     removeEventListener() {},
   }));
-  open("/create?manual=1");
 });
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -32,46 +48,43 @@ afterEach(() => {
   history.replaceState(null, "", "/");
 });
 
-it("starts onboarding light on a dark system and keeps the system theme on other pages", () => {
-  firstPaint();
-  expect(html.dataset.theme).toBe("light");
-  const view = render(<AppTheme />);
-  expect(html.dataset.theme).toBe("light");
-  expect(html.dataset.appearance).toBe("system");
+simulate(
+  "sim:browser a dark-system visitor starts onboarding light, chooses a theme and keeps it across pages and reloads",
+  (draw) => {
+    const create = draw.pick(["/create", "/create?manual=1"]);
+    const elsewhere = draw.pick(["/inbox", "/billing", "/settings/account"]);
 
-  open("/inbox");
-  view.rerender(<AppTheme />);
-  expect(html.dataset.theme).toBe("dark");
-  delete html.dataset.theme;
-  firstPaint();
-  expect(html.dataset.theme).toBe("dark");
-});
+    // Onboarding starts light, and the system theme applies everywhere else.
+    const first = load(create, <AppTheme />);
+    expect(first.painted).toBe("light");
+    expect(html.dataset.theme).toBe("light");
+    expect(html.dataset.appearance).toBe("system");
+    open(elsewhere);
+    first.view.rerender(<AppTheme />);
+    expect(html.dataset.theme).toBe("dark");
+    expect(load(elsewhere, <AppTheme />).painted).toBe("dark");
 
-it("keeps a saved dark choice in onboarding", () => {
-  localStorage.setItem(APP_THEME_KEY, "dark");
-  firstPaint();
-  render(
-    <>
-      <AppTheme />
-      <AppThemeSwitch />
-    </>,
-  );
-  expect(html.dataset.theme).toBe("dark");
-  expect(control().getAttribute("aria-pressed")).toBe("true");
-});
+    // The page switch saves each choice.
+    expect(load(create, onboarding).painted).toBe("light");
+    expect(control().getAttribute("aria-pressed")).toBe("false");
+    fireEvent.click(control());
+    expect(html.dataset.theme).toBe("dark");
+    expect(saved()).toBe("dark");
+    expect(control().getAttribute("aria-pressed")).toBe("true");
 
-it("saves the theme chosen with the page switch", () => {
-  firstPaint();
-  render(<AppThemeSwitch />);
-  expect(control().getAttribute("aria-pressed")).toBe("false");
+    // The saved dark choice outlives a reload, in onboarding too.
+    expect(load(create, onboarding).painted).toBe("dark");
+    expect(html.dataset.theme).toBe("dark");
+    expect(html.dataset.appearance).toBe("dark");
+    expect(control().getAttribute("aria-pressed")).toBe("true");
 
-  fireEvent.click(control());
-  expect(html.dataset.theme).toBe("dark");
-  expect(localStorage.getItem(APP_THEME_KEY)).toBe("dark");
-  expect(control().getAttribute("aria-pressed")).toBe("true");
+    fireEvent.click(control());
+    expect(html.dataset.theme).toBe("light");
+    expect(saved()).toBe("light");
+    expect(control().getAttribute("aria-pressed")).toBe("false");
 
-  fireEvent.click(control());
-  expect(html.dataset.theme).toBe("light");
-  expect(localStorage.getItem(APP_THEME_KEY)).toBe("light");
-  expect(control().getAttribute("aria-pressed")).toBe("false");
-});
+    // A saved light choice now overrides the dark system on the other pages.
+    expect(load(elsewhere, <AppTheme />).painted).toBe("light");
+    expect(html.dataset.appearance).toBe("light");
+  },
+);

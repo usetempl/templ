@@ -1,38 +1,40 @@
+import { simulate } from "@templ/chat/simulation.test.helpers";
 import {afterEach, expect, it, vi} from "vitest";
 import {readOwnRecoveredRecord} from "../client/recover-read";
 afterEach(() => vi.useRealTimers());
 const unavailable = () => Object.assign(new Error("Unavailable"), {status: 503});
-it("returns a successful authorized read without retry", async () => {
-  const read = vi.fn(async () => ({encrypted: "same envelope"}));
-  await expect(readOwnRecoveredRecord(read, {signal: new AbortController().signal, active: () => true})).resolves.toEqual({encrypted: "same envelope"});
-  expect(read).toHaveBeenCalledTimes(1);
-});
-it("repeats only the supplied read after503 and returns only the fresh successful result", async () => {
-  vi.useFakeTimers();
-  const read = vi.fn().mockRejectedValueOnce(unavailable()).mockRejectedValueOnce(unavailable()).mockResolvedValueOnce({encrypted: "fresh envelope"});
-  const result = readOwnRecoveredRecord(read, {signal: new AbortController().signal, active: () => true});
-  await vi.advanceTimersByTimeAsync(250); expect(read).toHaveBeenCalledTimes(2);
-  await vi.advanceTimersByTimeAsync(500);
-  await expect(result).resolves.toEqual({encrypted: "fresh envelope"}); expect(read).toHaveBeenCalledTimes(3);
+simulate("independent reads wait for their own retry and return only their final result", async (draw) => {
+  vi.useFakeTimers({now: 0});
+  const later = draw.pick([401, 403, 429, 500]);
+  const plans = draw.shuffle([[200], [503, 200], [503, 503, 200], [503, 503, 503], [503, later]]);
+  const pending = plans.map((plan, index) => {
+    const times: number[] = [];
+    const envelopes = plan.map((status, step) => ({encrypted: `envelope-${index}-${step}`, status}));
+    const errors = plan.map(status => Object.assign(new Error("Unavailable"), {status}));
+    const read = async () => {
+      const step = times.length;
+      times.push(Date.now());
+      if (plan[step] !== 200) throw errors[step];
+      return envelopes[step];
+    };
+    const result = readOwnRecoveredRecord(read, {signal: new AbortController().signal, active: () => true});
+    const last = plan.length - 1;
+    const checked = plan[last] === 200
+      ? expect(result).resolves.toBe(envelopes[last])
+      : expect(result).rejects.toBe(errors[last]);
+    return {times, plan, checked};
+  });
+  for (const at of [249, 250, 749, 750]) {
+    await vi.advanceTimersByTimeAsync(at - Date.now());
+    for (const {times, plan} of pending)
+      expect(times).toEqual([0, 250, 750].slice(0, plan.length).filter(t => t <= at));
+  }
+  await Promise.all(pending.map(p => p.checked));
 });
 it.each([400,401,403,404,409,429,500,502,504])("does not retry a %i refusal", async status => {
   const error = Object.assign(new Error("Refused"), {status}), read = vi.fn(async () => {throw error;});
   await expect(readOwnRecoveredRecord(read, {signal: new AbortController().signal, active: () => true})).rejects.toBe(error);
   expect(read).toHaveBeenCalledTimes(1);
-});
-it("exhausts503 including wrapped revocation without returning old data", async () => {
-  vi.useFakeTimers();
-  const error = unavailable(), read = vi.fn(async () => {throw error;});
-  const result = readOwnRecoveredRecord(read, {signal: new AbortController().signal, active: () => true});
-  const refused = expect(result).rejects.toBe(error);
-  await vi.advanceTimersByTimeAsync(750); await refused; expect(read).toHaveBeenCalledTimes(3);
-});
-it("stops on a403 following an interrupted read", async () => {
-  vi.useFakeTimers();
-  const error = Object.assign(new Error("Revoked"), {status: 403});
-  const read = vi.fn().mockRejectedValueOnce(unavailable()).mockRejectedValueOnce(error);
-  const refused = expect(readOwnRecoveredRecord(read, {signal: new AbortController().signal, active: () => true})).rejects.toBe(error);
-  await vi.advanceTimersByTimeAsync(250); await refused; expect(read).toHaveBeenCalledTimes(2);
 });
 it("does not start on a closed page", async () => {
   const controller = new AbortController(); controller.abort(); const read = vi.fn();
