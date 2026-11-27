@@ -1,7 +1,7 @@
 "use client";
 
-import { sharedWalletAddresses } from "../lib/case-wallet-addresses";
 import { CustomerEncryptedSupport } from "./customer-encrypted-support";
+import { sharedWalletAddresses } from "@templ/chat/widget-wallet";
 import { threadIdentityLabel } from "@templ/chat/support-identity-label";
 import { InboxCaseRow } from "./inbox-case-row";
 import { useReplyDraft } from "./use-reply-draft";

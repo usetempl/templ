@@ -102,8 +102,7 @@ export default async function TermsPage() {
           {PRODUCT_STARTER_PRICES.includedAnsweredCasesPerMonth} answered cases.
           Each extra answered case costs{" "}
           {formatUsdCents(PRODUCT_STARTER_PRICES.additionalAnsweredCaseUsdCents)}.
-          Templ AI is optional and billed separately from prepaid credit.
-          Your workspace sets a monthly limit for Templ AI.
+          New orders include {formatUsdCents(PRODUCT_STARTER_PRICES.includedAiCreditUsdCents)} in Templ AI credit each month. Your workspace sets a monthly limit for extra AI use from its prepaid balance.
         </p>
         <p>
           Plus costs{" "}
@@ -126,9 +125,10 @@ export default async function TermsPage() {
           your team or an AI.
         </p>
         <p>
-          Templ AI usage uses a separate meter at GPT-6.1 Sol&apos;s Standard
-          API rates plus {PRODUCT_STANDARD_PRICES.aiRateBasisPoints / 100 - 100}
-          %. The monthly AI credit applies to this retail usage price. Rates
+          New prepaid orders meter Templ AI separately at GPT-6.1 Terra&apos;s
+          Standard API rates plus {PRODUCT_STANDARD_PRICES.aiRateBasisPoints / 100 - 100}
+          %. Each paid period keeps the model rates and markup in its payment terms.
+          Monthly AI credit covers this usage first. Rates
           distinguish input, cached input, cache writes, output and long-context
           requests. Reasoning tokens count within output, once. Legitimate
           answers, checks, follow-ups and Telegram team drafts use AI credit.

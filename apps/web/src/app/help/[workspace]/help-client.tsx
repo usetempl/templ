@@ -77,7 +77,10 @@ export function HostedSupportChat({
         apiUrl: SITE.community,
         container: container.current,
         wallet,
-        walletForNetwork: family => signInNetworks.includes(family) ? supportPageWallet(family) : null,
+        walletForNetwork: family => (cryptoDesk && !frameRequired) || signInNetworks.includes(family) ? supportPageWallet(family) : null,
+        ...(cryptoDesk && !frameRequired ? {
+          verifyBitcoin: async host => (await import("@/lib/support-page-bitcoin")).verifyBitcoin(host),
+        } : {}),
         accountWalletRequired: setAccountWalletRequired,
         styleNonce: nonce,
         appearanceChanged: (saved) => setAccent(saved.accent),

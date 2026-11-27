@@ -71,14 +71,36 @@ function topicTerms(question: string) {
 
 // These first-party pages explain visitor terminology that does not appear in
 // their titles. A guide is eligible only while its own index still lists it.
-const supportGuides: Record<string, [RegExp, string][]> = {
-  "bitcoin.org": [[/\b(?:confirmations?|unconfirmed)\b/i, "/en/faq"]],
-  "aave.com": [[/\b(?:health factor|liquidat(?:ion|ions|ed))\b/i, "/help/borrowing/liquidations"]],
+const supportGuides: Record<string, [RegExp, string, RegExp][]> = {
+  "bitcoin.org": [
+    [
+      /\b(?:confirmations?|unconfirmed)\b/i,
+      "/en/faq",
+      /\b(?:confirmac(?:ao|oes|ion|iones)|(?:nao|no) confirmad[ao]s?|sin confirmar)\b/,
+    ],
+  ],
+  "aave.com": [
+    [
+      /\b(?:health factor|liquidat(?:ion|ions|ed))\b/i,
+      "/help/borrowing/liquidations",
+      /\bfac?tor de sa(?:ude|lud)\b/,
+    ],
+  ],
   "docs.optimism.io": [
-    [/\b(?:transaction fees?|execution (?:fee|gas)|l1 data fee|operator fee|gas price)\b/i, "/op-stack/transactions/fees"],
-    [/\bwithdrawals?\b/i, "/op-stack/bridging/withdrawal-flow"],
+    [
+      /\b(?:transaction fees?|execution (?:fee|gas)|l1 data fee|operator fee|gas price)\b/i,
+      "/op-stack/transactions/fees",
+      /\b(?:taxas?|tarifas?|tasas?|comiss(?:ao|oes)|comision(?:es)?) (?:(?:de|da|do|del|la|uma|una|minha|mi|tem|tiene|parte|dados|datos) )*(?:l1|transac(?:ao|oes|cion|ciones))\b|^(?=.*\b(?:taxas?|tarifas?|tasas?|custos?|costos?)\b)(?=.*\b(?:execucao|ejecucion)\b)(?=.*\b(?:dados|datos)\b)/,
+    ],
+    [
+      /\bwithdrawals?\b/i,
+      "/op-stack/bridging/withdrawal-flow",
+      /^(?=.*\b(?:saques?|retiradas?|retiros?)\b).*\b(?:prov(?:ar|a|o|e|ei|ou|ad[ao])|prob(?:ar\w*|e|o|ad[ao])|prueb[ao]|finali[zc]\w*)\b/,
+    ],
   ],
 };
+const builders =
+  /\b(?:op stack|operador(?:a|es|as)?|se(?:qu|cu)enciador(?:es)?|desenvolvedor(?:a|es|as)?|desarrollador(?:a|es|as)?|(?:minha|mi|nossa|nuestra) (?:propria |propia )?(?:chain|cadeia|cadena|rede|red|l2))\b/;
 
 export function selectResearchPage(
   directory: string,
@@ -90,11 +112,22 @@ export function selectResearchPage(
   // must match two.
   const needed = terms.length > 2 ? 2 : 1;
   const base = new URL(directory);
+  const plain = question
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .toLowerCase()
+    .replace(/\s+/g, " ");
   // Third-party routes and Lightning have their own settlement rules. The
   // native-chain guide is insufficient evidence for those cases.
-  const guides = /\b(?:lightning|fast bridge|third[- ]party bridge)\b/i.test(question)
-    ? []
-    : (supportGuides[base.host] ?? []).filter(([topic]) => topic.test(question));
+  const guides =
+    /\b(?:lightning|fast bridge|third[- ]party bridge)\b/i.test(question) ||
+    /\b(?:(?:ponte|puente|bridge) (?:rapid[ao]|de tercei?r[ao]s)|(?:saques?|retiros?|retiradas?) rapid[ao]s?)\b/.test(plain)
+      ? []
+      : (supportGuides[base.host] ?? []).filter(
+          ([topic, , translated]) =>
+            topic.test(question) ||
+            (!builders.test(plain) && translated.test(plain)),
+        );
   const guide = guides.length === 1 ? guides[0][1] : undefined;
   let best: string | undefined,
     bestScore = 0,

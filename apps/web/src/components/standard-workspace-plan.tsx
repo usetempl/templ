@@ -5,7 +5,7 @@ import { useState, type FormEvent } from "react";
 import { formatStandardAiRate } from "@templ/chat/standard-usage";
 
 import type { StandardPlanView } from "@templ/chat/standard-plan";
-import { PRODUCT_STARTER_PRICES, PRODUCT_STANDARD_PRICES, PRODUCT_STANDARD_AI_RATES, PRODUCT_LIMITS, PRODUCT_TOP_UP } from "@templ/chat/plans";
+import { PRODUCT_STARTER_PRICES, PRODUCT_STANDARD_PRICES, PRODUCT_TERRA_AI_RATES, PRODUCT_LIMITS, PRODUCT_TOP_UP } from "@templ/chat/plans";
 import { starterPricesForVersion } from "@templ/chat/standard-plan";
 import { useChatAuth } from "@/lib/chat-auth";
 import { normalizeChatRoomId } from "@/lib/chat-room-id";
@@ -239,7 +239,7 @@ export function StandardWorkspacePlan({
               </p>
               <p className={styles.note}>
                 {agreedBilling ? "Your billing agreement sets AI charges." : (
-                  <>New orders bill AI usage at {prepaidAiRateText(startingPrice, "aiRateCardVersion" in startingPrice ? startingPrice.aiRateCardVersion : PRODUCT_STANDARD_AI_RATES.version)}. The included credit covers usage first.</>
+                  <>New orders bill AI usage at {prepaidAiRateText(startingPrice, PRODUCT_TERRA_AI_RATES.version)}. The included credit covers usage first.</>
                 )}
               </p>
             </div>

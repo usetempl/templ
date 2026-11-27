@@ -1,4 +1,4 @@
-import { TERRA_SUPPORT_MODEL, LEGACY_SUPPORT_MODEL, type SupportModel, CRYPTO_SUPPORT_WORKSPACE, CRYPTO_SUPPORT_MODEL, CRYPTO_REPLY_LIMIT } from "@templ/chat/support-models";
+import { DEFAULT_SUPPORT_MODEL, LEGACY_SUPPORT_MODEL, type SupportModel, CRYPTO_SUPPORT_WORKSPACE, CRYPTO_SUPPORT_MODEL, CRYPTO_REPLY_LIMIT } from "@templ/chat/support-models";
 import { researchCryptoDocs } from "../crypto-research";
 import {
   CRYPTO_CLARIFY_REPLY,
@@ -214,7 +214,7 @@ export type JobOutcome =
 
 function roomSupportModel(state: RoomState, room: string): SupportModel {
   if (state.sponsoredResearch && room === "room:" + CRYPTO_SUPPORT_WORKSPACE) return CRYPTO_SUPPORT_MODEL;
-  return state.prepaidModel === TERRA_SUPPORT_MODEL ? TERRA_SUPPORT_MODEL : LEGACY_SUPPORT_MODEL;
+  return state.prepaidModel === DEFAULT_SUPPORT_MODEL ? DEFAULT_SUPPORT_MODEL : LEGACY_SUPPORT_MODEL;
 }
 
 function prepaidRunnerDeps(deps: RunnerDeps, client: RoomClient, state: RoomState): RunnerDeps | null {
@@ -224,7 +224,7 @@ function prepaidRunnerDeps(deps: RunnerDeps, client: RoomClient, state: RoomStat
 }
 
 type RoomState = {
-  prepaidModel?: typeof TERRA_SUPPORT_MODEL | typeof LEGACY_SUPPORT_MODEL;
+  prepaidModel?: typeof DEFAULT_SUPPORT_MODEL | typeof LEGACY_SUPPORT_MODEL;
   sponsoredResearch?: boolean;
   prepaid?: boolean;
   readinessPolicy?: "grounded_v1" | "golden_v1";
@@ -767,23 +767,29 @@ async function runGroundedAnswer(input: {
   writeAs: "reply" | "suggestion" | "ask-ai";
   toPerson(reason: ManagedHandoffReason, decline: string): Promise<JobOutcome>;
   storeSummary(): Promise<boolean>;
-  /** Whether a sent partial answer may also page a person. */
+  recoverFromFaq?(hits: KnowledgeHitRow[]): Promise<ManagedAnswer | null>;
   pages(): Promise<boolean>;
 }): Promise<JobOutcome> {
   const { deps, client, job, state, answer, context, latest } = input;
   const model = roomSupportModel(state, deps.room);
-  if (state.sponsoredResearch && [...answer.text].length > CRYPTO_REPLY_LIMIT) return input.toPerson("unsure", "unavailable");
   const scopeRefusal = state.sponsoredResearch && isScopeRefusal(answer, true);
   const hits = scopeRefusal ? [] : groundedSources(answer, context);
-  if (
-    !latest ||
-    !state.caseSeq ||
-    !hits ||
-    !answer.text.trim() ||
-    !groundedSafeText(answer.text, hits) ||
-    (await detectStoredSecret(answer.text))
-  )
+  if (!latest || !state.caseSeq || !hits || !answer.text.trim() ||
+      (await detectStoredSecret(answer.text)))
     return input.toPerson(answer.handoffReason ?? "unsure", "unavailable");
+
+  const tryCitedFaq = async (): Promise<JobOutcome> => {
+    const faqs = hits.filter((hit) => hit.kind === "faq");
+    if (input.recoverFromFaq && faqs.length && (answer.action === "reply" || answer.action === "resolve")) {
+      const revised = await input.recoverFromFaq(faqs);
+      if (revised) return runGroundedAnswer({
+        ...input, answer: revised, context: { version: context.version, hits: faqs }, recoverFromFaq: undefined,
+      });
+    }
+    return input.toPerson(answer.handoffReason ?? "unsure", "unavailable");
+  };
+  if ((state.sponsoredResearch && [...answer.text].length > CRYPTO_REPLY_LIMIT) ||
+      !groundedSafeText(answer.text, hits)) return tryCitedFaq();
   if (!scopeRefusal) {
     const verification = await meteredCall(
       deps,
@@ -800,11 +806,8 @@ async function runGroundedAnswer(input: {
       state.sharedHashes,
       "other",
     );
-    if (
-      verification.kind === "stopped" ||
-      !groundedVerifierAccepted(verification, hits, model)
-    )
-      return input.toPerson("unsure", "unavailable");
+    if (verification.kind !== "answer" || verification.model !== model) return input.toPerson("unsure", "unavailable");
+    if (!groundedVerifierAccepted(verification, hits, model)) return tryCitedFaq();
   }
   const highWater = Math.max(0, ...(state.evidence ?? []).map((row) => row.n));
   const built = groundedFigures(answer.text, hits, highWater);
@@ -1415,6 +1418,29 @@ export async function runJob(
       toPerson,
       storeSummary,
       pages,
+      recoverFromFaq: state.sponsoredResearch && deps.room === "room:" + CRYPTO_SUPPORT_WORKSPACE && writeAs === "reply"
+        ? async (faqs) => {
+            if (deps.now() - job.at >= MANAGED_AGENT_LIMITS.handoffDeadlineMs ||
+                !(await pages()) || deps.now() - job.at >= MANAGED_AGENT_LIMITS.handoffDeadlineMs)
+              return null;
+            const response = await meteredCall(callDeps,
+              CRYPTO_GROUNDED_SYSTEM + "\nAnswer the visitor's current question using only the supplied FAQs. Give the first useful read-only check in one or two short sentences in the visitor's language. Preserve conditions. Leave out unrelated precautions. Never claim you inspected a transaction. Keep the case open. If the FAQs cannot answer the question, hand off.",
+              JSON.stringify({ question: memberText, guidance: { ...guidance, text: redactForModel(guidance.text).text }, messages: caseMessages(), passages: faqs }),
+              state.sharedHashes, "answer");
+            if (response.kind !== "answer" || response.model !== CRYPTO_SUPPORT_MODEL ||
+                deps.now() - job.at >= MANAGED_AGENT_LIMITS.handoffDeadlineMs)
+              return null;
+            try {
+              const revised = checkedManagedAnswer(response.value, {
+                sourceIds: new Set(faqs.map((faq) => faq.sourceId)),
+              });
+              return revised.action === "resolve" ? { ...revised, action: "reply" } : revised;
+            } catch (error) {
+              if (error instanceof ManagedAnswerError) return null;
+              throw error;
+            }
+          }
+        : undefined,
     });
   if (answer.action === "handoff")
     return toPerson(answer.handoffReason ?? "unsure", "handoff");

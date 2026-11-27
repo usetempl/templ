@@ -1,6 +1,7 @@
 import { DEFAULT_WALLET_IDENTIFICATION } from "@templ/chat/widget-wallet";
 import { PRODUCT_LIMITS } from "@templ/chat/plans";
 import { validAccent } from "@templ/chat/appearance";
+import { ANSWER_REPORT_LIMITS } from "@templ/chat/support-quality";
 import {
   HttpError,
   json,
@@ -35,6 +36,23 @@ import { activatedReleaseFlag } from "./release-activation";
 const KEY = "private-website-preview";
 const COOKIE = "__Host-templ-preview";
 const DAY = 86_400_000;
+/** The request ID each practice question carries (trial-practice.ts). */
+const REQUEST_ID =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+/** Answer reports, while `previewReportsOn` holds.
+ *
+ * - The row keeps the request ID of each AI answer its visitor was shown: the
+ *   random ID their browser made for that question, which the preview's
+ *   practice count already holds. Handoffs and failures keep nothing.
+ * - A report adds its time and the visitor's optional reason, trimmed, at most
+ *   `reasonChars` and screened like their questions. A repeat changes nothing.
+ *   No question or answer text, account, wallet or IP is kept.
+ * - Only the preview's own cookie reaches this row, so a visitor reports only
+ *   answers their preview gave. No route reads a report back; responses say
+ *   only `reported`. Nothing alerts, opens a case, reaches a model or the
+ *   workspace a claim creates. Reports leave with the row when it expires. */
+type PreviewReport = { at: number; reason: string | null };
+type Answers = Partial<Record<string, PreviewReport | null>>;
 type StoredTrial = {
   previewId: string;
   room: string;
@@ -49,6 +67,8 @@ type StoredTrial = {
   owner?: string;
   visitorWallets?: boolean;
   finished?: boolean;
+  /** Each AI answer shown, null until its visitor reports it. */
+  answers?: Answers;
 };
 type PreviewContent = Omit<StoredTrial, "confirmed" | "owner" | "finished">;
 type Trial = PreviewContent & (
@@ -96,6 +116,129 @@ function checkedBrand(
   if (body.logo && !logo)
     throw new HttpError(400, "Enter a public HTTPS icon URL.");
   return { name, accent, logo };
+}
+
+/** A row's answers, without entries this release would not write. */
+function storedAnswers(row: StoredTrial): Answers {
+  const answers: Answers = {};
+  for (const [id, report] of Object.entries(row.answers ?? {}).slice(
+    0,
+    PRODUCT_LIMITS.freeAiPracticeQuestions,
+  ))
+    if (
+      REQUEST_ID.test(id) &&
+      (report === null ||
+        (Number.isSafeInteger(report?.at) &&
+          (report?.reason === null ||
+            (typeof report?.reason === "string" &&
+              report.reason.length <= ANSWER_REPORT_LIMITS.reasonChars))))
+    )
+      answers[id] = report ? { at: report.at, reason: report.reason } : null;
+  return answers;
+}
+
+/** Keeps the request ID of an AI answer the visitor was shown. A handoff, a
+ * failure or a row that now holds another preview keeps nothing. */
+async function keepAnswer(
+  storage: DurableObjectStorage,
+  previewId: string,
+  requestId: unknown,
+  result: unknown,
+) {
+  const answer = (result as { answer?: unknown } | null)?.answer;
+  if (
+    typeof requestId !== "string" ||
+    !REQUEST_ID.test(requestId) ||
+    typeof answer !== "string" ||
+    !answer
+  )
+    return;
+  const row = await storage.get<StoredTrial>(KEY);
+  if (
+    !row ||
+    row.previewId !== previewId ||
+    !(Date.now() < row.expires) ||
+    !validTrial(row)
+  )
+    return;
+  const answers = storedAnswers(row);
+  if (
+    answers[requestId] !== undefined ||
+    Object.keys(answers).length >= PRODUCT_LIMITS.freeAiPracticeQuestions
+  )
+    return;
+  await storage.put(KEY, {
+    ...row,
+    answers: { ...answers, [requestId]: null },
+  } satisfies StoredTrial);
+}
+
+/** The optional reason: trimmed plain text of at most `reasonChars`, screened
+ * like the visitor's questions. Null when empty. */
+async function reportReason(value: unknown): Promise<string | null> {
+  if (value === undefined || value === null) return null;
+  const reason = typeof value === "string" ? value.trim() : null;
+  if (
+    reason === null ||
+    reason.length > ANSWER_REPORT_LIMITS.reasonChars ||
+    // eslint-disable-next-line no-control-regex
+    /[\u0000-\u0008\u000b-\u001f\u007f]/.test(reason)
+  )
+    throw new HttpError(
+      400,
+      `Use up to ${ANSWER_REPORT_LIMITS.reasonChars} characters of plain text.`,
+      undefined,
+      "report-reason",
+    );
+  if (!reason) return null;
+  await refusePhrase(reason, "sent");
+  return reason;
+}
+
+/** `report {requestId, reason?}` on one AI answer this preview showed. Its
+ * refusals keep their reason for the report dialog. */
+async function reportAnswer(
+  storage: DurableObjectStorage,
+  row: Trial,
+  body: Record<string, unknown>,
+  now: number,
+) {
+  try {
+    if (body.reports !== true) throw new HttpError(404, "Preview not found.");
+    const requestId = body.requestId;
+    if (typeof requestId !== "string" || !REQUEST_ID.test(requestId))
+      throw new HttpError(
+        400,
+        "Choose an answer to report.",
+        undefined,
+        "invalid-answer",
+      );
+    const reason = await reportReason(body.reason);
+    const answers = storedAnswers(row);
+    const held = answers[requestId];
+    if (held === undefined)
+      throw new HttpError(
+        404,
+        "This answer can't be reported.",
+        undefined,
+        "report-unavailable",
+      );
+    if (held === null)
+      await storage.put(KEY, {
+        ...row,
+        answers: { ...answers, [requestId]: { at: now, reason } },
+      } satisfies StoredTrial);
+    return json({ reported: true });
+  } catch (error) {
+    if (!(error instanceof HttpError)) throw error;
+    return json(
+      {
+        error: error.message,
+        ...(error.reason ? { reason: error.reason } : {}),
+      },
+      error.status,
+    );
+  }
 }
 
 const BUDGET_KEY = "preview-admission";
@@ -171,6 +314,8 @@ export async function previewRecord(
     body.previewId !== row.previewId
   )
     throw new HttpError(409, "A different preview is open. Reload this page.");
+  // A report changes nothing a save reads, so it also works during a claim.
+  if (body.op === "report") return reportAnswer(storage, row, body, now);
   if (row.owner && body.op === "read")
     return json({ claiming: true, previewId: row.previewId });
   if (
@@ -242,15 +387,36 @@ export async function previewRecord(
       throw error;
     }
     const args = { question: body.question, requestId: body.requestId };
+    const { previewId } = row;
+    // While reports are on, the row keeps which answers its visitor saw.
+    const keep = async (result: unknown) => {
+      if (body.reports === true)
+        await keepAnswer(storage, previewId, body.requestId, result);
+      return result;
+    };
     if (body.receipt !== true)
-      return json(await managedKnowledgeCall(env, room, "trial.practice", args));
+      return json(
+        await keep(await managedKnowledgeCall(env, room, "trial.practice", args)),
+      );
     const receipt = await managedKnowledgeReceipt(env, room, args);
     if (receipt.headers.get("Content-Type") !== TRIAL_RECEIPT_TYPE || !receipt.body)
-      return receipt;
+      return body.reports === true ? json(await keep(await receipt.json())) : receipt;
     // The record's next step waits for the answer, as it does without a
     // receipt, even after this caller leaves.
     const [delivered, answered] = receipt.body.tee();
-    hold(answered.pipeTo(new WritableStream()).catch(() => {}));
+    const decoder = new TextDecoder();
+    let text = "", size = 0;
+    const sink = body.reports === true ? new WritableStream<Uint8Array>({
+      write(chunk) {
+        size += chunk.byteLength;
+        if (size <= 32_768) text += decoder.decode(chunk, { stream: true });
+        else text = "";
+      },
+      async close() {
+        if (text && size <= 32_768) await keep(JSON.parse(text + decoder.decode()));
+      },
+    }) : new WritableStream();
+    hold(answered.pipeTo(sink).catch(() => {}));
     return new Response(delivered, receipt);
   } else if (body.op === "claim" || body.op === "finish") {
     // Only a claim binds the preview to an account, and only that account's claim
@@ -291,6 +457,7 @@ export async function previewRecord(
     confirmed: !!row.confirmed,
     ...(row.visitorWallets === undefined ? {} : { visitorWallets: row.visitorWallets }),
     remaining,
+    ...(body.reports === true ? { answerReports: true } : {}),
   });
 }
 
@@ -335,6 +502,14 @@ export async function expirePreview(
   return true;
 }
 
+/** A preview belongs to a temporary browser session. Its dedicated switch
+ * never enables reports in a customer workspace. The public preview route
+ * separately verifies its signed practice release on every operation. */
+export function previewReportsOn(env: Env) {
+  return env.SUPPORT_QUALITY_ENABLED === "true" &&
+    env.SUPPORT_PREVIEW_ANSWER_REPORTS_ENABLED === "true";
+}
+
 export async function guestOnboardingRoute(
   request: Request,
   env: Env,
@@ -343,8 +518,16 @@ export async function guestOnboardingRoute(
 ): Promise<Response> {
   const path = new URL(request.url).pathname;
   const op = path.slice("/onboarding/".length);
+  const reports = previewReportsOn(env);
   if (
-    !["read", "start", "confirm", "ask", "claim"].includes(op) ||
+    ![
+      "read",
+      "start",
+      "confirm",
+      "ask",
+      "claim",
+      ...(reports ? ["report"] : []),
+    ].includes(op) ||
     request.method !== "POST"
   )
     throw new HttpError(404, "Preview not found.");
@@ -477,7 +660,13 @@ export async function guestOnboardingRoute(
       requestId: body.requestId,
       ...(body.receipt === true ? { receipt: true } : {}),
     };
-  const result = await call({ ...args, previewId: body.previewId });
+  if (op === "report")
+    args = { op, requestId: body.requestId, reason: body.reason };
+  const result = await call({
+    ...args,
+    previewId: body.previewId,
+    ...(reports ? { reports: true } : {}),
+  });
   if (op !== "start") return result;
   const response = new Response(result.body, result);
   response.headers.append(

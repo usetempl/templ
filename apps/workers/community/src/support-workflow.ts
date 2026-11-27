@@ -1728,8 +1728,9 @@ export async function supportThreadRoute(
   await followUpWorkflowHook(storage, context, record, role, gate);
   // Typed context and member context removal.
   // The member's widget views of the thread (the wait line, the details
-  // they shared, the sources of the managed AI agent's replies) and a
-  // member removing one shared detail (support-widget-member.ts).
+  // they shared, the sources of the managed AI agent's replies and which
+  // AI answers they may report), a member removing one shared detail and
+  // a member reporting an AI answer (support-widget-member.ts).
   {
     const handled = await widgetMemberThreadRoute(
       storage,

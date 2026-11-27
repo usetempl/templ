@@ -10,6 +10,7 @@ import type {
   ReplyLabel,
   Rubric,
   ReviewSkipReason,
+  SupportAnswerReportItem,
   SupportCaseQualityView,
   SupportKnowledgeGaps,
   SupportQualityOverview,
@@ -68,6 +69,32 @@ export const readReviews = (
     undefined,
     signal,
   );
+/** Answers users reported, for the owner and Admins. */
+export const readAnswerReports = (
+  room: Room,
+  view: "open" | "done",
+  after?: string,
+  signal?: AbortSignal,
+) =>
+  communityFetch<{ items: SupportAnswerReportItem[]; next: string | null }>(
+    path(
+      room,
+      `answer-reports?view=${view}${after ? `&after=${encodeURIComponent(after)}` : ""}`,
+    ),
+    undefined,
+    signal,
+  );
+export const markAnswerReportReviewed = (
+  room: Room,
+  account: Account,
+  report: Pick<SupportAnswerReportItem, "thread" | "seq" | "message">,
+) =>
+  chatMutation<{ report: SupportAnswerReportItem }>(account, path(room, "answer-reports"), {
+    action: "reviewed",
+    thread: report.thread,
+    seq: report.seq,
+    message: report.message,
+  });
 export const readCaseQuality = (room: Room, thread: string, seq?: number, signal?: AbortSignal) =>
   communityFetch<{ cases: SupportCaseQualityView[]; learningReviewAvailable?: boolean }>(
     path(room, `${thread}/review${seq ? `?seq=${seq}` : ""}`),

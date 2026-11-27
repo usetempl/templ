@@ -58,8 +58,15 @@ export function replyEmailLoader(loadModule: () => Promise<Module>) {
         button.addEventListener("click", () => {
           if (states.get(host) === held && host.thread?.() === view.thread &&
               host.walletCase?.()?.handoff?.technical &&
-              host.client.session?.principalId === session.principalId && session.expiresAt > Date.now())
+              host.client.session?.principalId === session.principalId && session.expiresAt > Date.now()) {
+            if (session.level !== "signed") host.focusReplyEmail = input => {
+              host.focusReplyEmail = undefined;
+              queueMicrotask(() => {
+                if (input.isConnected && host.thread?.() === view.thread) input.focus();
+              });
+            };
             host.emailButton?.click();
+          }
         });
         node.append(button);
       }]];

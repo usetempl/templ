@@ -4,7 +4,8 @@
  * - Before a thread's rows go: the eval copies saved from it lose their
  *   link (once per thread; a failure never holds the deletion, and the
  *   lead's eval list clears a stale link later), then the thread's quality
- *   records and review queue rows go, a bounded number per call.
+ *   records with their review queue and reported-answer rows go, a bounded
+ *   number per call.
  * - Every eval copy, run and import in the workspace's SupportKnowledge
  *   object, the protocol profile and the knowledge base go with the
  *   workspace when it is deleted. */
@@ -16,7 +17,9 @@ import {
 import {
   QUALITY_PREFIX,
   REVIEW_QUEUE_PREFIX,
+  answerReportKey,
   checkedQuality,
+  storedAnswerReports,
 } from "./support-quality";
 
 type Storage = Pick<DurableObjectStorage, "get" | "put" | "delete" | "list">;
@@ -41,9 +44,9 @@ export function knowledgeRetention(env: KnowledgeEnv): KnowledgeRetention {
   };
 }
 
-/** Deletes a thread's quality records with their review queue rows, at
- * most `budget` keys. Returns the keys deleted; the sweep calls again while
- * it returns more than zero. */
+/** Deletes a thread's quality records with their review queue and
+ * reported-answer rows, at most `budget` keys. Returns the keys deleted; the
+ * sweep calls again while it returns more than zero. */
 export async function deleteThreadQuality(
   storage: Storage,
   thread: string,
@@ -61,6 +64,10 @@ export async function deleteThreadQuality(
     const q = /^[0-9]{8}$/.test(seqText)
       ? checkedQuality(raw, thread, seq)
       : null;
+    for (const report of storedAnswerReports(q)) {
+      if (await storage.delete(answerReportKey(thread, seq, report))) deleted++;
+      if (deleted >= budget) return deleted;
+    }
     if (q?.review) {
       const queue = `${REVIEW_QUEUE_PREFIX}${String(q.review.sampledAt).padStart(16, "0")}:${thread}:${seqText}`;
       if (await storage.delete(queue)) deleted++;

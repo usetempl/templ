@@ -22,6 +22,8 @@ import { learnedCorrectionAvailable, learnedReplyCorrection } from "./support-le
  *   a staff address check.
  * - `quality` GET overview (runs sampling), POST settings or the pilot
  *   sampling preset; `reviews`, `trends`, `gaps`, `pilot-preset`.
+ * - `answer-reports` GET the answers users reported, POST reviewed: the
+ *   owner and Admins only (support-answer-reports.ts).
  * - `evals…` (support-evals.ts), `profile…` (profile-routes.ts),
  *   `knowledge…` (below). */
 import {
@@ -81,6 +83,11 @@ import {
   type QualityViewer,
 } from "./support-quality";
 import { supportRecord, writeSupportContext } from "./support-workflow";
+import {
+  answerReportPage,
+  answerReportsOn,
+  reviewAnswerReport,
+} from "./support-answer-reports";
 import type {
   ConversationContext,
   TeamConversationRecord,
@@ -95,7 +102,8 @@ export type KnowledgeQualityDeps = {
   authorize: (id: string) => Promise<Authorized>;
 };
 const THREAD_ROUTE = /^\/conversations\/(tc-[0-9a-f]{32})\/(review|evals|legacy)$/;
-const ROOM_ROUTE = /^\/conversations\/(quality|reviews|trends|gaps|pilot-preset)$/;
+const ROOM_ROUTE =
+  /^\/conversations\/(quality|reviews|trends|gaps|pilot-preset|answer-reports)$/;
 export const KNOWLEDGE_ROUTE =
   /^\/conversations\/knowledge(?:\/(search|context|guidance|practice|storage|storage-ledger|kb-[0-9a-f]{16}))?$/;
 const PRE_ROUTE = /^\/conversations\/(tc-[0-9a-f]{32})\/(resolve|workflow|messages)$/;
@@ -258,6 +266,26 @@ export async function knowledgeQualityRoute(
           await knowledgeGaps(storage, context.query.get("month") ?? monthOf(context.now), context.now),
         );
       return json(await gapAction(storage, context.body, context.now));
+    }
+    case "answer-reports": {
+      // Support leads, other staff and AI agents learn nothing here.
+      if (!viewer.admin || !featureOn(context.mediaEnv, undefined, "aiAnswerReports"))
+        throw toolsNotFound();
+      if (context.method === "GET")
+        return json(
+          await answerReportPage(
+            storage,
+            context,
+            context.query.get("view") === "done" ? "done" : "open",
+            context.query.get("after"),
+          ),
+        );
+      if (!(await answerReportsOn(storage, context))) throw toolsNotFound();
+      const { record, role } = await deps.authorize(String(context.body.thread ?? ""));
+      if (role !== "team") throw toolsNotFound();
+      return json({
+        report: await reviewAnswerReport(storage, context, viewer, record, context.body),
+      });
     }
     default:
       return pilotPresetRoute(storage, context, viewer);

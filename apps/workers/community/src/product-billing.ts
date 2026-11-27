@@ -342,11 +342,17 @@ export async function prepareProductPayment(
     const reviewed = input.body.reviewedPriceVersion;
     if (reviewed !== undefined && (selectedPlan !== "starter" || typeof reviewed !== "string"))
       throw new HttpError(400, "Review your plan before paying.");
+    const reviewedCard = input.body.reviewedAiRateCardVersion;
+    if (reviewedCard !== undefined && (standardPurpose === "credit" || typeof reviewedCard !== "string"))
+      throw new HttpError(400, "Review the AI rates for this period.");
+    if (reviewedCard !== undefined && plan.prepaid?.mode !== "prepaid")
+      throw new HttpError(409, "Your billing agreement sets AI charges. Refresh checkout to continue.");
     standard = standardPrepaidTerms(
       standardPurpose, plan.period?.id ?? null, selectedPlan,
       selectedPlan === "starter" ? reviewed ?? PRODUCT_STARTER_RECORDED_PRICES.publishedOn : undefined,
+      reviewedCard,
     );
-  } else if (input.body.monthlyPlan !== undefined) {
+  } else if (input.body.monthlyPlan !== undefined || input.body.reviewedAiRateCardVersion !== undefined) {
     throw new HttpError(400, "Select a plan for a monthly payment.");
   }
   const usageAgreement = await usagePaymentAgreement(

@@ -27,7 +27,7 @@ button,input,textarea{font:inherit;color:inherit;accent-color:var(--a)}button{cu
 .welcome{display:flex;flex-direction:column;gap:14px;padding:4px 2px 8px}\
 .primary{display:flex;align-items:center;justify-content:center;gap:9px;height:48px;border-radius:var(--rc);font-size:15px;font-weight:680;transition:transform .16s}\
 .older{display:block;margin:0 auto 12px;padding:5px 12px;border:1px solid var(--b2);border-radius:var(--rc);color:var(--m);font-size:14px;font-weight:600}\
-.system{align-self:center;color:var(--m);font-size:15px;text-align:center}.system button{margin:4px 6px 0}.system.tail{padding:8px 0 12px}\
+.system{align-self:center;color:var(--m);font-size:15px;text-align:center}.system button{margin:4px 6px 0}.dots{display:flex;gap:4px;padding:6px 0 3px}.system.tail{padding:8px 0 12px}\
 .messages{display:flex;flex-direction:column;gap:8px}\
 .message{max-width:86%;align-self:flex-start;padding:9px 13px 10px;border-radius:var(--rb);background:var(--s2);white-space:pre-wrap;overflow-wrap:anywhere;animation:rise .25s ease-out both}\
 .message.typing{box-shadow:inset 3px 0 var(--a)}\

@@ -93,6 +93,7 @@ export type SupportWidgetOptions = {
   wallet?: SupportWallet | null;
   /** An optional wallet family for sharing a proof without changing the guest session. */
   walletForNetwork?(network: "evm" | "solana"): SupportWallet | null;
+  verifyBitcoin?(host: GuestProofHost): Promise<[Pick<Verified, "walletReceipt" | "walletReceiptExpiresAt">, { address: string }] | string>;
   /** The same as wallet: { evm: provider }. Pass one or the other. */
   provider?: SupportWalletProvider;
   apiUrl?: string;
@@ -283,6 +284,10 @@ type SignInHost = {
   read(): Promise<Selected>;
   /** True once the wallet or session changed after the sign-in started. */
   stale(): boolean;
+};
+export type GuestProofHost = Pick<SignInHost, "origin" | "workspace" | "call" | "stale"> & {
+  bearer: string;
+  shareConversation: string;
 };
 type Verified = Omit<WidgetSession, "address" | "chainId" | "level"> & {
   address?: string;
@@ -695,7 +700,7 @@ export function createSupportClient(
         aiReplyExpected?: boolean;
         supportProfiles?: VisitorSupportProfiles;
         solanaSignIn?: boolean;
-        walletIdentification?: WalletRules.WalletIdentification;
+        walletIdentification?: WalletRules.WalletIdentificationPolicy;
         chatMode?: "standard" | "encrypted";
         walletFallback?: boolean;
         askPerson?: boolean;
@@ -709,6 +714,9 @@ export function createSupportClient(
         verifiedDomain?: string;
         /** Members may add screenshots. */
         screenshots?: boolean;
+        /** Members may report AI answers; the widget asks which ones only
+         * while this is on. */
+        answerReports?: boolean;
         diagnostics?: boolean;
         chatFirst?: boolean;
         singleConversation?: boolean;
@@ -1148,7 +1156,7 @@ export type WidgetClient = {
     aiReplyExpected?: boolean;
     supportProfiles?: VisitorSupportProfiles;
     solanaSignIn?: boolean;
-    walletIdentification?: WalletRules.WalletIdentification;
+    walletIdentification?: WalletRules.WalletIdentificationPolicy;
     chatMode?: "standard" | "encrypted";
     walletFallback?: boolean;
     askPerson?: boolean;
@@ -1157,6 +1165,7 @@ export type WidgetClient = {
     appearance?: SupportWidgetAppearance;
     verifiedDomain?: string;
     screenshots?: boolean;
+    answerReports?: boolean;
     diagnostics?: boolean;
     chatFirst?: boolean;
     singleConversation?: boolean;
@@ -1584,6 +1593,7 @@ export type TailHost = {
   draftingConversation?(): boolean;
   showCase?(id: string): Promise<void>;
   replyNotices?: boolean;
+  focusReplyEmail?: (input: HTMLInputElement) => void;
   notify?: () => Promise<void>;
   talk?: () => void;
   /** Set once the extras' styles are in the widget. */
@@ -1614,12 +1624,13 @@ export type TailHost = {
     supportProfiles?: VisitorSupportProfiles;
     minimumLevel?: string;
     solanaSignIn?: boolean;
-    walletIdentification?: WalletRules.WalletIdentification;
+    walletIdentification?: WalletRules.WalletIdentificationPolicy;
     walletFallback?: boolean;
     askPerson?: boolean;
     replyEmail?: boolean;
     safetyLine?: boolean;
     screenshots?: boolean;
+    answerReports?: boolean;
     diagnostics?: boolean;
     chatFirst?: boolean;
     singleConversation?: boolean;
@@ -1646,7 +1657,7 @@ export type TailHost = {
 };
 /** The typing dots and the lines under the newest message. */
 const TAIL_STYLE =
-  ".dots{display:flex;gap:4px;padding:6px 0 3px}.dots i{width:6px;height:6px;border-radius:9px;background:var(--m);animation:blink 1.2s infinite}.dots i:nth-child(2){animation-delay:.2s}.dots i:nth-child(3){animation-delay:.4s}.nudge{padding:10px 12px;border:1px solid var(--b);border-radius:var(--rb,14px);background:var(--s)}@media(prefers-reduced-motion:reduce){.dots i{animation:none}}";
+  ".dots i{width:6px;height:6px;border-radius:9px;background:var(--m);animation:blink 1.2s infinite}.dots i:nth-child(2){animation-delay:.2s}.dots i:nth-child(3){animation-delay:.4s}.nudge{padding:10px 12px;border:1px solid var(--b);border-radius:var(--rb,14px);background:var(--s)}@media(prefers-reduced-motion:reduce){.dots i{animation:none}}";
 function typingLine(el: TailHost["el"], part: string): [string, unknown[], (node: HTMLElement) => void] {
   // The same key and signature keep the animation running when the first send gets its thread ID.
   return ["~" + part, [], (node) => {
@@ -1667,6 +1678,7 @@ const TAIL_LINES: Record<string, string> = {
   wait: "Your message is saved. The team can reply here.",
   member: "You asked for a person. Someone from the team will reply here.",
   agent: "AI passed this to the team.",
+  technical: "A human support operator will see your message and answer you shortly.",
   person: "Your case is with the team. They’ll reply here.",
   dot: "You can close this chat or come back later. While this page is open, the chat button shows a dot when they reply.",
   verify:
@@ -1856,7 +1868,7 @@ export const extras = {
     else if (!resolved && fresh && !pending && !held && !info?.diagnosisRunning)
       parts.push("received");
     else if (!resolved && !pending) {
-      const by = held?.by;
+      const by = handoff?.technical ? "technical" : held?.by;
       if (info?.diagnosisRunning) parts.push("checking");
       else if (typing === "team") parts.push("typing team");
       if (by) parts.push(by);
@@ -2009,7 +2021,7 @@ export const extras = {
     if (host.policy?.singleConversation && held && !resolved) {
       // Keep the same notification buttons and opt-in form when a handoff is shown.
       const choice = [...above, ...lines, ...below].find(([key]) => key === "~reply-email" || key === "~guest-email");
-      const handoff = lines.find(([key]) => ["~member", "~person", "~agent"].includes(key));
+      const handoff = lines.find(([key]) => key === "~" + held.by);
       if (choice && handoff) {
         const [key, deps, draw] = choice;
         const joined: typeof handoff = [handoff[0], [...handoff[1], key, ...deps], (node) => {
@@ -3271,7 +3283,8 @@ function renderSupportWidget(
       if (!mine && message.teamName && who === message.teamName)
         author.append(" ", el("span", "Team", "tag"));
       node.append(author);
-      if (consent) consent.linkify(node, message.text);
+      // The formatted message also keeps its server ID on the row.
+      if (consent) consent.linkify(node, message);
       else node.append(message.text);
       const at = message.createdAt ? new Date(message.createdAt) : null;
       if (at && Number.isFinite(at.getTime())) {

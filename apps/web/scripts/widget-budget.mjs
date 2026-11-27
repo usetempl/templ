@@ -25,9 +25,10 @@ export const WIDGET_CHUNK_BUDGET = Object.freeze({
  * loads only the wallet chunk for the wallet it passed, and none without
  * one; `live` for a returning guest, a page with a wallet or an open chat;
  * `turnstile` only for a new guest of a workspace with the check on.
- * `media` (a member's screenshot, from the Add screenshot button) and
- * `domain` (the verified-domain line) load only when the workspace's
- * policy has them. `frame`, `framebridge` and `framehost` are frame
+ * `media` (a member's screenshot, from the Add screenshot button),
+ * `report-flags` (each AI answer's Report this answer triangle), `report`
+ * (its dialog, on the first report) and `domain` (the verified-domain line)
+ * load only when the workspace's policy has them. `frame`, `framebridge` and `framehost` are frame
  * mode's: the adapter Templ's frame document runs, the page's side of the
  * frame's wallet calls, and the file a protocol page loads in place of the
  * widget (which loads the bridge on the frame's first wallet call). */
@@ -45,8 +46,11 @@ export const WIDGET_CHUNKS = Object.freeze([
   "context",
   // Frozen failure rows; loads the typed context card when first needed.
   "snapshot",
-  // Built before the member lines, which load it.
+  // Built before the member lines, which load them: a member's screenshot,
+  // and the Report this answer dialog with the triangles that load it.
   "media",
+  "report",
+  "report-flags",
   "member",
   // The install check, then the key warning and outcome consent, which
   // load it; the consent chunk loads them.

@@ -104,6 +104,8 @@ const bundle = async (contents, define = {}, banner) =>
         __TEMPL_WIDGET_OPS__: '"ops"',
         __TEMPL_WIDGET_DOMAIN__: '"domain"',
         __TEMPL_WIDGET_MEDIA__: '"media"',
+        __TEMPL_WIDGET_REPORT__: '"report"',
+        __TEMPL_WIDGET_FLAGS__: '"report-flags"',
         ...define,
       },
       ...(banner ? { banner: { js: banner } } : {}),
@@ -141,6 +143,11 @@ export const card = (widget) => contextCard(widget, rules);`,
   // Optional reply notices load before the member lines that may offer them.
   guest:
     'export { guest, framePage, frameLoading, replyEmail } from "./support-widget-guest";',
+  // The Report this answer dialog, which the triangles load on the first
+  // report, and each AI answer's triangle, which the member lines load only
+  // when the workspace's policy offers reports.
+  report: 'export { openAnswerReportDialog } from "./answer-report-dialog";',
+  "report-flags": 'export { drawFlags } from "./support-widget-report-flags";',
   // The wait, follow-up, sources and shared details under a thread.
   member: 'export { member } from "./support-widget-member";',
   // The install check, which the ops chunk loads only on a check link.
@@ -186,8 +193,9 @@ export const solana = (wallet) =>
   domain: 'export { domain } from "./support-widget-domain";',
 })) {
   // A chunk that loads another names it: the context chunk the card, the
-  // extras the member lines, the member lines the screenshot and the live
-  // chunk the visitor check.
+  // extras the member lines, the member lines the screenshot and the
+  // report triangles, the triangles their dialog and the live chunk the
+  // visitor check.
   const conversationModules = {
     __TEMPL_WIDGET_CONVERSATION__: "conversation",
     __TEMPL_WIDGET_CONVERSATION_STYLE__: "conversation-style",
@@ -202,10 +210,12 @@ export const solana = (wallet) =>
       __TEMPL_WIDGET_DIAGNOSTICS__: "diagnostics",
     },
     snapshot: { __TEMPL_WIDGET_CONTEXT__: "context" },
+    "report-flags": { __TEMPL_WIDGET_REPORT__: "report" },
     member: {
       __TEMPL_WIDGET_GUEST__: "guest",
       __TEMPL_WIDGET_MEDIA__: "media",
       __TEMPL_WIDGET_CONTEXT__: "context",
+      __TEMPL_WIDGET_FLAGS__: "report-flags",
     },
     extras: {
       ...conversationModules,

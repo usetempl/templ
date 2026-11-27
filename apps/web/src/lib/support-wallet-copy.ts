@@ -1,5 +1,5 @@
 import { keccak_256 } from "@noble/hashes/sha3";
-import { sharedWalletAddresses } from "./case-wallet-addresses";
+import { sharedWalletAddresses } from "@templ/chat/widget-wallet";
 import type { TailHost } from "./support-widget";
 
 /** EIP-55 is a display convention. Requests still use the stored address. */

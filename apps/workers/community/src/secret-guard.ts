@@ -85,6 +85,8 @@ export async function screenConversationWrite(
     if (body.action === "note") await refusePhrase(body.text, "saved");
     else if (body.action === "context")
       await refusePhrase(record(body.context).description, "sent");
+    else if (body.action === "report-answer")
+      await refusePhrase(body.reason, "sent");
     // AI drafts and Ask AI questions are candidate replies; frames and
     // evidence rows are saved team text.
     else if (body.action === "draft") await refusePhrase(body.text, "sent");

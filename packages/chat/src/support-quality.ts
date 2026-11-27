@@ -1,9 +1,11 @@
-/** Reply labels, the sampled review queue, trends, the monthly knowledge-gap
- * list and the pilot preset: codes, staff wording, settings and view types.
+/** Reply labels, the sampled review queue, reported AI answers, trends, the
+ * monthly knowledge-gap list and the pilot preset: codes, staff wording,
+ * settings and view types.
  *
  * Browser-safe: type imports only, no SDK, storage, RPC or signing. Labels
  * and reviews are team data. Members never read them, and no view here names
- * a member, a wallet or message text. */
+ * a member, a wallet or message text. A reported answer carries only the
+ * user's optional reason, and only the owner and Admins read it. */
 import type { ChatPrincipalId } from "./principal";
 import type { SupportHandoffReason } from "./support";
 
@@ -386,6 +388,34 @@ export type SupportQualityOverview = {
   counts: { queued: number; mine: number; overdue: number };
   /** When quality tracking began here; null before the first write. */
   since: string | null;
+};
+
+/* Reported AI answers                                                     */
+
+/** A user's report that one AI answer didn't help, with an optional reason.
+ * The thread's member is its only reporter, so a message has at most one. */
+export const ANSWER_REPORT_LIMITS = {
+  /** The optional reason, in characters. */
+  reasonChars: 280,
+  /** Reported answers kept on one case. */
+  perCase: 50,
+  /** Reports on one page of the list. */
+  page: 50,
+  /** Index rows one page reads before it hands back a cursor. */
+  scan: 200,
+  /** Reviewed reports leave the list after this. */
+  reviewedDays: 90,
+} as const;
+export type SupportAnswerReportItem = {
+  thread: string;
+  seq: number;
+  /** The reported AI answer's message id in the thread. */
+  message: number;
+  reportedAt: string;
+  /** The user's own words. Owner and Admins only; never in another view,
+   * an export, a copy or an alert. */
+  reason: string | null;
+  reviewedAt: string | null;
 };
 
 /** Staff wording for why a request was sampled. */

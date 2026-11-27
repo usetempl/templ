@@ -23,7 +23,7 @@ simulate("checks published Bitcoin proofs while two visitors sign different supp
     const secret = "01" + random.text(hex, 62);
     const address = addressFromPrivateKey(secret, random.pick(["p2wpkh", "p2tr"] as const));
     const request = {
-      origin: "https://support.example.org", workspace: "00000000-0000-7000-8000-000000000001",
+      origin: "https://usetempl.com", workspace: "00000000-0000-7000-8000-000000000001",
       address, conversation: random.chance(0.5) ? "next" : "tc-" + random.text(hex, 32),
       nonce: random.text(hex, 64), expiresAt: 1700000000000 + random.int(1, 100000),
     };

@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import type { ChatRoomId } from "@templ/chat/index";
 import { topUpBonusCents } from "@templ/chat/resolution-pricing";
-import { PRODUCT_ANNUAL_PRICES, PRODUCT_STARTER_PRICES, PRODUCT_STANDARD_PRICES, PRODUCT_STANDARD_AI_RATES, PRODUCT_TOP_UP } from "@templ/chat/plans";
+import { PRODUCT_ANNUAL_PRICES, PRODUCT_STARTER_PRICES, PRODUCT_STANDARD_PRICES, PRODUCT_TERRA_AI_RATES, PRODUCT_TOP_UP } from "@templ/chat/plans";
 import { starterPricesForVersion } from "@templ/chat/standard-plan";
 import type { MonthlySupportPlan } from "@templ/chat/standard-plan";
 import {
@@ -122,7 +122,6 @@ function Checkout({
   const annual = standardPurpose === "period" && Boolean(annualNetwork) && term === "annual";
   const requestedPurpose = annual ? "annual" : standardPurpose;
   const monthlyPrices = monthlyPlan === "starter" ? PRODUCT_STARTER_PRICES : PRODUCT_STANDARD_PRICES;
-  const checkoutCard = monthlyPlan === "starter" ? PRODUCT_STARTER_PRICES.aiRateCardVersion : PRODUCT_STANDARD_AI_RATES.version;
   const accessCents = annual ? PRODUCT_ANNUAL_PRICES[monthlyPlan] : monthlyPrices.workspaceMonthlyUsdCents;
   const [dollars, setDollars] = useState(() =>
     String(
@@ -680,7 +679,7 @@ function Checkout({
               <p className={styles.note}>
                 {monthlyPrices.includedAnsweredCasesPerMonth} answered cases per month.{" "}
                 {agreedAiBilling ? "Your billing agreement sets AI charges." : <>
-                  {formatUsd(monthlyPrices.includedAiCreditUsdCents)} AI credit included each month. AI usage costs {prepaidAiRateText(monthlyPrices, checkoutCard)}.
+                  {formatUsd(monthlyPrices.includedAiCreditUsdCents)} AI credit included each month. AI usage costs {prepaidAiRateText(monthlyPrices, PRODUCT_TERRA_AI_RATES.version)}.
                 </>}
               </p>
             </>
@@ -866,6 +865,7 @@ function Checkout({
                                 ? ("standard-period" as const)
                                 : ("standard-credit" as const),
                             expectedPeriod,
+                            ...(standardPurpose === "period" && !agreedAiBilling ? { reviewedAiRateCardVersion: PRODUCT_TERRA_AI_RATES.version } : {}),
                             ...(standardPurpose === "period" && standard?.starterAvailable
                               ? {
                                   monthlyPlan,
@@ -895,7 +895,7 @@ function Checkout({
                         result.intent.standard.expectedPeriod !== expectedPeriod ||
                         (standardPurpose === "period" &&
                           (result.intent.standard.priceVersion !== monthlyPrices.publishedOn ||
-                           result.intent.standard.aiRateCardVersion !== checkoutCard))))
+                           (!agreedAiBilling && result.intent.standard.aiRateCardVersion !== PRODUCT_TERRA_AI_RATES.version)))))
                   )
                     throw new Error(
                       "The payment selection changed. Review it again.",

@@ -88,7 +88,7 @@ Opens, greetings, handoff notices, spam, tests, duplicates, drafts, retries and 
 Extra answered cases use prepaid credit after the included allowance.
 Normal safety, provider and operating limits still apply.
 Both plans include all team seats. Annual access costs $${ANNUAL.starter / 100} for Starter or $${ANNUAL.standard / 100} for Plus. Included cases and AI credit reset monthly.
-Templ’s own support chat uses GPT-6.1 Terra. New prepaid workspaces use GPT-6.1 Sol. Prepaid Templ AI usage costs ${formatStandardAiRate(PRICES)} times the published GPT-6.1 Sol Standard API rates.
+New prepaid orders bill Templ AI usage at ${formatStandardAiRate(PRICES)} times the published GPT-6.1 Terra Standard API rates. Months already paid keep their recorded rate card.
 The included retail credit covers AI use first. Further use draws from prepaid USDC. On Starter, raise the monthly AI limit in Plan & usage to allow it.
 Apply the published input, cached-input, cache-write and long-context tiers.
 Count reasoning tokens as output once.

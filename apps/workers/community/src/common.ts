@@ -4,6 +4,7 @@ import { DEFAULT_CHAT_AUTH_CHAIN_ID } from "@templ/chat/chains";
 import { timed, type SpanName } from "./request-context";
 
 export interface Env extends WorkspaceFlagEnv {
+  SUPPORT_PREVIEW_ANSWER_REPORTS_ENABLED?: string;
   NATIVE_TELEGRAM_BRIDGE_ENABLED?: string;
   NATIVE_TELEGRAM_BRIDGE?: import("@templ/chat/support-telegram").NativeTelegramBridge;
   AI?: Ai;

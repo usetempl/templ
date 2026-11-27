@@ -266,6 +266,7 @@ import {
   readConversation,
   shareGuestWalletProof,
   verifyWidgetMember,
+  requireBitcoinGuestCase,
   widgetVerification,
   type ConversationContext,
 } from "./team-conversations"; // Member-to-team conversations
@@ -1190,6 +1191,14 @@ export class ChannelRoom {
           const native = await storage.get<NativeRoomRecord>("native-room");
           if (!native) throw new HttpError(404, "Workspace not found.");
           await requireOwnWidgetWallet(storage, env as Env, native.room.id, input.origin as string);
+        });
+        return json({ available: true });
+      }
+      if (url.pathname === "/private/support/bitcoin-proof-target" && request.method === "POST") {
+        const body = await readJson(request);
+        await this.state.storage.transaction(async local => {
+          const storage = await supportStorage(local, env, this.state.id?.toString() ?? "");
+          await requireBitcoinGuestCase(storage, body.guest, body.conversation, body.issuedBeforeCase);
         });
         return json({ available: true });
       }

@@ -136,14 +136,9 @@ export const guest = {
               retry.onclick = () => { states!.delete(thread); host.render(); };
               node.append(retry);
             }
-          } else if (state.enabled) {
+          } else if (state.enabled || state.pending) {
             node.append(
-              el("p", "Email notices: on"),
-              submit("Turn off email notices", () => ({ enabled: false })),
-            );
-          } else if (state.pending) {
-            node.append(
-              el("p", "Open the link in your email to turn notices on."),
+              el("p", state.enabled ? "Email notices: on" : "Open the link in your email to turn notices on."),
               submit("Turn off email notices", () => ({ enabled: false })),
             );
           } else {
@@ -154,6 +149,7 @@ export const guest = {
             input.autocomplete = "email";
             input.required = true;
             label.append(input);
+            host.focusReplyEmail?.(input);
             const button = el("button", "Send confirmation link");
             button.type = "submit";
             form.append(label, button);

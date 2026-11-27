@@ -14,6 +14,7 @@ type Props = {
   accent?: string;
   icon: string;
   canSend: boolean;
+  report?: (requestId: string, reason: string) => Promise<void>;
   scanning?: boolean;
   suggestion?: string;
   /** Keeps an unsent question in this tab while the visitor changes websites. */
@@ -22,12 +23,16 @@ type Props = {
     question: string,
     requestId: string,
     onReceipt: () => void,
-  ) => Promise<string>;
+  ) => Promise<string | null>;
 };
 
 // The renderer is the versioned widget installed by customers. Its trial transport
 // keeps the transcript in this tab. Only an explicit send calls the private AI trial.
-function practiceTransport(workspace: string, ask: Props["ask"]) {
+function practiceTransport(
+  workspace: string,
+  ask: Props["ask"],
+  reporting: () => Props["report"],
+) {
   const prefix = "/widget/" + workspace;
   const conversation = {
     id: "tc-" + crypto.randomUUID().replaceAll("-", ""),
@@ -36,6 +41,9 @@ function practiceTransport(workspace: string, ask: Props["ask"]) {
   };
   const visitor = "practice-visitor";
   const messages: WidgetMessage[] = [];
+  // This transport owns its own message IDs, just like the room service.
+  // Only a completed AI reply can map to a server-issued preview receipt.
+  const answers = new Map<string, { requestId: string; reported: boolean }>();
   const requestIds = new Map<string, string>();
   const deliveries = new Map<string, Promise<WidgetMessage>>();
   let nextAnswer: Promise<void> | undefined;
@@ -66,17 +74,20 @@ function practiceTransport(workspace: string, ask: Props["ask"]) {
         messages.push(message);
         resolve(message);
       };
+      const reportable = Boolean(reporting());
       nextAnswer = Promise.resolve().then(async () => {
         try {
           const answer = await ask(text, requestId, acknowledge);
           // An older service can confirm delivery with its completed answer.
           acknowledge();
+          const id = answer && reportable ? String(answers.size + 1) : crypto.randomUUID();
+          if (answer && reportable) answers.set(id, { requestId, reported: false });
           messages.push({
-            id: crypto.randomUUID(),
+            id,
             author: "practice-ai",
             teamName: "Support AI",
             createdAt: new Date().toISOString(),
-            text: answer,
+            text: answer || "I can’t answer that from your website or docs. In your live chat, I’d hand it to your team.",
           });
         } catch (error) {
           if (received) conversation.aiReplyExpected = false;
@@ -105,6 +116,9 @@ function practiceTransport(workspace: string, ask: Props["ask"]) {
         singleConversation: true,
         askPerson: false,
         replyEmail: false,
+        // The widget can mount during the scan. Its per-answer read below
+        // checks the latest server capability after the preview is ready.
+        answerReports: true,
         aiReplyExpected: true,
         walletIdentification: { enabled: false, evm: false, solana: false },
       });
@@ -115,6 +129,36 @@ function practiceTransport(workspace: string, ask: Props["ask"]) {
         canAsk: true,
       });
     const thread = "/conversations/" + conversation.id;
+    if (route === thread + "/workflow") {
+      const report = reporting();
+      if (!report) return init?.method === "GET"
+        ? Response.json({})
+        : Response.json({ error: "This answer can’t be reported." }, { status: 404 });
+      if (init?.method === "GET" && url.searchParams.get("view") === "reports") {
+        const reports: Record<string, "available" | "reported"> = {};
+        for (const id of (url.searchParams.get("messages") ?? "").split(",").slice(0, 20)) {
+          const answer = answers.get(id);
+          if (answer) reports[id] = answer.reported ? "reported" : "available";
+        }
+        return Response.json({ reports, privatePreview: true });
+      }
+      if (init?.method === "POST") {
+        const body = JSON.parse(String(init.body));
+        const answer = answers.get(body.message);
+        if (body.action === "report-answer" && answer) {
+          try {
+            await report(answer.requestId, body.reason ?? "");
+            answer.reported = true;
+            return Response.json({ reported: true });
+          } catch (error) {
+            if (!(error instanceof CommunityApiError)) throw error;
+            const reason = (error.details as { reason?: string } | undefined)?.reason;
+            return Response.json({ error: error.message, reason }, { status: error.status === 401 ? 403 : error.status });
+          }
+        }
+      }
+      return new Response(null, { status: 404 });
+    }
     if (route === thread + "/messages" && init?.method === "GET") {
       // The widget has already drawn its receipt. Wake its normal refresh as
       // soon as there is an answer to display.
@@ -201,6 +245,7 @@ export function WebsitePracticeChat(props: Props) {
           if (kept) kept.current = "";
           return latest.current.ask(text, id, onReceipt);
         },
+        () => latest.current.report,
       );
       const options = {
         workspace,

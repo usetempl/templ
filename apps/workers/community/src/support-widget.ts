@@ -1,3 +1,7 @@
+import { bitcoinWalletProofMessage } from "@templ/chat/bitcoin-wallet-proof";
+import { canonicalBitcoinProofAddress, verifyBitcoinWalletProof } from "./bitcoin-wallet-proof";
+import { CRYPTO_SUPPORT_WORKSPACE } from "@templ/chat/support-models";
+import { cryptoDeskWalletProofsOn } from "./crypto-desk-wallet-proofs";
 import { requireConnectDeadline } from "./connect-deadline";
 import { readSupportJson } from "./support-body";
 import {
@@ -167,6 +171,7 @@ import {
   screenshotsOffered,
   type MemberScreenshotEnv,
 } from "./support-member-screenshots";
+import { answerReportsOffered } from "./support-answer-reports";
 import {
   domainVerifyOffered,
   recheckDomain,
@@ -1732,13 +1737,15 @@ const preflight = () =>
 const READABLE =
   /^\/conversations(?:\/status|\/tc-[0-9a-f]{32}(?:\/messages|\/workflow)?)?$/;
 /** Workflow actions a widget member may send: share details, answer "Did
- * this solve it?" and ask for a person. Every other action is the team's;
- * the room still checks that the sender is the thread's member. */
+ * this solve it?", ask for a person and report an AI answer. Every other
+ * action is the team's; the room still checks that the sender is the
+ * thread's member and that the workspace offers the action. */
 const WIDGET_WORKFLOW_ACTIONS: readonly unknown[] = [
   "context",
   "confirm",
   "ask-person",
   "guest-email",
+  "report-answer",
 ];
 const WRITABLE =
   /^\/conversations\/(?:join|ask|tc-[0-9a-f]{32}\/(?:messages|resolve|stop|workflow))$/;
@@ -2047,9 +2054,32 @@ export async function supportWidgetRoute(
         requestPrefetch(env).native = { id: room, read: workspaceRead };
       }
       const walletSettings = current.walletIdentification ?? DEFAULT_WALLET_IDENTIFICATION;
+      const cryptoDeskWalletProofs = hosted && !frame && current.walletIdentification?.enabled === true &&
+        cryptoDeskWalletProofsOn(env, room, origin);
+      const solanaSignIn = featureOn(env, undefined, "solanaSignIn");
+      const scopedSolanaProof = cryptoDeskWalletProofs && walletSettings.solana &&
+        env.SUPPORT_WIDGET_SOLANA_ENABLED === "true";
+      // Old workers look up naked nonce tokens. A separate hash input keeps even
+      // their single-use login consume route outside these guest-only records.
+      const bitcoinGrant = (purpose: "proof" | "receipt", token: string) =>
+        record(env, "nonce", "guest-bitcoin-" + purpose + ":" + token);
+      const bitcoinProofMismatch = () => new HttpError(403, "Verify your Bitcoin address for this support request.");
+      const bitcoinTarget = async (guest: string, conversation: string, issuedBeforeCase?: number) => {
+        const result = await roomStub(env, room).fetch(internal("/private/support/bitcoin-proof-target", {
+          guest, conversation, issuedBeforeCase,
+        }));
+        if (!result.ok) throw new HttpError(result.status === 403 ? 403 : 503, "Choose your own support request.");
+      };
+      const saveBitcoin = async (guest: string, conversation: string, address: string, proofIssuedAt: number) => {
+        const result = await roomStub(env, room).fetch(internal("/private/support/share-wallet", {
+          network: "bitcoin", guest, conversation, address, proofIssuedAt,
+        }));
+        if (!result.ok) throw new HttpError(result.status === 400 || result.status === 403 ? result.status : 503,
+          result.status === 400 ? "Remove a Bitcoin address before adding another." : "Verify your Bitcoin address again.");
+      };
       const allowsIdentification = (network: unknown) => walletSettings.enabled &&
         ((network === "evm" && walletSettings.evm) ||
-        (network === "solana" && walletSettings.solana && featureOn(env, undefined, "solanaSignIn")));
+        (network === "solana" && walletSettings.solana && (solanaSignIn || scopedSolanaProof)));
       allowed = true;
       if (closed && request.method !== "OPTIONS") throw workspaceClosedError();
       // A workspace that requires frame mode.
@@ -2125,11 +2155,12 @@ export async function supportWidgetRoute(
           minimumLevel,
           ...(current.walletIdentification ? { walletIdentification: {
             enabled: walletSettings.enabled, evm: allowsIdentification("evm"), solana: allowsIdentification("solana"),
+            ...(cryptoDeskWalletProofs ? {bitcoin: true} : {}),
           } } : {}),
           ...(visitorReplyPolicy && typeof workspace?.aiReplyExpected === "boolean"
             ? { aiReplyExpected: chatMode !== "encrypted" && workspace.aiReplyExpected } : {}),
           ...(chatMode === "standard" || chatMode === "encrypted" ? { chatMode } : {}),
-          ...(featureOn(env, undefined, "solanaSignIn")
+          ...(solanaSignIn
             ? { solanaSignIn: true }
             : {}),
           ...(env.TEMPL_SUPPORT_WORKSPACE === room
@@ -2187,6 +2218,9 @@ export async function supportWidgetRoute(
           ...(screenshotsOffered(env as MemberScreenshotEnv)
             ? { screenshots: true }
             : {}),
+          // Members may report AI answers. Without it the widget asks for
+          // no report states; the room checks again on every read and report.
+          ...(answerReportsOffered(env) ? { answerReports: true } : {}),
         });
         // Templ checks the shown domain again at most once a day.
         if (shownDomain)
@@ -2511,6 +2545,23 @@ export async function supportWidgetRoute(
           !/^tc-[0-9a-f]{32}$/.test(body.conversation))
           throw new HttpError(403, "Verify your wallet for this conversation.");
         const grant = await record(env, "nonce", body.receipt);
+        if (room === CRYPTO_SUPPORT_WORKSPACE) {
+          const bitcoinReceipt = await bitcoinGrant("receipt", body.receipt);
+          const read = await bitcoinReceipt.fetch(internal("/read"));
+          if (!read.ok && read.status !== 401) throw new HttpError(503, "Try sharing the address again.");
+          const prior = read.ok ? await read.json<AuthData>() : null;
+          if (prior?.purpose === "widget-bitcoin-receipt") {
+            if (!cryptoDeskWalletProofs || !guest.session.principalId || prior.guestPrincipal !== guest.session.principalId ||
+                !sameWidgetScope(prior.widgetScope, scope) || prior.widgetScope?.hosted !== true || !prior.authenticatedAt ||
+                (prior.shareConversation !== "next" && prior.shareConversation !== body.conversation)) throw bitcoinProofMismatch();
+            await bitcoinTarget(guest.session.principalId, body.conversation, prior.authenticatedAt);
+            const bound = await bitcoinReceipt.fetch(internal("/bind-bitcoin-receipt", {guest: guest.session.principalId, scope: { ...scope, hosted: true }, conversation: body.conversation}));
+            if (!bound.ok) throw new HttpError(bound.status === 403 ? 403 : 503, "Verify your Bitcoin address again.");
+            const proof = await bound.json<{address: string; proofIssuedAt: number}>();
+            await saveBitcoin(guest.session.principalId, body.conversation, proof.address, proof.proofIssuedAt);
+            return json({shared:true},200,{"Access-Control-Allow-Origin":corsOrigin,"Vary":`Origin, ${WIDGET_HOST_ORIGIN_HEADER}`});
+          }
+        }
         const bound = await grant.fetch(internal("/bind-shared-wallet", {
           guest: guest.session.principalId, scope, conversation: body.conversation,
         }));
@@ -2538,6 +2589,23 @@ export async function supportWidgetRoute(
         // as widgets built before Solana sign-in send no network) or Sign In
         // With Solana. Both challenges bind this site's domain and URI, a
         // single-use nonce, a five-minute expiry and this workspace.
+        if (body.network === "bitcoin") {
+          if (!cryptoDeskWalletProofs || guest?.session.authMethod !== "guest" || !guest.session.principalId ||
+              typeof shareConversation !== "string" || body.remember === true || body.chainId !== undefined)
+            throw new HttpError(403, "Bitcoin address verification is unavailable here.");
+          const address = canonicalBitcoinProofAddress(body.address);
+          if (!address) throw new HttpError(400, "Choose a Bitcoin mainnet native SegWit or Taproot address.");
+          if (shareConversation !== "next") await bitcoinTarget(guest.session.principalId, shareConversation);
+          const nonce = randomToken(), issuedAt = Date.now(), expiresAt = Math.min(issuedAt + NONCE_TTL, guest.session.expiresAt);
+          if (expiresAt <= issuedAt) throw bitcoinProofMismatch();
+          const message = bitcoinWalletProofMessage({ origin, workspace: room, address, conversation: shareConversation, nonce, expiresAt });
+          const created = await (await bitcoinGrant("proof", nonce)).fetch(internal("/create", {
+            purpose: "widget-bitcoin-proof", address: null, bitcoinProofAddress: address, nonce, message, shareConversation,
+            expiresAt, authenticatedAt: issuedAt, widgetScope: { ...scope, hosted: true }, guestPrincipal: guest.session.principalId,
+          } satisfies AuthData));
+          if (!created.ok) throw new HttpError(503, "Request a new Bitcoin proof.");
+          return json({ message, nonce, expiresAt }, 200, { "Access-Control-Allow-Origin": corsOrigin, "Vary": `Origin, ${WIDGET_HOST_ORIGIN_HEADER}` });
+        }
         const network = body.network === undefined ? "evm" : body.network;
         if (shareConversation !== undefined && !allowsIdentification(network))
           throw new HttpError(403, "This workspace has turned off verification for this wallet.");
@@ -2574,7 +2642,7 @@ export async function supportWidgetRoute(
         let message: string;
         let signer: Pick<AuthData, "address" | "solanaAddress" | "network">;
         if (network === "solana") {
-          if (!featureOn(env, undefined, "solanaSignIn"))
+          if (!solanaSignIn && !(scopedSolanaProof && guest && shareConversation !== undefined))
             throw new HttpError(503, "Solana sign-in is not available here.");
           // Any Solana key that can sign a message. The text names Solana
           // mainnet; a multisig vault can't sign and fails at verify.
@@ -2623,6 +2691,42 @@ export async function supportWidgetRoute(
         response = json({ message, nonce, expiresAt });
       } else if (path === "/auth/verify" && request.method === "POST") {
         const body = await early.body!;
+        if (body.network === "bitcoin") {
+          if (!cryptoDeskWalletProofs || typeof body.nonce !== "string" || !/^[0-9a-f]{64}$/.test(body.nonce) ||
+              typeof body.signature !== "string" || body.signature.length > 155 ||
+              typeof body.message !== "string" || body.message.length > 1024) throw bitcoinProofMismatch();
+          const grant = await bitcoinGrant("proof", body.nonce);
+          const read = await grant.fetch(internal("/read"));
+          if (!read.ok && read.status !== 401) throw new HttpError(503, "Try the Bitcoin proof again.");
+          const proof = read.ok ? await read.json<AuthData>() : null;
+          if (proof?.purpose !== "widget-bitcoin-proof") throw bitcoinProofMismatch();
+          const guest = await bearerSession(early.bearer, scope);
+          const address = canonicalBitcoinProofAddress(proof.bitcoinProofAddress);
+          const conversation = proof.shareConversation;
+          if (!cryptoDeskWalletProofs || guest?.session.authMethod !== "guest" || !guest.session.principalId ||
+              proof.guestPrincipal !== guest.session.principalId || !sameWidgetScope(proof.widgetScope, scope) || proof.widgetScope?.hosted !== true ||
+              proof.nonce !== body.nonce || proof.message !== body.message || !address || address !== proof.bitcoinProofAddress ||
+              !conversation || (conversation !== "next" && !/^tc-[0-9a-f]{32}$/.test(conversation)) || !proof.authenticatedAt || proof.expiresAt <= Date.now() ||
+              bitcoinWalletProofMessage({origin,workspace:room,address,conversation,nonce:body.nonce,expiresAt:proof.expiresAt}) !== body.message)
+            throw bitcoinProofMismatch();
+          if (!verifyBitcoinWalletProof(address, body.message, body.signature)) throw new HttpError(401, "This Bitcoin proof is invalid.");
+          if (conversation !== "next") await bitcoinTarget(guest.session.principalId, conversation);
+          const consumed = await grant.fetch(internal("/consume"));
+          if (!consumed.ok) throw new HttpError(consumed.status === 401 ? 401 : 503, "Request a new Bitcoin proof.");
+          let walletReceipt: string | undefined;
+          const walletReceiptExpiresAt = Math.min(guest.session.expiresAt, Date.now() + WALLET_SHARE_RECEIPT_TTL);
+          if (conversation === "next") {
+            walletReceipt = randomToken();
+            const saved = await (await bitcoinGrant("receipt", walletReceipt)).fetch(internal("/create", {
+              purpose:"widget-bitcoin-receipt",address:null, bitcoinProofAddress:address, shareConversation:"next",
+              guestPrincipal:guest.session.principalId, widgetScope:{...scope,hosted:true}, authenticatedAt:proof.authenticatedAt, expiresAt:walletReceiptExpiresAt,
+            } satisfies AuthData));
+            if (!saved.ok) throw new HttpError(503, "Request a new Bitcoin proof.");
+          } else await saveBitcoin(guest.session.principalId, conversation, address, proof.authenticatedAt);
+          return json({token:guest.token, principalId:guest.session.principalId, expiresAt:guest.session.expiresAt,
+            wallet:{network:"bitcoin",address},shareConversation:conversation,...(walletReceipt ? {walletReceipt,walletReceiptExpiresAt}:{})},
+            200,{"Access-Control-Allow-Origin":corsOrigin,"Vary":`Origin, ${WIDGET_HOST_ORIGIN_HEADER}`});
+        }
         // An EVM signature is hex; a Solana one is padded base64 of 64
         // bytes. Which one the challenge needs is read from the stored
         // challenge, never from the request.
@@ -2661,7 +2765,7 @@ export async function supportWidgetRoute(
         let proof: WidgetWallet;
         let contractChain: number | undefined;
         if (challenge.network === "solana") {
-          if (!featureOn(env, undefined, "solanaSignIn"))
+          if (!solanaSignIn && !(scopedSolanaProof && challenge.guestPrincipal && challenge.shareConversation))
             throw new HttpError(503, "Solana sign-in is not available here.");
           // Ed25519 over the exact text, by the key the challenge named.
           const signature = decodeWidgetSolanaSignature(body.signature);

@@ -73,12 +73,28 @@ export function WorkspaceAi({ context }: { context: WorkspaceContext }) {
     return () => controller.abort();
   }, [room, account, context.manager, paid, hasHostedName, activating]);
   const knowledge = hasSupportKnowledge(context.state?.features);
+  // The answers users reported, for the owner and Admins while the
+  // workspace has them on. The Reports page checks access again.
+  const reported =
+    admin &&
+    context.state?.features?.quality === true &&
+    context.state?.features?.aiAnswerReports === true;
+  const telegram = admin && context.state?.features?.nativeTelegram;
   return (
     <div data-workspace-settings="" className={`${styles.page} ${styles.pageNarrow} ${layout.page}`}>
-      <PageHeader title="Support AI" actions={admin && context.state?.features?.nativeTelegram && (
-        <button type="button" className="button secondary" onClick={() => context.go("settings", null, "alerts")}>
-          Telegram handoffs
-        </button>
+      <PageHeader title="Support AI" actions={(reported || telegram) && (
+        <>
+          {reported && (
+            <button type="button" className="button secondary" onClick={() => context.go("quality", null, "answer-reports")}>
+              Reported answers
+            </button>
+          )}
+          {telegram && (
+            <button type="button" className="button secondary" onClick={() => context.go("settings", null, "alerts")}>
+              Telegram handoffs
+            </button>
+          )}
+        </>
       )} />
       {activating && nameError && <Callout role="alert">Your hosted name could not be confirmed.{" "}
         <button type="button" className="button secondary" onClick={() => context.go("home")}>Check your chat link</button>

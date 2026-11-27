@@ -8,14 +8,16 @@ type PageWallets = Window & {
   ethereum?: SupportWalletProvider;
   solana?: SupportSolanaWallet;
   phantom?: { solana?: SupportSolanaWallet };
+  solflare?: SupportSolanaWallet;
+  backpack?: SupportSolanaWallet;
 };
 /** Supplies wallet interfaces to the widget. The sign-in card owns every prompt. */
 export function supportPageWallet(network: "evm" | "solana"): SupportWallet;
 export function supportPageWallet(network: "evm" | "solana", fallback: false): SupportWallet | null;
 export function supportPageWallet(network: "evm" | "solana", fallback = true): SupportWallet | null {
   const page = window as PageWallets;
+  const solana = network === "solana" ? page.phantom?.solana ?? page.solflare ?? page.backpack ?? page.solana : null;
   if (!fallback) {
-    const solana = page.phantom?.solana ?? page.solana;
     return network === "evm"
       ? page.ethereum ? { evm: page.ethereum } : null
       : solana ? { solana } : null;
@@ -25,18 +27,17 @@ export function supportPageWallet(network: "evm" | "solana", fallback = true): S
       evm: page.ethereum ?? {
         request: async () => {
           throw new Error(
-            "Open this chat in your EVM wallet browser. Choose Verify wallet again.",
+            "Connect an EVM wallet on this website.",
           );
         },
       },
     };
   return {
-    solana: page.phantom?.solana ??
-      page.solana ?? {
+    solana: solana ?? {
         publicKey: null,
         connect: async () => {
           throw new Error(
-            "Open this chat in your Solana wallet browser. Choose Verify wallet again.",
+            "Connect a Solana wallet on this website.",
           );
         },
       },

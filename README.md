@@ -64,7 +64,7 @@ The check runs the support worker locally in Workerd with temporary test account
 
 Run `pnpm build` to build the web app. For your deployment, set `NEXT_PUBLIC_TEMPL_SITE_ORIGIN` to your web origin and `NEXT_PUBLIC_TEMPL_API_ORIGIN` to your support worker. Set these values at build time. Your deployment also needs the worker's storage bindings and its own secrets. The public build starts with hosted features off. [Configure web origins, worker storage and chat access](docs/self-host.md)
 
-This checkout verifies the local conversation check and the web build only. It includes no deployment configuration, and the worker rejects any `APP_ORIGIN` outside its built-in list, so your own domain needs a source change first. The guide explains both.
+Supply your deployment configuration and add your web domain to the worker’s `APP_ORIGINS` list before using a visitor link on that domain.
 
 **Templ Hosted.** Enter your website and select **Preview your chat**. You can change the name, icon and color. Ask up to 25 free questions in the same chat your visitors will use. If the scanner can’t read your site, try a public docs page.
 

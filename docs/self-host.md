@@ -28,3 +28,15 @@ Open `/create` on your web origin. The page starts with the website preview. You
 Use a visitor link on your own web domain. Where your release enables hosted support pages, the link uses `/help/<workspace-id>`. Copy it with **Copy chat link**.
 
 Open the link as a guest, send a question, answer from **Cases**, then reopen the original chat to read the reply. You can add an embedded widget for that same workspace later, under **Settings → Chat**. To keep it in one theme, pass `lockedTheme: "light"` or `lockedTheme: "dark"` to `mountSupportWidget`. Leave it unset to give visitors the theme switch. Use a private destination for test notifications. [Widget, standalone link, or both](../README.md#give-visitors-a-way-to-reach-you)
+
+## Optional wallet proof in a support request
+
+A guest can attach a verified address to one support request. Signing the displayed message proves control of that address. The guest keeps the same session and can continue chatting without signing.
+
+The workspace controls which networks it offers. Ethereum uses a sign-in message, Solana uses an Ed25519 message, and Bitcoin uses BIP-322 simple for mainnet native SegWit or key-path Taproot. The Bitcoin message names the site, workspace, support request, address, nonce and expiry. Review it before signing. No payment or transaction is involved.
+
+On a configured crypto desk, open the wallet verification option in the chat menu. A proof completed before the first message attaches to the next new request. In an existing request it attaches to that request. A guest can remove a previously shared address even after the workspace disables new proofs.
+
+For a self-hosted installation, configure the desk workspace in `packages/chat/src/support-models.ts` and serve the hosted chat at the HTTPS application origin. The public default leaves the desk workspace empty. Enable wallet identification and the audited, workspace-only `cryptoDeskWalletProofs` override for the intended workspace. A separate network setting and the Solana verification switch control Solana guest proof. Existing account sign-in settings continue to apply.
+
+The worker verifies Bitcoin using the pinned `@orangecheck/bip322` package. The package documents audits of its underlying cryptographic primitives. This snapshot includes the public BIP-322 signature vectors and seeded guest-message simulations. Run `pnpm test:simulation` from the source checkout.

@@ -46,6 +46,12 @@
     "killSwitch": "SUPPORT_WIDGET_LOOPBACK",
     "name": "Localhost widget origins"
   },
+  "cryptoDeskWalletProofs": {
+    "releaseFlag": "supportWorkflowVerified",
+    "workspaceOnly": true,
+    "killSwitch": "SUPPORT_WORKFLOW_ENABLED",
+    "name": "Crypto desk guest wallet proofs"
+  },
   "solanaSignIn": {
     "releaseFlag": "supportWidgetSolanaVerified",
     "killSwitch": "SUPPORT_WIDGET_SOLANA_ENABLED",
@@ -319,5 +325,11 @@
     "workspaceOnly": true,
     "killSwitch": "SUPPORT_WIDGET_CHAT_FIRST_ENABLED",
     "name": "Separate support conversations"
+  },
+  "aiAnswerReports": {
+    "releaseFlag": "supportQualityVerified",
+    "workspaceOnly": true,
+    "killSwitch": "SUPPORT_QUALITY_ENABLED",
+    "name": "AI answer reports"
   }
 }

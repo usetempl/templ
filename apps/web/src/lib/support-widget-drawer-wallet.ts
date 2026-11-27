@@ -3,8 +3,8 @@ declare const __TEMPL_WIDGET_WALLET_VIEW__: string | undefined;
 declare const __TEMPL_WIDGET_WALLET_STYLE__: string | undefined;
 
 type Proof = { receipt: string; address: string; expires: number; conversation?: string };
-type Family = "evm" | "solana";
-const families: Family[] = ["evm", "solana"];
+type Family = "evm" | "solana" | "bitcoin";
+const families: Family[] = ["bitcoin", "evm", "solana"];
 
 function validProof(value: unknown): value is Proof {
   if (!value || typeof value !== "object") return false;
@@ -51,7 +51,7 @@ export async function drawerWallet(host: TailHost, menu: HTMLElement, signal: Ab
     if (account) return account.click();
     const choices = offered();
     if (choices.length === 1) void verify(choices[0]);
-    else { choosing = true; sync(); chooser.querySelector("button")?.focus(); }
+    else { choosing = true; sync(); chooser.querySelector<HTMLButtonElement>("button:not([hidden])")?.focus(); }
   });
   const retry = button("Retry sharing address", () => {
     const id = thread();
@@ -60,7 +60,7 @@ export async function drawerWallet(host: TailHost, menu: HTMLElement, signal: Ab
   add.classList.add("drawer-primary");
   retry.classList.add("drawer-primary");
   const picks = families.map(family => {
-    const pick = button(family === "evm" ? "EVM wallet" : "Solana wallet", () => void verify(family));
+    const pick = button({ evm: host.options.verifyBitcoin ? "Ethereum wallet" : "EVM wallet", solana: "Solana wallet", bitcoin: "Bitcoin wallet" }[family], () => void verify(family));
     pick.classList.add("drawer-primary");
     chooser.append(pick);
     return pick;
@@ -79,7 +79,7 @@ export async function drawerWallet(host: TailHost, menu: HTMLElement, signal: Ab
   let selected: string | undefined;
   let rendered = "";
 
-  function provider(family: Family) {
+  function provider(family: Exclude<Family, "bitcoin">) {
     if (host.options.walletForNetwork) return host.options.walletForNetwork(family);
     const wallet = client.adopt?.()[5] ?? host.options.wallet;
     return wallet?.[family] ? wallet : null;
@@ -87,7 +87,7 @@ export async function drawerWallet(host: TailHost, menu: HTMLElement, signal: Ab
   function offered() {
     const rules = host.policy?.walletIdentification;
     return families.filter(family => (rules ? rules.enabled && rules[family] :
-      family === "evm" || host.policy?.solanaSignIn) && provider(family));
+      family === "evm" || (family === "solana" && host.policy?.solanaSignIn)) && (family === "bitcoin" ? host.options.verifyBitcoin : provider(family)));
   }
   function accountAction() {
     const signed = client.session?.level === "signed";
@@ -182,7 +182,7 @@ export async function drawerWallet(host: TailHost, menu: HTMLElement, signal: Ab
     const choices = offered();
     const account = accountAction();
     const rules = host.policy?.walletIdentification;
-    const disabled = !!rules && (!rules.enabled || (!rules.evm && !rules.solana));
+    const disabled = !!rules && (!rules.enabled || (!rules.evm && !rules.solana && !rules.bitcoin));
     const encrypted = id ? !!host.walletCase?.()?.encryption : host.policy?.chatMode === "encrypted";
     section.hidden = !account && (session?.level === "signed" || encrypted || (disabled && !addresses.length));
     list.hidden = !!account || !addresses.length;
@@ -191,9 +191,10 @@ export async function drawerWallet(host: TailHost, menu: HTMLElement, signal: Ab
       : choices.length ? "Sign a message to share your verified address with the support team in this chat."
       : "Open this chat in a supported wallet browser to verify your address.";
     add.textContent = account?.textContent ?? (addresses.length ? "+ Verify another wallet" : "Verify and share address");
-    add.hidden = !account && (disabled || !!removing || (!rules && addresses.length > 0) || (choosing && choices.length > 1));
+    const showChoices = choices.length > 1 && (choosing || (choices.includes("bitcoin") && !addresses.length));
+    add.hidden = !account && (disabled || !!removing || (!rules && addresses.length > 0) || showChoices);
     add.disabled = busy || (account ? account.disabled : !choices.length);
-    chooser.hidden = !!account || !choosing || choices.length < 2;
+    chooser.hidden = !!account || !showChoices;
     for (const [i, pick] of picks.entries()) { pick.hidden = !choices.includes(families[i]); pick.disabled = busy; }
     retry.hidden = !!account || !id || !proofs.some(proof => proof.conversation === id);
     retry.disabled = busy;
@@ -209,13 +210,17 @@ export async function drawerWallet(host: TailHost, menu: HTMLElement, signal: Ab
       const [session, request, loadWallet, , origin] = client.adopt();
       if (!session || session.level === "signed" || signal.aborted || thread() !== id) return;
       const stale = () => signal.aborted || client.session?.principalId !== session.principalId || thread() !== id;
-      const wallet = await loadWallet(provider(family));
-      if (stale()) return;
-      const [verified, selectedWallet] = await wallet.signIn({
-        workspace: host.options.workspace, origin, hosted: host.policy?.hosted,
-        bearer: session.token, shareConversation: id ?? "next", call: request, read: wallet.read, stale,
-      });
-      if (stale()) return;
+      const proofHost = { workspace: host.options.workspace, origin, bearer: session.token, shareConversation: id ?? "next", call: request, stale };
+      const prove = async () => {
+        if (family === "bitcoin") return host.options.verifyBitcoin!(proofHost);
+        const wallet = await loadWallet(provider(family));
+        if (stale()) return;
+        return wallet.signIn({ ...proofHost, hosted: host.policy?.hosted, read: wallet.read });
+      };
+      const result = await prove();
+      if (!result || stale()) return;
+      if (typeof result === "string") { status.textContent = result; return; }
+      const [verified, selectedWallet] = result;
       if (id) {
         await host.refresh(true);
         if (!stale()) status.textContent = "Wallet verified.";

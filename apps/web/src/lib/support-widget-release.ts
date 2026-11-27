@@ -47,6 +47,8 @@ export type SupportWidgetVersion = {
         | "guest"
         | "art"
         | "media"
+        | "report"
+        | "report-flags"
         | "member"
         | "evm"
         | "solana"

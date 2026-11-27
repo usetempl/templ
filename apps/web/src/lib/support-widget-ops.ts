@@ -1,7 +1,7 @@
 /** Message links, team join lines, the key warning and action-result consent.
  * The consent chunk loads these helpers when a message or draft needs them. */
 import { ambiguousHexValues } from "@templ/chat/support-safety-hex";
-import type { SupportClient, TailHost } from "./support-widget";
+import type { SupportClient, TailHost, WidgetMessage } from "./support-widget";
 type JoinLine = { at: string; name?: string };
 import type { CheckHost } from "./support-widget-check";
 
@@ -89,9 +89,12 @@ export function ops({ host, form, thread }: { host: TailHost; form: HTMLFormElem
     void loadCheck().then((module) => module.check(checkHost), () => fail("The install check could not load. Start it again from Settings → Chat."));
   return {
     /** Message text stays text. Complete http(s) addresses become links that
-     * show their destination; "[label](url)" reads "label: url". */
-    linkify(node: HTMLElement, value: string) {
-      const text = value.replace(
+     * show their destination; "[label](url)" reads "label: url". The row
+     * keeps the message's server ID for controls drawn on it, such as
+     * Report this answer. */
+    linkify(node: HTMLElement, message: WidgetMessage) {
+      if (message.id) node.dataset.messageId = message.id;
+      const text = message.text.replace(
         /\[([^\]\n]{1,200})\]\((https?:\/\/[^\s)]+)\)/gi,
         "$1: $2",
       );

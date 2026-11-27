@@ -81,7 +81,7 @@ export function WorkspaceReports({ context }: { context: WorkspaceContext }) {
 }
 
 function Reports({ context }: { context: WorkspaceContext }) {
-  useWorkspaceSectionFocus(["answer-reviews"]);
+  useWorkspaceSectionFocus(["answer-reviews", "answer-reports"]);
   const lead =
     context.manager ||
     context.state.viewer.permissions.includes("manageSupport");

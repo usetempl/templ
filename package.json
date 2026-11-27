@@ -9,7 +9,7 @@
     "test:support": "pnpm --dir apps/workers/community exec vitest run test/support-widget-session-workerd.test.ts -t \"starts, sends and resumes a guest case\"",
     "build:widget": "node apps/web/scripts/build-support-widget.mjs",
     "check:widget": "node apps/web/scripts/build-support-widget.mjs --check",
-    "test:simulation": "pnpm --filter @templ/chat test && pnpm --dir apps/workers/community exec vitest run test/website-brand.test.ts test/bitcoin-wallet-proof-simulation.test.ts && pnpm --dir apps/workers/secure-support exec vitest run test/recover-read.test.ts && pnpm --dir apps/web exec vitest run --maxWorkers=2"
+    "test:simulation": "pnpm --filter @templ/chat test && pnpm --dir apps/workers/community exec vitest run test/website-brand.test.ts test/bitcoin-wallet-proof-simulation.test.ts test/crypto-support-simulation.test.ts && pnpm --dir apps/workers/secure-support exec vitest run test/recover-read.test.ts && pnpm --dir apps/web exec vitest run --maxWorkers=2"
   },
   "devDependencies": {
     "@eslint/js": "^9.14.0",

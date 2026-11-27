@@ -1,8 +1,11 @@
 /** The member lines under a thread, loaded by the extras once a thread
  * shows:
  *
- * - above the lines: the sources of the AI agent's newest reply (titles, and
- *   links only to sites the team listed);
+ * - on every AI answer the transcript shows, earlier pages included:
+ *   Report this answer, a small warning triangle, while the workspace's
+ *   policy offers it;
+ * - above the lines: the sources of the AI agent's newest reply (titles,
+ *   and links only to sites the team listed);
  * - below them: how long the team usually takes to reply, the team's
  *   follow-up line, reply email for a signed member, and the details the
  *   member shared, each with Remove.
@@ -31,6 +34,18 @@ const loadContext = (): Promise<typeof import("./support-widget-context")> =>
         ).href
       )
     : import("./support-widget-context");
+/* Report this answer on each AI answer, loaded only for a workspace whose
+ * policy offers it. */
+declare const __TEMPL_WIDGET_FLAGS__: string | undefined;
+const loadFlags = (): Promise<typeof import("./support-widget-report-flags")> =>
+  typeof __TEMPL_WIDGET_FLAGS__ === "string"
+    ? import(
+        /* webpackIgnore: true */ /* turbopackIgnore: true */ new globalThis.URL(
+          __TEMPL_WIDGET_FLAGS__,
+          import.meta.url,
+        ).href
+      )
+    : import("./support-widget-report-flags");
 
 /** The member's own call to the widget service. */
 const memberCall = (host: TailHost) =>
@@ -199,6 +214,10 @@ async function sharedRows(context: Shared): Promise<SharedRow[]> {
   return rows;
 }
 
+/** The triangles' chunk, once a workspace's policy offered reports. */
+let flags: typeof import("./support-widget-report-flags") | undefined;
+let loadingFlags = false;
+
 export const member = {
   lines(host: TailHost, view: MemberView): [Line[], Line[]] {
     const { el } = host;
@@ -207,6 +226,18 @@ export const member = {
       host.style.textContent += STYLE;
     // Add screenshot, while the workspace allows it.
     screenshotButton(host, thread);
+    // Report this answer, once this render has placed its rows.
+    if (flags) queueMicrotask(() => flags!.drawFlags(host, thread));
+    else if (host.policy?.answerReports === true && !loadingFlags) {
+      loadingFlags = true;
+      loadFlags().then(
+        (module) => {
+          flags = module;
+          host.render();
+        },
+        () => (loadingFlags = false),
+      );
+    }
     const base = `/conversations/${thread}`;
     const last = messages.at(-1)!;
     const above: Line[] = [];
@@ -218,7 +249,7 @@ export const member = {
       return node;
     };
 
-    // The AI agent's newest reply: the sources it used.
+    // The sources the AI agent's newest reply used.
     if (!mine && last.id && authors?.[last.author]?.badges?.includes("bot")) {
       const cited = read(
         host,

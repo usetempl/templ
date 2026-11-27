@@ -84,6 +84,21 @@ export const QUALITY_COPY = {
   reviewsEmpty:
     "Nothing to review. Sampled cases show up here after they're resolved.",
   reviewViews: { mine: "Assigned to me", open: "Open", done: "Done" },
+  // Reported answers, for the owner and Admins.
+  reportsTitle: "Reported answers",
+  reportsDescription:
+    "AI answers users reported as not helpful. Only the owner and Admins see this list.",
+  reportViews: { open: "To review", done: "Reviewed" },
+  reportsEmpty: {
+    open: "No reported answers to review.",
+    done: "No reports reviewed in the last 90 days.",
+  },
+  reportNoReason: "No reason given.",
+  reportedOn: (date: string) => `Reported ${date}`,
+  reviewedOn: (date: string) => `Reviewed ${date}`,
+  markReviewed: "Mark reviewed",
+  reportReviewed: "Marked reviewed.",
+  showMore: "Show more",
   openRequest: "Open case",
   reviewThis: "Review this case",
   pass: "Pass",

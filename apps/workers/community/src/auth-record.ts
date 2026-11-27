@@ -98,7 +98,10 @@ export type AuthData = {
   /** A guest can share a proof in one Standard conversation, including the next one they start. */
   shareConversation?: string;
   sharedWallet?: WidgetWallet;
+  bitcoinProofAddress?: string;
   purpose?:
+    | "widget-bitcoin-proof"
+    | "widget-bitcoin-receipt"
     | "widget-wallet-share"
     | "widget-login"
     | "widget-session"
@@ -449,6 +452,22 @@ export class AuthRecord {
         return true;
       });
       return json({ ok: created }, created ? 201 : 409);
+    }
+    if (path === "/bind-bitcoin-receipt") {
+      const body = await readJson(request);
+      const conversation = body.conversation;
+      if (typeof conversation !== "string" || !/^tc-[0-9a-f]{32}$/.test(conversation)) throw new HttpError(403, "Choose your own support request.");
+      return this.state.storage.transaction(async storage => {
+        const grant = await storage.get<AuthData>(key);
+        const scope = body.scope as WidgetScope | undefined;
+        if (!grant || grant.purpose !== "widget-bitcoin-receipt" || grant.ended || !grant.bitcoinProofAddress ||
+            !sameWidgetScope(grant.widgetScope, scope) || grant.widgetScope?.hosted !== scope?.hosted ||
+            grant.guestPrincipal !== body.guest || grant.expiresAt <= Date.now() ||
+            (grant.shareConversation !== "next" && grant.shareConversation !== conversation))
+          throw new HttpError(403, "Verify your Bitcoin address again.");
+        if (grant.shareConversation === "next") await storage.put(key, { ...grant, shareConversation: conversation });
+        return json({ address: grant.bitcoinProofAddress, proofIssuedAt: grant.authenticatedAt });
+      });
     }
     if (path === "/bind-shared-wallet") {
       const body = await readJson(request);

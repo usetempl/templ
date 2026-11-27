@@ -14,6 +14,8 @@ import {
  *   duration, never a count.
  * - The sources of the managed AI agent's replies, as a member sees them:
  *   titles, and links only to sites the team listed.
+ * - Which AI answers the member may report, by message, and the member's
+ *   report itself (support-answer-reports.ts).
  * - The details the member shared, for the widget's list.
  *
  * Mounted in `supportThreadRoute`, after the room checked
@@ -30,6 +32,7 @@ import {
   supportContextView,
 } from "@templ/chat/support-context";
 import { HttpError, json } from "./common";
+import { memberAnswerReports, reportAnswer } from "./support-answer-reports";
 import { readCasesOpened } from "./support-case-data";
 import { provenancePage } from "./support-drafts";
 import {
@@ -264,21 +267,23 @@ export async function widgetMemberThreadRoute(
           standardPlanForState(product)?.status !== "demo",
       });
     }
+    const ids = (context.query.get("messages") ?? "").split(",");
     if (view === "sources")
       return json({
-        sources: await memberSources(
-          storage,
-          record,
-          (context.query.get("messages") ?? "").split(","),
-        ),
-        checks: await memberCheckSources(
-          storage,
-          record,
-          (context.query.get("messages") ?? "").split(","),
-        ),
+        sources: await memberSources(storage, record, ids),
+        checks: await memberCheckSources(storage, record, ids),
       });
+    // Report this answer, only for the member and only while it's on.
+    if (view === "reports")
+      return json(
+        role === "member"
+          ? await memberAnswerReports(storage, context, record, gate, ids)
+          : {},
+      );
     return null;
   }
+  if (context.method === "POST" && context.body.action === "report-answer")
+    return reportAnswer(storage, context, record, role, gate);
   if (
     context.method !== "POST" ||
     context.body.action !== "context" ||

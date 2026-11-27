@@ -26,6 +26,7 @@ type Preview = {
   remaining: number;
   confirmed: boolean;
   visitorWallets?: boolean;
+  answerReports?: true;
 };
 type Restored = Preview | { claiming: true; previewId: string } | null;
 /** Each failure shows beside the action that caused it. */
@@ -200,7 +201,7 @@ export function WebsiteOnboarding({ nextPlan }: { nextPlan: boolean }) {
     question: string,
     requestId: string,
     onReceipt: () => void,
-  ): Promise<string> {
+  ): Promise<string | null> {
     if (lock.current || !preview || !brand)
       throw new Error("The preview is not ready.");
     // The widget's own Retry reaches this without the composer's checks.
@@ -233,10 +234,7 @@ export function WebsiteOnboarding({ nextPlan }: { nextPlan: boolean }) {
         onReceipt,
       );
       setPreview({ ...current, remaining: reply.remaining });
-      return (
-        reply.answer ||
-        "I can’t answer that from your website or docs. In your live chat, I’d hand it to your team."
-      );
+      return reply.answer || null;
     } catch (reason) {
       const latest = await communityFetch<Restored>(
         "/onboarding/read",
@@ -251,6 +249,23 @@ export function WebsiteOnboarding({ nextPlan }: { nextPlan: boolean }) {
     } finally {
       lock.current = false;
       setBusy("");
+    }
+  }
+  // A report takes no page lock, so it also works while a save runs. It
+  // resolves only for a report the service accepted.
+  async function report(requestId: string, text: string) {
+    if (!preview) throw new Error("The preview is not ready.");
+    try {
+      const sent = await communityFetch<{ reported?: unknown }>(
+        "/onboarding/report",
+        { previewId: preview.previewId, requestId, reason: text },
+      );
+      if (sent.reported !== true) throw new Error("Try again.");
+    } catch (reason) {
+      if (!(reason instanceof CommunityApiError))
+        throw new Error(errorText(reason));
+      if (reason.status === 410) restart.current = true;
+      throw reason;
     }
   }
   function save() {
@@ -402,6 +417,7 @@ export function WebsiteOnboarding({ nextPlan }: { nextPlan: boolean }) {
               suggestion={suggestion}
               draft={unsent}
               ask={ask}
+              report={preview?.answerReports ? report : undefined}
             />
             {preview && (
               <p className={styles.practiceNote}>

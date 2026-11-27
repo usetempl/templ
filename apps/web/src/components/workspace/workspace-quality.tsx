@@ -18,6 +18,7 @@ import {
   type ReviewSkipReason,
   type Rubric,
   type RubricScore,
+  type SupportAnswerReportItem,
   type SupportCaseQualityView,
   type SupportKnowledgeGaps,
   type SupportQualityOverview,
@@ -37,9 +38,11 @@ import {
   evalAction,
   exportGoldenSet,
   labelReply,
+  markAnswerReportReviewed,
   previewEval,
   saveEval,
   markGap,
+  readAnswerReports,
   readCaseQuality,
   readEvalRuns,
   readEvals,
@@ -88,18 +91,26 @@ function wholeNumber(text: string, min: number, max: number): number | null {
   return Number.isInteger(value) && value >= min && value <= max ? value : null;
 }
 
-/** The Quality tab, for everyone on the team: the review queue, and for
- * the manager and support leads, recurring problems, knowledge gaps and
- * eval cases. Each route checks access again. */
+/** The Quality tab, for everyone on the team: the review queue, for the
+ * owner and Admins the answers users reported, and for the manager and
+ * support leads, recurring problems, knowledge gaps and eval cases. Each
+ * route checks access again. */
 export function QualityPage({ context }: { context: WorkspaceContext }) {
   const lead =
     context.manager ||
     context.state?.viewer?.permissions
       ?.map(String)
       .includes("manageSupport") === true;
+  const admin = canManageWorkspace({
+    isManager: context.manager,
+    permissions: context.state?.viewer?.permissions,
+  });
   return (
     <div className={styles.stack}>
       <ReviewsCard context={context} />
+      {admin && context.state?.features?.aiAnswerReports === true && (
+        <AnswerReportsCard context={context} />
+      )}
       {lead && (
         <>
           <TrendsCard context={context} />
@@ -484,6 +495,148 @@ function ReviewsCard({ context }: { context: WorkspaceContext }) {
           ))}
         </ul>
       )}
+    </Card>
+  );
+}
+
+type ReportPage = {
+  key: string;
+  items: SupportAnswerReportItem[];
+  next: string | null;
+  error?: string;
+};
+
+/** Answers users reported, for the owner and Admins: the ones to review,
+ * newest first, and those reviewed. Each read and write checks that access
+ * again. */
+function AnswerReportsCard({ context }: { context: WorkspaceContext }) {
+  const { room, account } = context;
+  const [view, setView] = useState<"open" | "done">("open");
+  const [attempt, setAttempt] = useState(0);
+  const [page, setPage] = useState<ReportPage>();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  const key = `${room}:${account}:${view}:${attempt}`;
+  useEffect(() => {
+    const controller = new AbortController();
+    readAnswerReports(room, view, undefined, controller.signal).then(
+      (data) =>
+        !controller.signal.aborted &&
+        setPage({ key, items: data.items, next: data.next }),
+      (reason) =>
+        !controller.signal.aborted &&
+        setPage({ key, items: [], next: null, error: message(reason) }),
+    );
+    return () => controller.abort();
+  }, [room, view, key]);
+  const current = page?.key === key ? page : undefined;
+  async function act(
+    work: (shown: ReportPage) => Promise<ReportPage>,
+    done?: string,
+  ) {
+    if (!current) return;
+    setBusy(true);
+    setError("");
+    setNotice("");
+    try {
+      const next = await work(current);
+      setPage((value) => (value?.key === next.key ? next : value));
+      if (done) setNotice(done);
+    } catch (reason) {
+      setError(message(reason));
+    } finally {
+      setBusy(false);
+    }
+  }
+  const more = () =>
+    act(async (shown) => {
+      const data = await readAnswerReports(room, view, shown.next ?? undefined);
+      return { ...shown, items: [...shown.items, ...data.items], next: data.next };
+    });
+  const reviewed = (item: SupportAnswerReportItem) =>
+    act(async (shown) => {
+      await markAnswerReportReviewed(room, account, item);
+      return { ...shown, items: shown.items.filter((row) => row !== item) };
+    }, c.reportReviewed);
+  return (
+    <Card id="answer-reports" title={c.reportsTitle} description={c.reportsDescription}>
+      <div className={styles.tabs} role="tablist">
+        {(["open", "done"] as const).map((name) => (
+          <button
+            key={name}
+            type="button"
+            role="tab"
+            aria-selected={view === name}
+            className={`button small ${view === name ? "" : "secondary"}`}
+            onClick={() => {
+              setView(name);
+              setError("");
+              setNotice("");
+            }}
+          >
+            {c.reportViews[name]}
+          </button>
+        ))}
+      </div>
+      {!current ? (
+        <Spinner />
+      ) : current.error ? (
+        <LoadFailed
+          error={current.error}
+          onRetry={() => setAttempt((n) => n + 1)}
+        />
+      ) : current.items.length === 0 && !current.next ? (
+        <p className={styles.note}>{c.reportsEmpty[view]}</p>
+      ) : (
+        <ul className={styles.rows}>
+          {current.items.map((item) => (
+            <li key={`${item.thread}:${item.message}`} className={styles.row}>
+              <div className={styles.rowHead}>
+                <span>{item.reason ?? c.reportNoReason}</span>
+                <span className={styles.badges}>
+                  <Badge>{c.reportedOn(day(item.reportedAt))}</Badge>
+                  {item.reviewedAt && (
+                    <Badge tone="brand">{c.reviewedOn(day(item.reviewedAt))}</Badge>
+                  )}
+                </span>
+              </div>
+              <div className={styles.actions}>
+                <button
+                  type="button"
+                  className="button small secondary"
+                  onClick={() => context.go("inbox", item.thread)}
+                >
+                  {c.openRequest}
+                </button>
+                {view === "open" && (
+                  <button
+                    type="button"
+                    className="button small"
+                    disabled={busy}
+                    onClick={() => void reviewed(item)}
+                  >
+                    {c.markReviewed}
+                  </button>
+                )}
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+      {current?.next && (
+        <div className={styles.actions}>
+          <button
+            type="button"
+            className="button small secondary"
+            disabled={busy}
+            onClick={() => void more()}
+          >
+            {c.showMore}
+          </button>
+        </div>
+      )}
+      <Status notice={notice} error={error} />
     </Card>
   );
 }

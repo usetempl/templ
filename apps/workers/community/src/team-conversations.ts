@@ -1269,6 +1269,20 @@ function conversationWallets(record: TeamConversationRecord): WidgetWallet[] {
   return [...wallets.values()];
 }
 
+/** Confirm the request exists in the crypto desk and belongs to this guest before reserving a receipt. */
+export async function requireBitcoinGuestCase(storage: Storage, guestValue: unknown, conversation: unknown, issuedBeforeCase?: unknown) {
+  const guest = normalizeChatPrincipal(guestValue);
+  if (!guest?.startsWith("account:") || !isConversationId(conversation))
+    throw new HttpError(403, "Choose your own support request.");
+  const thread = await readConversation(storage, conversation);
+  if (!thread || thread.room !== `room:${CRYPTO_SUPPORT_WORKSPACE}` || thread.member !== guest ||
+      thread.encryptedCases || (issuedBeforeCase !== undefined &&
+        (typeof issuedBeforeCase !== "number" || !Number.isSafeInteger(issuedBeforeCase) || thread.createdAt < issuedBeforeCase)) ||
+      await storage.get(`ban:${guest}`))
+    throw new HttpError(403, "Choose your own support request.");
+  return thread;
+}
+
 /** A wallet identifies a visitor only in their own Standard conversation. */
 export async function shareGuestWalletProof(
   storage: Storage,
@@ -1292,6 +1306,21 @@ export async function shareGuestWalletProof(
   // through the last possible expiry of a proof issued before the unlink.
   const unlinks = Object.fromEntries(Object.entries(thread.walletUnlinks ?? {})
     .filter(([, at]) => now - at <= NONCE_TTL + WALLET_SHARE_RECEIPT_TTL));
+  if (!unlink && body.network === "bitcoin") {
+    const address = canonicalBitcoinProofAddress(body.address);
+    if (!address || address !== body.address || thread.room !== `room:${CRYPTO_SUPPORT_WORKSPACE}` ||
+        typeof body.proofIssuedAt !== "number" || !Number.isSafeInteger(body.proofIssuedAt))
+      throw new HttpError(403, "Verify your Bitcoin address again.");
+    const addresses = bitcoinConversationAddresses(thread);
+    if (addresses.includes(address)) return;
+    const removed = unlinks[await sha256Hex(thread.id + "/" + address)];
+    if (removed !== undefined && body.proofIssuedAt <= removed) throw new HttpError(403, "Verify again to add this address.");
+    if (addresses.length >= 3) throw new HttpError(400, "Remove a Bitcoin address before adding another.");
+    const next = { ...thread, sharedVerifiedBitcoinWallets: [...addresses, address], revision: thread.revision + 1 };
+    await save(storage, next);
+    pending.push({ type: "conversation.updated", channelId: next.id, conversationRevision: next.revision });
+    return;
+  }
   if (unlink && typeof body.address === "string" && canonicalBitcoinProofAddress(body.address) === body.address) {
     const addresses = bitcoinConversationAddresses(thread);
     if (!addresses.includes(body.address)) return;

@@ -22,7 +22,7 @@ const entry = `
           sources: [hit.sourceId], text: input.answer ? "Supported." : "Members can export a garden journal from the settings page.",
           summary: "The guide covers this."
         };
-        return { model: "gpt-6.1-sol", status: "completed", usage: { input_tokens: 100, output_tokens: 10,
+        return { model: "gpt-6.1-terra", status: "completed", usage: { input_tokens: 100, output_tokens: 10,
           input_tokens_details: { cached_tokens: 0, cache_write_tokens: 0 }, output_tokens_details: { reasoning_tokens: 0 } },
           output: [{ type: "message", content: [{ type: "output_text", text: JSON.stringify(answer) }] }] };
       } } });
@@ -251,11 +251,11 @@ it("imports linked docs, isolates the preview, and saves its source and edited b
   }
 }, 90_000);
 
-it("starts a delivery receipt when the question is reserved and sends the answer or its failure in the same response", async () => {
+it.each([false, true])("streams each practice receipt and checks its private report (reports %s)", async (reports) => {
   const app = await workerdHarness(entry);
   try {
     const f = fixtures();
-    await app.restart(bindings, f.outbound);
+    await app.restart({ ...bindings, SUPPORT_QUALITY_ENABLED: "true", SUPPORT_PREVIEW_ANSWER_REPORTS_ENABLED: String(reports) }, f.outbound);
     const limit = PRODUCT_LIMITS.freeAiPracticeQuestions;
     const answer = "Members can export a garden journal from the settings page.";
     const start = await app.call("/onboarding/start", undefined, { site: "http://garden.tools" });
@@ -306,6 +306,9 @@ it("starts a delivery receipt when the question is reserved and sends the answer
     expect(f.checked).toBe(1);
     f.model.open();
     expect(JSON.parse(await result)).toEqual({ remaining: limit - 2, answer });
+    const report = await app.call("/onboarding/report", undefined, { previewId: preview.previewId, requestId: held, reason: "The settings step is vague." }, headers);
+    if (reports) expect(await data(report)).toMatchObject({ reported: true });
+    else expect(report.status).toBe(404);
     expect(await next).toMatchObject({ remaining: limit - 2 });
     expect(f.checked).toBe(2);
 

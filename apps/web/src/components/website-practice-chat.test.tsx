@@ -279,3 +279,39 @@ simulate(
     expect(chip()).toBeNull();
   },
 );
+
+simulate("sim:browser practice maps each AI bubble to its own private receipt through the widget workflow", async (draw) => {
+  const ids: string[] = [];
+  const ask: Props["ask"] = async (question, requestId, received) => {
+    ids.push(requestId);
+    received();
+    return `Reply to ${question}`;
+  };
+  const report = vi.fn<NonNullable<Props["report"]>>().mockResolvedValue(undefined);
+  const item = (id: string, reason: string) => ({ action: "report-answer", message: id, reason });
+  const props = { name: "Sample site", icon: "", canSend: true, ask, report };
+  const view = await mount(props);
+  const first = await (await post("First question", "client-one")).json();
+  const thread = first.conversation.id;
+  await read(thread);
+  await post("One more question", "client-two");
+  const history = await read(thread);
+  expect(texts(history)).toEqual(["First question", "Reply to First question", "One more question", "Reply to One more question"]);
+  const path = conversations() + thread + "/workflow";
+  const states = async () => (await widget.fetch!(path + "?view=reports&messages=client-one,2,1", { method: "GET" })).json();
+  const submit = (id: string, reason: string) => widget.fetch!(path, { method: "POST", body: JSON.stringify(item(id, reason)) });
+  expect(await states()).toEqual({ reports: { 1: "available", 2: "available" }, privatePreview: true });
+  const order = draw.shuffle(["1", "2"]);
+  const [id,other] = order;
+  report.mockRejectedValueOnce(new CommunityApiError("Please try again.", 503));
+  expect((await submit(id, "Missing step")).status).toBe(503);
+  expect((await states()).reports[id]).toBe("available");
+  expect((await submit(id, "Missing step")).status).toBe(200);
+  expect(report).toHaveBeenLastCalledWith(ids[Number(id) - 1], "Missing step");
+  expect((await states()).reports).toEqual({ [id]: "reported", [other]: "available" });
+  expect((await submit("client-one", "")).status).toBe(404);
+  view.rerender(<WebsitePracticeChat {...props} report={undefined} />);
+  expect(await states()).toEqual({});
+  expect((await submit(other, "")).status).toBe(404);
+  expect(report).toHaveBeenCalledTimes(2);
+});

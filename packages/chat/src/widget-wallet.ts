@@ -18,6 +18,7 @@
  * - headers the worker builds for the room use CAIP-10 (`formatCaip10`);
  * - a Solana widget signature is strict padded base64 of 64 bytes
  *   (`decodeWidgetSolanaSignature`). */
+import type { TeamConversation } from "./index";
 import { isEip155ChainId } from "./chains";
 import { isSolanaAddress } from "./solana";
 
@@ -25,7 +26,17 @@ export const WIDGET_WALLET_NETWORKS = ["evm", "solana"] as const;
 export type WidgetWalletNetwork = (typeof WIDGET_WALLET_NETWORKS)[number];
 
 export type WalletIdentification = { enabled: boolean; evm: boolean; solana: boolean };
+export type WalletIdentificationPolicy = WalletIdentification & { bitcoin?: boolean };
 export const DEFAULT_WALLET_IDENTIFICATION: WalletIdentification = { enabled: true, evm: true, solana: true };
+
+export function sharedWalletAddresses(
+  conversation?: Pick<TeamConversation, "verifiedWalletAddresses" | "verifiedWalletAddress" | "verifiedBitcoinWalletAddresses">,
+  fallback?: string,
+): string[] {
+  const first = conversation?.verifiedWalletAddress ?? fallback;
+  const other = conversation?.verifiedWalletAddresses ?? (first ? [first] : []);
+  return conversation?.verifiedBitcoinWalletAddresses?.length ? [...other, ...conversation.verifiedBitcoinWalletAddresses] : other;
+}
 
 export function readWalletIdentification(value: unknown): WalletIdentification | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;

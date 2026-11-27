@@ -1,7 +1,11 @@
 /** The member sees shared details before a send opens or adds to a case.
  * The chunk also draws the empty chat's help note and the lines that say
  * a person from the team joined. */
-import type { SupportSelectedWallet, TailHost } from "./support-widget";
+import type {
+  SupportSelectedWallet,
+  TailHost,
+  WidgetMessage,
+} from "./support-widget";
 // The key warning, outcome consent and install check.
 // They load in their own chunk, only when a page or a draft needs them.
 import type { Outcome } from "./support-widget-ops";
@@ -202,10 +206,10 @@ export function consent(
     get linksReady() {
       return !!loadedOps;
     },
-    linkify(node: HTMLElement, value: string) {
-      if (loadedOps) loadedOps.linkify(node, value);
+    linkify(node: HTMLElement, message: WidgetMessage) {
+      if (loadedOps) loadedOps.linkify(node, message);
       else {
-        node.append(value);
+        node.append(message.text);
         void ops().then(
           () => host.render(),
           () => {},

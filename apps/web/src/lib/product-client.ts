@@ -39,6 +39,7 @@ export function prepareProductPayment(
     purpose?: "standard-period" | "standard-annual" | "standard-credit";
     monthlyPlan?: MonthlySupportPlan;
     reviewedPriceVersion?: string;
+    reviewedAiRateCardVersion?: string;
     expectedPeriod?: string | null;
     confirmed?: true;
   },

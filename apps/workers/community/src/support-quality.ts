@@ -8,6 +8,11 @@
  * here reaches a member, a member export, a realtime event or an alert, and
  * no view ranks or names staff by their labels.
  *
+ * The record also keeps the member's reports of AI answers
+ * (support-answer-reports.ts), which only the owner and Admins read. Older
+ * workers keep the field as it is, and the record's deleters remove each
+ * report's list row before the record itself.
+ *
  * Sampling runs where the team reads the queue: a closed request is
  * sampled once, a "not solved" answer or a label can sample a request the
  * first pass left out, and a weekly cap bounds the work. Sampling never
@@ -16,6 +21,7 @@ import { canManageWorkspace } from "@templ/chat/moderation-permissions";
 import type { ChatPrincipalId } from "@templ/chat/principal";
 import { SUPPORT_HANDOFF_REASONS, type SupportCase } from "@templ/chat/support";
 import {
+  ANSWER_REPORT_LIMITS,
   DEFAULT_QUALITY_SETTINGS,
   GAP_SIGNALS,
   QUALITY_LIMITS,
@@ -87,6 +93,9 @@ export const QUALITY_MARKER_KEY = "support-quality-marker-v1";
 export const TRENDS_CACHE_PREFIX = "support-trends-cache-v1:";
 export const SAMPLE_SCAN_KEY = "support-quality-scan-v1";
 export const GAPS_PREFIX = "support-gaps-v1:";
+/** The reported-answer list: `open:` rows by report time, `done:` rows by
+ * review time. A row names its report and holds no text. */
+export const ANSWER_REPORT_PREFIX = "support-answer-report-v1:";
 const THREAD = /^tc-[0-9a-f]{32}$/;
 const DAY = 86_400_000;
 const pad8 = (value: number) => String(value).padStart(8, "0");
@@ -100,6 +109,13 @@ const queueKey = (sampledAt: number, thread: string, seq: number) =>
   `${REVIEW_QUEUE_PREFIX}${pad16(sampledAt)}:${thread}:${pad8(seq)}`;
 const QUEUE_KEY =
   /^support-review-queue-v1:([0-9]{16}):(tc-[0-9a-f]{32}):([0-9]{8})$/;
+/** The list row of one stored report, in its current state. */
+export const answerReportKey = (
+  thread: string,
+  seq: number,
+  report: StoredAnswerReport,
+) =>
+  `${ANSWER_REPORT_PREFIX}${report.reviewedAt === null ? `open:${pad16(report.at)}` : `done:${pad16(report.reviewedAt)}`}:${thread}:${pad8(seq)}:${pad16(report.message)}`;
 
 /* Who is asking                                                           */
 
@@ -150,6 +166,16 @@ type StoredLabel = {
   by: ChatPrincipalId;
   at: number;
 };
+/** A member's report of one AI answer. It names no reporter: the thread's
+ * member is the only one who can file it. */
+export type StoredAnswerReport = {
+  message: number;
+  at: number;
+  reason: string | null;
+  reviewedAt: number | null;
+  /** The owner or Admin who marked it reviewed. */
+  reviewedBy: ChatPrincipalId | null;
+};
 export type StoredCaseQuality = {
   schemaVersion: 1;
   thread: string;
@@ -184,6 +210,8 @@ export type StoredCaseQuality = {
     }[];
     actionTypes: string[];
   };
+  /** Read through `storedAnswerReports`; absent until the first report. */
+  memberReports?: StoredAnswerReport[];
 };
 const principalOk = (value: unknown): value is ChatPrincipalId =>
   typeof value === "string" && normalizeChatPrincipal(value) === value;
@@ -262,6 +290,39 @@ export async function readQuality(
 ): Promise<StoredCaseQuality | null> {
   return checkedQuality(await storage.get(qualityKey(thread, seq)), thread, seq);
 }
+/** A record's readable member reports, one per message. A malformed entry
+ * is left out here without making the labels and review unreadable; the next
+ * report write drops it. */
+export function storedAnswerReports(
+  q: StoredCaseQuality | null,
+): StoredAnswerReport[] {
+  const list: unknown = q?.memberReports;
+  if (!Array.isArray(list)) return [];
+  const seen = new Set<number>();
+  const out: StoredAnswerReport[] = [];
+  for (const raw of list) {
+    const report = raw as StoredAnswerReport;
+    if (
+      !report ||
+      typeof report !== "object" ||
+      !natural(report.message) ||
+      report.message < 1 ||
+      seen.has(report.message) ||
+      !natural(report.at) ||
+      (report.reason !== null &&
+        (typeof report.reason !== "string" ||
+          report.reason.length > ANSWER_REPORT_LIMITS.reasonChars)) ||
+      (report.reviewedAt === null
+        ? report.reviewedBy !== null
+        : !natural(report.reviewedAt) || !principalOk(report.reviewedBy))
+    )
+      continue;
+    seen.add(report.message);
+    out.push(report);
+    if (out.length >= ANSWER_REPORT_LIMITS.perCase) break;
+  }
+  return out;
+}
 function freshQuality(
   thread: string,
   seq: number,
@@ -288,7 +349,7 @@ function freshQuality(
 }
 /** The record to change: the stored one, or a fresh one (repaired when the
  * stored one was unreadable). */
-async function writableQuality(
+export async function writableQuality(
   storage: Storage,
   thread: string,
   seq: number,
@@ -306,7 +367,8 @@ async function writableQuality(
 export async function writeQuality(storage: Storage, q: StoredCaseQuality) {
   await storage.put(qualityKey(q.thread, q.seq), q);
 }
-/** Deletes a case's quality record and its queue row (case prune). */
+/** Deletes a case's quality record with its queue and reported-answer rows
+ * (case prune). The record goes last: it names the rows. */
 export async function deleteCaseQuality(
   storage: Storage,
   thread: string,
@@ -316,6 +378,10 @@ export async function deleteCaseQuality(
   if (budget <= 0) return 0;
   const q = await readQuality(storage, thread, seq);
   let deleted = 0;
+  for (const report of storedAnswerReports(q)) {
+    if (await storage.delete(answerReportKey(thread, seq, report))) deleted++;
+    if (deleted >= budget) return deleted;
+  }
   if (q?.review) {
     if (await storage.delete(queueKey(q.review.sampledAt, thread, seq))) deleted++;
     if (deleted >= budget) return deleted;
