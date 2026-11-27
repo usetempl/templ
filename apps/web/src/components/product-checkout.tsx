@@ -1,9 +1,9 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import type { ChatRoomId } from "@templ/chat/index";
 import { topUpBonusCents } from "@templ/chat/resolution-pricing";
-import { PRODUCT_ANNUAL_PRICES, PRODUCT_STARTER_PRICES, PRODUCT_STANDARD_PRICES, PRODUCT_TOP_UP } from "@templ/chat/plans";
+import { PRODUCT_ANNUAL_PRICES, PRODUCT_STARTER_PRICES, PRODUCT_STANDARD_PRICES, PRODUCT_STANDARD_AI_RATES, PRODUCT_TOP_UP } from "@templ/chat/plans";
 import { starterPricesForVersion } from "@templ/chat/standard-plan";
 import type { MonthlySupportPlan } from "@templ/chat/standard-plan";
 import {
@@ -23,7 +23,7 @@ import {
   isBillingView,
   topUpCents,
 } from "@/lib/product-offer";
-import { formatUsd } from "@/lib/product-format";
+import { formatUsd, prepaidAiRateText } from "@/lib/product-format";
 import { communitySessionRevision } from "@/lib/community-auth";
 import { useChatAuth } from "@/lib/chat-auth";
 import { useWallet, walletError } from "@/lib/wallet";
@@ -100,6 +100,7 @@ function Checkout({
     usage && isBillingView(usage) ? usage.usageBilling : undefined;
   const standard =
     usage && isBillingView(usage) ? usage.standardPlan : undefined;
+  const agreedAiBilling = (standard?.prepaid?.mode ?? "prepaid") !== "prepaid";
   const [standardPurpose, setStandardPurpose] = useState<
     "period" | "credit" | null
   >(() =>
@@ -121,6 +122,7 @@ function Checkout({
   const annual = standardPurpose === "period" && Boolean(annualNetwork) && term === "annual";
   const requestedPurpose = annual ? "annual" : standardPurpose;
   const monthlyPrices = monthlyPlan === "starter" ? PRODUCT_STARTER_PRICES : PRODUCT_STANDARD_PRICES;
+  const checkoutCard = monthlyPlan === "starter" ? PRODUCT_STARTER_PRICES.aiRateCardVersion : PRODUCT_STANDARD_AI_RATES.version;
   const accessCents = annual ? PRODUCT_ANNUAL_PRICES[monthlyPlan] : monthlyPrices.workspaceMonthlyUsdCents;
   const [dollars, setDollars] = useState(() =>
     String(
@@ -591,6 +593,24 @@ function Checkout({
     }
     setRevision((v) => v + 1);
   }
+  const restorePending = useCallback((address: string) => {
+    const previous = pendingProductPaymentFor(room, address);
+    if (!previous) return false;
+    const restored = requests.find((item) => item.id === previous.intent.id) ?? previous.intent;
+    checkProductPaymentIntent(room, restored, address, features);
+    setIntent(restored);
+    setHash(restored.submittedTx ?? previous.hash ?? "");
+    return true;
+  }, [room, requests, features]);
+  const choosePayer = useCallback((address: string | undefined) => {
+    setPayer(address);
+    if (!address) return;
+    try {
+      restorePending(address);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Review the pending payment again.");
+    }
+  }, [restorePending]);
   const locked = busy || Boolean(intent);
   const choosingPlan = purpose === "period" && standardPurpose === "period";
   return (
@@ -659,8 +679,9 @@ function Checkout({
               )}
               <p className={styles.note}>
                 {monthlyPrices.includedAnsweredCasesPerMonth} answered cases per month.{" "}
-                {formatUsd(monthlyPrices.includedAiCreditUsdCents)} AI credit included
-                each month. Add credit when you need more AI.
+                {agreedAiBilling ? "Your billing agreement sets AI charges." : <>
+                  {formatUsd(monthlyPrices.includedAiCreditUsdCents)} AI credit included each month. AI usage costs {prepaidAiRateText(monthlyPrices, checkoutCard)}.
+                </>}
               </p>
             </>
           ) : (
@@ -816,7 +837,7 @@ function Checkout({
               principal={auth.session?.principalId}
               network={chainId === "solana" ? "solana" : "evm"}
               value={payer}
-              onChange={setPayer}
+              onChange={choosePayer}
               disabled={busy}
             />
           )}
@@ -830,17 +851,7 @@ function Checkout({
                   if (!payer || usdCents === null) return;
                   const rail = productRailOf(chainId, symbol);
                   if (!rail) return;
-                  const previous = pendingProductPaymentFor(room, payer);
-                  if (previous) {
-                    const restored =
-                      requests.find(
-                        (request) => request.id === previous.intent.id,
-                      ) ?? previous.intent;
-                    checkProductPaymentIntent(room, restored, payer, features);
-                    setIntent(restored);
-                    setHash(restored.submittedTx ?? previous.hash ?? "");
-                    return;
-                  }
+                  if (restorePending(payer)) return;
                   const result = await prepareProductPayment(
                     auth.session?.principalId,
                     room,
@@ -883,7 +894,8 @@ function Checkout({
                         result.intent.standard?.purpose !== requestedPurpose ||
                         result.intent.standard.expectedPeriod !== expectedPeriod ||
                         (standardPurpose === "period" &&
-                          result.intent.standard.priceVersion !== monthlyPrices.publishedOn)))
+                          (result.intent.standard.priceVersion !== monthlyPrices.publishedOn ||
+                           result.intent.standard.aiRateCardVersion !== checkoutCard))))
                   )
                     throw new Error(
                       "The payment selection changed. Review it again.",
@@ -926,6 +938,7 @@ function Checkout({
       {intent && (
         <>
           <ProductPaymentRequestDetails
+            agreedAiBilling={agreedAiBilling}
             request={
               intent.status === "open" && !intent.submittedTx && saved?.hash
                 ? { ...intent, submittedTx: saved.hash }

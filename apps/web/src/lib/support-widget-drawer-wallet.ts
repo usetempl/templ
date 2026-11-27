@@ -103,11 +103,6 @@ export async function drawerWallet(host: TailHost, menu: HTMLElement, signal: Ab
       else sessionStorage.removeItem(scope);
     } catch { /* In-memory proofs remain usable in this visit. */ }
   }
-  function attached() {
-    const record = host.walletCase?.();
-    const first = record?.verifiedWalletAddress ?? host.verifiedWallet?.();
-    return record?.verifiedWalletAddresses ?? (first ? [first] : []);
-  }
   function rows(addresses: string[]) {
     const multiple = !!host.policy?.walletIdentification;
     const signature = JSON.stringify([addresses, removing, multiple]);
@@ -180,7 +175,7 @@ export async function drawerWallet(host: TailHost, menu: HTMLElement, signal: Ab
     }
     const id = thread();
     if (selected !== id) { selected = id; choosing = false; removing = undefined; status.textContent = ""; }
-    const bound = attached();
+    const bound = view.caseWalletAddresses(host);
     const addresses = [...new Set([...bound, ...proofs.filter(proof => proof.conversation === id).map(proof => proof.address)])];
     rows(addresses);
     refreshRoster();
@@ -260,7 +255,7 @@ export async function drawerWallet(host: TailHost, menu: HTMLElement, signal: Ab
     const principal = client.session?.principalId;
     busy = true; sync();
     try {
-      if (id && principal && attached().includes(address))
+      if (id && principal && view.caseWalletAddresses(host).includes(address))
         await client.adopt()[1]("/auth/unlink-wallet", { conversation: id, address });
       if (signal.aborted || thread() !== id || client.session?.principalId !== principal) return;
       save(proofs.filter(proof => proof.address !== address || proof.conversation !== id));

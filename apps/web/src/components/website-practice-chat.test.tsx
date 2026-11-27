@@ -122,6 +122,8 @@ simulate(
     };
 
     const scanning = await mount(props);
+    const policy = await (await widget.fetch!("https://preview.invalid/widget/" + widget.workspace + "/auth/policy")).json();
+    expect(policy).toMatchObject({ minimumLevel: "anyone", walletIdentification: { enabled: false, evm: false, solana: false } });
     await waitFor(() =>
       expect(sendButton().getAttribute("aria-disabled")).toBe("true"),
     );

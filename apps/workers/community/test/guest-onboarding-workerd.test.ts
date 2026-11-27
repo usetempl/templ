@@ -212,7 +212,15 @@ it("imports linked docs, isolates the preview, and saves its source and edited b
     });
     expect(
       await data(await app.call("/rooms/" + id + "/widget", owner)),
-    ).toMatchObject({ appearance: { accent: brand.accent, logo: brand.logo } });
+    ).toMatchObject({
+      appearance: { accent: brand.accent, logo: brand.logo },
+      minimumLevel: "anyone",
+      walletIdentification: { enabled: true, evm: true, solana: true },
+    });
+    const optedOut = { enabled: false, evm: true, solana: false };
+    await data(await app.call("/rooms/" + id + "/widget", owner, { confirmed: true, walletIdentification: optedOut }));
+    expect(await data(await claim(owner))).toEqual({ id });
+    expect(await data(await app.call("/rooms/" + id + "/widget", owner))).toMatchObject({ walletIdentification: optedOut });
     const sources = await data(await app.call("/rooms/" + id + "/conversations/knowledge", owner));
     expect(sources.sources).toEqual(expect.arrayContaining([
       expect.objectContaining({ url: "https://garden.tools/", status: "ready" }),

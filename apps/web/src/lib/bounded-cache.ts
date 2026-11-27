@@ -54,6 +54,11 @@ export class BoundedCache<T> {
     this.pending.delete(key);
   }
 
+  deletePrefix(prefix: string) {
+    for (const key of this.entries.keys()) if (key.startsWith(prefix)) this.entries.delete(key);
+    for (const key of this.pending.keys()) if (key.startsWith(prefix)) this.pending.delete(key);
+  }
+
   clear() {
     ++this.revision;
     this.entries.clear();

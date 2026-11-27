@@ -164,7 +164,7 @@ function AiConnectionProbe({ principal }: { principal: ChatPrincipalId }) {
       if (!controller.signal.aborted)
         setResult(
           value.connected
-            ? "AI connection works. GPT-6.1 Sol returned complete Standard usage."
+            ? `AI connection works. ${value.model} returned complete Standard usage.`
             : `AI connection check failed. Reason: ${value.reason}. Model: ${value.model}. Tier: ${value.tier}. Usage complete: ${value.usageComplete ? "yes" : "no"}.`,
         );
     } catch {

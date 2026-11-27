@@ -761,7 +761,7 @@ function widgetConfigTransaction(
         ? stored.minimumLevel!
         : "anyone",
       hostedPage: stored.hostedPage === true,
-      walletIdentification: stored.walletIdentification ?? null,
+      walletIdentification: stored.walletIdentification ?? readWalletIdentification(body.initialWalletIdentification),
       walletFallback: stored.walletFallback !== false,
       askPerson: stored.askPerson !== false,
       remember: stored.remember !== false,
@@ -1248,11 +1248,12 @@ export async function widgetConfig(
   env: Env,
   room: string,
   body:
-    | { op: "open" }
+    | { op: "open"; initialWalletIdentification?: WalletIdentification }
     | { op: "read"; origin: string }
     | {
         op: "save";
         initializeOnly?: boolean;
+        initialWalletIdentification?: WalletIdentification;
         /** A worker-bound connect request deadline, checked within the save. */
         approvalExpiresAt?: number;
         origins?: unknown;
@@ -2015,10 +2016,6 @@ export async function supportWidgetRoute(
         current.hostedPage === true &&
         origin === env.APP_ORIGIN;
       const minimumLevel = hosted ? "anyone" : current.minimumLevel;
-      const walletSettings = current.walletIdentification ?? DEFAULT_WALLET_IDENTIFICATION;
-      const allowsIdentification = (network: unknown) => walletSettings.enabled &&
-        ((network === "evm" && walletSettings.evm) ||
-        (network === "solana" && walletSettings.solana && featureOn(env, undefined, "solanaSignIn")));
       if (path === "/hosted" && request.method === "GET") {
         if (!hosted || closed)
           throw new HttpError(404, "Support page not found.");
@@ -2045,9 +2042,14 @@ export async function supportWidgetRoute(
           "Open this support widget on an HTTPS website.",
         );
       if (!closed && workspaceRead) {
-        await workspaceRead;
+        const { record } = await workspaceRead;
+        current.walletIdentification ??= record.initialWalletIdentification;
         requestPrefetch(env).native = { id: room, read: workspaceRead };
       }
+      const walletSettings = current.walletIdentification ?? DEFAULT_WALLET_IDENTIFICATION;
+      const allowsIdentification = (network: unknown) => walletSettings.enabled &&
+        ((network === "evm" && walletSettings.evm) ||
+        (network === "solana" && walletSettings.solana && featureOn(env, undefined, "solanaSignIn")));
       allowed = true;
       if (closed && request.method !== "OPTIONS") throw workspaceClosedError();
       // A workspace that requires frame mode.

@@ -1,3 +1,4 @@
+import { DEFAULT_WALLET_IDENTIFICATION, readWalletIdentification, type WalletIdentification } from "@templ/chat/widget-wallet";
 import { CRYPTO_SUPPORT_WORKSPACE } from "./crypto-support";
 import { requireConnectDeadline } from "./connect-deadline";
 import { revokeEncryptionPrincipal } from "./support-encryption-access";
@@ -89,6 +90,7 @@ export type NativeCreation = {
   room: NativeRoom;
   setup: NativeSetup;
   requestHash: string;
+  initialWalletIdentification?: WalletIdentification;
   trialOperator?: `0x${string}`;
 };
 export type NativeRoomRecord = NativeCreation & {
@@ -258,6 +260,9 @@ export function nativeCreation(
     trialOperator = operator as `0x${string}`;
   }
   const selectedVisibility = visibility(body.visibility);
+  const wallets = body.walletIdentification === undefined
+    ? DEFAULT_WALLET_IDENTIFICATION : readWalletIdentification(body.walletIdentification);
+  if (!wallets) throw invalid("Choose the wallet verification settings.");
   let image: string | null = null;
   if (body.image != null) {
     if (selectedVisibility === "private")
@@ -290,6 +295,7 @@ export function nativeCreation(
   return {
     room,
     setup,
+    ...(selectedVisibility === "public" ? { initialWalletIdentification: wallets } : {}),
     ...(trialOperator === undefined ? {} : { trialOperator }),
     requestHash: keccak256(
       toHex(

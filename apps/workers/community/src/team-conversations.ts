@@ -1,3 +1,5 @@
+import { CRYPTO_SUPPORT_WORKSPACE } from "@templ/chat/support-models";
+import { canonicalBitcoinProofAddress } from "./bitcoin-wallet-proof";
 import { reserveCryptoQuestion } from "./crypto-support";
 import { appAiEnabled, appAnswerStatus, assertAppAnswerWrite, finishAppAnswer } from "./app-ai-replies";
 import { canManageWorkspace } from "@templ/chat/moderation-permissions";
@@ -377,6 +379,8 @@ export type TeamConversationRecord = {
   room: string;
   member: ChatPrincipalId;
   sharedVerifiedWallets?: WidgetWallet[];
+  /** Kept outside the wallet-family fields read by older widgets and workers. */
+  sharedVerifiedBitcoinWallets?: string[];
   /** A proof issued before an unlink cannot put the removed wallet back on a retry. */
   walletUnlinks?: Record<string, number>;
   initiator: { kind: "member" | "staff"; principalId: ChatPrincipalId };
@@ -409,6 +413,9 @@ export type TeamConversationRecord = {
    * person's reply or a resolution (and, for a handoff the AI agent or a
    * person started, by taking or assigning the request). */
   handoff?: StoredHandoff | null;
+  /** The `at` of a handoff the public crypto desk's managed AI opened for a
+   * technical issue it classified, bound with `ifLatest`. */
+  technicalHandoffAt?: number;
   /** "Did this solve it?" for the latest team resolution. */
   confirmation?: StoredConfirmation | null;
   /** The AI mode a person or a rule chose for the current request. Absent:
@@ -743,6 +750,7 @@ export function conversationView(
   const replyBlocked = role === "team" ? (extras?.replyBlocked ?? null) : null;
   const assignment = record.assignment ?? null;
   const wallets = conversationWallets(record);
+  const bitcoinAddresses = bitcoinConversationAddresses(record);
   const mine = Boolean(
     assignment &&
     actsAs(workflow?.aliases ?? [viewer.principalId!], assignment.principalId),
@@ -753,6 +761,7 @@ export function conversationView(
     member: record.member,
     ...(wallets.length ? { verifiedWalletAddress: wallets[0]!.address,
       verifiedWalletAddresses: wallets.map(wallet => wallet.address) } : {}),
+    ...(bitcoinAddresses.length ? { verifiedBitcoinWalletAddresses: bitcoinAddresses } : {}),
     ...(record.formerMembers?.length
       ? { formerMembers: [...record.formerMembers] }
       : {}),
@@ -787,7 +796,7 @@ export function conversationView(
       : null,
     viewer: role,
     canPost: blocked === null && !replyBlocked,
-    handoff: handoffView(record.handoff, role),
+    handoff: handoffView(record.handoff, role, record.technicalHandoffAt),
     confirmation: confirmationView(record.confirmation),
     // The member line (a label and a date, nothing else).
     ...lineOf(record),
@@ -1242,6 +1251,14 @@ export function widgetVerification(
     authenticatedAt: body.authenticatedAt,
   };
 }
+function bitcoinConversationAddresses(record: TeamConversationRecord): string[] {
+  if (record.encryptedCases || record.room !== `room:${CRYPTO_SUPPORT_WORKSPACE}` ||
+      !Array.isArray(record.sharedVerifiedBitcoinWallets)) return [];
+  return [...new Set(record.sharedVerifiedBitcoinWallets.slice(0, 3).filter(
+    address => typeof address === "string" && canonicalBitcoinProofAddress(address) === address,
+  ))];
+}
+
 function conversationWallets(record: TeamConversationRecord): WidgetWallet[] {
   if (record.encryptedCases) return [];
   const wallets = new Map<string, WidgetWallet>();
@@ -1275,6 +1292,17 @@ export async function shareGuestWalletProof(
   // through the last possible expiry of a proof issued before the unlink.
   const unlinks = Object.fromEntries(Object.entries(thread.walletUnlinks ?? {})
     .filter(([, at]) => now - at <= NONCE_TTL + WALLET_SHARE_RECEIPT_TTL));
+  if (unlink && typeof body.address === "string" && canonicalBitcoinProofAddress(body.address) === body.address) {
+    const addresses = bitcoinConversationAddresses(thread);
+    if (!addresses.includes(body.address)) return;
+    unlinks[await sha256Hex(thread.id + "/" + body.address)] = now;
+    const next = { ...thread, walletUnlinks: unlinks, revision: thread.revision + 1 };
+    next.sharedVerifiedBitcoinWallets = addresses.filter(address => address !== body.address);
+    if (!next.sharedVerifiedBitcoinWallets.length) delete next.sharedVerifiedBitcoinWallets;
+    await save(storage, next);
+    pending.push({ type: "conversation.updated", channelId: next.id, conversationRevision: next.revision });
+    return;
+  }
   if (unlink) {
     const index = wallets.findIndex(wallet => wallet.address === body.address);
     if (index < 0) return;

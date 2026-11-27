@@ -377,8 +377,8 @@ export function AdminStandardPlan({
                 />
               </label>
               <p>
-                Enter the verified GPT-6.1 Sol standard rate-card total before
-                this period’s multiplier. Use up to 9 decimal places. Exclude
+                Enter the verified total at this period’s recorded Standard API
+                rates before applying its multiplier. Use up to 9 decimal places. Exclude
                 Templ errors, failed calls and loops.
               </p>
               <label>

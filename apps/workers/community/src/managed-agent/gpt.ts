@@ -1,4 +1,9 @@
-import { DEFAULT_SUPPORT_MODEL, CRYPTO_SUPPORT_MODEL } from "@templ/chat/support-models";
+import {
+  DEFAULT_SUPPORT_MODEL,
+  CRYPTO_SUPPORT_MODEL,
+  supportEffort,
+  type SupportModel,
+} from "@templ/chat/support-models";
 import {
   MANAGED_AGENT_LIMITS,
   MANAGED_ANSWER_SCHEMA,
@@ -19,7 +24,6 @@ import type { RoomClient } from "./room-client";
 import { HANDOFF_LEARNING_SCHEMA, checkedHandoffLearningResult } from "@templ/chat/support-learning";
 
 export const PREPAID_GPT_MODEL = DEFAULT_SUPPORT_MODEL;
-type SupportModel = typeof DEFAULT_SUPPORT_MODEL | typeof CRYPTO_SUPPORT_MODEL;
 export const PREPAID_GPT_GATEWAY_MODEL = `openai/${PREPAID_GPT_MODEL}`;
 
 export function isPrepaidGptModel(model: unknown, expected: SupportModel = PREPAID_GPT_MODEL): boolean {
@@ -180,7 +184,7 @@ export function prepaidGptRequest(system: string, user: string, format: "answer"
     instructions: system,
     input: [{ role: "user", content: [{ type: "input_text", text: user }] }],
     max_output_tokens: model === CRYPTO_SUPPORT_MODEL ? 4096 : MANAGED_AGENT_LIMITS.maxOutputTokens,
-    reasoning: { effort: model === CRYPTO_SUPPORT_MODEL ? "xhigh" : "medium" },
+    reasoning: { effort: supportEffort(model) },
     service_tier: "default",
     store: false,
     stream: false,
@@ -430,14 +434,16 @@ export function fundedGptCaller(input: GptOptions, funding: GptFunding): ModelCa
         usage: null,
       };
     }
-    const standardUsage =
-      model === expectedModel && standardTier ? usage : null;
-    if (refused) return { kind: "refusal", usage: {}, standardUsage };
+    const standard = {
+      standardModel: expectedModel,
+      standardUsage: model === expectedModel && standardTier ? usage : null,
+    };
+    if (refused) return { kind: "refusal", usage: {}, ...standard };
     if (
       outcome !== "completed" ||
       !settled.available
     )
-      return { kind: "failed", reason: failure, usage: null, standardUsage };
-    return { kind: "answer", value: parsed, model, usage: {}, standardUsage };
+      return { kind: "failed", reason: failure, usage: null, ...standard };
+    return { kind: "answer", value: parsed, model, usage: {}, ...standard };
   };
 }

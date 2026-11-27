@@ -29,22 +29,29 @@ export function useInboxPreviews(
       try {
         while (!controller.signal.aborted) {
           const row = [...visible.values()].find(item =>
-            !attempted.has(keyFor(item)) && cache.preview(keyFor(item)) === undefined);
+            !attempted.has(keyFor(item)) && cache.previewDue(keyFor(item)));
           if (!row) break;
           const key = keyFor(row);
           attempted.add(key);
           try {
             const page = await readConversationMessages(room, row.id, { limit: 25 }, controller.signal);
             if (controller.signal.aborted) return;
-            if (page.conversation.id !== row.id || page.conversation.viewer !== "team" || page.conversation.encryption)
+            if (page.conversation.id !== row.id || page.conversation.viewer !== "team" ||
+                page.conversation.encryption || page.conversation.revision !== row.revision) {
+              cache.forgetPreview(key);
+              render(value => value + 1);
               continue;
+            }
             const visitors = new Set<string>([page.conversation.member, ...(page.conversation.formerMembers ?? [])]);
             const message = page.messages.findLast(item => visitors.has(item.author));
             const excerpt = message?.text.replace(/\s+/gu, " ").trim().slice(0, 180);
             cache.rememberPreview(key, excerpt || null);
             render(value => value + 1);
           } catch {
-            // The case row remains usable during a refusal or network error.
+            if (!controller.signal.aborted) {
+              cache.forgetPreview(key);
+              render(value => value + 1);
+            }
           }
         }
       } finally {
@@ -69,5 +76,5 @@ export function useInboxPreviews(
       observer.disconnect();
     };
   }, [rows, room, scroll, cache]);
-  return (row: TeamConversation) => row.encryption ? undefined : cache.preview(keyFor(row)) ?? undefined;
+  return (row: TeamConversation) => row.viewer !== "team" || row.encryption ? undefined : cache.preview(keyFor(row)) ?? undefined;
 }

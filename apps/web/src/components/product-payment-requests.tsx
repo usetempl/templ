@@ -16,13 +16,14 @@ import { ProductPaymentRequestDetails } from "./product-payment-request";
 type RequestListProps = {
   room: ChatRoomId;
   account?: ChatPrincipalId;
+  agreedAiBilling?: boolean;
   onOpen: (request: ProductPaymentIntent) => void;
   onCredited?: () => void;
 };
 export function ProductPaymentRequests(props: RequestListProps) {
   return <RequestList key={`${props.room}:${props.account}`} {...props} />;
 }
-function RequestList({ room, account, onOpen, onCredited }: RequestListProps) {
+function RequestList({ room, account, agreedAiBilling, onOpen, onCredited }: RequestListProps) {
   const [requests, setRequests] = useState<ProductPaymentIntent[]>([]);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -70,6 +71,7 @@ function RequestList({ room, account, onOpen, onCredited }: RequestListProps) {
         <div key={request.id}>
           <ProductPaymentRequestDetails
             request={request}
+            agreedAiBilling={agreedAiBilling}
             busy={busy}
             onCheck={() => {
               if (busy) return;

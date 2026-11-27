@@ -201,10 +201,15 @@ export function clearsHandoff(
 export function handoffView(
   handoff: StoredHandoff | null | undefined,
   role: "member" | "team",
+  technicalAt?: number,
 ): TeamConversation["handoff"] {
   if (!handoff) return null;
   return role === "member"
-    ? { at: iso(handoff.at), by: handoff.by }
+    ? {
+        at: iso(handoff.at),
+        by: handoff.by,
+        ...(technicalAt === handoff.at ? { technical: true as const } : {}),
+      }
     : { at: iso(handoff.at), reason: handoff.reason, by: handoff.by };
 }
 

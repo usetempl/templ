@@ -7,7 +7,7 @@ import { ordinaryGuestReturn, supportStorageKey } from "./support-widget-return"
  * while its controls load. The usual case and encryption rules consume it. */
 export function hostedGuestReturn(
   workspace: string, build: string, wallet: SupportWallet | null, lifetime: AbortSignal,
-  selected?: (principal: string) => string | undefined,
+  selected?: (principal: string) => string | undefined, fetcher?: typeof fetch,
 ) {
   if (document.hidden || lifetime.aborted || location.hash.startsWith("#templ-guest=") || !ordinaryGuestReturn(workspace)) return;
   const key = supportStorageKey("guest", workspace);
@@ -15,7 +15,7 @@ export function hostedGuestReturn(
   try { credential = localStorage.getItem(key); } catch { return; }
   if (!credential || !/^[0-9a-f]{64}$/.test(credential)) return;
 
-  const client = createSupportClient({workspace, apiUrl: SITE.community, wallet}, {build});
+  const client = createSupportClient({workspace, apiUrl: SITE.community, wallet}, {build, fetch: fetcher});
   const messages = client.messages.bind(client);
   let page: {
     owner: NonNullable<ReturnType<typeof client.adopt>[0]>;

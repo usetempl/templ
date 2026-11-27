@@ -21,7 +21,7 @@ export function OnboardingWalletFields({ value, disabled }: { value: WalletIdent
               if (input instanceof HTMLInputElement) input.checked = true;
             }
           }} />
-        My users have crypto wallets
+        Let visitors verify a wallet in chat
       </label>
       <div className={styles.onboardingFamilies}>
         {families.map(([family, label]) => (

@@ -1,4 +1,8 @@
-import { PRODUCT_STANDARD_AI_RATES, PRODUCT_STANDARD_PRICES } from "./plans";
+import {
+  PRODUCT_STANDARD_AI_RATES,
+  PRODUCT_STANDARD_PRICES,
+  PRODUCT_TERRA_AI_RATES,
+} from "./plans";
 
 /** Counts from one completed Standard-tier API request, before aggregation. */
 export type StandardAiTokenUsage = {
@@ -10,9 +14,16 @@ export type StandardAiTokenUsage = {
 };
 
 const TOKEN_LIMIT = 1_000_000_000_000;
-export type StandardAiModel = "gpt-6.1-sol" | "gpt-6.2-sol";
+export type StandardAiModel = "gpt-6.1-sol" | "gpt-6.2-sol" | "gpt-6.1-terra";
+/** Each model's Standard API card. GPT-6.2 Sol keeps the GPT-6.1 Sol card it already uses. */
+function rateCard(model: unknown) {
+  if (model === PRODUCT_TERRA_AI_RATES.model) return PRODUCT_TERRA_AI_RATES;
+  return model === PRODUCT_STANDARD_AI_RATES.model || model === "gpt-6.2-sol"
+    ? PRODUCT_STANDARD_AI_RATES
+    : null;
+}
 export function isStandardAiModel(value: unknown): value is StandardAiModel {
-  return value === PRODUCT_STANDARD_AI_RATES.model || value === "gpt-6.2-sol";
+  return rateCard(value) !== null;
 }
 const MAX_NANOS = 10n ** 30n - 1n;
 const PER_MILLION = 1_000_000n;
@@ -97,9 +108,10 @@ export function standardAiUsageUsdNanos(
   usage: StandardAiTokenUsage,
   rate: number | StandardAiRate = PRODUCT_STANDARD_PRICES,
 ): string | null {
+  const card = rateCard(model);
   const fraction = rateFraction(rate);
   if (
-    !isStandardAiModel(model) ||
+    !card ||
     !usage ||
     !tokenCount(usage.inputTokens) ||
     !tokenCount(usage.cachedInputTokens) ||
@@ -117,32 +129,27 @@ export function standardAiUsageUsdNanos(
   const written = BigInt(usage.cacheWriteInputTokens);
   if (cached + written > input) return null;
 
-  const long =
-    usage.inputTokens > PRODUCT_STANDARD_AI_RATES.longContextAboveInputTokens;
-  const inputMultiplier = long
-    ? BigInt(PRODUCT_STANDARD_AI_RATES.longInputMultiplier)
-    : 1n;
+  const long = usage.inputTokens > card.longContextAboveInputTokens;
+  const inputMultiplier = long ? BigInt(card.longInputMultiplier) : 1n;
   const outputNumerator = long
-    ? BigInt(PRODUCT_STANDARD_AI_RATES.longOutputMultiplierNumerator)
+    ? BigInt(card.longOutputMultiplierNumerator)
     : 1n;
   const outputDenominator = long
-    ? BigInt(PRODUCT_STANDARD_AI_RATES.longOutputMultiplierDenominator)
+    ? BigInt(card.longOutputMultiplierDenominator)
     : 1n;
   const inputCost =
-    ((input - cached - written) *
-      BigInt(PRODUCT_STANDARD_AI_RATES.inputUsdNanosPerMillion) +
-      cached * BigInt(PRODUCT_STANDARD_AI_RATES.cachedInputUsdNanosPerMillion) +
-      written *
-        BigInt(PRODUCT_STANDARD_AI_RATES.cacheWriteInputUsdNanosPerMillion)) *
+    ((input - cached - written) * BigInt(card.inputUsdNanosPerMillion) +
+      cached * BigInt(card.cachedInputUsdNanosPerMillion) +
+      written * BigInt(card.cacheWriteInputUsdNanosPerMillion)) *
     inputMultiplier;
   const numerator =
     (inputCost * outputDenominator +
       BigInt(usage.outputTokens) *
-        BigInt(PRODUCT_STANDARD_AI_RATES.outputUsdNanosPerMillion) *
+        BigInt(card.outputUsdNanosPerMillion) *
         outputNumerator) *
     fraction.numerator;
   const denominator = PER_MILLION * outputDenominator * fraction.denominator;
-  // This rate card yields whole nanodollars. Do not silently truncate a future card.
+  // These rate cards yield whole nanodollars. Do not silently truncate a future card.
   if (numerator % denominator !== 0n) return null;
   const nanos = numerator / denominator;
   return nanos <= MAX_NANOS ? nanos.toString() : null;

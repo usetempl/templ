@@ -1,3 +1,4 @@
+import { DEFAULT_WALLET_IDENTIFICATION } from "@templ/chat/widget-wallet";
 import { PRODUCT_LIMITS } from "@templ/chat/plans";
 import { validAccent } from "@templ/chat/appearance";
 import {
@@ -46,6 +47,7 @@ type StoredTrial = {
   icon?: string;
   confirmed?: boolean;
   owner?: string;
+  visitorWallets?: boolean;
   finished?: boolean;
 };
 type PreviewContent = Omit<StoredTrial, "confirmed" | "owner" | "finished">;
@@ -57,6 +59,7 @@ type Trial = PreviewContent & (
 
 function validTrial(row: StoredTrial): row is Trial {
   if (row.confirmed !== undefined && typeof row.confirmed !== "boolean") return false;
+  if (row.visitorWallets !== undefined && typeof row.visitorWallets !== "boolean") return false;
   if (row.finished !== undefined && typeof row.finished !== "boolean") return false;
   if (row.owner === undefined) return row.finished !== true;
   return typeof row.owner === "string" && row.owner.length > 0 && row.confirmed === true;
@@ -67,7 +70,7 @@ function stage(row: Trial) {
   return row.finished ? "saved" : "claiming";
 }
 type TrialEnv = Partial<Env> & KnowledgeEnv;
-type Claim = { id: string; brand: WebsiteBrand; expires: number };
+type Claim = { id: string; brand: WebsiteBrand; expires: number; visitorWallets: boolean };
 type Forward = (
   path: string,
   body: Record<string, unknown>,
@@ -175,6 +178,9 @@ export async function previewRecord(
     ((body.op !== "claim" && body.op !== "finish") || row.owner !== body.owner)
   )
     throw new HttpError(409, "This preview has already been saved.");
+  if ((body.op === "confirm" || body.op === "claim") &&
+      body.visitorWallets !== undefined && typeof body.visitorWallets !== "boolean")
+    throw new HttpError(400, "Choose whether visitors can verify a wallet.");
   if (body.op === "start" || body.op === "read") {
     if (body.op === "start" && websiteUrl(body.site) !== row.site)
       throw new HttpError(409, "Start a new preview to change websites.");
@@ -213,7 +219,7 @@ export async function previewRecord(
           "That icon could not load. Try another image or leave it blank.",
         );
     }
-    row = { ...row, confirmed: true } satisfies Trial;
+    row = { ...row, confirmed: true, ...(typeof body.visitorWallets === "boolean" ? { visitorWallets: body.visitorWallets } : {}) } satisfies Trial;
     await storage.put(KEY, row);
   } else if (body.op === "ask") {
     if (!row.confirmed || !row.imported)
@@ -256,8 +262,11 @@ export async function previewRecord(
       (state === "confirmed" && body.op === "finish")
     )
       throw new HttpError(403, "Confirm your chat and sign in to save it.");
+    const visitorWallets = row.owner === undefined
+      ? (body.visitorWallets ?? row.visitorWallets) !== false
+      : row.visitorWallets === true;
     if (row.owner === undefined) {
-      await storage.put(KEY, { ...row, confirmed: true, owner: body.owner } satisfies Trial);
+      await storage.put(KEY, { ...row, confirmed: true, owner: body.owner, visitorWallets } satisfies Trial);
     } else if (body.op === "finish" && !row.finished) {
       await storage.put(KEY, { ...row, finished: true } satisfies Trial);
     }
@@ -265,6 +274,7 @@ export async function previewRecord(
       id: row.room,
       brand: row.brand,
       expires: row.expires,
+      visitorWallets,
     } satisfies Claim);
   } else if (body.op !== "read") throw new HttpError(404, "Preview not found.");
   const { remaining } =
@@ -279,6 +289,7 @@ export async function previewRecord(
     ready: row.imported === true,
     suggestion: row.suggestion,
     confirmed: !!row.confirmed,
+    ...(row.visitorWallets === undefined ? {} : { visitorWallets: row.visitorWallets }),
     remaining,
   });
 }
@@ -412,14 +423,16 @@ export async function guestOnboardingRoute(
     const owner = await authenticate();
     if (body.expectedPrincipalId !== owner)
       throw new HttpError(409, "Your account changed. Sign in again.");
-    const claim = await call({ op, owner, previewId: body.previewId });
+    const claim = await call({ op, owner, previewId: body.previewId, visitorWallets: body.visitorWallets });
     if (!claim.ok) return claim;
-    const { id, brand, expires } = await claim.json<Claim>();
+    const { id, brand, expires, visitorWallets } = await claim.json<Claim>();
+    const walletIdentification = { ...DEFAULT_WALLET_IDENTIFICATION, enabled: visitorWallets === true };
     const created = await forward(
       "/rooms",
       {
         expectedPrincipalId: owner,
         id,
+        walletIdentification,
         name: brand.name,
         visibility: "public",
         setup: { roles: [] },
@@ -437,7 +450,7 @@ export async function guestOnboardingRoute(
         confirmed: true,
         appearanceRevision: 0,
         appearance: { accent: brand.accent, logo: brand.logo },
-        walletIdentification: { enabled: false, evm: true, solana: true },
+        walletIdentification,
       },
       expires,
     );
@@ -456,7 +469,7 @@ export async function guestOnboardingRoute(
   let args: Record<string, unknown> = { op };
   if (op === "start") args = { op, site: body.site };
   if (op === "confirm")
-    args = { op, name: body.name, accent: body.accent, logo: body.logo };
+    args = { op, name: body.name, accent: body.accent, logo: body.logo, visitorWallets: body.visitorWallets };
   if (op === "ask")
     args = {
       op,

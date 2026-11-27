@@ -227,6 +227,8 @@ export type TeamConversation = {
   member: ChatPrincipalId;
   /** Wallets proved and shared in this Standard conversation, in the order added. */
   verifiedWalletAddresses?: string[];
+  /** Verified Bitcoin addresses shared only with this support conversation. */
+  verifiedBitcoinWalletAddresses?: string[];
   formerMembers?: ChatPrincipalId[];
   /** Team view only: threads the same verified wallet also holds here. */
   linkedConversations?: string[];
@@ -282,6 +284,9 @@ export type TeamConversation = {
     at: string;
     reason?: import("./support").SupportHandoffReason;
     by?: import("./support").SupportHandoffBy;
+    /** Member view: the public crypto desk's AI agent opened this handoff
+     * for a technical issue it classified. */
+    technical?: true;
   } | null;
   /** "Did this solve it?" for the latest team resolution. answer null means
    * asked and not answered. Absent when not asked (open, spam, or resolved

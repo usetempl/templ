@@ -1,15 +1,16 @@
 "use client";
 
+import { prepaidRateCardLabel } from "@templ/chat/support-models";
 import { useState, type FormEvent } from "react";
 import { formatStandardAiRate } from "@templ/chat/standard-usage";
 
 import type { StandardPlanView } from "@templ/chat/standard-plan";
-import { PRODUCT_STARTER_PRICES, PRODUCT_STANDARD_PRICES, PRODUCT_LIMITS, PRODUCT_TOP_UP } from "@templ/chat/plans";
+import { PRODUCT_STARTER_PRICES, PRODUCT_STANDARD_PRICES, PRODUCT_STANDARD_AI_RATES, PRODUCT_LIMITS, PRODUCT_TOP_UP } from "@templ/chat/plans";
 import { starterPricesForVersion } from "@templ/chat/standard-plan";
 import { useChatAuth } from "@/lib/chat-auth";
 import { normalizeChatRoomId } from "@/lib/chat-room-id";
 import { saveStarterAiLimit } from "@/lib/product-client";
-import { formatDay, formatUsd } from "@/lib/product-format";
+import { formatDay, formatUsd, prepaidAiRateText } from "@/lib/product-format";
 import { WorkspaceAccessPlan } from "./workspace-access-plan";
 import { TalkToTempl } from "./talk-to-templ";
 import { Badge, Card, Stat } from "./ui/ui";
@@ -157,9 +158,12 @@ export function StandardWorkspacePlan({
                 follow-ups add no extra case fee.
               </p>
               <p className={styles.note}>
-                AI use follows {formatStandardAiRate(usage)}× the GPT-6.1 Sol
-                standard API rates recorded for this period. Drafts and Telegram
-                assistance use AI credit too.
+                {agreedBilling ? "Your billing agreement sets AI charges." : (
+                  <>
+                    AI use follows {formatStandardAiRate(usage)}× the {prepaidRateCardLabel(usage.aiRateCardVersion)}
+                    {" "}standard API rates recorded for this period. Drafts and Telegram assistance use AI credit too.
+                  </>
+                )}
               </p>
               <p className={styles.note}>
                 {usage.aiReviewedThrough === null
@@ -222,12 +226,9 @@ export function StandardWorkspacePlan({
                     startingPrice.includedAnsweredCasesPerMonth,
                   )}
                 />
-                <Stat
-                  label="AI credit"
-                  value={formatUsd(
-                    startingPrice.includedAiCreditUsdCents,
-                  )}
-                />
+                {!agreedBilling && (
+                  <Stat label="AI credit" value={formatUsd(startingPrice.includedAiCreditUsdCents)} />
+                )}
               </div>
               <p className={styles.note}>
                 Extra answered cases cost{" "}
@@ -237,8 +238,9 @@ export function StandardWorkspacePlan({
                 each.
               </p>
               <p className={styles.note}>
-                AI use costs {formatStandardAiRate(startingPrice)}× GPT-6.1
-                Sol’s standard API rates. The included credit covers it first.
+                {agreedBilling ? "Your billing agreement sets AI charges." : (
+                  <>New orders bill AI usage at {prepaidAiRateText(startingPrice, "aiRateCardVersion" in startingPrice ? startingPrice.aiRateCardVersion : PRODUCT_STANDARD_AI_RATES.version)}. The included credit covers usage first.</>
+                )}
               </p>
             </div>
           )}

@@ -188,6 +188,10 @@ async function startEmailChallenge(
     .padStart(6, "0");
   const codeHash = await keyed(cfg.secret, `code:${token}:${code}`);
   const ipKey = await keyed(cfg.secret, `ip:${ip}`);
+  const held =
+    purpose === "email-sign-in"
+      ? readCookie(request, EMAIL_SIGN_IN_CHALLENGE_COOKIE)
+      : null;
   const reserved = await (
     await callLedger(env, "start", {
       emailKey,
@@ -197,9 +201,17 @@ async function startEmailChallenge(
       codeHash,
       purpose,
       ...(link ? { link } : { signIn }),
+      ...(held
+        ? { heldChallengeKey: await keyed(cfg.secret, `cookie:${held}`) }
+        : {}),
       deliveryLimits: cfg.limits,
     })
-  ).json<{ send: boolean; expiresAt: number; resendAfter: number }>();
+  ).json<{
+    send: boolean;
+    resumed?: true;
+    expiresAt: number;
+    resendAfter: number;
+  }>();
   if (reserved.send) {
     // Reservation includes unknown/failed sends. Never retry or refund an ambiguous provider call.
     const delivery = await deliverEmail(env, fetcher, {
@@ -230,7 +242,7 @@ async function startEmailChallenge(
         purpose === "alert-link"
           ? EMAIL_CHALLENGE_COOKIE
           : EMAIL_SIGN_IN_CHALLENGE_COOKIE,
-        token,
+        reserved.resumed && held ? held : token,
         Math.max(0, Math.floor((reserved.expiresAt - Date.now()) / 1000)),
       ),
     },
@@ -500,7 +512,11 @@ export async function emailRecordRequest(
         ipKey = field("ipKey"),
         requestKey = field("requestKey"),
         challengeKey = field("challengeKey"),
-        codeHash = field("codeHash");
+        codeHash = field("codeHash"),
+        held =
+          body.heldChallengeKey === undefined
+            ? undefined
+            : field("heldChallengeKey");
       const previous = data.sends.find(
         (send) => send.requestKey === requestKey,
       );
@@ -529,8 +545,23 @@ export async function emailRecordRequest(
         return limited(attempts.startedAt + EMAIL_LIMITS.attemptWindowMs, now);
       const mine = data.sends.filter((send) => send.emailKey === emailKey);
       const last = mine.at(-1);
-      if (last && last.createdAt + EMAIL_LIMITS.resendMs > now)
+      if (last && last.createdAt + EMAIL_LIMITS.resendMs > now) {
+        if (
+          purpose === "email-sign-in" && last.purpose === purpose &&
+          held && equalDigest(held, last.challengeKey) &&
+          last.signIn?.sessionKey === signIn!.sessionKey &&
+          !last.consumed &&
+          last.expiresAt > now &&
+          last.outcome !== "failed"
+        )
+          return json({
+            send: false,
+            resumed: true,
+            expiresAt: last.expiresAt,
+            resendAfter: last.createdAt + EMAIL_LIMITS.resendMs,
+          });
         return limited(last.createdAt + EMAIL_LIMITS.resendMs, now);
+      }
       const hourly = mine.filter((send) => send.createdAt > now - HOUR);
       const ipHourly = data.sends.filter(
         (send) => send.ipKey === ipKey && send.createdAt > now - HOUR,

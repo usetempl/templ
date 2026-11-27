@@ -1231,7 +1231,10 @@ export async function writeHandoff(
   record: TeamConversationRecord,
   data: SupportRecord,
   handoff: StoredHandoff,
+  technical = false,
 ) {
+  if (technical) record.technicalHandoffAt = handoff.at;
+  else delete record.technicalHandoffAt;
   record.handoff = handoff;
   record.revision++;
   await storage.put(`conversation-v1:${record.id}`, record);
@@ -1984,7 +1987,9 @@ export async function supportThreadRoute(
           conversationRevision: record.revision,
         });
       }
-      return json({ handoff: handoffView(record.handoff, "member") });
+      return json({
+        handoff: handoffView(record.handoff, "member", record.technicalHandoffAt),
+      });
     } else if (action === "attachment") {
       if (role === "team" && record.stopped)
         throw new HttpError(409, "This user has stopped team messages.");
@@ -2470,13 +2475,16 @@ export async function supportThreadRoute(
         await assertLatest(storage, record.id, ifLatest);
         // One handoff per request: a repeat changes nothing and alerts no
         // one again, whatever reason it names.
-        if (!record.handoff)
+        if (!record.handoff) {
+          const technical = !!ifLatest && cryptoAgentFirst(context.room) && context.isBot === true &&
+            actor === await managedPrincipal(record.room);
           await writeHandoff(storage, context, record, data, {
             at: context.now,
             reason,
             by: context.isBot ? "agent" : "person",
             requestAt: data.requestedAt,
-          });
+          }, technical);
+        }
         await finishAppAnswer(storage, record.id, context.body.appAnswer, "handed-off");
       } else if (action === "ai-answer") {
         if (context.isBot) throw personOnlyError();

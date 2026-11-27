@@ -8,7 +8,7 @@ import {
   PRODUCT_STANDARD_AI_RATES,
   PRODUCT_RESOLUTION_RULES,
 } from "@templ/chat/plans";
-import { starterPricesForVersion } from "@templ/chat/standard-plan";
+import { prepaidRateCardMatches, starterPricesForVersion } from "@templ/chat/standard-plan";
 import {
   normalizeChatPrincipal,
   type ChatPrincipalId,
@@ -820,17 +820,21 @@ export function standardPrepaidTerms(
   expectedPeriod: string | null,
   plan: MonthlySupportPlan = "standard",
   reviewedStarterVersion: string = PRODUCT_STARTER_PRICES.publishedOn,
+  reviewedAiRateCardVersion?: string,
 ): StandardPaymentTerms {
-  if (plan !== "starter") return termsForPrices(purpose, expectedPeriod, PRODUCT_STANDARD_PRICES);
-  const prices = starterPricesForVersion(reviewedStarterVersion);
+  const prices = plan === "starter" ? starterPricesForVersion(reviewedStarterVersion) : PRODUCT_STANDARD_PRICES;
   if (!prices) throw new HttpError(409, "Refresh checkout to review the current Starter offer.");
-  return termsForPrices(purpose, expectedPeriod, prices);
+  return termsForPrices(purpose, expectedPeriod, prices, reviewedAiRateCardVersion);
 }
 function termsForPrices(
   purpose: StandardPaymentTerms["purpose"],
   expectedPeriod: string | null,
   prices: typeof PRODUCT_STANDARD_PRICES | typeof PRODUCT_STARTER_PRICES | typeof PRODUCT_STARTER_RECORDED_PRICES,
+  reviewedAiRateCardVersion?: string,
 ): StandardPaymentTerms {
+  const aiRateCardVersion = reviewedAiRateCardVersion ?? ("aiRateCardVersion" in prices ? prices.aiRateCardVersion : PRODUCT_STANDARD_AI_RATES.version);
+  if (!prepaidRateCardMatches(prices.publishedOn, aiRateCardVersion))
+    throw new HttpError(409, "Refresh checkout to review the AI rates for this period.");
   return {
     purpose,
     ...(purpose === "annual" ? { annualPriceVersion: PRODUCT_ANNUAL_PRICES.publishedOn } : {}),
@@ -841,9 +845,7 @@ function termsForPrices(
     additionalAnsweredCaseCents: prices.additionalAnsweredCaseUsdCents,
     includedAiCreditCents: prices.includedAiCreditUsdCents,
     ...captureStandardAiRate(prices),
-    aiRateCardVersion: "aiRateCardVersion" in prices
-      ? prices.aiRateCardVersion
-      : PRODUCT_STANDARD_AI_RATES.version,
+    aiRateCardVersion,
   };
 }
 /** A verified payment funds this operation. It never impersonates a human operator. */
@@ -904,7 +906,7 @@ export async function activateVerifiedStandardPeriod(
   if (annual) {
     // Annual access is offered only to eligible, self-serve prepaid workspaces.
     const prices = starterPricesForVersion(terms.priceVersion) ?? PRODUCT_STANDARD_PRICES;
-    const offer = termsForPrices("annual", terms.expectedPeriod, prices);
+    const offer = termsForPrices("annual", terms.expectedPeriod, prices, terms.aiRateCardVersion);
     if (Object.keys(offer).length !== Object.keys(terms).length ||
         Object.entries(offer).some(([key, value]) => terms[key as keyof StandardPaymentTerms] !== value))
       throw fail();

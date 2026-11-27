@@ -1,5 +1,6 @@
 import { MANAGED_AGENT_LIMITS, spendMonth } from "@templ/chat/managed-agent";
 import { standardAiUsageUsdNanos } from "@templ/chat/standard-usage";
+import { supportEffort } from "@templ/chat/support-models";
 import { prepaidAiMaximum, PREPAID_AI_LIMITS } from "../product-prepaid-ai";
 import {
   gptUsage,
@@ -22,7 +23,7 @@ export type AiConnectionProbeResult = {
     | "invalid-response"
     | "usage-unavailable"
     | "settlement-pending";
-  model: "gpt-6.1-sol" | "unknown";
+  model: typeof PREPAID_GPT_MODEL | "unknown";
   tier: "default" | "unreported" | "other";
   usageComplete: boolean;
 };
@@ -36,7 +37,7 @@ export const PROVIDER_PROBE_TIMEOUT_MS = 20_000;
 const OUTPUT_TOKENS = 512;
 export function providerProbeHoldCents() {
   return Number(
-    (BigInt(prepaidAiMaximum(MANAGED_AGENT_LIMITS.maxOutputTokens, 1)) +
+    (BigInt(prepaidAiMaximum(MANAGED_AGENT_LIMITS.maxOutputTokens, 1, undefined, PREPAID_GPT_MODEL)) +
       9_999_999n) /
       10_000_000n,
   );
@@ -142,7 +143,7 @@ export async function probeAiConnection(
                 },
               ],
               max_output_tokens: OUTPUT_TOKENS,
-              reasoning: { effort: "medium" },
+              reasoning: { effort: supportEffort(PREPAID_GPT_MODEL) },
               service_tier: "default",
               store: false,
               stream: false,

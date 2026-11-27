@@ -3751,6 +3751,7 @@ async function route(
               op: "save",
               approvalExpiresAt: (env as ConnectDeadlineEnv)[CONNECT_DEADLINE],
               initializeOnly: body.initializeOnly === true && body.hostedPage === true,
+              initialWalletIdentification: context.record.initialWalletIdentification,
               ...(body.origins === undefined
                 ? {}
                 : {
@@ -3775,7 +3776,7 @@ async function route(
           env,
           id,
           context.room,
-          await widgetConfig(env, id, { op: "open" }),
+          await widgetConfig(env, id, { op: "open", initialWalletIdentification: context.record.initialWalletIdentification }),
         ),
       );
     }

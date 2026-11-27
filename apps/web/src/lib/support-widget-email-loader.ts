@@ -1,4 +1,5 @@
 /** Email controls load independently; a failed download cannot block a send. */
+import { CRYPTO_SUPPORT_WORKSPACE } from "@templ/chat/support-models";
 import type { MemberView } from "./support-widget-member";
 import type { TailHost } from "./support-widget";
 type Module = typeof import("./support-widget-guest");
@@ -38,12 +39,31 @@ export function replyEmailLoader(loadModule: () => Promise<Module>) {
       return [];
     }
     const scope = `${host.options.workspace}:${session.principalId}:${session.level}`;
+    const desk = host.options.workspace === CRYPTO_SUPPORT_WORKSPACE;
+    const technical = desk && view.info?.handoff?.technical === true && view.info.state !== "resolved";
+    if (desk && !technical && session.level !== "signed") return [];
     let held = states.get(host);
     if (held?.scope !== scope) {
       held = { scope };
       states.set(host, held);
     }
-    if (held.module) return held.module.replyEmail.lines(host, view);
+    if (held.module) {
+      const lines = held.module.replyEmail.lines(host, view);
+      if (!desk) return lines;
+      if (!technical || !lines.length) return [];
+      return [["~technical-email", [scope, view.thread], (node) => {
+        node.className = "system tail";
+        const button = host.el("button", "Tell me by email");
+        button.type = "button";
+        button.addEventListener("click", () => {
+          if (states.get(host) === held && host.thread?.() === view.thread &&
+              host.walletCase?.()?.handoff?.technical &&
+              host.client.session?.principalId === session.principalId && session.expiresAt > Date.now())
+            host.emailButton?.click();
+        });
+        node.append(button);
+      }]];
+    }
     if (
       session.level !== "signed" &&
       (!view.info?.handoff ||

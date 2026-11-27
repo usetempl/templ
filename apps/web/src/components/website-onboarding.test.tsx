@@ -316,24 +316,57 @@ it("keeps the preview after a dismissed sign-in and follows the service once an 
   expect(screen.queryByRole("alert")).toBeNull();
 });
 
+it("restores a confirmed wallet opt-out if sign-in needs to resume after reload", async () => {
+  let wallets = true;
+  api({
+    read: () => garden({ visitorWallets: wallets }),
+    confirm: body => {
+      wallets = body.visitorWallets !== false;
+      return garden({ visitorWallets: wallets });
+    },
+    claim: () => ({ id: "workspace-1" }),
+  });
+  const choice = () => screen.getByRole("checkbox", { name: "Let visitors verify a wallet in the saved chat" }) as HTMLInputElement;
+  const save = () => screen.getByRole("button", { name: "Sign in to keep your workspace" });
+  const first = render(<WebsiteOnboarding nextPlan={false} />);
+  await screen.findByText("25 of 25 free questions left");
+  fireEvent.click(choice());
+  mocks.signIn.mockRejectedValueOnce(new ChatSignInCanceledError());
+  fireEvent.click(save());
+  await waitFor(() => expect(mocks.signIn).toHaveBeenCalledTimes(1));
+  first.unmount();
+  render(<WebsiteOnboarding nextPlan={false} />);
+  await screen.findByText("25 of 25 free questions left");
+  expect(choice().checked).toBe(false);
+  mocks.signIn.mockResolvedValueOnce({ principalId: "wallet:owner" });
+  fireEvent.click(save());
+  await waitFor(() => expect(mocks.push).toHaveBeenCalledOnce());
+  expect(calls("claim")).toEqual([{ previewId: "preview-1", expectedPrincipalId: "wallet:owner", visitorWallets: false }]);
+});
+
 it("confirms the shown appearance before sign-in and opens the saved workspace", async () => {
   api({
     read: () => garden({ confirmed: false }),
-    confirm: () => garden(),
+    confirm: body => garden({ visitorWallets: body.visitorWallets }),
     claim: () => ({ id: "workspace-1" }),
   });
   mocks.signIn.mockResolvedValue({ principalId: "wallet:owner" });
   render(<WebsiteOnboarding nextPlan />);
   await screen.findByText("25 of 25 free questions left");
+  const wallets = screen.getByRole("checkbox", { name: "Let visitors verify a wallet in the saved chat" }) as HTMLInputElement;
+  expect(wallets.checked).toBe(true);
+  fireEvent.click(wallets);
   fireEvent.click(
     screen.getByRole("button", { name: "Sign in to keep your workspace" }),
   );
   await waitFor(() =>
     expect(mocks.push).toHaveBeenCalledWith("/inbox/workspace-1?tab=plan"),
   );
+  expect(calls("claim")).toEqual([{ previewId: "preview-1", expectedPrincipalId: "wallet:owner", visitorWallets: false }]);
   expect(calls("confirm")).toEqual([
     {
       name: "Garden",
+      visitorWallets: false,
       accent: "#aabbcc",
       logo: "https://garden.tools/icon.svg",
       previewId: "preview-1",

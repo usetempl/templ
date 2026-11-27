@@ -6,7 +6,7 @@ This measures the answer model with reference notes supplied directly. A live de
 
 ## Try the offline fixture
 
-Use Node 22 or newer. The harness imports only Node built-ins and its own modules. From the repository root, run the commands below to create synthetic answers, grades and a report. No model runs. The report identifies the simulation in its `syntheticFixture` field and records the seed. Use a fresh output directory for each experiment.
+Use Node 22 or newer. These eight files run together without installing packages. From the repository root, use the path below. If you copied the files into one folder, open that folder and set `bench=.` instead. The commands create synthetic answers, grades and a report. No model runs. The report identifies the simulation in its `syntheticFixture` field and records the seed. Use a fresh output directory for each experiment.
 
 ```sh
 bench=apps/scripts/src/support-agent/crypto-benchmark

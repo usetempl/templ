@@ -1101,6 +1101,7 @@ export type WidgetMessages = {
       | "verifiedWalletAddress"
       | "formerMembers"
       | "verifiedWalletAddresses"
+      | "verifiedBitcoinWalletAddresses"
       | "state"
       | "handoff"
       | "confirmation"

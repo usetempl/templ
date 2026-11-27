@@ -25,6 +25,7 @@ type Preview = {
   suggestion?: string;
   remaining: number;
   confirmed: boolean;
+  visitorWallets?: boolean;
 };
 type Restored = Preview | { claiming: true; previewId: string } | null;
 /** Each failure shows beside the action that caused it. */
@@ -60,6 +61,7 @@ export function WebsiteOnboarding({ nextPlan }: { nextPlan: boolean }) {
   const [preview, setPreview] = useState<Preview | null>(null);
   const [brand, setBrand] = useState<Brand | null>(null);
   const [claiming, setClaiming] = useState("");
+  const [visitorWallets, setVisitorWallets] = useState(true);
 
   const [busy, setBusy] = useState("");
   const [error, setError] = useState<Failure | null>(null);
@@ -91,6 +93,7 @@ export function WebsiteOnboarding({ nextPlan }: { nextPlan: boolean }) {
     setPreview(value);
     setBrand(value.brand);
     setSite(value.site);
+    setVisitorWallets(value.visitorWallets !== false);
   }
   useEffect(() => {
     const abort = new AbortController();
@@ -173,9 +176,11 @@ export function WebsiteOnboarding({ nextPlan }: { nextPlan: boolean }) {
       brand.accent !== preview.brand.accent);
   async function confirmBrand() {
     if (!brand || !preview) throw new Error("Enter your website first.");
-    if (preview.confirmed && !edited) return preview;
+    const walletsChanged = visitorWallets !== (preview.visitorWallets !== false);
+    if (preview.confirmed && !edited && !walletsChanged) return preview;
     const result = await communityFetch<Preview>("/onboarding/confirm", {
       ...brand,
+      ...(walletsChanged ? { visitorWallets } : {}),
       previewId: preview.previewId,
     });
     showPreview(result);
@@ -259,6 +264,7 @@ export function WebsiteOnboarding({ nextPlan }: { nextPlan: boolean }) {
           "/onboarding/claim",
           {
             previewId: claiming || preview?.previewId,
+            ...(!claiming && !visitorWallets ? { visitorWallets: false } : {}),
             expectedPrincipalId: session.principalId,
           },
         );
@@ -288,6 +294,13 @@ export function WebsiteOnboarding({ nextPlan }: { nextPlan: boolean }) {
   const showSaveAfterChat = preview && preview.remaining < PRODUCT_LIMITS.freeAiPracticeQuestions;
   const saveAction = (view === "save" || preview) && (
     <div className={styles.save}>
+      {!claiming && (
+        <label className={ui.check}>
+          <input type="checkbox" checked={visitorWallets} disabled={disabled}
+            onChange={event => setVisitorWallets(event.target.checked)} />
+          Let visitors verify a wallet in the saved chat
+        </label>
+      )}
       <button
         type="button"
         className="button"

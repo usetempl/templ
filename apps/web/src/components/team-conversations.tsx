@@ -1,5 +1,6 @@
 "use client";
 
+import { sharedWalletAddresses } from "../lib/case-wallet-addresses";
 import { CustomerEncryptedSupport } from "./customer-encrypted-support";
 import { threadIdentityLabel } from "@templ/chat/support-identity-label";
 import { InboxCaseRow } from "./inbox-case-row";
@@ -641,6 +642,7 @@ function TeamQueue({
   const [bulkBusy, setBulkBusy] = useState(false);
   const [bulkStatus, setBulkStatus] = useState<{ text: string; failed: boolean } | null>(null);
   const bulkRequest = useRef<AbortController | null>(null);
+  const bulkChanges = useRef(0);
   useEffect(() => () => bulkRequest.current?.abort(), []);
 
   function toggleCase(id: string) {
@@ -704,10 +706,12 @@ function TeamQueue({
         failed: Boolean(failed.length),
       });
       if (done.length) {
+        bulkChanges.current += 1;
+        cache.forgetQueues();
         const confirmed = new Set(done);
         setLoaded(previous => {
-          if (previous?.query !== query || !previous.rows) return previous;
-          const rows = filter === "all"
+          if (!previous?.rows) return previous;
+          const rows = previous.query.startsWith("all:")
             ? previous.rows.map(row => confirmed.has(row.id) && row.support
               ? { ...row, state: "resolved" as const, support: { ...row.support, state: "spam" as const } }
               : row)
@@ -724,12 +728,15 @@ function TeamQueue({
   useEffect(() => {
     const controller = new AbortController();
     let visiblePage = cache.queue(query);
+    let pageChanges: number | undefined;
+    let retryMore = false;
     let pending = false;
     let again = false;
     let lastRead = 0;
     const read = async (more = false) => {
       if (pending || controller.signal.aborted || (more && !visiblePage?.nextCursor)) return;
       pending = true;
+      const changes = bulkChanges.current;
       setLoaded((previous) => ({
         ...(previous?.query === query
           ? previous
@@ -741,7 +748,7 @@ function TeamQueue({
         // Re-read the visible pages together: a resolved or newly opened
         // conversation can move across page boundaries between refreshes.
         // More cases can use the last page's cursor and leave visible rows in place.
-        const previous = more ? visiblePage : undefined;
+        const previous = more && pageChanges === changes ? visiblePage : undefined;
         const rows = new Map(previous?.rows.map((row) => [row.id, row]));
         let cursor = previous?.nextCursor ?? null;
         const cursors = new Set(cursor ? [cursor] : []);
@@ -770,8 +777,14 @@ function TeamQueue({
           if (cursor) cursors.add(cursor);
           pages += 1;
         } while (cursor && pages < pageLimit);
+        if (changes !== bulkChanges.current) {
+          retryMore = more;
+          again = true;
+          return;
+        }
         const page = { rows: [...rows.values()], nextCursor: cursor, pages };
         visiblePage = page;
+        pageChanges = changes;
         cache.rememberQueue(query, page);
         setLoaded({ query, ...page });
         lastRead = Date.now();
@@ -810,7 +823,9 @@ function TeamQueue({
         pending = false;
         if (again && !controller.signal.aborted) {
           again = false;
-          void read();
+          const more = retryMore;
+          retryMore = false;
+          void read(more);
         }
       }
     };
@@ -2606,7 +2621,7 @@ function ConversationView({
               </strong>
               {teamView && conversation && (
                 <span className={styles.walletList}>
-                  {(conversation.verifiedWalletAddresses ?? (conversation.verifiedWalletAddress ? [conversation.verifiedWalletAddress] : [])).map(address => (
+                  {sharedWalletAddresses(conversation).map(address => (
                     <span key={address}>Verified wallet <code>{address}</code></span>
                   ))}
                 </span>

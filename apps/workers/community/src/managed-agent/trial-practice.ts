@@ -1,6 +1,9 @@
 import { PRODUCT_LIMITS } from "@templ/chat/plans";
 import { checkedManagedAnswer, spendMonth } from "@templ/chat/managed-agent";
-import { standardAiUsageUsdNanos } from "@templ/chat/standard-usage";
+import {
+  isStandardAiModel,
+  standardAiUsageUsdNanos,
+} from "@templ/chat/standard-usage";
 import { prepaidAiMaximum } from "../product-prepaid-ai";
 import { detectStoredSecret } from "../secret-guard";
 import { readKnowledgeContext } from "../support-knowledge-kb";
@@ -59,12 +62,14 @@ function saveAttempts(db: KnowledgeDb, ids: string[]) {
 
 // A practice question can make two calls. Each holds its own maximum against
 // Templ's budget. Neither call can write a customer's balance or usage ledger.
+// A model the rate card cannot price is refused before inference.
 export function templFundedInference(meter: Pick<TemplMeter, "reserve" | "settle">, cap: number): GptFunding {
   const holds = new Map<string, { month: string; cents: number }>();
   return {
     async reserve(input) {
+      if (!isStandardAiModel(input.model)) return false;
       const cents = toCents(
-        prepaidAiMaximum(input.maxOutputTokens, 1, input.inputTokens),
+        prepaidAiMaximum(input.maxOutputTokens, 1, input.inputTokens, input.model),
       );
       const month = spendMonth(Date.now());
       if (!(await meter.reserve(month, input.attemptId, cents, cap)))

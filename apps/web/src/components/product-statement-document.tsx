@@ -1,5 +1,6 @@
 "use client";
 
+import { prepaidRateCardLabel } from "@templ/chat/support-models";
 import { formatStandardAiRate } from "@templ/chat/standard-usage";
 
 import { Fragment, useEffect, useState } from "react";
@@ -198,7 +199,7 @@ export function StatementDocument({
               {period.usage && (
                 <p>
                   AI credit: {formatUsd(period.usage.includedAiCreditCents)}. AI
-                  use costs {formatStandardAiRate(period.usage)}× GPT-6.1 Sol’s
+                  use costs {formatStandardAiRate(period.usage)}× {prepaidRateCardLabel(period.usage.aiRateCardVersion)}’s
                   standard API rates ({period.usage.aiRateCardVersion}). This
                   includes use covered by the credit.
                   {period.usage.aiReviewedThrough === null &&

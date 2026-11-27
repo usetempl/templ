@@ -32,10 +32,15 @@ export type ModelRequest = {
   purpose?: WorkspaceCostEvent["purpose"];
   onCostAttempt?: (consumer: (outcome: NonNullable<WorkspaceCostEvent["consumerOutcome"]>) => void) => void;
 };
+/** The model a GPT call requested, with its Standard usage once the provider confirmed that model. */
+type StandardResult = {
+  standardModel?: string;
+  standardUsage?: import("@templ/chat/standard-usage").StandardAiTokenUsage | null;
+};
 export type ModelResult =
-  | { kind: "answer"; value: unknown; usage: ManagedUsage; model: string; standardUsage?: import("@templ/chat/standard-usage").StandardAiTokenUsage | null }
-  | { kind: "refusal"; usage: ManagedUsage; standardUsage?: import("@templ/chat/standard-usage").StandardAiTokenUsage | null }
-  | { kind: "failed"; reason: string; usage: ManagedUsage | null; standardUsage?: import("@templ/chat/standard-usage").StandardAiTokenUsage | null; /** Set only by a trusted caller before inference, never from model output. */ providerAttempted?: false };
+  | ({ kind: "answer"; value: unknown; usage: ManagedUsage; model: string } & StandardResult)
+  | ({ kind: "refusal"; usage: ManagedUsage } & StandardResult)
+  | ({ kind: "failed"; reason: string; usage: ManagedUsage | null; /** Set only by a trusted caller before inference, never from model output. */ providerAttempted?: false } & StandardResult);
 export type ModelCaller = (request: ModelRequest) => Promise<ModelResult>;
 
 type ApiResponse = {

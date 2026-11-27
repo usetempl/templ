@@ -1,4 +1,5 @@
 import { standardPlanRecords } from "./product-standard-plan";
+import { prepaidRateCardLabel } from "@templ/chat/support-models";
 import { formatStandardAiRate } from "@templ/chat/standard-usage";
 /** A billing manager's monthly statement: opening and closing balance,
  * top-ups with their chain, hash, payer and bonus, charges by price step,
@@ -352,7 +353,7 @@ export function statementCsv(statement: ProductStatement) {
                   [
                     "standard-period",
                     new Date(row.startsAt).toISOString(),
-                    `${row.source}; ends ${new Date(row.endsAt).toISOString()}; price ${row.usage.priceVersion}; includes ${row.usage.includedAnsweredCases} answered cases; additional ${dollars(row.usage.additionalAnsweredCaseCents)}; retail AI credit ${dollars(row.usage.includedAiCreditCents)}; AI multiplier ${formatStandardAiRate(row.usage)}; rate card ${row.usage.aiRateCardVersion}`,
+                    `${row.source}; ends ${new Date(row.endsAt).toISOString()}; price ${row.usage.priceVersion}; includes ${row.usage.includedAnsweredCases} answered cases; additional ${dollars(row.usage.additionalAnsweredCaseCents)}; retail AI credit ${dollars(row.usage.includedAiCreditCents)}; AI multiplier ${formatStandardAiRate(row.usage)}; rate card ${row.usage.aiRateCardVersion} (${prepaidRateCardLabel(row.usage.aiRateCardVersion)})`,
                     row.id,
                     row.usage.aiReviewedThrough === null
                       ? ""

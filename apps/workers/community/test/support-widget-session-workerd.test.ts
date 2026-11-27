@@ -202,10 +202,11 @@ describe.sequential("widget sessions in production Workerd", () => {
       }),
       201,
     );
-    expect(
-      (await call(`/widget/${fresh}/auth/policy`, undefined, {}, second))
-        .status,
-    ).toBe(200);
+    expect(await data(await call(`/widget/${fresh}/auth/policy`, undefined, {}, second))).toMatchObject({
+      minimumLevel: "anyone", walletIdentification: { enabled: true, evm: true, solana: false },
+    });
+    const saved = await data(await app.call(`/rooms/${fresh}/widget`, manager));
+    expect(saved.walletIdentification).toEqual({ enabled: true, evm: true, solana: true });
     const guest = await data(
       await call(`/widget/${fresh}/auth/guest`, {}, {}, second),
     );
@@ -219,6 +220,24 @@ describe.sequential("widget sessions in production Workerd", () => {
       201,
     );
     expect(asked.conversation.id).toMatch(/^tc-[0-9a-f]{32}$/);
+  });
+
+  it("keeps the wallet choice from the original room request, then honors the manager’s later settings", async () => {
+    const id = uuid(), draft = { id, name: "Optional visitor wallets", visibility: "public" };
+    const off = { enabled: false, evm: true, solana: true };
+    const on = { enabled: true, evm: true, solana: true };
+    for (const [index, walletIdentification] of [off, on].entries()) {
+      await data(await app.call("/rooms", manager, { ...draft, walletIdentification }), index === 0 ? 201 : 200);
+      expect(await data(await app.call(`/rooms/${id}/widget`, manager))).toMatchObject({ walletIdentification: off });
+      expect(await data(await call(`/widget/${id}/auth/policy`))).toMatchObject({
+        minimumLevel: "anyone", walletIdentification: { enabled: false, evm: false, solana: false },
+      });
+    }
+    await data(await app.call(`/rooms/${id}/widget`, manager, { walletIdentification: on, confirmed: true }));
+    await data(await app.call("/rooms", manager, { ...draft, walletIdentification: off }));
+    expect(await data(await call(`/widget/${id}/auth/policy`))).toMatchObject({
+      minimumLevel: "anyone", walletIdentification: { enabled: true, evm: true, solana: false },
+    });
   });
 
   it.each([

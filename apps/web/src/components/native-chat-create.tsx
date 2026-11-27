@@ -54,12 +54,6 @@ type CreationDraft = NativeRoomDraft & {
   walletIdentification?: WalletIdentification;
 };
 
-const NEW_WORKSPACE_WALLETS: WalletIdentification = {
-  enabled: false,
-  evm: true,
-  solana: true,
-};
-
 function savedDraft(account?: string) {
   if (!account) return null;
   try {
@@ -170,7 +164,7 @@ export function NativeChatCreate({
     const fields = new FormData(event.currentTarget);
     const walletIdentification = fields.has("visitorWallets")
       ? { enabled: true, evm: fields.has("evm"), solana: fields.has("solana") }
-      : NEW_WORKSPACE_WALLETS;
+      : { enabled: false, evm: fields.has("evm"), solana: fields.has("solana") };
     inFlight.current = true;
     setBusy(true);
     setError("");
@@ -200,11 +194,8 @@ export function NativeChatCreate({
         }
         setPending(draft);
       }
-      const {
-        walletIdentification: choices = DEFAULT_WALLET_IDENTIFICATION,
-        ...roomDraft
-      } = draft;
-      const room = await createNativeRoom(roomDraft);
+      const choices = draft.walletIdentification ?? DEFAULT_WALLET_IDENTIFICATION;
+      const room = await createNativeRoom(draft);
       assertCurrent(account);
       setCreatedRoom(room.id);
       if (room.followed !== false) rememberCreatedRoomFollow(account, room);
@@ -263,10 +254,7 @@ export function NativeChatCreate({
           <OnboardingWalletFields
             key={pending?.id ?? draftOwner ?? "guest"}
             value={
-              pending
-                ? (readWalletIdentification(pending.walletIdentification) ??
-                  DEFAULT_WALLET_IDENTIFICATION)
-                : NEW_WORKSPACE_WALLETS
+              readWalletIdentification(pending?.walletIdentification) ?? DEFAULT_WALLET_IDENTIFICATION
             }
             disabled={!available || busy || !!pending}
           />

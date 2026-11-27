@@ -2,8 +2,10 @@ import {
   PRODUCT_STANDARD_AI_RATES,
   PRODUCT_STANDARD_PRICES,
   PRODUCT_STARTER_PRICES,
+  PRODUCT_TERRA_AI_RATES,
 } from "@templ/chat/plans";
-import { starterPricesForVersion } from "@templ/chat/standard-plan";
+import { prepaidSupportModel } from "@templ/chat/support-models";
+import { prepaidRateCardMatches } from "@templ/chat/standard-plan";
 import {
   standardAiUsageUsdNanos,
   captureStandardAiRate,
@@ -244,11 +246,13 @@ export function hostedPrepaidPrincipal(
   const principals: Record<string, string> = {};
   return (principals[workspace] as ChatPrincipalId | undefined) ?? null;
 }
-/** An operating hold, never a customer charge. Missing provider counts retain the full-context bound. */
+/** An operating hold, never a customer charge. Missing provider counts retain the full-context bound.
+ * The worst case uses the attempt model's own card. */
 export function prepaidAiMaximum(
   maxOutputTokens: number,
   rate: number | StandardAiRate = PRODUCT_STANDARD_PRICES,
   inputTokens: number = PREPAID_AI_LIMITS.modelContextTokens,
+  model: StandardAiModel = PRODUCT_STANDARD_AI_RATES.model,
 ): string {
   if (
     !integer(inputTokens) ||
@@ -257,7 +261,7 @@ export function prepaidAiMaximum(
   )
     throw unavailable();
   const maximum = standardAiUsageUsdNanos(
-    PRODUCT_STANDARD_AI_RATES.model,
+    model,
     {
       inputTokens,
       cachedInputTokens: 0,
@@ -335,8 +339,11 @@ export async function reservePrepaidAi(
     throw invalid();
   const pending = await resolveOrphans(storage, now);
   const { mode, period } = await prepaidAiMode(storage, now, env);
-  if (mode === "custom")
+  const terra = input.model === PRODUCT_TERRA_AI_RATES.model;
+  if (mode === "custom") {
+    if (terra) throw invalid();
     return { mode, admitted: true, attemptId: input.attemptId };
+  }
   if (!period || now < period.startsAt || now >= period.endsAt)
     throw new HttpError(
       402,
@@ -344,17 +351,16 @@ export async function reservePrepaidAi(
       undefined,
       "prepaid-period-required",
     );
-  const rateCardVersion = starterPricesForVersion(period.priceVersion)
-    ? PRODUCT_STARTER_PRICES.aiRateCardVersion
-    : PRODUCT_STANDARD_AI_RATES.version;
   if (
-    period.aiRateCardVersion !== rateCardVersion ||
+    !prepaidRateCardMatches(period.priceVersion, period.aiRateCardVersion) ||
     !(
       period.aiRateMultiplier === 2 ||
       period.aiRateBasisPoints === PRODUCT_STANDARD_PRICES.aiRateBasisPoints
     )
   )
     throw unavailable();
+  if (input.model !== prepaidSupportModel(period.aiRateCardVersion))
+    throw new HttpError(409, "Use the model recorded for this paid period.", undefined, "prepaid-model-mismatch");
   const key = ATTEMPT + input.attemptId;
   if (await storage.get(key))
     throw new HttpError(
@@ -390,6 +396,7 @@ export async function reservePrepaidAi(
     input.maxOutputTokens,
     period,
     input.inputTokens as number | undefined,
+    input.model,
   );
   let customerHoldPolicy: "bounded_risk_v1" | undefined;
   if (input.inputTokens === undefined) {
@@ -517,12 +524,17 @@ export async function settlePrepaidAi(
     };
   }
   const usage = input.usage as StandardAiTokenUsage | null;
+  // Price only under the card this attempt recorded for its own model.
+  const recordedCard =
+    row.model === PRODUCT_TERRA_AI_RATES.model
+      ? row.aiRateCardVersion === PRODUCT_TERRA_AI_RATES.version
+      : row.aiRateCardVersion === PRODUCT_STANDARD_AI_RATES.version ||
+        row.aiRateCardVersion === PRODUCT_STARTER_PRICES.aiRateCardVersion;
   let chargedUsdNanos =
     input.outcome === "completed" &&
     usage &&
     input.model === row.model &&
-    (row.aiRateCardVersion === PRODUCT_STANDARD_AI_RATES.version ||
-      row.aiRateCardVersion === PRODUCT_STARTER_PRICES.aiRateCardVersion)
+    recordedCard
       ? standardAiUsageUsdNanos(input.model, usage, row)
       : null;
   if (

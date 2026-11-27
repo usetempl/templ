@@ -5,10 +5,9 @@ import {
   PRODUCT_OFFER_VERSION,
   PRODUCT_TOP_UP,
   PRODUCT_STANDARD_PRICES,
-  PRODUCT_STANDARD_AI_RATES,
   PRODUCT_STANDARD_RECORDED_PRICES,
 } from "@templ/chat/plans";
-import { starterPricesForVersion } from "@templ/chat/standard-plan";
+import { prepaidRateCardMatches, starterPricesForVersion } from "@templ/chat/standard-plan";
 import type {
   MemberProductView,
   ProductAccessView,
@@ -341,9 +340,7 @@ export function checkTopUp(intent: ProductPaymentIntent) {
       !checkedStandardAiRate(terms) ||
       JSON.stringify(captureStandardAiRate(terms)) !==
         JSON.stringify(captureStandardAiRate(prices)) ||
-      terms.aiRateCardVersion !== (starter
-        ? starter.aiRateCardVersion
-        : PRODUCT_STANDARD_AI_RATES.version) ||
+      !prepaidRateCardMatches(terms.priceVersion, terms.aiRateCardVersion) ||
       !["ethereum-usdc", "base-usdc", "bnb-usdc", "solana-usdc"].includes(
         intent.rail,
       ) ||

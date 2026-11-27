@@ -1,4 +1,5 @@
 import { keccak_256 } from "@noble/hashes/sha3";
+import { sharedWalletAddresses } from "./case-wallet-addresses";
 import type { TailHost } from "./support-widget";
 
 /** EIP-55 is a display convention. Requests still use the stored address. */
@@ -10,6 +11,10 @@ export function displayWalletAddress(address: string) {
     const half = i % 2 ? digest[i >> 1]! & 15 : digest[i >> 1]! >> 4;
     return half >= 8 ? digit.toUpperCase() : digit;
   }).join("");
+}
+
+export function caseWalletAddresses(host: TailHost) {
+  return sharedWalletAddresses(host.walletCase?.(), host.verifiedWallet?.());
 }
 
 export function verifiedAddress(host: TailHost, address: string) {
@@ -90,8 +95,7 @@ export function walletRoster(host: TailHost, panel: HTMLElement, signal: AbortSi
 
   return () => {
     const cell = panel.querySelector<HTMLElement>(".chat-roster > div:first-child small");
-    const primary = host.verifiedWallet?.();
-    const addresses = host.walletCase?.()?.verifiedWalletAddresses ?? (primary ? [primary] : []);
+    const addresses = caseWalletAddresses(host);
     const key = JSON.stringify([host.thread?.(), addresses]);
     if (owner === cell && shown === key) return;
     lifetime?.abort();

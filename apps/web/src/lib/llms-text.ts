@@ -43,15 +43,14 @@ A pending transfer does not activate access. Ask Templ in chat if payment is una
 
 ## Start
 
-Create a workspace at ${SITE.origin}/create. Copy the visitor link under Your support chat and try a reply in Cases. Self-hosted teams use their own domain. To add the embedded widget or enable a link in an existing workspace, open Settings → Chat. Under Guest support, select Host a support page on Templ and Save guest support, then use Copy support link. The page accepts guests. The public link grants no access to another visitor’s cases. Both entries reach the same workspace inbox.
+Create a workspace at ${SITE.origin}/create. Select Copy chat link in Workspace and try a reply in Cases. Self-hosted teams use their own domain. To add the embedded widget or enable a link in an existing workspace, open Settings → Chat. Under Guest support, select Host a support page on Templ and Save guest support, then use Copy support link. The page accepts guests. The public link grants no access to another visitor’s cases. Both entries reach the same workspace inbox.
 For the widget, copy the install prompt from ${SITE.docs}/install into your AI coding tool.
 ${
   release.support.connectVerified
-    ? "Open the link it gives you. Sign in with your wallet and confirm your app.\nCreate a workspace there or choose one you manage. The tool saves the workspace ID and adds support."
-    : `Create a workspace at ${SITE.origin}/create.\nCopy its install prompt into your coding tool. Keep support off until the workspace is configured and the widget is verified.`
+    ? "Open the link it gives you. Sign in with your wallet and confirm your app.\nCreate a workspace there or choose one you manage. The tool saves the workspace ID and adds support.\nYou do not need a workspace ID to start. A configured ID also works."
+    : "The tool asks for the workspace ID from Settings → Chat. The install prompt in Settings → Chat includes it.\nKeep support off until the workspace is configured and the widget is verified."
 }
 The widget works on public HTTPS websites without website approval.
-You do not need a workspace ID to start. A configured ID also works.
 Review the files the tool adds. Send a test question, then answer it in your inbox.
 Open your workspaces at ${SITE.origin}/inbox.
 Users can ask without a wallet by default. A manager can require a connected or verified wallet.

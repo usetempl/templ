@@ -4,10 +4,9 @@ import Link from "next/link";
 import { formatUnits } from "viem";
 import { getChatChain } from "@templ/chat/chains";
 import type { ProductPaymentIntent } from "@templ/chat/product-payment";
-import { formatStandardAiRate } from "@templ/chat/standard-usage";
 import { trackEvent } from "@/lib/analytics";
 import { productPaymentAmount } from "@/lib/product-payment-amount";
-import { formatUsd } from "@/lib/product-format";
+import { formatUsd, prepaidAiRateText } from "@/lib/product-format";
 import styles from "./product-payment-request.module.css";
 
 export const paymentNetworkName = (network: ProductPaymentIntent["chainId"]) =>
@@ -87,6 +86,7 @@ export function ProductPaymentRequestDetails({
   checkoutAction,
   recoveryActions,
   recoveryRequired = false,
+  agreedAiBilling = false,
 }: {
   request: ProductPaymentIntent;
   onCheck?: () => void;
@@ -94,6 +94,7 @@ export function ProductPaymentRequestDetails({
   checkoutAction?: ReactNode;
   recoveryActions?: ReactNode;
   recoveryRequired?: boolean;
+  agreedAiBilling?: boolean;
 }) {
   const [now, setNow] = useState(Date.now());
   const [helpFor, setHelpFor] = useState<string>();
@@ -203,6 +204,11 @@ export function ProductPaymentRequestDetails({
           {request.asset.symbol}
         </strong>
         <span>On {network}</span>
+        {request.standard && request.standard.purpose !== "credit" && (
+          <span>{agreedAiBilling
+            ? "Your billing agreement sets AI charges."
+            : `AI usage costs ${prepaidAiRateText(request.standard, request.standard.aiRateCardVersion)}.`}</span>
+        )}
         {request.standard?.purpose === "credit" && (
           <span>Pays recorded charges first. The rest stays as credit. This does not renew monthly access.</span>
         )}
@@ -382,15 +388,13 @@ export function ProductPaymentRequestDetails({
             <strong>Plan terms</strong>
             <p>
               {request.standard.purpose !== "credit"
-                ? `${request.standard.purpose === "annual" ? "Twelve months from verified activation. Each month includes" : "One month from verified activation. Includes"} ${request.standard.includedAnsweredCases} answered cases and ${formatUsd(request.standard.includedAiCreditCents)} in AI credit.`
+                ? `${request.standard.purpose === "annual" ? "Twelve months from verified activation. Each month includes" : "One month from verified activation. Includes"} ${request.standard.includedAnsweredCases} answered cases${agreedAiBilling ? "." : ` and ${formatUsd(request.standard.includedAiCreditCents)} in AI credit.`}`
                 : "Pays this workspace’s recorded charges first. Any remainder stays as prepaid credit. This does not renew monthly access."}
             </p>
             {request.standard.purpose !== "credit" ? (
               <p>
                 Extra answered cases cost{" "}
                 {formatUsd(request.standard.additionalAnsweredCaseCents)} each.
-                AI use costs {formatStandardAiRate(request.standard)}× the
-                GPT-6.1 Sol standard API rates recorded for this period.
               </p>
             ) : (
               <p>Your workspace’s accepted terms set case and AI prices.</p>

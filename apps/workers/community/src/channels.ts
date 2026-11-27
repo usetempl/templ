@@ -2209,7 +2209,7 @@ export class ChannelRoom {
             // Commit bounded orphan absorption even when the next admission is refused.
             // These refusal branches run before a new hold can be written.
             if (url.pathname.endsWith("/reserve") && error instanceof HttpError &&
-                ["prepaid-period-required", "prepaid-attempt-used", "prepaid-ai-held", "prepaid-ai-paced", "prepaid-credit-required"].includes(error.reason ?? ""))
+                ["prepaid-period-required", "prepaid-model-mismatch", "prepaid-attempt-used", "prepaid-ai-held", "prepaid-ai-paced", "prepaid-credit-required"].includes(error.reason ?? ""))
               return json(errorBody(error, "AI request is unavailable."), error.status,
                 error.retryAfterSeconds ? { "Retry-After": String(error.retryAfterSeconds) } : {});
             throw error;

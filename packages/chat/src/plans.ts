@@ -118,6 +118,20 @@ export const PRODUCT_STANDARD_AI_RATES = {
   longOutputMultiplierDenominator: 2,
   usdNanosPerCent: 10_000_000,
 } as const;
+/** GPT-6.1 Terra Standard API rates. The default cache write lasts 30 minutes.
+ * https://developers.openai.com/api/docs/models/gpt-6.1-terra */
+export const PRODUCT_TERRA_AI_RATES = {
+  version: "2026-11-27",
+  model: "gpt-6.1-terra",
+  inputUsdNanosPerMillion: 1_000_000_000,
+  cachedInputUsdNanosPerMillion: 50_000_000,
+  cacheWriteInputUsdNanosPerMillion: 1_250_000_000,
+  outputUsdNanosPerMillion: 5_000_000_000,
+  longContextAboveInputTokens: 272_000,
+  longInputMultiplier: 2,
+  longOutputMultiplierNumerator: 3,
+  longOutputMultiplierDenominator: 2,
+} as const;
 /** The lifetime demo starts independently of later catalog publication dates. */
 export const PRODUCT_STANDARD_ACCESS_STARTED_ON = "2026-10-14";
 /** Captured prices for the approved, fixed noncash monthly qualification scope. */

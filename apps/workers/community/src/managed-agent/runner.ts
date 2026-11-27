@@ -1,4 +1,4 @@
-import { DEFAULT_SUPPORT_MODEL, CRYPTO_SUPPORT_WORKSPACE, CRYPTO_SUPPORT_MODEL, CRYPTO_REPLY_LIMIT } from "@templ/chat/support-models";
+import { TERRA_SUPPORT_MODEL, LEGACY_SUPPORT_MODEL, type SupportModel, CRYPTO_SUPPORT_WORKSPACE, CRYPTO_SUPPORT_MODEL, CRYPTO_REPLY_LIMIT } from "@templ/chat/support-models";
 import { researchCryptoDocs } from "../crypto-research";
 import {
   CRYPTO_CLARIFY_REPLY,
@@ -188,7 +188,8 @@ export type RunnerDeps = {
   roomClient(manager: string): RoomClient;
   /** Null when no model transport is configured. */
   model: ModelCaller | null;
-  prepaidModel?: (client: RoomClient, sponsoredResearch?: boolean) => ModelCaller;
+  prepaidModel?: (client: RoomClient, sponsoredResearch?: boolean, model?: SupportModel) => ModelCaller;
+  selectedModel?: SupportModel;
   prepaid?: boolean;
   templMeter: TemplMeter;
   now(): number;
@@ -211,7 +212,19 @@ export type JobOutcome =
   | "learned"
   | `stopped:${ManagedAgentStop}`;
 
+function roomSupportModel(state: RoomState, room: string): SupportModel {
+  if (state.sponsoredResearch && room === "room:" + CRYPTO_SUPPORT_WORKSPACE) return CRYPTO_SUPPORT_MODEL;
+  return state.prepaidModel === TERRA_SUPPORT_MODEL ? TERRA_SUPPORT_MODEL : LEGACY_SUPPORT_MODEL;
+}
+
+function prepaidRunnerDeps(deps: RunnerDeps, client: RoomClient, state: RoomState): RunnerDeps | null {
+  if (!deps.prepaidModel) return null;
+  const model = roomSupportModel(state, deps.room);
+  return { ...deps, prepaid: true, selectedModel: model, model: deps.prepaidModel(client, state.sponsoredResearch, model) };
+}
+
 type RoomState = {
+  prepaidModel?: typeof TERRA_SUPPORT_MODEL | typeof LEGACY_SUPPORT_MODEL;
   sponsoredResearch?: boolean;
   prepaid?: boolean;
   readinessPolicy?: "grounded_v1" | "golden_v1";
@@ -311,7 +324,7 @@ export async function meteredCall(
   const id = crypto.randomUUID();
   if (deps.prepaid) {
     const maximumProviderNanos = BigInt(
-      prepaidAiMaximum(MANAGED_AGENT_LIMITS.maxOutputTokens, 1),
+      prepaidAiMaximum(deps.selectedModel === CRYPTO_SUPPORT_MODEL ? 4096 : MANAGED_AGENT_LIMITS.maxOutputTokens, 1, undefined, deps.selectedModel),
     );
     const maximumProviderCents = Number(
       (maximumProviderNanos + 9_999_999n) / 10_000_000n,
@@ -349,8 +362,8 @@ export async function meteredCall(
       await deps.templMeter.release(month, id).catch(() => undefined);
       return result;
     }
-    const actual = result.standardUsage
-      ? standardAiUsageUsdNanos(deps.room === "room:" + CRYPTO_SUPPORT_WORKSPACE ? CRYPTO_SUPPORT_MODEL : DEFAULT_SUPPORT_MODEL, result.standardUsage, 1)
+    const actual = result.standardUsage && result.standardModel
+      ? standardAiUsageUsdNanos(result.standardModel, result.standardUsage, 1)
       : null;
     // Unknown provider cost retains the conservative operating charge; it never charges the customer.
     const spent =
@@ -758,7 +771,7 @@ async function runGroundedAnswer(input: {
   pages(): Promise<boolean>;
 }): Promise<JobOutcome> {
   const { deps, client, job, state, answer, context, latest } = input;
-  const model = state.sponsoredResearch ? CRYPTO_SUPPORT_MODEL : DEFAULT_SUPPORT_MODEL;
+  const model = roomSupportModel(state, deps.room);
   if (state.sponsoredResearch && [...answer.text].length > CRYPTO_REPLY_LIMIT) return input.toPerson("unsure", "unavailable");
   const scopeRefusal = state.sponsoredResearch && isScopeRefusal(answer, true);
   const hits = scopeRefusal ? [] : groundedSources(answer, context);
@@ -952,9 +965,7 @@ export async function runLearningJob(
   const accepted = messages[answerIndex];
   const members = new Set([state.member ?? "", ...(state.formerMembers ?? [])]);
   if (members.has(accepted.author) || accepted.author === deps.principal) return "skipped";
-  const selected = state.prepaid
-    ? deps.prepaidModel ? { ...deps, prepaid: true, model: deps.prepaidModel(client, state.sponsoredResearch) } : null
-    : deps;
+  const selected = state.prepaid ? prepaidRunnerDeps(deps, client, state) : deps;
   if (!selected || callStop(selected)) return "skipped";
   let context: GroundedContext;
   try { context = await groundedContext(deps.db, state.storageGrant, deps.now()); }
@@ -1097,10 +1108,7 @@ export async function runJob(
       deps.principal,
       state.sharedHashes,
     ).map((message) => ({ ...message, text: message.text.slice(-1000) }));
-  const callDeps =
-    paidGrounded && deps.prepaidModel
-      ? { ...deps, prepaid: true, model: deps.prepaidModel(client, state.sponsoredResearch) }
-      : deps;
+  const callDeps = paidGrounded ? prepaidRunnerDeps(deps, client, state) ?? deps : deps;
   let paidContext: GroundedContext | null = null;
   const storeSummary = async () => {
     if (!paidGrounded || !latest || !state.caseSeq) return false;
@@ -1114,7 +1122,7 @@ export async function runJob(
           })
         ).version;
       const token = await saveGroundedReceipt(deps.db, {
-        model: state.sponsoredResearch ? CRYPTO_SUPPORT_MODEL : DEFAULT_SUPPORT_MODEL,
+        model: roomSupportModel(state, deps.room),
         context: { version, hits: [] },
         hits: [],
         text: GROUNDED_SUMMARY,

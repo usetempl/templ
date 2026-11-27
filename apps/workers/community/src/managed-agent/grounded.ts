@@ -1,4 +1,4 @@
-import { DEFAULT_SUPPORT_MODEL, CRYPTO_SUPPORT_MODEL } from "@templ/chat/support-models";
+import { DEFAULT_SUPPORT_MODEL, TERRA_SUPPORT_MODEL, CRYPTO_SUPPORT_MODEL, type SupportModel } from "@templ/chat/support-models";
 import { HOSTED_SOCIAL_REPLIES, SUPPORT_SCOPE_RULE } from "@templ/chat/support-ai-interactions";
 import { personRequest } from "@templ/chat/person-intent";
 import type { SupportAiGrounding } from "@templ/chat/support-drafts";
@@ -63,7 +63,7 @@ export type GroundedReceipt = {
   policy: typeof GROUNDED_POLICY;
   verifierVersion: typeof GROUNDED_VERIFIER_VERSION;
   verifierSha256: string;
-  model: typeof DEFAULT_SUPPORT_MODEL | typeof CRYPTO_SUPPORT_MODEL | "gpt-6.1-sol";
+  model: SupportModel;
   at: number;
   thread: string;
   case: number;
@@ -423,7 +423,7 @@ export async function verifyGroundedReceipt(
     receipt.policy !== GROUNDED_POLICY ||
     receipt.verifierVersion !== GROUNDED_VERIFIER_VERSION ||
     receipt.verifierSha256 !== (await sha256Hex(GROUNDED_VERIFIER_SYSTEM)) ||
-    !["gpt-6.1-sol", DEFAULT_SUPPORT_MODEL, CRYPTO_SUPPORT_MODEL].includes(receipt.model) ||
+    ![TERRA_SUPPORT_MODEL, DEFAULT_SUPPORT_MODEL, CRYPTO_SUPPORT_MODEL].includes(receipt.model) ||
     !nat(receipt.at) ||
     receipt.at > now ||
     now - receipt.at > 5 * 60_000 ||

@@ -1,5 +1,5 @@
 import { HOSTED_SOCIAL_REPLIES } from "@templ/chat/support-ai-interactions";
-import { CRYPTO_MONTHLY_BUDGET_CENTS, supportModel } from "@templ/chat/support-models";
+import { CRYPTO_MONTHLY_BUDGET_CENTS, CRYPTO_SUPPORT_MODEL, prepaidSupportModel } from "@templ/chat/support-models";
 import { CRYPTO_SUPPORT_WORKSPACE } from "../crypto-support";
 import type { SupportAiGrounding } from "@templ/chat/support-drafts";
 import { cryptoServiceReplies } from "./crypto-triage";
@@ -557,7 +557,8 @@ async function settingsView(
     grant,
     spend: { ...status.spend, capCents: period === "sponsored" ? CRYPTO_MONTHLY_BUDGET_CENTS : workspaceCapCents() },
     golden: status.golden,
-    model: prepaid ? supportModel(period === "sponsored" ? context.room.slice(5) : undefined) : MANAGED_AGENT_MODEL,
+    model: period === "sponsored" ? CRYPTO_SUPPORT_MODEL : period ? prepaidSupportModel(period.aiRateCardVersion) : MANAGED_AGENT_MODEL,
+    aiCredit: prepaid && period !== "sponsored",
   };
 }
 
@@ -979,6 +980,7 @@ async function runnerState(
   const base = {
     principal,
     prepaid: Boolean(paidPeriod),
+    ...(paidPeriod && paidPeriod !== "sponsored" ? { prepaidModel: prepaidSupportModel(paidPeriod.aiRateCardVersion) } : {}),
     sponsoredResearch: paidPeriod === "sponsored",
     readinessPolicy: paidPeriod ? GROUNDED_POLICY : "golden_v1",
     enabled: settings.enabled,

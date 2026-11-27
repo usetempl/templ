@@ -133,6 +133,8 @@ export type ManagedAgentView = {
     failing: string[];
   };
   model: string;
+  /** Calls draw on the workspace's AI credit. Earlier workers omit this. */
+  aiCredit?: boolean;
 };
 
 export const MANAGED_JOB_KINDS = ["ask-ai", "member-message", "handoff-learning", "golden"] as const;

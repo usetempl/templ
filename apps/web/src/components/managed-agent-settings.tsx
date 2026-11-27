@@ -222,10 +222,12 @@ export function ManagedAgentSettings({
   const product = context.state?.product;
   const standard =
     product && isBillingView(product) ? product.standardPlan : undefined;
-  const prepaid = Boolean(standard) || view.model === "gpt-6.1-sol";
+  // Earlier workers omit aiCredit and name GPT-6.1 Sol for paid AI.
+  const aiCredit = view.aiCredit ?? view.model === "gpt-6.1-sol";
+  const prepaid = Boolean(standard) || aiCredit;
   // Paid AI reports a missing limit or credit with the budget states.
   const fundsStop =
-    view.model === "gpt-6.1-sol" &&
+    aiCredit &&
     (view.state === "no-budget" || view.state === "workspace-cap");
   let creditNote = "AI uses your included credit first, then prepaid USDC.";
   if (standard?.starterAiLimitCents !== undefined) {

@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from "react";
 import { loadTemplSupportWidget } from "@/lib/templ-support";
 import { currentWidgetAssets } from "@/lib/current-widget-assets";
 import { hostedGuestReturn } from "@/lib/hosted-guest-return";
+import { claimHostedPolicyRead } from "@/lib/hosted-policy-read";
 import { supportPageWallet } from "@/lib/support-page-wallet";
 import type { mountSupportWidget } from "@/lib/support-widget";
 import { SITE } from "@/lib/site-environment";
@@ -39,6 +40,7 @@ export function HostedSupportChat({
   const [accent, setAccent] = useState<WidgetAccent>();
   const container = useRef<HTMLDivElement>(null);
   const widget = useRef<ReturnType<typeof mountSupportWidget> | null>(null);
+  const policyRead = useRef<typeof fetch | undefined>(undefined);
   const [state, setState] = useState<"loading" | "ready" | "failed">("loading");
   useHostedComposerFocus(container, state === "ready", frameRequired ? widget : undefined);
   const [retry, setRetry] = useState(false);
@@ -51,8 +53,12 @@ export function HostedSupportChat({
     let mounted: ReturnType<typeof mountSupportWidget> | undefined;
     async function load() {
       const wallet = supportPageWallet(currentNetwork.current);
+      // The page's HTML started the widget's first policy read. This chat
+      // takes it once, so a retry or a later page reads again.
+      if (!frameRequired) policyRead.current ??= claimHostedPolicyRead(workspace);
+      const policyFetch = frameRequired ? undefined : policyRead.current;
       const returning = frameRequired ? undefined : hostedGuestReturn(
-        workspace, currentWidgetAssets.sourceSha256.slice(0, 16), wallet, opening.signal,
+        workspace, currentWidgetAssets.sourceSha256.slice(0, 16), wallet, opening.signal, undefined, policyFetch,
       );
       let widgetModule: WidgetModule;
       if (frameRequired) {
@@ -86,7 +92,7 @@ export function HostedSupportChat({
         ...(!frameRequired && (ownSupport || cryptoDesk) ? {
           decorateOwnMenu: cryptoDesk ? addCryptoChatMenu : addOwnChatMenu,
         } : {}),
-      }, undefined, returning);
+      }, policyFetch && { fetch: policyFetch }, returning);
       widget.current = mounted;
       await mounted.open(false);
       if (disposed) return;

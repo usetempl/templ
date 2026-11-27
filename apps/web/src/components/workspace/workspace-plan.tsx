@@ -191,6 +191,7 @@ export function WorkspacePlan({ context }: { context: WorkspaceContext }) {
             {(billing.standardPlan ||
               (!billing.manualBilling && !billing.usageBilling)) && (
               <ProductPaymentRequests
+                agreedAiBilling={(billing.standardPlan?.prepaid?.mode ?? "prepaid") !== "prepaid"}
                 room={room}
                 account={account}
                 onOpen={context.openPayment}

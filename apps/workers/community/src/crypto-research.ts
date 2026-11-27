@@ -69,15 +69,36 @@ function topicTerms(question: string) {
   );
 }
 
+// These first-party pages explain visitor terminology that does not appear in
+// their titles. A guide is eligible only while its own index still lists it.
+const supportGuides: Record<string, [RegExp, string][]> = {
+  "bitcoin.org": [[/\b(?:confirmations?|unconfirmed)\b/i, "/en/faq"]],
+  "aave.com": [[/\b(?:health factor|liquidat(?:ion|ions|ed))\b/i, "/help/borrowing/liquidations"]],
+  "docs.optimism.io": [
+    [/\b(?:transaction fees?|execution (?:fee|gas)|l1 data fee|operator fee|gas price)\b/i, "/op-stack/transactions/fees"],
+    [/\bwithdrawals?\b/i, "/op-stack/bridging/withdrawal-flow"],
+  ],
+};
+
 export function selectResearchPage(
   directory: string,
   index: string,
   question: string,
 ): string | undefined {
   const terms = topicTerms(question);
+  // Past two topic words, one shared word is often incidental, so the page
+  // must match two.
+  const needed = terms.length > 2 ? 2 : 1;
   const base = new URL(directory);
+  // Third-party routes and Lightning have their own settlement rules. The
+  // native-chain guide is insufficient evidence for those cases.
+  const guides = /\b(?:lightning|fast bridge|third[- ]party bridge)\b/i.test(question)
+    ? []
+    : (supportGuides[base.host] ?? []).filter(([topic]) => topic.test(question));
+  const guide = guides.length === 1 ? guides[0][1] : undefined;
   let best: string | undefined,
-    bestScore = 0;
+    bestScore = 0,
+    tied = false;
   const links = index.matchAll(
     /\[([^\]\n]{1,160})\]\(([^)\s]{1,500})\)|<loc>\s*([^<\s]{1,500})\s*<\/loc>/gi,
   );
@@ -111,6 +132,9 @@ export function selectResearchPage(
       /^\/(?!en(?:\/|$))[a-z]{2}(?:-[a-z]{2,4})?(?:\/|$)/i.test(url.pathname)
     )
       continue;
+    if (guide && url.pathname.replace(/(?:\.md|\/)$/, "") === guide) return url.href;
+    // Sections written for operators and developers do not answer visitors.
+    if (/\b(?:operators|developers)\b/i.test(url.pathname)) continue;
     const words = new Set(
       ((match[1] ?? "") + " " + url.pathname)
         .toLowerCase()
@@ -120,9 +144,11 @@ export function selectResearchPage(
     if (score > bestScore) {
       bestScore = score;
       best = url.href;
-    }
+      tied = false;
+    } else if (score === bestScore && url.href !== best) tied = true;
   }
-  return best;
+  // Pages that match equally well leave the answer open, so none is chosen.
+  return bestScore >= needed && !tied ? best : undefined;
 }
 
 export async function researchCryptoDocs(

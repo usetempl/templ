@@ -1,4 +1,4 @@
-import { CRYPTO_MONTHLY_BUDGET_CENTS, CRYPTO_SUPPORT_MODEL } from "@templ/chat/support-models";
+import { CRYPTO_MONTHLY_BUDGET_CENTS, CRYPTO_SUPPORT_MODEL, LEGACY_SUPPORT_MODEL, type SupportModel } from "@templ/chat/support-models";
 import { CRYPTO_SUPPORT_WORKSPACE } from "../crypto-support";
 import { trialPractice, templFundedInference } from "./trial-practice";
 import { verifyGroundedReceipt } from "./grounded";
@@ -284,9 +284,9 @@ export async function runnerDeps(
     ...(env.AI &&
     /^[a-z0-9][a-z0-9-]{0,63}$/.test(env.MANAGED_AGENT_GATEWAY_ID ?? "")
       ? {
-          prepaidModel: (billing: import("./room-client").RoomClient, sponsoredResearch?: boolean) => {
+          prepaidModel: (billing: import("./room-client").RoomClient, sponsoredResearch?: boolean, model: SupportModel = LEGACY_SUPPORT_MODEL) => {
             const options = { ai: env.AI!, gatewayId: env.MANAGED_AGENT_GATEWAY_ID!, observeCost };
-            if (room !== "room:" + CRYPTO_SUPPORT_WORKSPACE || !sponsoredResearch) return prepaidGptCaller({ ...options, billing });
+            if (room !== "room:" + CRYPTO_SUPPORT_WORKSPACE || !sponsoredResearch) return prepaidGptCaller({ ...options, billing, model });
             const cap = CRYPTO_MONTHLY_BUDGET_CENTS;
             return fundedGptCaller({ ...options, model: CRYPTO_SUPPORT_MODEL }, templFundedInference({
               async reserve(month, id, cents) {

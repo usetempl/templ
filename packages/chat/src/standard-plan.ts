@@ -1,4 +1,4 @@
-import { PRODUCT_STARTER_PRICES, PRODUCT_STARTER_RECORDED_PRICES } from "./plans";
+import { PRODUCT_STARTER_PRICES, PRODUCT_STARTER_RECORDED_PRICES, PRODUCT_STANDARD_PRICES, PRODUCT_STANDARD_RECORDED_PRICES, PRODUCT_STANDARD_AI_RATES, PRODUCT_TERRA_AI_RATES } from "./plans";
 import type { ChatPrincipalId } from "./principal";
 import type { StandardAiRate } from "./standard-usage";
 
@@ -6,6 +6,15 @@ export function starterPricesForVersion(version?: string) {
   if (version === PRODUCT_STARTER_PRICES.publishedOn) return PRODUCT_STARTER_PRICES;
   if (version === PRODUCT_STARTER_RECORDED_PRICES.publishedOn) return PRODUCT_STARTER_RECORDED_PRICES;
   return undefined;
+}
+
+export function prepaidRateCardMatches(priceVersion: string, cardVersion: string) {
+  if (cardVersion === PRODUCT_TERRA_AI_RATES.version)
+    return priceVersion === PRODUCT_STARTER_PRICES.publishedOn || priceVersion === PRODUCT_STANDARD_PRICES.publishedOn;
+  const starter = starterPricesForVersion(priceVersion);
+  if (starter) return cardVersion === starter.aiRateCardVersion;
+  return cardVersion === PRODUCT_STANDARD_AI_RATES.version &&
+    (priceVersion === PRODUCT_STANDARD_PRICES.publishedOn || priceVersion === PRODUCT_STANDARD_RECORDED_PRICES.publishedOn);
 }
 
 export type StandardPaymentMode = "prepaid" | "debt" | "custom";

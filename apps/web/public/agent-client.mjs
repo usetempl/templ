@@ -3,8 +3,8 @@
 // ./chains SHA-256: c3b6e0bb773a1a258a6e28f7677c10bca40ba4f96eafae584ce7c504c248eb75
 // ./knowledge SHA-256: d316996f93aeeb68dc481ec58e9f401e94e87ec1a6d283a3017cf05a0aa4c02a
 // ./solana SHA-256: 80439c5a035590176b242fe8ab47150475d83979e90122ca9b6d8838104f729f
-// ./plans SHA-256: 8603044b7537709770a0cee3a6d091f6f2253433262be1ea7ddebda08e3fd8cd
-// ./standard-plan SHA-256: 83c2fe406f135626d1b537df8e44afd076018ef51d87ac9e13f5f9c633c01550
+// ./plans SHA-256: 8d2399d338ebdaa59456eb1f03ef6e7bd3cdcd27d1a5f8b486b9ef17bb553190
+// ./standard-plan SHA-256: 5aaf305f2887acd8ba2e9489cfd7ceadeb7ae8184e976ed34dee98c8c278fa19
 // ./resolution-pricing SHA-256: 0208255490236945acf6871d00e34140112fe63f5e852506cea24d35293ff0cf
 // ./resolution-copy SHA-256: 8c6206765c1a38dcf9ccba85448baef7225c234ddbe9ed680f6d6bf9ad5a2943
 // ./moderation-permissions SHA-256: dc99fce64f8ed319f0af4117c46839edde3b47e230c0c7722221962325fd3008
@@ -461,6 +461,20 @@ export const PRODUCT_STANDARD_AI_RATES = {
     longOutputMultiplierDenominator: 2,
     usdNanosPerCent: 10000000,
 };
+/** GPT-6.1 Terra Standard API rates. The default cache write lasts 30 minutes.
+ * https://developers.openai.com/api/docs/models/gpt-6.1-terra */
+export const PRODUCT_TERRA_AI_RATES = {
+    version: "2026-11-27",
+    model: "gpt-6.1-terra",
+    inputUsdNanosPerMillion: 1000000000,
+    cachedInputUsdNanosPerMillion: 50000000,
+    cacheWriteInputUsdNanosPerMillion: 1250000000,
+    outputUsdNanosPerMillion: 5000000000,
+    longContextAboveInputTokens: 272000,
+    longInputMultiplier: 2,
+    longOutputMultiplierNumerator: 3,
+    longOutputMultiplierDenominator: 2,
+};
 /** The lifetime demo starts independently of later catalog publication dates. */
 export const PRODUCT_STANDARD_ACCESS_STARTED_ON = "2026-10-14";
 /** Captured prices for the approved, fixed noncash monthly qualification scope. */
@@ -657,6 +671,15 @@ export function starterPricesForVersion(version) {
     if (version === PRODUCT_STARTER_RECORDED_PRICES.publishedOn)
         return PRODUCT_STARTER_RECORDED_PRICES;
     return undefined;
+}
+export function prepaidRateCardMatches(priceVersion, cardVersion) {
+    if (cardVersion === PRODUCT_TERRA_AI_RATES.version)
+        return priceVersion === PRODUCT_STARTER_PRICES.publishedOn || priceVersion === PRODUCT_STANDARD_PRICES.publishedOn;
+    const starter = starterPricesForVersion(priceVersion);
+    if (starter)
+        return cardVersion === starter.aiRateCardVersion;
+    return cardVersion === PRODUCT_STANDARD_AI_RATES.version &&
+        (priceVersion === PRODUCT_STANDARD_PRICES.publishedOn || priceVersion === PRODUCT_STANDARD_RECORDED_PRICES.publishedOn);
 }
 const DAY_MS = 86400000;
 const HOUR_MS = 3600000;
