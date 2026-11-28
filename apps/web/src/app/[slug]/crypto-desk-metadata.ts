@@ -1,4 +1,5 @@
-import type { Metadata, ResolvingMetadata } from "next";
+import type { Metadata } from "next";
+import cryptoDesk from "@/lib/crypto-desk-copy.json";
 import { CRYPTO_SUPPORT_WORKSPACE } from "@templ/chat/support-models";
 import { APP_ENVIRONMENT } from "@/lib/site-environment";
 
@@ -18,11 +19,10 @@ export async function cryptoDeskMetadata(
   slug: string,
   searchParams: SearchParams,
   hostedWorkspace: (slug: string) => Promise<string | null>,
-  parent: ResolvingMetadata,
 ): Promise<Metadata | null> {
   const name = slug.toLowerCase();
   if (
-    APP_ENVIRONMENT !== "production" ||
+    !CRYPTO_SUPPORT_WORKSPACE || APP_ENVIRONMENT !== "production" ||
     !visitorLink(searchParams) ||
     !DESK_NAMES.has(name)
   )
@@ -34,8 +34,8 @@ export async function cryptoDeskMetadata(
     return null;
   }
   const title = "Crypto help desk by Templ";
-  const description = "Get help with Bitcoin, Ethereum, Solana, layer 2s, DeFi and wallets.";
-  const layout = await parent;
+  const { description, headline } = cryptoDesk;
+  const images = [{ url: "https://usetempl.com/art/og/crypto-help.png", width: 1200, height: 630, alt: headline }];
   return {
     title: { absolute: title },
     description,
@@ -45,13 +45,13 @@ export async function cryptoDeskMetadata(
       title,
       description,
       url: "/crypto",
-      images: layout.openGraph?.images,
+      images,
     },
     twitter: {
       card: "summary_large_image",
       title,
       description,
-      images: layout.twitter?.images,
+      images,
     },
   };
 }

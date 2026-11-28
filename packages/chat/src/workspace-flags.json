@@ -166,6 +166,12 @@
     "killSwitch": "MANAGED_AGENT_ENABLED",
     "name": "Crypto desk chat language"
   },
+  "cryptoVoiceNotes": {
+    "releaseFlag": "managedAgentVerified",
+    "workspaceOnly": true,
+    "killSwitch": "MANAGED_AGENT_ENABLED",
+    "name": "Crypto desk voice notes"
+  },
   "managedAgent": {
     "releaseFlag": "managedAgentVerified",
     "killSwitch": "MANAGED_AGENT_ENABLED",

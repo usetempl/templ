@@ -12,6 +12,7 @@ const directory = fileURLToPath(new URL("../../public/chat-languages/", import.m
 const sourceHeadings = JSON.parse(readFileSync(resolve(directory, "../../../workers/community/src/crypto-source-headings.json"), "utf8"));
 const serviceReplies: Record<string, Record<string, string>> = JSON.parse(readFileSync(resolve(directory, "../../../workers/community/src/managed-agent/crypto-service-translations.json"), "utf8"));
 const sourceReview = JSON.parse(readFileSync(new URL("../../test/fixtures/crypto-chat-language-review.json", import.meta.url), "utf8"));
+const voiceReview = JSON.parse(readFileSync(new URL("../../test/fixtures/crypto-voice-language-review.json", import.meta.url), "utf8"));
 const digest = (file: string) => createHash("sha256").update(readFileSync(file)).digest("hex");
 const emergency = "Emergency help for a scam or hack";
 const fields = (text: string) => (text.match(/\{[a-zA-Z][\w]*\}/g) ?? []).sort();
@@ -19,7 +20,11 @@ const fields = (text: string) => (text.match(/\{[a-zA-Z][\w]*\}/g) ?? []).sort()
 simulate("every language offered by the crypto desk can render its full interface offline", draw => {
   expect(sourceReview.fixedRepliesSha256).toBe(digest(resolve(directory, "../../../workers/community/src/managed-agent/crypto-service-translations.json")));
   expect(sourceReview.locales).toHaveLength(sourceReview.translatedLocales);
-  for (const { code, sha256 } of sourceReview.locales) {
+  expect(voiceReview.translatedLocales).toBe(sourceReview.translatedLocales);
+  const priorVoice = readFileSync(new URL("../../test/fixtures/crypto-voice-language-review-2026-11-27.json", import.meta.url));
+  expect(createHash("sha256").update(priorVoice).digest("hex")).toBe(voiceReview.previousReview.sha256);
+  expect(voiceReview.interfaceStringsPerLocale).toBe(sourceReview.interfaceStringsPerLocale + voiceReview.voiceStringsPerLocale);
+  for (const { code, sha256 } of voiceReview.locales) {
     expect(digest(resolve(directory, code + ".json")), code).toBe(sha256);
   }
   const codes = CRYPTO_LANGUAGES.map(language => language.code);

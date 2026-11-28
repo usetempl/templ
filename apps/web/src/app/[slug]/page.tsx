@@ -1,4 +1,4 @@
-import type { Metadata, ResolvingMetadata } from "next";
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { cache } from "react";
 import { namedHostedWorkspace } from "@/lib/hosted-support";
@@ -18,10 +18,9 @@ const hostedWorkspace = cache(namedHostedWorkspace);
 
 export async function generateMetadata(
   { params, searchParams }: SlugPageProps,
-  parent: ResolvingMetadata,
 ): Promise<Metadata> {
   const { slug } = await params;
-  const desk = await cryptoDeskMetadata(slug, await searchParams, hostedWorkspace, parent);
+  const desk = await cryptoDeskMetadata(slug, await searchParams, hostedWorkspace);
   return desk ?? { title: t("shell.chat.title") };
 }
 

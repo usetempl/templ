@@ -154,7 +154,7 @@ export default async function PrivacyPage() {
               <td>{"User support data"}</td>
               <td>
                 {
-                  "Users and their team supply messages, screenshots, approved app context and shared transactions. We use them to deliver and answer cases."
+                  "Users and their team supply messages, screenshots, approved app context and shared transactions. We use them to deliver and answer cases. If you send a voice note to the Crypto Help Desk, Cloudflare runs Whisper to turn it into text. Templ does not save the recording on its servers. The text stays in your case like a typed message."
                 }
               </td>
             </tr>

@@ -1,5 +1,7 @@
 import { isSolanaAddress } from "@templ/chat/solana";
 import { hideAmbiguousHex } from "@templ/chat/support-safety-hex";
+import { CRYPTO_PROVIDER_PAGES, type CryptoProviderPage } from "@templ/chat/crypto-help-links";
+import { CRYPTO_PROVIDERS, type CryptoProviderId } from "../crypto-chain-read-egress";
 import type { CryptoChain, CryptoLookupSelection } from "../crypto-lookup-target";
 import {
   readMetaJson,
@@ -35,7 +37,7 @@ export type CryptoLookupState = {
 };
 /** Facts the reader derived. Raw provider responses never reach the runner. */
 export type CryptoChainReading =
-  | { ok: true; observedAt: number; facts: readonly { label: string; value: string }[] }
+  | { ok: true; observedAt: number; answeredProviders?: readonly CryptoProviderId[]; facts: readonly { label: string; value: string }[] }
   | { ok: false; reason: "not-found" | "unavailable" | "refused" };
 export type CryptoChainReader = (
   target: CryptoChainTarget,
@@ -193,6 +195,7 @@ export type GroundedChainFacts = {
   subject: Subject;
   from: "pasted" | "verified";
   targetSha256: string;
+  providerPages: CryptoProviderPage[];
 };
 
 function factText(value: unknown, max: number): string | null {
@@ -260,8 +263,11 @@ export async function readCaseChainFacts(input: {
   if (!lines.length) return unavailable;
   const text = [intro, ...lines].join("\n");
   const targetSha256 = await chainTargetSha256(input.thread, input.seq, input.lookup);
-  const sourceId = "chain:" + (await sha256Hex(JSON.stringify([targetSha256, input.latest, observedAt, text]))).slice(0, 16);
+  const providers = [...new Set(reading.answeredProviders)].filter(provider =>
+    Object.hasOwn(CRYPTO_PROVIDERS, provider) && CRYPTO_PROVIDERS[provider].chain === chain);
+  const providerPages = providers.map(provider => CRYPTO_PROVIDER_PAGES[provider]);
+  const sourceId = "chain:" + (await sha256Hex(JSON.stringify([targetSha256, input.latest, observedAt, text, providers]))).slice(0, 16);
   return {
-    facts: { sourceId, title: `${NETWORK[chain]} ${subject} read`, text, lines, observedAt, chain, subject, from, targetSha256 },
+    facts: { sourceId, title: `${NETWORK[chain]} ${subject} read`, text, lines, observedAt, chain, subject, from, targetSha256, providerPages },
   };
 }

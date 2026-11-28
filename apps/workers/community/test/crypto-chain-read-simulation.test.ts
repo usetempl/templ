@@ -1,3 +1,4 @@
+import { cryptoChainReader } from "../src/managed-agent/crypto-chain-reader";
 import { getAssociatedTokenAddressSync } from "@solana/spl-token";
 import { PublicKey } from "@solana/web3.js";
 import { rng, simulate, type Rng } from "@templ/chat/simulation.test.helpers";
@@ -690,6 +691,11 @@ describe("public chain reads", () => {
       } as CryptoTxQuery;
       const read = await readCryptoTransaction(query, deps(net.fetch));
       expectEgress(net.calls, [tx.txid]);
+      const reading = await cryptoChainReader(deps(net.fetch))(
+        { chain: "bitcoin", subject: "transaction", value: tx.txid, permalink: "https://mempool.space/tx/" + tx.txid },
+        { signal: new AbortController().signal, deadlineMs: 8_000 },
+      );
+      if (reading.ok) expect(reading.answeredProviders).toEqual(ESPLORA.filter(provider => behaviors[provider] === "ok"));
       const confirmations = (provider: (typeof ESPLORA)[number]) =>
         tx.block ? tips[provider] - tx.block.height + 1 : null;
       const results = ESPLORA.flatMap((provider) =>

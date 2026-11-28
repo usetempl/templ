@@ -2,6 +2,7 @@ import { CRYPTO_SUPPORT_WORKSPACE } from "@templ/chat/support-models";
 import { canonicalBitcoinProofAddress } from "./bitcoin-wallet-proof";
 import { reserveCryptoQuestion } from "./crypto-support";
 import { cryptoChatLanguageInput, saveCryptoChatLanguage } from "./crypto-chat-language";
+import { CRYPTO_VOICE_ROOM_PATH, cryptoVoiceAdmission } from "./crypto-voice-notes";
 import { appAiEnabled, appAnswerStatus, assertAppAnswerWrite, finishAppAnswer } from "./app-ai-replies";
 import { canManageWorkspace } from "@templ/chat/moderation-permissions";
 import { featureOn } from "./workspace-flags";
@@ -2461,6 +2462,9 @@ export async function conversationRoute(
   if (context.headers.get("X-Support-Widget") === "member") {
     context.viewer = { ...context.viewer, isManager: false, permissions: [] };
   }
+  // Only the worker can ask the room to admit a voice-note request.
+  if (context.pathname === CRYPTO_VOICE_ROOM_PATH)
+    return cryptoVoiceAdmission(storage, context);
   const response = await conversationRoomRoute(storage, context);
   if (response && context.openQuotaUsed)
     response.headers.set(OPEN_USED_HEADER, context.openQuotaUsed);

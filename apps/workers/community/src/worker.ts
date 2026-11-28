@@ -46,6 +46,13 @@ import {
   type WidgetEnv,
 } from "./support-widget";
 import {
+  CRYPTO_VOICE_HEADER,
+  CRYPTO_VOICE_NOTE,
+  CRYPTO_VOICE_ROOM_PATH,
+  type CryptoVoiceEnv,
+} from "./crypto-voice-notes";
+import { transcribeCryptoVoiceNote } from "./crypto-voice-transcribe";
+import {
   requireWalletAuth,
   requireWorkspaceAdminAuth,
   requireTeamInvitationAuth,
@@ -3629,6 +3636,17 @@ async function route(
       !/^\/conversations(?:\/|$)/.test(path)
     )
       return json({ error: "Not found." }, 404);
+    // A voice note reaches the room only from the widget route that checked
+    // its upload; a public room URL gets the unknown-route answer.
+    if (
+      path === CRYPTO_VOICE_ROOM_PATH &&
+      !(
+        request.method === "POST" &&
+        (env as WidgetEnv)[WIDGET_SCOPE] &&
+        (env as CryptoVoiceEnv)[CRYPTO_VOICE_NOTE]
+      )
+    )
+      return json({ error: "Not found." }, 404);
     // The room read starts with the body. A room route's JSON body is read
     // now, once, within its size cap; a parse error is kept and thrown where
     // the route reads the body, after the session check. The session read
@@ -4264,6 +4282,7 @@ async function route(
       // The symbol exists only after the widget permit was checked.
       if ((env as Env & { [INSTALL_PREVIEW]?: boolean })[INSTALL_PREVIEW])
         headers.set("X-Support-Install-Preview", "1");
+      if (path === CRYPTO_VOICE_ROOM_PATH) headers.set(CRYPTO_VOICE_HEADER, "1");
       headers.set(
         "X-Support-Widget-Origin",
         (env as WidgetEnv)[WIDGET_SCOPE]!.origin,
@@ -4418,6 +4437,10 @@ async function route(
           );
         },
       );
+      // The room admitted this checked upload: the worker holds its cost and
+      // calls the model. The room's own answer never reaches the browser.
+      if (path === CRYPTO_VOICE_ROOM_PATH)
+        return transcribeCryptoVoiceNote(env as Env & CryptoVoiceEnv, result);
       if (
         result.ok &&
         body?.granted === true &&

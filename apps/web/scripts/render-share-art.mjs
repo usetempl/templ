@@ -4,3 +4,5 @@ import sharp from "sharp";
 const image = "public/art/og/templ-og.png";
 await sharp("public/art/og/templ-og.svg").png({ compressionLevel: 9 }).toFile(image);
 await copyFile(image, "public/images/templ-chat.png");
+
+await sharp("public/art/og/crypto-help.svg").png({ compressionLevel: 9 }).toFile("public/art/og/crypto-help.png");

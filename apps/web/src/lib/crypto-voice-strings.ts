@@ -1,0 +1,37 @@
+export const CRYPTO_VOICE_STRINGS = [
+  "Voice note",
+  "Record a voice note",
+  "Hold to record and release to send. Tap once to record without holding.",
+  "Lock recording",
+  "Stop recording",
+  "Send voice note",
+  "Play voice note",
+  "Stop playing",
+
+  "Waiting for the microphone…",
+  "Recording. Release to send, or slide up to lock.",
+  "Recording. Send when you finish.",
+  "No sound yet. Check your microphone.",
+  "Listen, then send. Your voice note is sent as text.",
+  "Uploading voice note…",
+  "Turning your voice note into text…",
+  "Still working. Longer voice notes take more time.",
+  "Voice note discarded.",
+  "Stopped. Your voice note was not sent.",
+  "Your voice note is in the message box. Check it, then send.",
+  "This voice note is too long for one message. Shorten it, then send.",
+  "Voice notes can be up to {duration}.",
+
+  "That was too short. Record a little longer.",
+  "Couldn’t hear anything. Check your microphone and try again.",
+  "Couldn’t find any words in the voice note. Try again or type your message.",
+  "Couldn’t turn the voice note into text. Try again.",
+  "Voice notes are not available right now. Type your message instead.",
+  "Voice notes don’t work in this browser. Type your message instead.",
+  "Microphone access is blocked. Allow it in your browser settings, or type your message.",
+  "No microphone was found. Type your message instead.",
+  "Couldn’t start the microphone. Try again or type your message.",
+  "Record a shorter voice note.",
+] as const satisfies readonly string[];
+
+export type CryptoVoiceString = (typeof CRYPTO_VOICE_STRINGS)[number];

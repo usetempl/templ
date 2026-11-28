@@ -1,3 +1,5 @@
+import { CRYPTO_PROVIDER_PAGES } from "@templ/chat/crypto-help-links";
+import { cryptoLinkProblem } from "../src/crypto-links";
 import { describe, expect, vi } from "vitest";
 import {
   CRYPTO_SUPPORT_MODEL,
@@ -242,6 +244,10 @@ async function runDesk(draw: Rng, scenario: Scenario) {
       sources: draw.chance(0.5) ? [facts.sourceId] : [facts.sourceId, `kb:${faq.id}-1`],
     }), model);
   };
+  const observed = {
+    bitcoin: ["mempool.space", "blockstream.info"], ethereum: ["publicnode", "drpc"], solana: ["publicnode-solana", "solana-foundation"],
+  } as const;
+  const providerCount = draw.int(1, 2);
   const chainRead: CryptoChainReader = async (read, options) => {
     reads.push({ target: read, options: { ...options } });
     if (scenario === "revoked") flagOn = false;
@@ -256,6 +262,7 @@ async function runDesk(draw: Rng, scenario: Scenario) {
     return {
       ok: true,
       observedAt: now,
+      answeredProviders: observed[read.chain].slice(0, providerCount),
       facts: [
         { label: "Status", value: draw.pick(["confirmed", "succeeded"]) },
         { label: "Transaction", value: `in, ${new Date(now).toISOString()}, ${figure} ${UNIT[chain]}` },
@@ -293,7 +300,7 @@ async function runDesk(draw: Rng, scenario: Scenario) {
   const elapsed = Date.now() - started;
   const sourcesAfter = db.sql.exec("SELECT COUNT(*) AS n FROM kb_sources").toArray()[0].n;
   db.raw.close();
-  return { chain, target, verified, first, elapsed, calls, reads, replies, refused, posts, evidence, sourcesBefore, sourcesAfter, counterparty, figure };
+  return { chain, providers: reads.length ? observed[reads[0].target.chain].slice(0, providerCount) : [], target, verified, first, elapsed, calls, reads, replies, refused, posts, evidence, sourcesBefore, sourcesAfter, counterparty, figure };
 }
 
 describe("crypto desk network facts", () => {
@@ -348,7 +355,15 @@ describe("crypto desk network facts", () => {
         if (answered) {
           expect(run.first, label).toEqual(["answered"]);
           // The figure cites its new evidence row; the read time is not a figure.
-          expect(run.replies, label).toEqual([`The network read shows ${run.figure}[ev:1] ${UNIT[run.chain]} moved. It was read at 12:00 UTC.`]);
+          const pages = run.providers.map(provider => CRYPTO_PROVIDER_PAGES[provider]);
+          const sourceLines = pages.map(page => `[${page.label}](${page.url})`).join("\n");
+          expect(run.replies, label).toEqual([`The network read shows ${run.figure}[ev:1] ${UNIT[run.chain]} moved. It was read at 12:00 UTC.\n\nSources:\n${sourceLines}`]);
+          for (const call of withFacts) {
+            const networkFacts = JSON.parse(call.user).networkFacts;
+            for (const page of pages) expect(JSON.stringify(networkFacts), label).not.toContain(page.url);
+          }
+          expect(cryptoLinkProblem(run.replies[0], 7, true), label).toBeNull();
+          expect(cryptoLinkProblem(run.replies[0]), label).toBe("unreviewed link");
           // Chain figures become team evidence for this case, with the read time and no link.
           expect(run.evidence, label).toHaveLength(1);
           expect(run.evidence[0], label).toMatchObject({ source: "chain", product: { key: "network-read" }, value: { text: run.figure } });

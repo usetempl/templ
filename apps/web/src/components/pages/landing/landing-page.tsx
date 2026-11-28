@@ -1,6 +1,7 @@
 "use client";
 
 import hero from "./hero-copy.json";
+import cryptoDesk from "@/lib/crypto-desk-copy.json";
 import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useRef } from "react";
@@ -47,6 +48,16 @@ export function LandingPage() {
           </div>
         </section>
         <SupportStory />
+        <section id="crypto-help" className={styles.cryptoDesk} aria-labelledby="crypto-help-title">
+          <div className={styles.cryptoInner}>
+            <h2 id="crypto-help-title">{cryptoDesk.headline}</h2>
+            <div>
+              <p>We built a free crypto help desk for everyone. Ask in your own language about backing up your first wallet or checking a pending transfer.</p>
+              <a className={styles.cryptoLink} href="https://usetempl.com/crypto">Ask a crypto question <span aria-hidden="true">→</span></a>
+              <p className={styles.cryptoSource}>Add private support to your app with <a href={TEMPL_SOURCE_URL}>open-source Templ</a>.</p>
+            </div>
+          </div>
+        </section>
         <LandingPricing />
         <section id="start" className={styles.close} aria-labelledby="start-title">
           <div>

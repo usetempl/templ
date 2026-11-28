@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { CRYPTO_SUPPORT_WORKSPACE } from "@templ/chat/support-models";
 import { initOpenNextCloudflareForDev } from "@opennextjs/cloudflare";
 import { assetHashes } from "./scripts/asset-hashes.mjs";
 import {
@@ -70,6 +71,14 @@ const nextConfig: NextConfig = {
           },
         ],
       },
+      ...(CRYPTO_SUPPORT_WORKSPACE ? ["/crypto", "/eth", "/ethereum", `/help/${CRYPTO_SUPPORT_WORKSPACE}`] : []).map(source => ({
+        source,
+        missing: ["tab", "support", "invite"].map(key => ({ type: "query" as const, key })),
+        headers: [{
+          key: "Permissions-Policy",
+          value: "geolocation=(), microphone=(self), camera=()",
+        }],
+      })),
       ...(indexing
         ? [
             {

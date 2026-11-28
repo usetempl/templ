@@ -597,11 +597,12 @@ const CRYPTO_LINK_REFUSAL = "AI replies on this desk can link only to reviewed p
 /** The desk's AI links only to reviewed pages, whatever its sources say.
  * Fixed desk replies are Templ's own text. */
 function unreviewedCryptoLink(context: ConversationContext) {
+  const managed = context.body.managed as { grounded?: unknown } | undefined;
   return (
     context.room === "room:" + CRYPTO_SUPPORT_WORKSPACE &&
     typeof context.body.text === "string" &&
     !cryptoServiceReplies.has(context.body.text) &&
-    cryptoLinkProblem(context.body.text, CRYPTO_LINK_LIMITS.inline + CRYPTO_LINK_LIMITS.sources) !== null
+    cryptoLinkProblem(context.body.text, CRYPTO_LINK_LIMITS.inline + CRYPTO_LINK_LIMITS.sources, typeof managed?.grounded === "string") !== null
   );
 }
 

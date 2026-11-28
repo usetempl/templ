@@ -3,6 +3,7 @@ import { CRYPTO_SUPPORT_WORKSPACE } from "../crypto-support";
 import { trialPractice, templFundedInference } from "./trial-practice";
 import { verifyGroundedReceipt } from "./grounded";
 import { cryptoChainReader } from "./crypto-chain-reader";
+import { cryptoVoiceInput, cryptoVoiceLedger, pruneCryptoVoice } from "./crypto-voice-ledger";
 import { workspaceFeatureEnvFor } from "../workspace-flags";
 import { recordWorkspaceCost } from "../workspace-cost-recording";
 import type { WorkspaceCostEvent } from "@templ/chat/workspace-costs";
@@ -404,6 +405,12 @@ export async function managedKnowledgeFetch(
   try {
     if (url.pathname === "/managed/spend")
       return json(await templSpendRequest(state.storage, body, Date.now()));
+    // The crypto desk's voice notes hold against this object's sponsored month.
+    if (url.pathname === "/managed/voice") {
+      const input = cryptoVoiceInput(body);
+      bindRoom(db, input.room, Date.now());
+      return json(await cryptoVoiceLedger(db, input, Date.now()));
+    }
     if (url.pathname === "/managed/op") {
       if (body.op === "trial.practice") {
         bindRoom(db, body.room, Date.now());
@@ -443,6 +450,7 @@ export async function managedAlarm(
 ): Promise<number | null> {
   if (nextJobDue(db) === null) {
     pruneSpend(db, now);
+    pruneCryptoVoice(db, now);
     return null;
   }
   const deps = await runnerDeps(db, env, {}, schedule);

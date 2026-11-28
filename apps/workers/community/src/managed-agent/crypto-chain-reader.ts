@@ -98,6 +98,8 @@ function reading(read: Read, { core, items }: Facts): CryptoChainReading {
   return {
     ok: true,
     observedAt: Date.parse(read.checkedAt),
+    answeredProviders: read.sources.filter(source => source.outcome === "answered" && source.requests > 0)
+      .map(source => source.provider),
     facts: [
       ...core,
       ...fact("Sources", read.agreement === "agreed" ? "two independent providers agreed" :

@@ -384,7 +384,7 @@ export function groundedFigures(
 }
 export function groundedProvenanceSources(
   hits: KnowledgeHitRow[],
-  chain?: Pick<GroundedChainFacts, "sourceId" | "title"> | null,
+  chain?: Pick<GroundedChainFacts, "sourceId" | "title" | "providerPages"> | null,
 ) {
   return [
     ...hits.map((hit) => ({
@@ -393,7 +393,12 @@ export function groundedProvenanceSources(
       title: clipped(hit.title, 120),
       ...(hit.url ? { url: hit.url } : {}),
     })),
-    ...(chain ? [{ id: chain.sourceId, kind: "chain", title: clipped(chain.title, 120) }] : []),
+    ...(chain ? [{
+      id: chain.sourceId,
+      kind: "chain",
+      title: clipped([chain.title, ...chain.providerPages.map(page => page.label)].join(" · "), 120),
+      ...(chain.providerPages.length === 1 ? { url: chain.providerPages[0].url } : {}),
+    }] : []),
   ];
 }
 export const GROUNDED_SUMMARY =

@@ -1,8 +1,11 @@
+import { CRYPTO_VOICE_STRINGS } from "./crypto-voice-strings";
+
 /** Every fixed English interface string on the hosted /crypto chat. A locale
  * bundle at /chat-languages/<code>.json maps these exact keys to translations
  * and keeps each {token}. Messages, wallet identifiers, signed payloads and
  * saved input are never translated. */
 export const CRYPTO_CHAT_STRINGS = [
+  ...CRYPTO_VOICE_STRINGS,
   // Desk and page
   "Crypto Help Desk",
   "Ask about Bitcoin, Solana, Ethereum, layer 2s, DeFi or wallets.",

@@ -3,6 +3,13 @@ import { canonicalBitcoinProofAddress, verifyBitcoinWalletProof } from "./bitcoi
 import { CRYPTO_SUPPORT_WORKSPACE } from "@templ/chat/support-models";
 import { cryptoDeskWalletProofsOn } from "./crypto-desk-wallet-proofs";
 import { cryptoChatLanguageOn } from "./crypto-chat-language";
+import {
+  CRYPTO_VOICE_NOTE,
+  CRYPTO_VOICE_ROOM_PATH,
+  CRYPTO_VOICE_WIDGET_PATH,
+  cryptoVoiceNotesOn,
+} from "./crypto-voice-notes";
+import { readCryptoVoiceNote } from "./crypto-voice-wav";
 import { requireConnectDeadline } from "./connect-deadline";
 import { readSupportJson } from "./support-body";
 import {
@@ -2143,11 +2150,16 @@ export async function supportWidgetRoute(
           (body) => widgetConfig(env, room, body as never),
         );
       } else if (path === "/auth/policy" && request.method === "GET") {
-        const chatMode = await readOwnWidgetMode(env, room, origin);
+        const [chatMode, cryptoVoiceNotes, workspaceResult] = await Promise.all([
+          readOwnWidgetMode(env, room, origin),
+          hosted && !frame && cryptoVoiceNotesOn(env, room, origin) &&
+            guestStartsInStandardChat(env, room, origin).catch(() => false),
+          workspaceRead,
+        ]);
         const shownDomain = domainVerifyOffered(env as DomainVerifyEnv)
           ? verifiedDomainFor(current, origin)
           : null;
-        const workspace = (await workspaceRead)?.record;
+        const workspace = workspaceResult?.record;
         const contacts = workspace?.supportProfiles;
         // `replyEmail`: a signed member can ask for an email
         // when the team replies; present only while email delivery is on.
@@ -2191,6 +2203,7 @@ export async function supportWidgetRoute(
           ...(featureOn(env, undefined, "supportDiagnostics") ? { diagnostics: true } : {}),
           // The crypto desk's own page may send a chosen `preferredLanguage` with each message.
           ...(hosted && !frame && cryptoChatLanguageOn(env, room, origin) ? { cryptoChatLanguage: true } : {}),
+          ...(cryptoVoiceNotes ? { cryptoVoiceNotes: true } : {}),
           ...(featureOn(env, undefined, "supportSingleConversation") ? { singleConversation: true } : {}),
           ...(featureOn(env, undefined, "supportChatFirst") ? { chatFirst: true } : {}),
           ...(featureOn(env, undefined, "supportParallelConversations") ? { newConversation: true } : {}),
@@ -3191,6 +3204,42 @@ export async function supportWidgetRoute(
             throw new HttpError(503, "Could not sign out. Try again.");
           endSockets(env, room, session.principalId, origin);
           response = json({ ok: true });
+        } else if (
+          path === CRYPTO_VOICE_WIDGET_PATH &&
+          request.method === "POST"
+        ) {
+          // The crypto desk's own hosted page only. A frame, an embed and
+          // every other workspace get the unknown-route answer.
+          if (!hosted || frame || !cryptoVoiceNotesOn(env, room, origin))
+            throw new HttpError(404, "Support action not found.");
+          // The recording is read only for a session that passed the checks
+          // above, and checked in full before anything is forwarded. The
+          // room route reads the session again once the bytes have arrived,
+          // so a sign-out during the upload applies to this request.
+          const note = await readCryptoVoiceNote(request, url);
+          const headers = new Headers({
+            Origin: env.APP_ORIGIN,
+            Cookie: `${SESSION_COOKIE}=${token}`,
+            "Content-Type": "application/json",
+          });
+          const ip = request.headers.get("CF-Connecting-IP");
+          if (ip) headers.set("CF-Connecting-IP", ip);
+          response = await forward(
+            new Request(`${url.origin}/rooms/${room}${CRYPTO_VOICE_ROOM_PATH}`, {
+              method: "POST",
+              headers,
+              body: JSON.stringify({ expectedPrincipalId: session.principalId }),
+            }),
+            {
+              ...env,
+              [WIDGET_SCOPE]: {
+                ...scope,
+                askPerson: current.askPerson !== false,
+                hosted: true,
+              },
+              [CRYPTO_VOICE_NOTE]: note,
+            } as WidgetEnv,
+          );
         } else {
           if (
             !(

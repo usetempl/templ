@@ -42,6 +42,7 @@ import {
   type GroundedContext,
 } from "./grounded";
 import { readKnowledgeContext } from "../support-knowledge-kb";
+import { OPERATIONAL_LIMITS } from "@templ/chat/plans";
 import { withCryptoSources } from "../crypto-links";
 import {
   storageAuthorizedManager,
@@ -855,7 +856,9 @@ async function runGroundedAnswer(input: {
   const built = groundedFigures(answer.text, hits, highWater, chain);
   if (!built) return input.toPerson("unsure", "unavailable");
   // The crypto desk lists the reviewed pages behind an answer, never a saved address.
-  const text = cryptoDesk && answer.action !== "clarify" ? withCryptoSources(built.text, hits, language?.code) : built.text;
+  const text = cryptoDesk && answer.action !== "clarify" ? withCryptoSources(built.text, hits, language?.code, chain?.providerPages) : built.text;
+  if (chain?.providerPages.length && ([...text].length > CRYPTO_REPLY_LIMIT || new TextEncoder().encode(text).length > OPERATIONAL_LIMITS.messageMaxBytes))
+    return tryCitedFaq();
   const partial =
     answer.action === "handoff" ||
     answer.confidence !== "high" ||

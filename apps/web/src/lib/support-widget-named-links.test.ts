@@ -1,4 +1,5 @@
 // @vitest-environment happy-dom
+import { CRYPTO_PROVIDER_PAGES } from "@templ/chat/crypto-help-links";
 import { createPrivateKey, createPublicKey } from "node:crypto";
 import { base58Encode } from "@templ/chat/solana";
 import { simulate } from "@templ/chat/simulation.test.helpers";
@@ -48,6 +49,11 @@ simulate("sim:unit the crypto desk names its reviewed links and keeps every othe
   expect(shown.textContent).toBe(`Open ${name}. Skip Unreviewed site.`);
   expect([...shown.querySelectorAll("a")].map(link => [link.textContent, link.href, link.rel, link.referrerPolicy]))
     .toEqual([[name, page, "noopener noreferrer nofollow ugc", "no-referrer"]]);
+  const provider = draw.pick(Object.values(CRYPTO_PROVIDER_PAGES));
+  const cited = desk(`Confirmada.\n\nFontes:\n[${provider.label}](${provider.url})`);
+  expect(cited.querySelector("a")?.href).toBe(provider.url);
+  expect(cited.querySelector("a")?.referrerPolicy).toBe("no-referrer");
+  expect(desk(`[Provider](${provider.url}?tx=private)`).querySelector("a")).toBeNull();
   const bullet = draw.pick(["- ", "* ", "+ ", ""]);
   const sources = desk(`Answer.\n\nSources:\n${bullet}[A](${page})\n${bullet}[B](${second})`);
   expect(sources.textContent).toBe(`Answer.\n\nSources:\n${name}\n${secondName}`);

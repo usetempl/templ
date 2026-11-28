@@ -9,6 +9,7 @@ import type { CryptoChatLanguageStore } from "@/lib/crypto-chat-language";
 import type { cryptoLanguagePickers } from "@/lib/crypto-chat-language-picker";
 import type { localizeCryptoChat } from "@/lib/crypto-chat-localizer";
 import type { CryptoChatString } from "@/lib/crypto-chat-strings";
+import type { cryptoVoiceNotes } from "@/lib/crypto-voice-loader";
 import { loadTemplSupportWidget } from "@/lib/templ-support";
 import { currentWidgetAssets } from "@/lib/current-widget-assets";
 import { hostedGuestReturn } from "@/lib/hosted-guest-return";
@@ -37,6 +38,7 @@ type LanguageControls = {
   store: CryptoChatLanguageStore;
   pickers: typeof cryptoLanguagePickers;
   localize: typeof localizeCryptoChat;
+  voiceNotes: typeof cryptoVoiceNotes;
 };
 
 export function HostedSupportChat({
@@ -117,9 +119,14 @@ export function HostedSupportChat({
           decorateOwnMenu: cryptoDesk ? (host, actions) => {
             const refresh = addCryptoChatMenu(host, actions);
             const pickers = languageControls?.pickers(host, actions, languageControls.store);
+            // Requests carry the same build id as this page's other widget requests.
+            const voiceNotes = languageControls?.voiceNotes(
+              host, languageControls.store, currentWidgetAssets.sourceSha256.slice(0, 16),
+            );
             return () => {
               refresh();
               pickers?.();
+              voiceNotes?.();
             };
           } : addOwnChatMenu,
         } : {}),

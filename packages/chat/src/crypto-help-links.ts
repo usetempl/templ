@@ -36,6 +36,18 @@ const appList = (network: CryptoNetwork): CryptoLink => ({
   offer: "Lists apps on this network. A listing is not a safety review.",
 });
 
+/** Public pages for the fixed read-only providers. A citation never identifies a transaction or address. */
+export const CRYPTO_PROVIDER_PAGES = {
+  "mempool.space": { label: "mempool.space", url: "https://mempool.space/" },
+  "blockstream.info": { label: "Blockstream Explorer", url: "https://blockstream.info/" },
+  publicnode: { label: "PublicNode Ethereum", url: "https://ethereum.publicnode.com/" },
+  drpc: { label: "dRPC Ethereum", url: "https://drpc.org/chainlist/ethereum-mainnet-rpc" },
+  blockscout: { label: "Blockscout Ethereum", url: "https://eth.blockscout.com/" },
+  "solana-foundation": { label: "Solana public RPC", url: "https://solana.com/developers/docs/references/clusters" },
+  "publicnode-solana": { label: "PublicNode Solana", url: "https://solana.publicnode.com/" },
+} as const;
+export type CryptoProviderPage = (typeof CRYPTO_PROVIDER_PAGES)[keyof typeof CRYPTO_PROVIDER_PAGES];
+
 export const CRYPTO_LINKS: readonly CryptoLink[] = [
   // One reviewed wallet per network, beside the network's own wallet guide.
   { label: "Bitcoin wallet guide", url: "https://bitcoin.org/en/choose-your-wallet", kind: "guide", networks: ["bitcoin"], offer: "Compares Bitcoin wallets." },

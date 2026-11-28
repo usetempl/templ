@@ -2,10 +2,11 @@ import sourceHeadings from "./crypto-source-headings.json" with { type: "json" }
 import { OPERATIONAL_LIMITS } from "@templ/chat/plans";
 import { CRYPTO_REPLY_LIMIT } from "@templ/chat/support-models";
 
-import { CRYPTO_LINKS, NETWORK_NAMES, cryptoSourceLink } from "@templ/chat/crypto-help-links";
+import { CRYPTO_LINKS, CRYPTO_PROVIDER_PAGES, NETWORK_NAMES, cryptoSourceLink, type CryptoProviderPage } from "@templ/chat/crypto-help-links";
 export { CRYPTO_LINKS, type CryptoNetwork, type CryptoLink } from "@templ/chat/crypto-help-links";
 
 const byUrl = new Map(CRYPTO_LINKS.map((link) => [link.url, link] as const));
+const providerByUrl = new Map<string, CryptoProviderPage>(Object.values(CRYPTO_PROVIDER_PAGES).map(page => [page.url, page]));
 /** Hosts of reviewed links, for the shared reply check. The exact address
  * and its label are checked separately. */
 export const CRYPTO_LINK_HOSTS: ReadonlySet<string> = new Set(
@@ -69,13 +70,14 @@ const LOOKALIKE = /[\p{Script=Cyrillic}\p{Script=Greek}]/u;
 export function cryptoLinkProblem(
   text: string,
   maxLinks: number = CRYPTO_LINK_LIMITS.inline,
+  allowProviderCitations = false,
 ): string | null {
   if (HIDDEN.test(text) || JOINED.test(text)) return "hidden characters";
   const linked = new Set<string>();
   let rest = "",
     at = 0;
   for (const match of text.matchAll(MARKDOWN_LINK)) {
-    const link = byUrl.get(match[2]);
+    const link = byUrl.get(match[2]) ?? (allowProviderCitations ? providerByUrl.get(match[2]) : undefined);
     if (!link || link.label !== match[1]) return "unreviewed link";
     linked.add(link.url);
     rest += text.slice(at, match.index) + " ";
@@ -113,10 +115,10 @@ const bytes = (value: string) => new TextEncoder().encode(value).length;
 /** The answer and, after a "Sources:" line, one line per reviewed page behind
  * it. Each link names the actual page used, including reviewed copies. Wallet
  * downloads and app lists are never sources. */
-export function withCryptoSources(text: string, hits: readonly { url?: string; kind?: string; visibility?: string; excerpt?: string }[], language?: string) {
+export function withCryptoSources(text: string, hits: readonly { url?: string; kind?: string; visibility?: string; excerpt?: string }[], language?: string, providers: readonly CryptoProviderPage[] = []) {
   const heading = language && Object.hasOwn(sourceHeadings, language)
     ? sourceHeadings[language as keyof typeof sourceHeadings] : "Sources:";
-  const lines = new Set<string>();
+  const lines = new Set(providers.map(page => `[${page.label}](${page.url})`));
   for (const hit of hits) {
     const urls = hit.url ? [hit.url] : [];
     if (hit.kind === "faq" && hit.visibility === "member-safe")

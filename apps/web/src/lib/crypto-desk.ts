@@ -1,4 +1,4 @@
-import { CRYPTO_LINKS, cryptoSourceLink } from "@templ/chat/crypto-help-links";
+import { CRYPTO_LINKS, CRYPTO_PROVIDER_PAGES, cryptoSourceLink } from "@templ/chat/crypto-help-links";
 
 export const CRYPTO_DESK = {
   name: "Crypto Help Desk",
@@ -6,7 +6,7 @@ export const CRYPTO_DESK = {
   stillLogo: "/art/workspaces/crypto-networks-still.svg",
 } as const;
 
-const reviewed = new Map(CRYPTO_LINKS.map(link => [link.url, link.label]));
+const reviewed = new Map([...CRYPTO_LINKS, ...Object.values(CRYPTO_PROVIDER_PAGES)].map(link => [link.url, link.label]));
 export const cryptoDeskLink = (href: string) => reviewed.get(href);
 
 export function cryptoDeskSources(sources: { title: string; url?: string }[], answer: string) {

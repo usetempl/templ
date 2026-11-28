@@ -4,6 +4,7 @@ import { useEffect, useMemo } from "react";
 import { createCryptoChatLanguage } from "@/lib/crypto-chat-language";
 import { cryptoLanguagePickers } from "@/lib/crypto-chat-language-picker";
 import { localizeCryptoChat } from "@/lib/crypto-chat-localizer";
+import { cryptoVoiceNotes } from "@/lib/crypto-voice-loader";
 import { SITE } from "@/lib/site-environment";
 import { HostedSupportChat, type HostedSupportChatProps } from "./help-client";
 
@@ -13,6 +14,7 @@ export function CryptoHostedChat(props: HostedSupportChatProps) {
     store: createCryptoChatLanguage(workspace, SITE.community),
     pickers: cryptoLanguagePickers,
     localize: localizeCryptoChat,
+    voiceNotes: cryptoVoiceNotes,
   }), [workspace]);
   useEffect(() => {
     const link = document.querySelector<HTMLAnchorElement>('a.skip-link[href="#main-content"]');

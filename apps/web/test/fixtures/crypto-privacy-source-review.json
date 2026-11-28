@@ -1,0 +1,24 @@
+{
+  "sourceFile": "apps/web/src/app/privacy/page.tsx",
+  "approvals": [
+    {
+      "date": "2026-11-27",
+      "change": "Explain which public address the Crypto Help Desk checks, what a blockchain data provider receives and how the AI uses the results. This applies to Templ’s public desk.",
+      "reviewedBeforeSha256": "3d9bbaf8639cf6df3dd01f48985679045439b21abb0259943cde948065d8a27f",
+      "reviewedAfterSha256": "9b598da0ea1ea7c90879d963e112ffea9572f8eeebc317bc480556ca90d88ee9"
+    },
+    {
+      "date": "2026-11-27",
+      "change": "Explain the language choice stored by the Crypto Help Desk in the visitor’s browser and with their latest message.",
+      "reviewedBeforeSha256": "9b598da0ea1ea7c90879d963e112ffea9572f8eeebc317bc480556ca90d88ee9",
+      "reviewedAfterSha256": "4e2704116dc53890e50906166dbcf88347e07070402521174b7ff537acf20143"
+    },
+    {
+      "date": "2026-11-27",
+      "change": "Explain the optional recording used for Crypto Help Desk transcription and the transcript kept in the case.",
+      "reviewedBeforeSha256": "4e2704116dc53890e50906166dbcf88347e07070402521174b7ff537acf20143",
+      "reviewedAfterSha256": "8eb3ac2821ff2e2ca62509f9d18c375ca0da1dd27d1c86ad3f25e5dc24f13e51"
+    }
+  ],
+  "portablePageSha256": "8eb3ac2821ff2e2ca62509f9d18c375ca0da1dd27d1c86ad3f25e5dc24f13e51"
+}
