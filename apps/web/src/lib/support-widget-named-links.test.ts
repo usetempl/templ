@@ -1,4 +1,6 @@
 // @vitest-environment happy-dom
+import { createPrivateKey, createPublicKey } from "node:crypto";
+import { base58Encode } from "@templ/chat/solana";
 import { simulate } from "@templ/chat/simulation.test.helpers";
 import { expect } from "vitest";
 import { cryptoDeskLink, cryptoDeskSources } from "./crypto-desk";
@@ -67,4 +69,72 @@ simulate("sim:unit the crypto desk names its reviewed links and keeps every othe
   expect(own.textContent).toBe(`Is ${name}: ${page} right?`);
   const neighbor = bubbles()(`Open [${name}](${page}) or ${other}.`);
   expect([...neighbor.querySelectorAll("a")].map(link => link.textContent)).toEqual([page, other]);
+});
+
+simulate("sim:crypto explorer consent shares only the unchanged question and transaction", async (draw) => {
+  const hash = draw.text("0123456789abcdef", 64);
+  const host = draw.pick(["mempool.space", "blockstream.info", "etherscan.io", "eth.blockscout.com", "solscan.io", "explorer.solana.com"]);
+  const id = host === "etherscan.io" || host === "eth.blockscout.com" ? "0x" + hash :
+    host.includes("sol") ? "1".repeat(64) : hash;
+  const url = `https://${host}/tx/${id}`;
+  const question = `O que aconteceu nesta transação? ${url}`;
+  const form = document.createElement("form");
+  const draft = document.createElement("textarea");
+  form.append(draft);
+  let thread = "first";
+  let account = "one";
+  let sessionChanged = () => {};
+  const widget = {
+    draft, options: { confirmCryptoTransactionLinks: true },
+    client: {
+      adopt: () => [{ token: account }, async () => ({})],
+      onSessionChange: (fn: () => void) => { sessionChanged = fn; return () => {}; },
+    },
+  } as unknown as TailHost;
+  const review = ops({ host: widget, form, thread: () => thread });
+  const button = form.querySelector("button")!;
+  const sent: string[] = [];
+  let submission = Promise.resolve();
+  form.requestSubmit = () => { submission = review.beforeSend().then(ok => { if (ok) sent.push(draft.value); }); };
+  draft.value = question;
+  expect(await review.beforeSend()).toBe(false);
+  expect(button.hidden).toBe(false);
+  thread = "second";
+  button.click();
+  expect(sent).toEqual([]);
+  expect(await review.beforeSend()).toBe(false);
+  account = "two";
+  sessionChanged();
+  button.click();
+  expect(sent).toEqual([]);
+  expect(await review.beforeSend()).toBe(false);
+  draft.value += "!";
+  button.click();
+  expect(sent).toEqual([]);
+  draft.dispatchEvent(new Event("input"));
+  expect(await review.beforeSend()).toBe(false);
+  button.click();
+  await submission;
+  expect(sent).toEqual([question + "!"]);
+  expect(await review.beforeSend()).toBe(false);
+  const seed = Buffer.from(Array.from({ length: 32 }, () => draw.int(0, 255)));
+  const der = Buffer.concat([Buffer.from("302e020100300506032b657004220420", "hex"), seed]);
+  const publicKey = createPublicKey(createPrivateKey({ key: der, type: "pkcs8", format: "der" })).export({ type: "spki", format: "der" });
+  const keypair = base58Encode(Buffer.concat([seed, publicKey.subarray(-32)]));
+  for (const text of [
+    "https://solscan.io/tx/" + keypair,
+    url.replace(host, host + ".invalid"), url + "?q=1", url + "#wrong", url.replace("https:", "http:"),
+    url.replace(host, "user@" + host), url + " " + id, url + " " + hash.split("").reverse().join(""), id,
+    "private key: " + url, "[0," + "1,".repeat(62) + "2]",
+  ]) {
+    draft.value = text;
+    draft.dispatchEvent(new Event("input"));
+    expect(await review.beforeSend()).toBe(false);
+    expect(button.hidden).toBe(true);
+  }
+  widget.options.confirmCryptoTransactionLinks = false;
+  draft.value = question;
+  expect(await review.beforeSend()).toBe(false);
+  expect(button.hidden).toBe(true);
+  review.destroy();
 });

@@ -30,6 +30,7 @@ const ATTRIBUTES = ["aria-label", "aria-description", "placeholder", "title", "d
 const REFERENCE: Record<Labelled, string> = { "aria-label": "aria-labelledby", "aria-description": "aria-describedby" };
 const WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 const LOCAL_STYLE = `
+@media (max-width:340px){.panel.shared-chat .head{gap:3px;padding-inline:8px}}
 :host([lang]) .shared-chat .flex-brand>.drawer-create{max-inline-size:100%;min-inline-size:0;white-space:normal;overflow-wrap:anywhere;text-align:start}
 :host([lang]) .flag:is(:hover,:focus-visible)::after{max-inline-size:min(16rem,65vw);width:max-content;white-space:normal;overflow-wrap:anywhere;text-align:start}
 :host([dir=rtl]) .flag{float:left;margin:-2px 4px -6px -6px}

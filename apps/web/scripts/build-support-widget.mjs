@@ -151,7 +151,7 @@ export const card = (widget) => contextCard(widget, rules);`,
   // The wait, follow-up, sources and shared details under a thread.
   member: 'export { member } from "./support-widget-member";',
   // The install check, which the ops chunk loads only on a check link.
-  check: 'export { check } from "./support-widget-check";',
+  check: 'export { check, canShareCryptoTransaction } from "./support-widget-check";',
   // The key warning before a send and the consent to share an action's
   // result, which the consent chunk loads when a page or a draft needs them.
   ops: 'export { ops } from "./support-widget-ops";',

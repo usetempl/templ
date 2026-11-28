@@ -250,7 +250,7 @@ export function consent(
       try {
         if (/[a-z0-9]{64}|\[/i.test(text)) {
           const currentOps = await ops();
-          if (!currentOps.beforeSend()) return "cancelled";
+          if (!(await currentOps.beforeSend())) return "cancelled";
         }
         if (selected) {
           const wallet = await client.reportedWallet?.();
@@ -297,7 +297,7 @@ export function consent(
         // Deleting it or sharing it as a transaction lets the send go on.
         if (/[a-z0-9]{64}|\[/i.test(text)) {
           const current = await ops();
-          if (currentReview !== revision || !current.beforeSend())
+          if (currentReview !== revision || !(await current.beforeSend()))
             return "cancelled";
         }
         if (currentReview !== revision) return "cancelled";

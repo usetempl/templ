@@ -1,6 +1,6 @@
 /** Message links, team join lines, the key warning and action-result consent.
  * The consent chunk loads these helpers when a message or draft needs them. */
-import { ambiguousHexValues } from "@templ/chat/support-safety-hex";
+import { ambiguousHexValues, detectKeySecret, solanaSecretCandidates } from "@templ/chat/support-safety-hex";
 import { namedLinks } from "./support-widget-named-links";
 import type { SupportClient, TailHost, WidgetMessage } from "./support-widget";
 type JoinLine = { at: string; name?: string };
@@ -32,8 +32,21 @@ export function ops({ host, form, thread }: { host: TailHost; form: HTMLFormElem
   move.type = "button"; note.append(warning, move); form.append(note);
   const fail = (text: string) => { note.hidden = false; warning.textContent = text; move.hidden = true; };
   let values: string[] = [];
+  let reviewed: { text: string; thread: string | null } | undefined;
+  let approvedLink: { text: string; thread: string | null } | undefined;
+  const clearReview = () => { reviewed = undefined; approvedLink = undefined; };
+  draft.addEventListener("input", clearReview);
   move.onclick = () => void (async () => {
-    const value = values[0]; if (!value || !tx || !attach || !toggle) return;
+    const value = values[0];
+    if (host.options.confirmCryptoTransactionLinks) {
+      if (!reviewed || reviewed.text !== draft.value || reviewed.thread !== thread()) return;
+      approvedLink = { text: draft.value, thread: thread() };
+      reviewed = undefined;
+      note.hidden = true;
+      form.requestSubmit();
+      return;
+    }
+    if (!value || !tx || !attach || !toggle) return;
     if (attach.hidden) {
       toggle.click();
       for (let tries = 0; attach.hidden && tries < 60; tries++) await new Promise((done) => setTimeout(done, 50));
@@ -54,6 +67,7 @@ export function ops({ host, form, thread }: { host: TailHost; form: HTMLFormElem
   const resetConsent = () => { if (tick) tick.checked = false; pending = false; consent = undefined; choiceThread = null; revision++; };
   const unlisten = client.onSessionChange(() => {
     const next = client.adopt()[0]?.token;
+    if (next !== scope) clearReview();
     if (scope && next !== scope) resetConsent();
     scope = next;
   });
@@ -156,10 +170,18 @@ export function ops({ host, form, thread }: { host: TailHost; form: HTMLFormElem
     },
     /** The page named an action: offer the consent box. */
     context: consentBox,
-    beforeSend() {
+    async beforeSend() {
       values = ambiguousHexValues(draft.value, tx ? ambiguousHexValues(tx.value) : []);
+      const text = draft.value, account = scope, conversation = thread();
+      const exactLink = host.options.confirmCryptoTransactionLinks && values.length === 1 && !detectKeySecret(text) &&
+        await (await loadCheck()).canShareCryptoTransaction(text, values[0], solanaSecretCandidates(values[0])[0]?.bytes);
+      if (draft.value !== text || account !== scope || thread() !== conversation) return false;
+      const confirmed = exactLink && approvedLink?.text === draft.value && approvedLink.thread === thread();
+      clearReview();
+      if (confirmed) values = [];
+      else if (exactLink) reviewed = { text: draft.value, thread: thread() };
       warning.textContent = WARNING; note.hidden = !values.length;
-      move.hidden = !tx || !!toggle?.hidden || values[0]?.startsWith("[") === true;
+      move.hidden = !exactLink && (!!host.options.confirmCryptoTransactionLinks || !tx || !!toggle?.hidden || values[0]?.startsWith("[") === true);
       return !values.length;
     },
     async outcome(value: Outcome) {
@@ -170,6 +192,6 @@ export function ops({ host, form, thread }: { host: TailHost; form: HTMLFormElem
         if (tick.checked && consent?.thread === current) await call(`/conversations/${current}/outcome`, { ...value, case: consent.seq });
       } catch { resetConsent(); fail("The result could not be shared. Choose again to retry."); }
     },
-    destroy() { unlisten(); note.remove(); label?.remove(); },
+    destroy() { unlisten(); draft.removeEventListener("input", clearReview); note.remove(); label?.remove(); },
   };
 }

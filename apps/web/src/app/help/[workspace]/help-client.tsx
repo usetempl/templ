@@ -108,7 +108,7 @@ export function HostedSupportChat({
           appearance: { logo: deskLogo() },
           walletShareHint: "Share a wallet to ask about its activity in this chat. You can also paste any public address.",
         } : {}),
-        ...(cryptoDesk && !frameRequired ? { namedLinks: cryptoDeskLink, reviewSources: cryptoDeskSources } : {}),
+        ...(cryptoDesk && !frameRequired ? { namedLinks: cryptoDeskLink, reviewSources: cryptoDeskSources, confirmCryptoTransactionLinks: true } : {}),
         chatFirst: true,
         transactionField: false,
         guestPath: `/help/${workspace}`,

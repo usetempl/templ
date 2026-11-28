@@ -119,6 +119,7 @@ export type SupportWidgetOptions = {
   replyAfterReceipt?: boolean;
   decorateOwnMenu?(host: TailHost, actions: HTMLElement): () => void;
   walletShareHint?: string;
+  confirmCryptoTransactionLinks?: boolean;
   namedLinks?(href: string): string | undefined;
   reviewSources?(sources: { title: string; url?: string }[], answer: string): { title: string; url: string }[];
   /** The frame adapter receives public display settings only. */

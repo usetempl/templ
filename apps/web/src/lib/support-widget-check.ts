@@ -1,7 +1,4 @@
-/** "Check my install": the six checks a manager runs on their own site from
- * Settings → Chat. Loaded by the ops chunk only for `#templ-check=<token>`.
- * Results hold fixed ids, times and pass or fail; no page text leaves the
- * page. */
+import { solanaBytesAreKeypair } from "./support-widget-solana-keypair";
 import { widgetMessageId } from "./support-widget-message-id";
 import { FEATURE_LIMITS } from "@templ/chat/feature-limits";
 import type { SupportContextInput } from "@templ/chat/support";
@@ -34,6 +31,30 @@ const appText = (value: unknown): string[] =>
       ? Object.values(value).flatMap(appText)
       : [];
 const same = (a?: string, b?: string) => !!a && !!b && a.toLowerCase() === b.toLowerCase();
+
+const TX_HOSTS: Record<string, RegExp> = {
+  "mempool.space": /^[0-9a-f]{64}$/i,
+  "blockstream.info": /^[0-9a-f]{64}$/i,
+  "etherscan.io": /^0x[0-9a-f]{64}$/i,
+  "eth.blockscout.com": /^0x[0-9a-f]{64}$/i,
+  "solscan.io": /^[1-9A-HJ-NP-Za-km-z]{64,88}$/,
+  "explorer.solana.com": /^[1-9A-HJ-NP-Za-km-z]{64,88}$/,
+};
+
+export async function canShareCryptoTransaction(draft: string, candidate: string, solanaBytes?: Uint8Array): Promise<boolean> {
+  if (!candidate || draft.indexOf(candidate) !== draft.lastIndexOf(candidate)) return false;
+  const links = [...draft.matchAll(/(?:^|\s|[(<])((?:https?:\/\/)[^\s<>]+)/g)];
+  if (links.length !== 1) return false;
+  const link = /^https:\/\/([a-z0-9.]+)\/tx\/([A-Za-z0-9]+)\/?$/.exec(links[0][1].replace(/[.,!?)\]]+$/, ""));
+  if (!link || !Object.hasOwn(TX_HOSTS, link[1]) || link[2] !== candidate || !TX_HOSTS[link[1]].test(candidate)) return false;
+  if (link[1] !== "solscan.io" && link[1] !== "explorer.solana.com") return true;
+  if (!solanaBytes) return false;
+  try {
+    return !(await solanaBytesAreKeypair(solanaBytes));
+  } catch {
+    return false;
+  }
+}
 
 export function check(host: CheckHost) {
   let ended = false;
