@@ -3,6 +3,6 @@
   "scope": "Templ web, support workers and shared chat and encryption code with self-host configuration.",
   "productionSources": {
     "web": "c7aff2dde48874eb170217b2b17abbc5a79540fb",
-    "workers": "4578cdefe1cac99ff9799e1d4a73e4f4cee52690"
+    "workers": "b87ad9d575aa8dfa62cd577a3e245c8fa442ffa1"
   }
 }
