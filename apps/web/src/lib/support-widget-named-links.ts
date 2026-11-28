@@ -7,12 +7,17 @@ const LINKS = new RegExp(String.raw`${MARKDOWN.source}|\bhttps?:\/\/[^\s<>"\x60(
 
 export function namedLinks(node: HTMLElement, value: string, review: (href: string) => string | undefined) {
   const text = value.replace(/<(https?:\/\/[^\s<>]+)>/gi, "$1").replace(SOURCE_BULLET, "");
+  // Decide link destinations from the original message. Format only the surrounding AI prose.
+  const assistant = node.hasAttribute("data-assistant");
+  const append = (part: string) => node.append(assistant
+    ? part.replace(/(^|[^*])\*\*([^*\s](?:[^*\r\n]*?[^*\s])?)\*\*(?!\*)/g, "$1$2")
+    : part);
   let end = 0;
   for (const match of text.matchAll(LINKS)) {
     const [whole, title, linked] = match;
     const href = linked ?? whole.replace(/[.,!?;:]+$/, "");
     const name = review(href);
-    node.append(text.slice(end, match.index));
+    append(text.slice(end, match.index));
     if (name) {
       const link = document.createElement("a");
       link.textContent = name;
@@ -24,5 +29,5 @@ export function namedLinks(node: HTMLElement, value: string, review: (href: stri
     } else node.append(title?.trim() || href);
     end = match.index + (linked ? whole.length : href.length);
   }
-  node.append(text.slice(end));
+  append(text.slice(end));
 }

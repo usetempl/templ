@@ -1,4 +1,5 @@
 import { describe, expect, vi } from "vitest";
+import { readFileSync } from "node:fs";
 import {
   CRYPTO_SUPPORT_MODEL,
   CRYPTO_SUPPORT_WORKSPACE,
@@ -114,6 +115,32 @@ const UNSAFE = [
 ];
 
 describe("crypto desk links", () => {
+  simulate("renders the official sources for each public Crypto Help Desk FAQ", (draw) => {
+    const file = new URL("../../../../packages/chat/knowledge/crypto-help-desk.json", import.meta.url);
+    const pack = JSON.parse(readFileSync(file, "utf8")) as {
+      faqs: { question: string; answer: string; references: string[] }[];
+    };
+    expect(new Set(pack.faqs.map(faq => faq.question)).size).toBe(pack.faqs.length);
+    const db = knowledgeTestDb();
+    try {
+      ensureSchema(db, T);
+      for (const faq of draw.shuffle(pack.faqs)) {
+        expect(faq.question.length).toBeLessThanOrEqual(120);
+        expect(faq.references.length).toBeGreaterThan(0);
+        const excerpt = [faq.answer, ...faq.references.map(url => "Reference: " + url)].join(" ");
+        addSource(db, { kind: "faq", title: faq.question, text: excerpt, era: "current", visibility: "member-safe" }, T);
+        const shown = withCryptoSources(faq.answer, [{ kind: "faq", visibility: "member-safe", excerpt }]);
+        for (const url of faq.references) {
+          const source = CRYPTO_LINKS.find(link => link.url === url);
+          expect(source, faq.question).toBeDefined();
+          expect(shown, faq.question).toContain(`[${source!.label}](${url})`);
+        }
+      }
+    } finally {
+      db.raw.close();
+    }
+  });
+
   simulate("offers one reviewed wallet, its network guide and one app list per network", (draw) => {
     const offered = CRYPTO_LINKS.filter((link) => link.offer);
     for (const network of draw.shuffle(NETWORKS)) {

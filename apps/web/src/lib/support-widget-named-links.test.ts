@@ -27,9 +27,10 @@ function bubbles(namedLinks?: (href: string) => string | undefined) {
     refresh: async () => {},
   } as unknown as TailHost;
   const links = ops({ host, form, thread: () => null });
-  return (text: string, own = false) => {
+  return (text: string, own = false, assistant = !own) => {
     const node = document.createElement("div");
     node.className = own ? "message own" : "message";
+    node.toggleAttribute("data-assistant", assistant);
     links.linkify(node, { author: own ? "member" : "agent", text });
     return node;
   };
@@ -49,6 +50,20 @@ simulate("sim:unit the crypto desk names its reviewed links and keeps every othe
   expect(shown.textContent).toBe(`Open ${name}. Skip Unreviewed site.`);
   expect([...shown.querySelectorAll("a")].map(link => [link.textContent, link.href, link.rel, link.referrerPolicy]))
     .toEqual([[name, page, "noopener noreferrer nofollow ugc", "no-referrer"]]);
+  const control = draw.pick(["Comprar e vender", "Comprar", "Bitcoin (BTC)", "Comprar Cripto"]);
+  const formatted = desk(`Abra **${control}** em [Guia](${page}).\n\nFontes:\n[Guia](${page})`);
+  expect(formatted.textContent).toBe(`Abra ${control} em ${name}.\n\nFontes:\n${name}`);
+  expect([...formatted.querySelectorAll("a")].map(link => [link.href, link.referrerPolicy]))
+    .toEqual([[page, "no-referrer"], [page, "no-referrer"]]);
+  const literal = `**${control}**`;
+  expect(desk(literal, true).textContent).toBe(literal);
+  expect(desk(literal, false, false).textContent).toBe(literal);
+  expect(bubbles()(literal).textContent).toBe(literal);
+  const markup = '<i>Comprar</i>';
+  const plain = desk(`**${markup}**; 2 ** 3; **incomplete`);
+  expect(plain.textContent).toBe(`${markup}; 2 ** 3; **incomplete`);
+  expect(plain.children.length).toBe(0);
+  expect(desk(`[Guide](${page}**bad**)`).querySelector("a")).toBeNull();
   const provider = draw.pick(Object.values(CRYPTO_PROVIDER_PAGES));
   const cited = desk(`Confirmada.\n\nFontes:\n[${provider.label}](${provider.url})`);
   expect(cited.querySelector("a")?.href).toBe(provider.url);

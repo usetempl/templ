@@ -4,6 +4,8 @@ Compare fresh answers for Templ’s crypto support desk under two conditions. Bo
 
 This measures the answer model with reference notes supplied directly. A live desk also has retrieval, routing, reviewed replies, quotas and delivery. The benchmark leaves those out.
 
+The [desk’s reviewed FAQ](../../../../../packages/chat/knowledge/crypto-help-desk.json) pairs each answer with its official sources. When changing an answer, check that the source still supports the steps. The [link registry](../../../../../packages/chat/src/crypto-help-links.ts) supplies the names visitors see under Sources.
+
 ## Try the offline fixture
 
 Use Node 22 or newer. These eight files run together without installing packages. From the repository root, use the path below. If you copied the files into one folder, open that folder and set `bench=.` instead. The commands create synthetic answers, grades and a report. No model runs. The report identifies the simulation in its `syntheticFixture` field and records the seed. Use a fresh output directory for each experiment.

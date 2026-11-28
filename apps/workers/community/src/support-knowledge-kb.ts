@@ -594,7 +594,7 @@ export async function readKnowledgeContext(
  * readKnowledgeContext, read in one transaction, so a later edit fails the same version check. */
 export async function selectKnowledgeContext(
   db: KnowledgeDb,
-  args: { text: string; maxBytes: number; storageGrant?: StorageUploadGrant | null; now?: number },
+  args: { text: string; maxBytes: number; storageGrant?: StorageUploadGrant | null; now?: number; preferFaqs?: boolean },
 ): Promise<Pick<KnowledgeContextPage, "hits" | "version">> {
   const uploadsAllowed = brainUploadUseAllowed(db, args.storageGrant, args.now ?? Date.now());
   const uploads = uploadsAllowed ? 1 : 0;
@@ -615,6 +615,10 @@ export async function selectKnowledgeContext(
     return {
       sources: contextSources(db, uploads),
       matched,
+      faqs: args.preferFaqs ? db.sql.exec(
+        `SELECT ${CONTEXT_ROW} FROM kb_chunks c JOIN kb_sources s ON s.id = c.source_id WHERE ${CONTEXT} AND s.kind = 'faq' ORDER BY c.seq, s.id LIMIT ?`,
+        uploads, rows,
+      ).toArray() : [],
       spread: db.sql.exec(
         `SELECT ${CONTEXT_ROW} FROM kb_chunks c JOIN kb_sources s ON s.id = c.source_id WHERE ${CONTEXT} ORDER BY c.seq, s.id LIMIT ?`,
         uploads, rows,
@@ -624,14 +628,22 @@ export async function selectKnowledgeContext(
   const version = await contextVersion(uploadsAllowed, snapshot.sources);
   const chosen = new Map<string, { source: string; seq: number; hit: KnowledgeContextPage["hits"][number] }>();
   let bytes = 2;
-  for (const row of [...snapshot.matched, ...snapshot.spread]) {
-    if (chosen.has(String(row.chunk_id))) continue;
-    const hit = contextHit(row);
-    const size = new TextEncoder().encode(JSON.stringify(hit)).length + (chosen.size ? 1 : 0);
-    if (bytes + size > args.maxBytes) continue;
-    bytes += size;
-    chosen.set(String(row.chunk_id), { source: String(row.id), seq: Number(row.chunk_seq), hit });
+  const take = (candidates: Record<string, unknown>[], limit: number) => {
+    for (const row of candidates) {
+      if (chosen.has(String(row.chunk_id))) continue;
+      const hit = contextHit(row);
+      const size = new TextEncoder().encode(JSON.stringify(hit)).length + (chosen.size ? 1 : 0);
+      if (bytes + size > limit) continue;
+      bytes += size;
+      chosen.set(String(row.chunk_id), { source: String(row.id), seq: Number(row.chunk_seq), hit });
+    }
+  };
+  if (args.preferFaqs) {
+    // A translated question can share no search terms with the desk’s short FAQs.
+    // Reserve up to two thirds for them, leaving room for matching documentation.
+    take([...snapshot.matched.filter(row => row.kind === "faq"), ...snapshot.faqs], Math.floor(args.maxBytes * 2 / 3));
   }
+  take([...snapshot.matched, ...snapshot.spread], args.maxBytes);
   const hits = [...chosen.values()]
     .sort((a, b) => a.source < b.source ? -1 : a.source > b.source ? 1 : a.seq - b.seq)
     .map(({ hit }) => hit);

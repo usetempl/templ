@@ -3346,8 +3346,8 @@ function renderSupportWidget(
           : `#${message.id ?? `@${index}`}`,
         [message.text, message.createdAt, message.author, assistant, who, consent?.linksReady],
         (node) => {
-          bubble(node, message, who, mine);
           node.toggleAttribute("data-assistant", !mine && !!assistant);
+          bubble(node, message, who, mine);
         },
       );
     });

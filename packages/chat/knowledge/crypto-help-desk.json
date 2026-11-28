@@ -1,0 +1,589 @@
+{
+  "version": 1,
+  "faqs": [
+    {
+      "topic": "networks",
+      "question": "Why does a reverted Ethereum transaction still cost gas?",
+      "answer": "A failed Ethereum transaction can still use gas because the network did work before it stopped. A revert undoes the changes. For a regular transaction, the sender still pays for that work in ETH. Look up the transaction ID to see its status and fee.",
+      "references": [
+        "https://ethereum.org/developers/docs/gas/",
+        "https://ethereum.org/developers/docs/data-and-analytics/block-explorers/"
+      ]
+    },
+    {
+      "topic": "safety",
+      "question": "Does support need my recovery phrase to help me?",
+      "answer": "No. Anyone who has your recovery words or private key can take control of your wallet. If someone claiming to be support asks for them, stop replying. Open the service’s official app or site yourself to reach support.",
+      "references": [
+        "https://ethereum.org/security/"
+      ]
+    },
+    {
+      "topic": "networks",
+      "question": "What determines the network fee and how can I check the current price?",
+      "answer": "On Ethereum, the fee depends on the work your transaction needs and how busy the network is. Open the transaction preview in your wallet for a current estimate before deciding whether to continue.",
+      "references": [
+        "https://ethereum.org/gas/"
+      ]
+    },
+    {
+      "topic": "networks",
+      "question": "Why do I need SOL to send USDC on Solana?",
+      "answer": "Solana charges its network fee in SOL, even when the token is USDC. Check who pays the fee in your app. If it is your wallet, it needs some SOL on Solana. Some apps cover the fee for you.",
+      "references": [
+        "https://solana.com/developers/docs/core/fees",
+        "https://solana.com/docs/payments/send-payments/payment-processing/fee-abstraction"
+      ]
+    },
+    {
+      "topic": "transfers",
+      "question": "How can I check an exchange withdrawal without connecting my wallet?",
+      "answer": "Open the withdrawal in the exchange’s history and look for its transaction ID and network. A block explorer for that network can show whether the withdrawal was recorded. You can look it up without connecting a wallet. If there is no ID yet, check the status at the exchange.",
+      "references": [
+        "https://help.coinbase.com/en/coinbase/getting-started/crypto-education/what-is-a-transaction-hash-hash-id",
+        "https://ethereum.org/developers/docs/data-and-analytics/block-explorers/"
+      ]
+    },
+    {
+      "topic": "transfers",
+      "question": "Can someone reverse a confirmed Bitcoin payment?",
+      "answer": "No. Once a Bitcoin payment is confirmed, a bank or support team cannot undo it. If you know the recipient, ask them for a refund and keep the transaction ID.",
+      "references": [
+        "https://bitcoin.org/en/you-need-to-know"
+      ]
+    },
+    {
+      "topic": "wallets",
+      "question": "What is the difference between a wallet, account and address?",
+      "answer": "On Ethereum, your account holds your balance. Your wallet is the app or device you use to see and manage that account. Its public address is what you share to receive ETH. Keep your private key and recovery words to yourself.",
+      "references": [
+        "https://ethereum.org/wallets/"
+      ]
+    },
+    {
+      "topic": "defi",
+      "question": "How does liquidation risk work on Aave?",
+      "answer": "Look for the health factor in your Aave position. It compares the value of your collateral, adjusted for risk, with what you owe. Below 1, your collateral can be liquidated. The number alone does not show whether a liquidation already happened.",
+      "references": [
+        "https://aave.com/help/borrowing/liquidations"
+      ]
+    },
+    {
+      "topic": "safety",
+      "question": "My wallet is losing funds. Where can I get help right now?",
+      "answer": "Open Emergency help for a scam or hack in the chat menu. It leads to Security Alliance’s free SEAL 911 service for active incidents. Keep your recovery words and private keys to yourself.",
+      "references": [
+        "https://securityalliance.org/sos"
+      ]
+    },
+    {
+      "topic": "transfers",
+      "question": "Why does my Bitcoin payment say zero confirmations?",
+      "answer": "Zero confirmations means the payment has not appeared in a Bitcoin block yet. Check its transaction ID in a Bitcoin explorer. The first block that includes it gives it one confirmation. A shop or exchange may wait for more before showing it as paid.",
+      "references": [
+        "https://developer.bitcoin.org/devguide/payment_processing.html",
+        "https://bitcoin.org/en/faq"
+      ]
+    },
+    {
+      "topic": "networks",
+      "question": "Why is my balance different when I switch networks?",
+      "answer": "Your wallet shows the balance on the selected network. If your exchange sent ETH on Base, look at that account on Base. Switching back to Ethereum changes what you see. It does not move your ETH.",
+      "references": [
+        "https://ethereum.org/layer-2/",
+        "https://support.metamask.com/manage-crypto/move-crypto/send/funds-sent-on-wrong-network/"
+      ]
+    },
+    {
+      "topic": "exchanges",
+      "question": "Como eu compro bitcoin? How do I buy bitcoin (BTC)?",
+      "answer": "Onde a Coinbase está disponível, abra Comprar e vender, escolha Comprar e Bitcoin (BTC). Informe o valor na sua moeda e escolha uma forma de pagamento disponível na sua conta. A prévia mostra as taxas e quanto BTC você recebe. Você pode sair antes de confirmar.",
+      "references": [
+        "https://help.coinbase.com/en/coinbase/trading-and-funding/buying-selling-or-converting-crypto/how-do-i-buy-digital-currency"
+      ]
+    },
+    {
+      "topic": "exchanges",
+      "question": "Como comprar bitcoin com Pix na Binance no Brasil?",
+      "answer": "Na Binance Brasil, em Comprar Cripto, escolha Bitcoin (BTC) e informe o valor em reais. Se Pix aparecer nas formas de pagamento, pode pagar a compra diretamente, sem um depósito separado. Confira o valor e as taxas antes de decidir. O código Pix aparece no app. O pagamento sai de conta no seu CPF.",
+      "references": [
+        "https://www.binance.com/pt-BR/support/faq/detail/b90065c7a7d44d0bb8b2ac7dc2cb0391"
+      ]
+    },
+    {
+      "topic": "exchanges",
+      "question": "Posso comprar BTC com reais via Pix na Coinbase Brasil?",
+      "answer": "Uma opção na Coinbase Brasil é depositar reais com o código Pix do próprio app. O banco e a Coinbase precisam ter o mesmo CPF. Quando o saldo aparecer, toque em Comprar, escolha Bitcoin (BTC) e confira as taxas e o total antes de decidir.",
+      "references": [
+        "https://help.coinbase.com/pt-br/coinbase/trading-and-funding/depositing-or-withdrawing-fiat-money/funding-your-account-namerica-latam"
+      ]
+    },
+    {
+      "topic": "basics",
+      "question": "What is a blockchain in plain English?",
+      "answer": "Think of it as a shared record of transactions. On Bitcoin, for example, your wallet uses that record to work out your balance. If you want to check one payment, its transaction ID lets you find its entry.",
+      "references": [
+        "https://bitcoin.org/en/how-it-works",
+        "https://help.coinbase.com/en/coinbase/getting-started/crypto-education/what-is-a-transaction-hash-hash-id"
+      ]
+    },
+    {
+      "topic": "basics",
+      "question": "Is Ethereum the same thing as ETH?",
+      "answer": "Ethereum is the network. Ether, or ETH, is its coin. If a wallet asks for ETH to cover gas, it means the fee for work the network does to process your transaction.",
+      "references": [
+        "https://ethereum.org/what-is-ether/"
+      ]
+    },
+    {
+      "topic": "basics",
+      "question": "What is Solana, and what is SOL?",
+      "answer": "Solana is a network where people make payments and use apps. SOL is its coin. You might hold other tokens in a Solana wallet, but Solana charges the network fee in SOL.",
+      "references": [
+        "https://solana.com/learn/what-is-solana",
+        "https://solana.com/developers/docs/core/fees"
+      ]
+    },
+    {
+      "topic": "wallets",
+      "question": "Two tokens have the same name. How do I know which one I have?",
+      "answer": "On Ethereum, a token’s contract address identifies it on that network. Check the network and compare the full contract address in your wallet with the one the project publishes in its official docs. A name or logo alone can be copied.",
+      "references": [
+        "https://support.metamask.com/more-web3/learn/what-is-a-token-contract-address/",
+        "https://support.metamask.com/configure/wallet/security-alerts/"
+      ]
+    },
+    {
+      "topic": "wallets",
+      "question": "My transfer arrived on the explorer. Why is the token missing from MetaMask?",
+      "answer": "Check that MetaMask shows the same account and network as the transfer. If both match, use Import tokens to search for the token. For a custom token, check its contract address against the project’s official docs before importing it.",
+      "references": [
+        "https://support.metamask.com/manage-crypto/tokens/how-to-display-tokens-in-metamask/",
+        "https://support.metamask.com/more-web3/learn/what-is-a-token-contract-address/"
+      ]
+    },
+    {
+      "topic": "exchanges",
+      "question": "Why does my exchange show different payment options from a friend's account?",
+      "answer": "On Coinbase, for example, payment options depend on where you live and the services available to your account. Look at the payment methods listed in your own account before following a guide written for another country.",
+      "references": [
+        "https://help.coinbase.com/en/coinbase/trading-and-funding/depositing-or-withdrawing-fiat-money/available-services"
+      ]
+    },
+    {
+      "topic": "basics",
+      "question": "Do I have to buy a whole bitcoin?",
+      "answer": "No. Bitcoin divides into small units called satoshis. One bitcoin is 100 million satoshis. You can enter a smaller amount in a buying app. The app may have its own minimum order.",
+      "references": [
+        "https://bitcoin.org/en/faq",
+        "https://help.coinbase.com/en/coinbase/trading-and-funding/buying-selling-or-converting-crypto/how-do-i-buy-digital-currency"
+      ]
+    },
+    {
+      "topic": "wallets",
+      "question": "Should I keep my crypto in my own wallet or leave it on the exchange?",
+      "answer": "An exchange holds the keys for you and can restrict withdrawals. In your own wallet, you control the keys and need your own way to recover access. Before moving funds, check how you’d restore that wallet if you lost your phone.",
+      "references": [
+        "https://solana.com/learn/what-is-a-wallet",
+        "https://bitcoin.org/en/secure-your-wallet"
+      ]
+    },
+    {
+      "topic": "wallets",
+      "question": "Where do I find my wallet address so someone can send me crypto?",
+      "answer": "Open Receive in your wallet. Pick the asset and the network the sender will use, then copy your public address or show the QR code. Check that the receiving address matches the one the sender sees.",
+      "references": [
+        "https://ethereum.org/guides/how-to-use-a-wallet/",
+        "https://solana.com/learn/sending-and-receiving-sol"
+      ]
+    },
+    {
+      "topic": "wallets",
+      "question": "What's the difference between adding another account and creating a whole new wallet?",
+      "answer": "Each account has its own address. In MetaMask, several accounts can belong to one recovery phrase. A separate wallet has its own backup. When you restore from a phrase alone, you may need to add imported accounts again.",
+      "references": [
+        "https://support.metamask.com/configure/accounts/how-to-add-missing-accounts-after-restoring-with-secret-recovery-phrase/",
+        "https://support.metamask.com/start/user-guide-secret-recovery-phrase-password-and-private-keys/"
+      ]
+    },
+    {
+      "topic": "wallets",
+      "question": "I just got a new phone. How do I get my wallet onto it?",
+      "answer": "Keep the old phone until the new one shows your accounts. Restore through your wallet’s official app. For MetaMask, the password alone can’t restore a wallet. With a phrase-based wallet it unlocks that device, so you need the recovery backup. With Google, Apple or Telegram sign-in, use that login and your MetaMask password.",
+      "references": [
+        "https://support.metamask.com/configure/wallet/how-can-i-reset-my-password/",
+        "https://support.metamask.com/configure/accounts/how-to-add-missing-accounts-after-restoring-with-secret-recovery-phrase/"
+      ]
+    },
+    {
+      "topic": "wallets",
+      "question": "I forgot my MetaMask password and can't get in.",
+      "answer": "For a wallet set up with recovery words, use Forgot password inside the genuine MetaMask app with your offline backup. If you used Google, Apple or Telegram, that login alone can’t reset a forgotten password. You’ll need an existing wallet backup to regain access.",
+      "references": [
+        "https://support.metamask.com/configure/wallet/how-can-i-reset-my-password/"
+      ]
+    },
+    {
+      "topic": "wallets",
+      "question": "I restored MetaMask with my recovery phrase but some of my accounts are missing.",
+      "answer": "If the first address is correct, use Add account in MetaMask to restore your other addresses in their original order. Accounts imported with a private key or connected from a hardware wallet need to be added separately.",
+      "references": [
+        "https://support.metamask.com/configure/accounts/how-to-add-missing-accounts-after-restoring-with-secret-recovery-phrase/",
+        "https://bitcoin.org/en/secure-your-wallet"
+      ]
+    },
+    {
+      "topic": "wallets",
+      "question": "What does a hardware wallet actually do for me?",
+      "answer": "A hardware wallet keeps its private keys on a separate device. When you send crypto, check the address and amount on the device’s own screen before confirming. Keep the recovery backup somewhere safe in case you lose the device.",
+      "references": [
+        "https://bitcoin.org/en/secure-your-wallet"
+      ]
+    },
+    {
+      "topic": "wallets",
+      "question": "My phone was stolen and my wallet was on it. Is my crypto gone?",
+      "answer": "Open a block explorer and check your public address for payments you don’t recognize. A backup can restore your wallet on a trusted device. If someone could open your wallet or see its recovery words, get emergency help securing what remains. Don’t deposit more into that wallet.",
+      "references": [
+        "https://bitcoin.org/en/secure-your-wallet",
+        "https://safety.chainabuse.com/article/i-may-have-been-hacked"
+      ]
+    },
+    {
+      "topic": "transfers",
+      "question": "Where do I find my transaction ID and how do I use it to check a transfer?",
+      "answer": "Open the payment in the sending wallet or exchange and copy its transaction ID, sometimes called a hash. Look it up in a block explorer for that network to see whether it went through. If the exchange hasn’t issued an ID, check the withdrawal status there first.",
+      "references": [
+        "https://help.coinbase.com/en/coinbase/getting-started/crypto-education/what-is-a-transaction-hash-hash-id"
+      ]
+    },
+    {
+      "topic": "transfers",
+      "question": "The block explorer shows my deposit but my exchange still says pending.",
+      "answer": "Check the transaction ID on the same network. An exchange can wait for several confirmations before crediting a deposit. If its required count has passed, check the receiving address and any required memo, then give official support the transaction ID.",
+      "references": [
+        "https://help.coinbase.com/en/exchange/crypto-transfers/deposit-pending-unconfirmed-transaction",
+        "https://help.coinbase.com/en/coinbase/getting-started/crypto-education/what-is-a-transaction-hash-hash-id"
+      ]
+    },
+    {
+      "topic": "transfers",
+      "question": "My transfer confirmed but never arrived. How do I tell whether I used the wrong network or the wrong address?",
+      "answer": "Open the transaction on the sending network’s explorer. Compare the full receiving address and network with the original deposit instructions. If it went to an exchange on an unsupported network, ask the exchange whether it can recover that deposit. Keep the transaction ID.",
+      "references": [
+        "https://support.metamask.com/manage-crypto/move-crypto/send/funds-sent-on-wrong-network/",
+        "https://bitcoin.org/en/you-need-to-know"
+      ]
+    },
+    {
+      "topic": "transfers",
+      "question": "I sent crypto to an exchange and forgot to include the memo.",
+      "answer": "Contact the receiving exchange through its official app or site. Give it the asset, network and transaction ID. A memo tells the exchange whose account to credit at a shared address. Only the exchange can check whether it can credit the deposit.",
+      "references": [
+        "https://help.coinbase.com/en/coinbase/trading-and-funding/sending-or-receiving-cryptocurrency/destination-tag-memo-faq",
+        "https://help.coinbase.com/en/coinbase/getting-started/crypto-education/what-is-a-transaction-hash-hash-id"
+      ]
+    },
+    {
+      "topic": "transfers",
+      "question": "What's the difference between a Bitcoin address and a Lightning invoice?",
+      "answer": "For a regular Bitcoin payment, the recipient gives you a Bitcoin address. For a Lightning payment, they can give you an invoice that may include the amount and an expiry time. Choose the matching payment option in your wallet.",
+      "references": [
+        "https://docs.lightning.engineering/the-lightning-network/payment-lifecycle",
+        "https://developer.bitcoin.org/devguide/payment_processing.html"
+      ]
+    },
+    {
+      "topic": "transfers",
+      "question": "My Lightning invoice expired before it got paid.",
+      "answer": "If the first payment is still pending, check its status before trying again. An unpaid, expired Lightning invoice needs replacing. Ask the recipient for a fresh invoice and check its amount before paying.",
+      "references": [
+        "https://docs.lightning.engineering/the-lightning-network/payment-lifecycle"
+      ]
+    },
+    {
+      "topic": "transfers",
+      "question": "If I share my Bitcoin address, can people see how much I have?",
+      "answer": "Anyone can look up the balance and history of that Bitcoin address. It may show only part of your wallet. Using a fresh receiving address for each payment helps limit what each person paying you can learn.",
+      "references": [
+        "https://bitcoin.org/en/you-need-to-know"
+      ]
+    },
+    {
+      "topic": "transfers",
+      "question": "What happens if I make a typo in a Bitcoin address?",
+      "answer": "Most wallets catch an invalid Bitcoin address. They can still accept a valid address belonging to someone else. Compare the full address with the one the recipient gave you before sending.",
+      "references": [
+        "https://bitcoin.org/en/you-need-to-know"
+      ]
+    },
+    {
+      "topic": "networks",
+      "question": "What's the actual difference between Bitcoin, Ethereum and Solana?",
+      "answer": "Bitcoin, Ethereum and Solana are separate networks. Their coins are BTC, ETH and SOL. Ethereum and Solana also run apps and other tokens. When someone gives you a deposit address, match both the coin and the network they specify.",
+      "references": [
+        "https://ethereum.org/ethereum-vs-bitcoin/",
+        "https://solana.com/learn/what-is-solana"
+      ]
+    },
+    {
+      "topic": "networks",
+      "question": "A deposit page wants me to choose a network and I don't know which one to pick.",
+      "answer": "Open Receive or Deposit on the receiving side and look at the networks it accepts for that asset. Choose one the sender supports too. For example, if the receiving instructions say USDC on Solana, choose USDC and Solana on the sending side.",
+      "references": [
+        "https://ethereum.org/bridges/",
+        "https://solana.com/learn/sending-and-receiving-sol"
+      ]
+    },
+    {
+      "topic": "networks",
+      "question": "Are Base, Arbitrum and OP Mainnet the same as Ethereum mainnet?",
+      "answer": "Base, Arbitrum One and OP Mainnet are separate networks built on Ethereum. An ETH balance on Base stays on Base when you switch your wallet to Ethereum mainnet. To receive it on another network, use a supported bridge or a service that offers withdrawals there.",
+      "references": [
+        "https://ethereum.org/layer-2/",
+        "https://ethereum.org/bridges/"
+      ]
+    },
+    {
+      "topic": "networks",
+      "question": "My withdrawal from OP Mainnet back to Ethereum looks stuck.",
+      "answer": "For the standard OP Mainnet bridge, check the withdrawal status. You start the withdrawal on OP Mainnet, prove it on Ethereum, wait through the challenge period, then finalize it. If it says ready to prove or ready to finalize, you need to complete that step.",
+      "references": [
+        "https://docs.optimism.io/op-stack/bridging/withdrawal-flow"
+      ]
+    },
+    {
+      "topic": "networks",
+      "question": "Why is there a fee to bridge from Ethereum, and why does it keep changing?",
+      "answer": "A bridge can involve more than one transaction. The Ethereum part costs gas, which changes with network demand. Review the bridge’s estimate and any separate fee before you start.",
+      "references": [
+        "https://ethereum.org/gas/",
+        "https://ethereum.org/bridges/"
+      ]
+    },
+    {
+      "topic": "networks",
+      "question": "My Solana transaction failed but I was still charged a fee.",
+      "answer": "A failed Solana transaction can still cost the network fee. The transfer or swap in that failed transaction didn’t complete. Look up its signature, the transaction ID, and check the error before trying again.",
+      "references": [
+        "https://solana.com/docs/core/transactions",
+        "https://solana.com/developers/docs/core/fees"
+      ]
+    },
+    {
+      "topic": "networks",
+      "question": "How can an app say it pays my Solana fees for me?",
+      "answer": "Solana lets an app pay the network fee for you. The fee still exists and is paid in SOL. Check who the app lists as the fee payer and whether it quotes any separate charge.",
+      "references": [
+        "https://solana.com/developers/docs/core/fees",
+        "https://solana.com/docs/payments/send-payments/payment-processing/fee-abstraction"
+      ]
+    },
+    {
+      "topic": "exchanges",
+      "question": "How do I sell my crypto and get the money into my bank account?",
+      "answer": "On an exchange such as Coinbase, sell the crypto for your local currency first. Then choose Cash out or Withdraw, select an available bank account and check the destination and fee before confirming.",
+      "references": [
+        "https://help.coinbase.com/en/coinbase/trading-and-funding/buying-selling-or-converting-crypto/how-do-i-sell-or-cash-out-my-digital-currency",
+        "https://help.coinbase.com/en/coinbase/trading-and-funding/buying-selling-or-converting-crypto/cash-out-funds"
+      ]
+    },
+    {
+      "topic": "exchanges",
+      "question": "Why is my exchange balance higher than the amount I can withdraw?",
+      "answer": "Open the available balance on the exchange. A recent deposit can appear in your total while part of it is still on hold. On Coinbase, check when the funds will be available to send or cash out.",
+      "references": [
+        "https://help.coinbase.com/en/coinbase/trading-and-funding/sending-or-receiving-cryptocurrency/available-balance-faq"
+      ]
+    },
+    {
+      "topic": "exchanges",
+      "question": "The price I got quoted is different from the market price I saw.",
+      "answer": "An exchange’s buy or sell quote can include a spread, the difference between the price it offers and the market price you saw. Check the final amount and any separate fee in the order preview.",
+      "references": [
+        "https://help.coinbase.com/en/coinbase/trading-and-funding/pricing-and-fees/fees"
+      ]
+    },
+    {
+      "topic": "exchanges",
+      "question": "What's the difference between the exchange's fee and the network fee?",
+      "answer": "A trading fee is what the exchange charges for a trade. Sending crypto to another wallet can also have a withdrawal charge based on the network fee. Check what the recipient will get in the withdrawal preview.",
+      "references": [
+        "https://help.coinbase.com/en/coinbase/trading-and-funding/pricing-and-fees/fees"
+      ]
+    },
+    {
+      "topic": "exchanges",
+      "question": "I'm new and can't tell whether I need an exchange or a wallet.",
+      "answer": "To buy crypto with money from a bank, start with an exchange that supports your country and payment method. To control the crypto yourself, set up a self-custody wallet. You can buy on an exchange and withdraw to your wallet later.",
+      "references": [
+        "https://ethereum.org/wallets/",
+        "https://help.coinbase.com/en/coinbase/trading-and-funding/buying-selling-or-converting-crypto/how-do-i-buy-digital-currency"
+      ]
+    },
+    {
+      "topic": "exchanges",
+      "question": "What should I check before buying crypto with my card or bank account?",
+      "answer": "Before confirming, check how much money you’ll pay, how much crypto you’ll get and any fees. If you plan to send it to your own wallet right away, check when the exchange will let you withdraw it.",
+      "references": [
+        "https://help.coinbase.com/en/coinbase/trading-and-funding/pricing-and-fees/fees",
+        "https://help.coinbase.com/en/coinbase/trading-and-funding/sending-or-receiving-cryptocurrency/available-balance-faq"
+      ]
+    },
+    {
+      "topic": "exchanges",
+      "question": "I just bought crypto on an exchange but it won't let me send it to my wallet.",
+      "answer": "A recent deposit may let you buy crypto before you can send it elsewhere. On Coinbase, check the availability date in the confirmation email for the deposit or purchase. If that date has passed, contact support from inside your account.",
+      "references": [
+        "https://help.coinbase.com/en/coinbase/trading-and-funding/sending-or-receiving-cryptocurrency/available-balance-faq"
+      ]
+    },
+    {
+      "topic": "defi",
+      "question": "Can a stablecoin lose its peg?",
+      "answer": "Yes. A dollar stablecoin aims to stay near one US dollar ($1), but its market price can fall below that. Check what backs the coin and who can redeem it before relying on the peg.",
+      "references": [
+        "https://ethereum.org/stablecoins/"
+      ]
+    },
+    {
+      "topic": "defi",
+      "question": "What actually happens when I swap one token for another?",
+      "answer": "A swap trades one token for another. Before confirming in your wallet, check the network, which token you’ll give up, the minimum amount you’ll receive and the fee. You can look up the transaction after it goes through.",
+      "references": [
+        "https://support.uniswap.org/hc/en-us/articles/8120520483085-What-is-an-approval-transaction",
+        "https://support.uniswap.org/hc/en-us/articles/8643794102669-Price-Impact-vs-Price-Slippage"
+      ]
+    },
+    {
+      "topic": "defi",
+      "question": "My swap gave me less than the quote showed.",
+      "answer": "The price can move between the quote and the swap. That difference is called slippage. Your trade can also move the price, especially in a pool with few tokens available. Compare what you received with the original quote.",
+      "references": [
+        "https://support.uniswap.org/hc/en-us/articles/8643794102669-Price-Impact-vs-Price-Slippage"
+      ]
+    },
+    {
+      "topic": "defi",
+      "question": "The app wants me to approve a token before it lets me swap.",
+      "answer": "An approval lets a named contract spend up to a set amount of a token. Check the token, spender and spending limit in your wallet. An approval alone does not complete the swap. An onchain approval can cost gas, and some apps also use a separate signature.",
+      "references": [
+        "https://support.uniswap.org/hc/en-us/articles/8120520483085-What-is-an-approval-transaction"
+      ]
+    },
+    {
+      "topic": "defi",
+      "question": "How does borrowing against my crypto work?",
+      "answer": "On Aave, you deposit an asset as collateral and borrow against it. Interest adds to what you owe. Watch your loan’s health factor as prices change. Below 1, another user can repay debt in exchange for your collateral plus a fee.",
+      "references": [
+        "https://aave.com/help/borrowing/borrow-tokens",
+        "https://aave.com/help/borrowing/liquidations"
+      ]
+    },
+    {
+      "topic": "defi",
+      "question": "I have a loan open and want to take some of my collateral back out.",
+      "answer": "On Aave, withdrawing collateral while you owe money can lower your health factor. Check the estimated health factor after the withdrawal before confirming. Below 1, your collateral can be liquidated.",
+      "references": [
+        "https://aave.com/help/borrowing/liquidations",
+        "https://aave.com/help/borrowing/borrow-tokens"
+      ]
+    },
+    {
+      "topic": "defi",
+      "question": "What changes if I stake through a pool instead of just holding my ETH?",
+      "answer": "A staking pool combines ETH from many people so you don’t have to run a validator. You may receive a token representing your share. Check how you can get ETH back, what fees the pool charges and what happens if the pool or its contracts fail.",
+      "references": [
+        "https://ethereum.org/staking/pools/"
+      ]
+    },
+    {
+      "topic": "defi",
+      "question": "Where does DeFi yield actually come from?",
+      "answer": "Look at who pays the return. On a lending market, borrowers pay interest. In Ethereum staking, validators earn network rewards and a pool may keep a fee. The rate and the risks are different for each product.",
+      "references": [
+        "https://aave.com/help/borrowing/borrow-tokens",
+        "https://ethereum.org/staking/pools/"
+      ]
+    },
+    {
+      "topic": "defi",
+      "question": "Do I need a bridge or a swap to get my ETH onto another network?",
+      "answer": "A bridge moves value between networks. A swap changes which token you hold. If your ETH is on Ethereum and you need ETH on another network, check whether your chosen bridge supports both networks and what it will deliver.",
+      "references": [
+        "https://ethereum.org/bridges/"
+      ]
+    },
+    {
+      "topic": "safety",
+      "question": "Random tokens I never bought just showed up in my wallet. Is it safe to sell or claim them?",
+      "answer": "Leave the unexpected token alone. Simply receiving it doesn’t give its sender access to your other tokens. Ignore links in its name or description. Signing a claim on a fake site can put your real tokens at risk.",
+      "references": [
+        "https://support.metamask.com/manage-crypto/tokens/how-to-display-tokens-in-metamask/",
+        "https://ethereum.org/security/"
+      ]
+    },
+    {
+      "topic": "safety",
+      "question": "Someone from support DMed me a link to verify my wallet backup and I typed in my recovery words.",
+      "answer": "Those words are exposed. Stop depositing into every account they protect. Use a trusted device to set up a new wallet with a fresh backup. If funds remain, get help protecting them now through SEAL 911 in the chat’s Emergency help menu.",
+      "references": [
+        "https://securityalliance.org/sos",
+        "https://safety.chainabuse.com/article/i-may-have-been-hacked"
+      ]
+    },
+    {
+      "topic": "safety",
+      "question": "A recovery agent says they can get my stolen crypto back if I pay a fee first. Should I?",
+      "answer": "Keep your money. An upfront recovery fee is a common follow-up scam. Save the messages and transaction IDs. The chat’s Emergency help menu links to SEAL 911, which offers free help and cannot guarantee recovery.",
+      "references": [
+        "https://safety.chainabuse.com/article/i-may-have-been-hacked",
+        "https://securityalliance.org/sos"
+      ]
+    },
+    {
+      "topic": "safety",
+      "question": "A site wants me to sign a message I don't understand, and it says it's free with no gas.",
+      "answer": "Decline the request if you don’t understand what it allows. A gas-free signature can still let someone spend a token. Read the spender, amount and expiry in your wallet before considering another request.",
+      "references": [
+        "https://support.uniswap.org/hc/en-us/articles/8120520483085-What-is-an-approval-transaction",
+        "https://support.metamask.com/more-web3/learn/how-to-revoke-smart-contract-allowances-token-approvals/"
+      ]
+    },
+    {
+      "topic": "safety",
+      "question": "I disconnected my wallet from a sketchy site. Can it still take my tokens?",
+      "answer": "Yes, an existing token approval can still let a contract spend tokens after you disconnect. Review the approvals on that network and revoke the ones you no longer trust through your wallet’s official instructions. Revoking an onchain approval can cost a network fee.",
+      "references": [
+        "https://support.metamask.com/more-web3/learn/how-to-revoke-smart-contract-allowances-token-approvals/",
+        "https://support.metamask.com/more-web3/dapps/disconnect-wallet-from-a-dapp/"
+      ]
+    },
+    {
+      "topic": "safety",
+      "question": "I only connected my wallet to a site and didn't approve anything. Could it drain me?",
+      "answer": "A basic wallet connection alone can’t move funds. It shares your public address and lets a site request actions. If you never signed anything or granted that site a spending approval, disconnect it in your wallet. Check transaction history if a balance changed.",
+      "references": [
+        "https://support.metamask.com/more-web3/dapps/disconnect-wallet-from-a-dapp/",
+        "https://support.metamask.com/more-web3/learn/how-to-revoke-smart-contract-allowances-token-approvals/"
+      ]
+    },
+    {
+      "topic": "safety",
+      "question": "What is a safe way to back up my wallet offline?",
+      "answer": "For a wallet you back up with recovery words, write them down offline and keep the copy somewhere private and safe. An ordinary screenshot or cloud note can expose every account backed by those words.",
+      "references": [
+        "https://ethereum.org/security/",
+        "https://bitcoin.org/en/secure-your-wallet"
+      ]
+    },
+    {
+      "topic": "safety",
+      "question": "How can I spot a phishing site or a fake wallet support message?",
+      "answer": "Check the full website address, including its spelling. A fake site can copy a real site’s logo. If someone messages you claiming to be support, open the service’s official app or site yourself to check. Never share your recovery words or private key. Decline unexpected wallet prompts.",
+      "references": [
+        "https://ethereum.org/security/"
+      ]
+    }
+  ]
+}

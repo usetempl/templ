@@ -2,6 +2,8 @@ import { DEFAULT_SUPPORT_MODEL, LEGACY_SUPPORT_MODEL, type SupportModel, CRYPTO_
 import { researchCryptoDocs } from "../crypto-research";
 import {
   CRYPTO_CLARIFY_REPLY,
+  CRYPTO_READ_ONLY_REPLY,
+  CRYPTO_REPLY_TRANSLATIONS,
   CRYPTO_SCAM_REPLY,
   CRYPTO_TRIAGE_SYSTEM,
   INVESTMENT_REFUSAL,
@@ -33,7 +35,7 @@ import {
   groundedSensitive,
   groundedMemberTurn,
   groundedSources,
-  groundedSafeText,
+  groundedTextProblem,
   groundedVerifierAccepted,
   groundedFigures,
   groundedProvenanceSources,
@@ -76,7 +78,7 @@ import {
  * message older than the 90-second deadline goes to a person instead.
  * On the public crypto desk one bounded classification decides first: only
  * a concrete unresolved technical issue goes to a person, and every other
- * request gets the desk's fixed reply.
+ * request stays with the desk.
  *
  * Before any model call: the kill switch, the model transport, and both monthly caps
  * (held before the call, settled after it). If any of them stops the call,
@@ -787,7 +789,7 @@ async function runGroundedAnswer(input: {
   writeAs: "reply" | "suggestion" | "ask-ai";
   toPerson(reason: ManagedHandoffReason, decline: string): Promise<JobOutcome>;
   storeSummary(): Promise<boolean>;
-  recoverFromFaq?(hits: KnowledgeHitRow[]): Promise<ManagedAnswer | null>;
+  reviseFromSources?(hits: KnowledgeHitRow[], verifierNote?: string): Promise<ManagedAnswer | null>;
   pages(): Promise<boolean>;
   /** Network facts the model read for this turn, and the target they describe. */
   chain?: { facts: GroundedChainFacts; target: string } | null;
@@ -812,23 +814,39 @@ async function runGroundedAnswer(input: {
         // The sponsored desk may answer from its reviewed wallet basics alone.
         Boolean(chain) || model === CRYPTO_SUPPORT_MODEL,
       );
-  if (!latest || !state.caseSeq || !hits || (chain && hits.length > 7) || !answer.text.trim() ||
-      (await detectStoredSecret(answer.text)))
-    return input.toPerson(answer.handoffReason ?? "unsure", "unavailable");
+  const unanswered = () => input.toPerson(answer.handoffReason ?? "unsure", "unavailable");
+  if (!latest || !state.caseSeq || !hits || (chain && hits.length > 7) || (await detectStoredSecret(answer.text)))
+    return unanswered();
 
-  const tryCitedFaq = async (): Promise<JobOutcome> => {
-    const faqs = hits.filter((hit) => hit.kind === "faq");
-    if (input.recoverFromFaq && faqs.length && (answer.action === "reply" || answer.action === "resolve")) {
-      const revised = await input.recoverFromFaq(faqs);
-      if (revised) return runGroundedAnswer({
-        ...input, answer: revised, context: { version: context.version, hits: faqs }, recoverFromFaq: undefined, chain: null,
-      });
-    }
-    return input.toPerson(answer.handoffReason ?? "unsure", "unavailable");
+  let triedRevision = false;
+  const revise = async (citedFaqs: KnowledgeHitRow[], verifierNote?: string) => {
+    if (triedRevision) return null;
+    triedRevision = true;
+    const revised = await input.reviseFromSources?.(citedFaqs, verifierNote);
+    return revised ? runGroundedAnswer({
+      ...input, answer: revised, reviseFromSources: undefined, chain: null,
+    }) : null;
   };
-  if ((state.sponsoredResearch && [...answer.text].length > CRYPTO_REPLY_LIMIT) ||
-      !groundedSafeText(answer.text, hits, cryptoDesk && !scopeRefusal) ||
-      (input.chain && !chainReplySafe(answer.text, input.chain.target))) return tryCitedFaq();
+  if (!answer.text.trim()) return (await revise([])) ?? unanswered();
+  if (answer.action === "clarify" && !answer.sources.length &&
+      (!scopeRefusal || input.answer.text === CRYPTO_CLARIFY_REPLY ||
+       (language && answer.text === CRYPTO_REPLY_TRANSLATIONS.get(language.code)?.get(CRYPTO_CLARIFY_REPLY)))) {
+    const revised = await revise([]);
+    if (revised) return revised;
+  }
+  const tryCitedFaq = async (verifierNote?: string): Promise<JobOutcome> => {
+    const faqs = answer.action === "reply" || answer.action === "resolve" ? hits.filter((hit) => hit.kind === "faq") : [];
+    return (await revise(faqs, verifierNote)) ?? unanswered();
+  };
+  if (state.sponsoredResearch && [...answer.text].length > CRYPTO_REPLY_LIMIT) return tryCitedFaq("The draft was too long.");
+  const problem = groundedTextProblem(answer.text, hits, cryptoDesk && !scopeRefusal);
+  if (problem) {
+    const note = problem === "transaction instruction" || problem === "signing instruction"
+      ? "The draft included a payment or authorization action. Omit that action entirely. For a definition, describe what the visitor can view, manage or receive. Omit descriptions of others sending funds. For a fee, name the currency and ordinary payer without describing how to move the asset."
+      : "The draft failed a safety or link check. Give only a safe explanation from the passages. Omit links from the answer body.";
+    return tryCitedFaq(note);
+  }
+  if (input.chain && !chainReplySafe(answer.text, input.chain.target)) return tryCitedFaq();
   if (!scopeRefusal) {
     const verification = await meteredCall(
       deps,
@@ -850,11 +868,14 @@ async function runGroundedAnswer(input: {
       "other",
     );
     if (verification.kind !== "answer" || verification.model !== model) return input.toPerson("unsure", "unavailable");
-    if (!groundedVerifierAccepted(verification, chain ? [...hits, chain] : hits, model)) return tryCitedFaq();
+    if (!groundedVerifierAccepted(verification, chain ? [...hits, chain] : hits, model)) {
+      const review = verification.value as { summary?: unknown } | null;
+      return tryCitedFaq(typeof review?.summary === "string" ? review.summary.slice(0, 400) : undefined);
+    }
   }
   const highWater = Math.max(0, ...(state.evidence ?? []).map((row) => row.n));
   const built = groundedFigures(answer.text, hits, highWater, chain);
-  if (!built) return input.toPerson("unsure", "unavailable");
+  if (!built) return tryCitedFaq("A number in the draft was absent from the cited passages. Omit unsupported numbers, including version numbers quoted only by the visitor.");
   // The crypto desk lists the reviewed pages behind an answer, never a saved address.
   const text = cryptoDesk && answer.action !== "clarify" ? withCryptoSources(built.text, hits, language?.code, chain?.providerPages) : built.text;
   if (chain?.providerPages.length && ([...text].length > CRYPTO_REPLY_LIMIT || new TextEncoder().encode(text).length > OPERATIONAL_LIMITS.messageMaxBytes))
@@ -1375,6 +1396,7 @@ export async function runJob(
         state.storageGrant,
         deps.now(),
         instruction ? `${memberText} ${instruction}` : memberText,
+        state.sponsoredResearch === true && deps.room === "room:" + CRYPTO_SUPPORT_WORKSPACE && !askAi,
       );
     } catch {
       return toPerson("unsure", "unavailable");
@@ -1482,19 +1504,25 @@ export async function runJob(
     return `stopped:${result.stop}`;
   }
   if (result.kind === "refusal") return toPerson("safety", "refused");
-  if (result.kind === "failed") return toPerson("unsure", "unavailable");
-  let answer: ManagedAnswer;
-  try {
-    answer = checkedManagedAnswer(result.value, {
-      sourceIds: new Set([
-        ...hits.map((hit) => hit.sourceId),
-        ...(chain ? [chain.facts.sourceId] : []),
-      ]),
-    });
-  } catch (error) {
-    if (error instanceof ManagedAnswerError) return toPerson("unsure", "other");
-    throw error;
+  const canRevise = paidGrounded && state.sponsoredResearch && deps.room === "room:" + CRYPTO_SUPPORT_WORKSPACE && writeAs === "reply";
+  if (result.kind === "failed" && (result.reason !== "invalid-answer" || !canRevise)) return toPerson("unsure", "unavailable");
+  let answer: ManagedAnswer | undefined;
+  if (result.kind === "answer") {
+    try {
+      answer = checkedManagedAnswer(result.value, {
+        sourceIds: new Set([
+          ...hits.map((hit) => hit.sourceId),
+          ...(chain ? [chain.facts.sourceId] : []),
+        ]),
+      });
+    } catch (error) {
+      if (!(error instanceof ManagedAnswerError)) throw error;
+      if (!canRevise) return toPerson("unsure", "other");
+    }
   }
+  // The unusable draft contributes neither text nor evidence to a revision.
+  answer ??= { action: "handoff", text: "", confidence: "low", handoffReason: "unsure",
+    sources: [], facts: [], claims: [], comparisons: [], summary: "" };
   if (paidGrounded && paidContext)
     return runGroundedAnswer({
       deps: callDeps,
@@ -1510,23 +1538,46 @@ export async function runJob(
       storeSummary,
       pages,
       chain,
-      recoverFromFaq: state.sponsoredResearch && deps.room === "room:" + CRYPTO_SUPPORT_WORKSPACE && writeAs === "reply"
-        ? async (faqs) => {
-            if (deps.now() - job.at >= MANAGED_AGENT_LIMITS.handoffDeadlineMs ||
-                !(await pages()) || deps.now() - job.at >= MANAGED_AGENT_LIMITS.handoffDeadlineMs)
-              return null;
+      reviseFromSources: canRevise
+        ? async (citedFaqs, verifierNote) => {
+            const expired = () => deps.now() - job.at >= MANAGED_AGENT_LIMITS.handoffDeadlineMs;
+            if (expired()) return null;
+            const technical = await pages();
+            if (expired()) return null;
+            const explain = !chain && !currentTurn?.sensitive && (topic === "purchase" || topic === "howto");
+            const operation = topic === "operation" && !chain;
+            if (operation && language?.code === "en") return {
+              action: "reply", text: CRYPTO_READ_ONLY_REPLY, confidence: "high", sources: [],
+              facts: [], claims: [], comparisons: [], handoffReason: null, summary: "",
+            };
+            const passages = explain
+              ? hits.filter(hit => hit.kind === "faq" || hit.kind === "doc")
+              : technical ? citedFaqs : [];
+            if (!passages.length && !operation) return null;
+            const instruction = operation
+              ? `Decline the requested wallet operation by translating only this exact reply into the visitor’s language: "${CRYPTO_READ_ONLY_REPLY}". No extra explanation, description of the requested action or sources.`
+              : explain
+              ? "Answer the current how-to question directly from the supplied passages in the visitor's language. Give the answer or the first useful check in one or two short sentences. Use the conversation to resolve a follow-up. For a purchase, explain what they can check before paying, using the payment method they named. Use the source’s own UI labels and eligibility conditions. Do not introduce a preview screen the source does not name. Use the verifier’s note only to identify what needs checking; passages alone support claims. Cite the relevant passage IDs. If none answer the question, use clarify with just one specific question about the missing public information. Leave out factual claims, URLs, product versions and promises. Do not ask for a wallet or an error when those are unrelated."
+              : "Answer the visitor's current question using only the supplied FAQs. Give the first useful read-only check in one or two short sentences in the visitor's language. Preserve conditions. Leave out unrelated precautions. Never claim you inspected a transaction. Keep the case open. If the FAQs cannot answer the question, hand off.";
             const response = await meteredCall(callDeps,
-              CRYPTO_GROUNDED_SYSTEM + "\nAnswer the visitor's current question using only the supplied FAQs. Give the first useful read-only check in one or two short sentences in the visitor's language. Preserve conditions. Leave out unrelated precautions. Never claim you inspected a transaction. Keep the case open. If the FAQs cannot answer the question, hand off." +
-                (language ? cryptoReplyLanguageRule(language) : ""),
-              JSON.stringify({ question: memberText, guidance: { ...guidance, text: redactForModel(guidance.text).text }, messages: caseMessages(), passages: faqs }),
+              CRYPTO_GROUNDED_SYSTEM + "\n" + instruction + (language ? cryptoReplyLanguageRule(language) : ""),
+              JSON.stringify({ question: memberText, guidance: { ...guidance, text: redactForModel(guidance.text).text }, messages: caseMessages(), passages, ...(explain && verifierNote ? { verifierNote } : {}) }),
               state.sharedHashes, "answer");
             if (response.kind !== "answer" || response.model !== CRYPTO_SUPPORT_MODEL ||
                 deps.now() - job.at >= MANAGED_AGENT_LIMITS.handoffDeadlineMs)
               return null;
             try {
               const revised = checkedManagedAnswer(response.value, {
-                sourceIds: new Set(faqs.map((faq) => faq.sourceId)),
+                sourceIds: new Set(passages.map((hit) => hit.sourceId)),
               });
+              if (operation && (revised.action !== "reply" || revised.confidence !== "high" || revised.sources.length)) return null;
+              if (explain) {
+                const question = revised.text.trim();
+                const detail = revised.action === "clarify" && !revised.sources.length && !isScopeRefusal(revised, true) &&
+                  [...question].length <= 200 && /^[^?？؟\n]+[?？؟]$/u.test(question) && !/https?:|www\./i.test(question);
+                const sourced = revised.sources.length && (revised.action === "reply" || revised.action === "resolve");
+                if (revised.confidence !== "high" || (!detail && !sourced)) return null;
+              }
               return revised.action === "resolve" ? { ...revised, action: "reply" } : revised;
             } catch (error) {
               if (error instanceof ManagedAnswerError) return null;
@@ -1535,7 +1586,7 @@ export async function runJob(
           }
         : undefined,
     });
-  if (answer.action === "handoff")
+  if (answer.action === "handoff" || result.kind !== "answer")
     return toPerson(answer.handoffReason ?? "unsure", "handoff");
   if (await detectStoredSecret(stripCitationMarkers(answer.text).text))
     return toPerson("safety", "refused");
