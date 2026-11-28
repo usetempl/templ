@@ -29,6 +29,7 @@ export type PublicAvailability = "available" | "being-verified" | "not-offered";
 export type CapabilityId =
   | "accounts.wallet"
   | "accounts.solana"
+  | "accounts.bitcoin"
   | "plans.purchase"
   | "conversations.team"
   | "conversations.claims"
@@ -53,6 +54,7 @@ export type Capability = {
  * fields are ignored; a missing flag reads as false. */
 export type ReleaseFlags = ProductRailRelease & {
   environment?: string;
+  bitcoinAccountSignInVerified?: boolean;
   realtimeVerified?: boolean;
   mediaStorageVerified?: boolean;
   /** Solana: sign-in needs no provider. */
@@ -135,6 +137,13 @@ export function capabilities(
         flag(release.solana?.signIn) ? "available" : "implemented",
       ),
       evidence: "solana.signIn",
+    },
+    {
+      id: "accounts.bitcoin",
+      label: "Bitcoin wallet sign-in",
+      state: verified(release.bitcoinAccountSignInVerified),
+      public: publicOf(verified(release.bitcoinAccountSignInVerified)),
+      evidence: "bitcoinAccountSignInVerified",
     },
     {
       id: "plans.purchase",

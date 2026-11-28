@@ -236,7 +236,7 @@ export default async function PrivacyPage() {
         </p>
         <p>
           {
-            "Public blockchain data comes from networks and RPC providers. Sharing a wallet or transaction may link that public data to your case."
+            "Public blockchain data comes from networks and RPC providers. Sharing a wallet or transaction may link that public data to your case. When you ask the Crypto Help Desk to check activity, you can paste any public address or use a wallet you already verified in that chat. Templ sends the address or transaction ID to a blockchain data provider. The AI uses the results to answer your question."
           }
         </p>
       </PolicySection>
@@ -655,7 +655,7 @@ export default async function PrivacyPage() {
       <PolicySection title="9. What stays on your device" id="device-storage">
         <p>
           {
-            "Cookies and browser storage keep sessions and drafts. Clearing them may remove your route back to a guest case."
+            "Cookies and browser storage keep sessions and drafts. Clearing them may remove your route back to a guest case. If you choose a language in the Crypto Help Desk, your browser remembers it. Templ also keeps that choice with your latest message so the AI can reply in that language."
           }
         </p>
         <p>

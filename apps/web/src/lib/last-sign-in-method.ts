@@ -1,11 +1,11 @@
 /** The wallet kind the last sign-in on this browser used, so the dialog can
  * say which one it was. */
-export type SignInMethod = "wallet" | "solana" | "email";
+export type SignInMethod = "wallet" | "solana" | "bitcoin" | "email";
 
 const storageKey = "templ:last-sign-in-method";
 
 function isSignInMethod(value: unknown): value is SignInMethod {
-  return value === "wallet" || value === "solana" || value === "email";
+  return value === "wallet" || value === "solana" || value === "bitcoin" || value === "email";
 }
 
 export function readLastSignInMethod(): SignInMethod | null {

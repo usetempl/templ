@@ -13,7 +13,8 @@ import {
  *   answered below 20 answered requests, and the answer is a rounded
  *   duration, never a count.
  * - The sources of the managed AI agent's replies, as a member sees them:
- *   titles, and links only to sites the team listed.
+ *   titles, and links only to sites the team listed. The crypto desk writes
+ *   its reviewed source links into the reply instead.
  * - Which AI answers the member may report, by message, and the member's
  *   report itself (support-answer-reports.ts).
  * - The details the member shared, for the widget's list.
@@ -23,6 +24,7 @@ import {
  * reads current records; nothing here grants access or reaches a chain. */
 import { guestFollowUpThread } from "./guest-follow-up";
 import type { ChatMessage } from "@templ/chat/index";
+import { CRYPTO_SUPPORT_WORKSPACE } from "@templ/chat/support-models";
 import {
   SupportContextError,
   contextTargetLabel,
@@ -118,6 +120,8 @@ export async function memberSources(
   record: TeamConversationRecord,
   ids: readonly string[],
 ): Promise<Record<string, { title: string; url?: string }[]>> {
+  // Saved page titles and addresses grant the crypto desk no visitor link.
+  if (record.room === "room:" + CRYPTO_SUPPORT_WORKSPACE) return {};
   const wanted = [...new Set(ids)]
     .filter((id) => /^[1-9][0-9]{0,14}$/.test(id))
     .slice(0, MEMBER_SOURCES.messagesPerRead);

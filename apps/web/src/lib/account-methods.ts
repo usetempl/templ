@@ -5,15 +5,22 @@ import {
 } from "@templ/chat/principal";
 import {
   ACCOUNT_METHOD_LIMITS,
+  type AccountBitcoinWalletMethod,
   type AccountMethods,
   type AccountSolanaWalletMethod,
   type AccountWalletMethod,
   type ChatAccount,
 } from "@templ/chat/wallets";
+import { isBitcoinAccountAddress } from "@templ/chat/bitcoin-account-auth";
 import { isSolanaAddress } from "@templ/chat/solana";
 import { chatMutation } from "./chat-api";
 import { communityFetch } from "./community-client";
-import { attachSolanaWallet, peekCommunitySession } from "./community-auth";
+import {
+  attachBitcoinWallet,
+  attachSolanaWallet,
+  peekCommunitySession,
+} from "./community-auth";
+import type { BitcoinSigner } from "./bitcoin-wallet";
 import type { SolanaSigner } from "./solana-wallet";
 
 /** The browser side of one account's wallets and its alert
@@ -55,12 +62,30 @@ function isSolanaWalletMethod(
     typeof w.current === "boolean"
   );
 }
-/** Fails closed: a method list missing a field is unreadable. */
+function isBitcoinWalletMethod(
+  value: unknown,
+): value is AccountBitcoinWalletMethod {
+  const w = value as Partial<AccountBitcoinWalletMethod> | null;
+  return (
+    !!w &&
+    typeof w === "object" &&
+    isBitcoinAccountAddress(w.address) &&
+    isIso(w.addedAt) &&
+    typeof w.current === "boolean"
+  );
+}
+/** Fails closed: a method list missing a field is unreadable. An older
+ * service names neither Bitcoin field, and its list has no Bitcoin wallet. */
 export function validAccountMethods(raw: unknown): AccountMethods {
   const value = raw as Partial<AccountMethods> | null;
   const canRemove = value?.canRemove as
     | Partial<AccountMethods["canRemove"]>
     | undefined;
+  const older =
+    value?.bitcoinWallets === undefined &&
+    canRemove?.bitcoinWallets === undefined;
+  const bitcoinWallets = older ? [] : value?.bitcoinWallets;
+  const canRemoveBitcoin = older ? false : canRemove?.bitcoinWallets;
   if (
     !value ||
     typeof value !== "object" ||
@@ -71,17 +96,23 @@ export function validAccountMethods(raw: unknown): AccountMethods {
     typeof canRemove !== "object" ||
     typeof canRemove.wallets !== "boolean" ||
     typeof canRemove.solanaWallets !== "boolean" ||
+    typeof canRemoveBitcoin !== "boolean" ||
     !Array.isArray(value.solanaWallets) ||
     !value.solanaWallets.every(isSolanaWalletMethod) ||
-    value.solanaWallets.length > ACCOUNT_METHOD_LIMITS.solanaWallets
+    value.solanaWallets.length > ACCOUNT_METHOD_LIMITS.solanaWallets ||
+    !Array.isArray(bitcoinWallets) ||
+    !bitcoinWallets.every(isBitcoinWalletMethod) ||
+    bitcoinWallets.length > ACCOUNT_METHOD_LIMITS.bitcoinWallets
   )
     throw new Error(METHODS_UNREADABLE);
   return {
     wallets: value.wallets.map((w) => ({ ...w })),
     solanaWallets: value.solanaWallets.map((w) => ({ ...w })),
+    bitcoinWallets: bitcoinWallets.map((w) => ({ ...w })),
     canRemove: {
       wallets: canRemove.wallets,
       solanaWallets: canRemove.solanaWallets,
+      bitcoinWallets: canRemoveBitcoin,
     },
   };
 }
@@ -243,6 +274,28 @@ export function removeSolanaWallet(
   return chatMutation<unknown>(
     principal,
     "/auth/solana/remove",
+    { address },
+    () => assertPrincipal(principal),
+    withTimeout(),
+  ).then(methodsFrom);
+}
+
+export function addBitcoinWallet(
+  principal: ChatPrincipalId,
+  connect: () => Promise<BitcoinSigner>,
+): Promise<AccountMethods> {
+  assertPrincipal(principal);
+  return attachBitcoinWallet(principal, connect).then(methodsFrom);
+}
+export function removeBitcoinWallet(
+  principal: ChatPrincipalId,
+  address: string,
+): Promise<AccountMethods> {
+  if (!isBitcoinAccountAddress(address))
+    throw new Error("Choose a Bitcoin wallet to remove.");
+  return chatMutation<unknown>(
+    principal,
+    "/auth/bitcoin/remove",
     { address },
     () => assertPrincipal(principal),
     withTimeout(),

@@ -162,10 +162,11 @@ export function publicReleaseStatus(RELEASE: PublicRelease = BUILD_RELEASE) {
     // Sign-in follows the adopted production flag.
     accounts: {
       wallet: true,
+      bitcoinSignIn: RELEASE.bitcoinAccountSignInVerified === true,
       signIn:
         RELEASE.emailSignInVerified === true
           ? "Wallet or email"
-          : "EVM or Solana wallet",
+          : "Wallet",
       methods: ACCOUNT_METHOD_LIMITS,
       methodsPath: "/settings/account",
       capabilitiesRoute: "/auth/capabilities",

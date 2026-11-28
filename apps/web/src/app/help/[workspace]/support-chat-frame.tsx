@@ -27,8 +27,10 @@ export function SupportChatThemeScope({ children, workspace, nonce }: {
   );
 }
 
-export function SupportChatFrame({ children, label, accent, workspace, siteAppearance = false }: {
+export function SupportChatFrame({ children, label, accent, workspace, siteAppearance = false, lang, dir }: {
   children: ReactNode; label?: string; accent?: WidgetAccent; workspace?: string; siteAppearance?: boolean;
+  /** The visitor's chosen interface language, when it is not the page's. */
+  lang?: string; dir?: "ltr" | "rtl";
 }) {
   const page = useRef<HTMLElement>(null);
   useEffect(() => {
@@ -55,7 +57,7 @@ export function SupportChatFrame({ children, label, accent, workspace, siteAppea
     };
   }, []);
   return (
-    <main id="main-content" data-chat-workspace={workspace} data-templ-site-appearance={siteAppearance ? "" : undefined} aria-label={label} tabIndex={-1} ref={page} className={styles.fullPage}>
+    <main id="main-content" data-chat-workspace={workspace} data-templ-site-appearance={siteAppearance ? "" : undefined} aria-label={label} lang={lang} dir={dir} tabIndex={-1} ref={page} className={styles.fullPage}>
       {children}
     </main>
   );

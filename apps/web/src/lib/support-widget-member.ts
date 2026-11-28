@@ -260,7 +260,8 @@ export const member = {
           checks?: Record<string, { id: string; evidence: string[] }[]>;
         }) => body,
       );
-      const sources = cited?.sources?.[last.id];
+      const citedSources = cited?.sources?.[last.id];
+      const sources = citedSources && (host.options.reviewSources?.(citedSources, last.text) ?? citedSources);
       const checks = cited?.checks?.[last.id];
       if (sources?.length || checks?.length)
         above.push([

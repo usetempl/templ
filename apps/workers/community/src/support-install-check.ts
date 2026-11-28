@@ -14,6 +14,7 @@ import {
   recordByHash,
   type Env,
 } from "./common";
+import { bitcoinSessionAuthorized } from "./bitcoin-account-auth";
 import { nativeRecord } from "./native-rooms";
 import { sessionPrincipals } from "./service-principals";
 import type { AuthData } from "./auth-record";
@@ -203,7 +204,7 @@ async function installManager(env: Env, hash: string) {
     data.walletRevision! < 0 ||
     data.nonce ||
     data.message ||
-    !["wallet", "solana"].includes(data.authMethod ?? "")
+    !["wallet", "solana", "bitcoin"].includes(data.authMethod ?? "")
   )
     throw invalid();
   const read = await sessionIdentity(env, data.principalId);
@@ -219,6 +220,8 @@ async function installManager(env: Env, hash: string) {
         !walletSignsIn(read.linked, data.address as Address))
     )
       throw invalid();
+  } else if (data.authMethod === "bitcoin") {
+    if (!bitcoinSessionAuthorized(data, read.identity, env.APP_ORIGIN)) throw invalid();
   } else {
     const proof = data.solanaAuthorization,
       signature = decodeSolanaSignature(proof?.signature);

@@ -1,6 +1,7 @@
 import { CRYPTO_SUPPORT_WORKSPACE } from "@templ/chat/support-models";
 import { canonicalBitcoinProofAddress } from "./bitcoin-wallet-proof";
 import { reserveCryptoQuestion } from "./crypto-support";
+import { cryptoChatLanguageInput, saveCryptoChatLanguage } from "./crypto-chat-language";
 import { appAiEnabled, appAnswerStatus, assertAppAnswerWrite, finishAppAnswer } from "./app-ai-replies";
 import { canManageWorkspace } from "@templ/chat/moderation-permissions";
 import { featureOn } from "./workspace-flags";
@@ -1796,6 +1797,9 @@ async function postMessage(
       allowWalletInstructions: canManageWorkspace(viewer, context.isBot),
     });
   assertReplyExtras(body, role, Boolean(context.isBot));
+  const chatLanguage = role === "member"
+    ? await cryptoChatLanguageInput(storage, context, body.preferredLanguage)
+    : undefined;
   if (
     body.replyIntent !== undefined &&
     (role !== "team" ||
@@ -2009,6 +2013,9 @@ async function postMessage(
     agent?.reply.provenance?.reason === "answer" &&
       agent.reply.text.trim().length > 0,
   );
+  // The crypto desk's chat language belongs to this message and its case.
+  if (chatLanguage !== undefined)
+    await saveCryptoChatLanguage(storage, record.id, (await supportRecord(storage, next)).caseSeq ?? 0, message.id, chatLanguage);
   if (role === "team" && !context.isBot)
     await queueHandoffLearningReply(storage, context, next, message, record.handoff);
   // A person's reply keeps the AI to drafts for the rest of this request.

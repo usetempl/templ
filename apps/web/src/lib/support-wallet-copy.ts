@@ -2,6 +2,15 @@ import { keccak_256 } from "@noble/hashes/sha3";
 import { sharedWalletAddresses } from "@templ/chat/widget-wallet";
 import type { TailHost } from "./support-widget";
 
+export function walletHint(state: {
+  account: boolean; signed: boolean; hasAddresses: boolean; hasConversation: boolean; canVerify: boolean; shared?: string;
+}) {
+  if (state.account) return state.signed ? "You’re signed in with your wallet." : "This chat requires a wallet. Sign a message to verify it.";
+  if (state.hasAddresses) return state.hasConversation ? "" : "Your first message will share these addresses with this team.";
+  if (state.canVerify) return state.shared ?? "Sign a message to share your verified address with the support team in this chat.";
+  return "Open this chat in a supported wallet browser to verify your address.";
+}
+
 /** EIP-55 is a display convention. Requests still use the stored address. */
 export function displayWalletAddress(address: string) {
   if (!/^0x[\da-f]{40}$/i.test(address)) return address;

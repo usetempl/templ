@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { CRYPTO_SUPPORT_WORKSPACE } from "@templ/chat/support-models";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { readHostedSupport } from "@/lib/hosted-support";
@@ -36,11 +37,13 @@ export default async function HostedSupportPage({
   if (!support || support.workspace !== workspace) notFound();
   const nonce = (await headers()).get("x-nonce") ?? undefined;
   const runtime = support.frameRequired ? SUPPORT_WIDGET_LATEST.chunks.framehost : SUPPORT_WIDGET_LATEST;
+  const Chat = !support.frameRequired && workspace === CRYPTO_SUPPORT_WORKSPACE
+    ? (await import("./crypto-hosted-chat")).CryptoHostedChat : HostedSupportChat;
   return (
     <SupportChatThemeScope workspace={workspace} nonce={nonce}>
       {!support.frameRequired && <script nonce={nonce} dangerouslySetInnerHTML={{ __html: hostedPolicyScript(workspace) }} />}
       {runtime && <link rel="modulepreload" href={runtime.path} nonce={nonce} crossOrigin="anonymous" />}
-      <HostedSupportChat workspace={workspace} name={support.name}
+      <Chat workspace={workspace} name={support.name}
         frameRequired={support.frameRequired} nonce={nonce} verifiedSites={support.verifiedSites} />
     </SupportChatThemeScope>
   );

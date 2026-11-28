@@ -14,6 +14,8 @@ import {
 } from "@templ/chat/profiles";
 import { address, HttpError, json, readJson, type Env } from "./common";
 import { principal } from "./principal";
+import { ACCOUNT_METHOD_LIMITS } from "@templ/chat/wallets";
+import { canonicalBitcoinProofAddress } from "./bitcoin-wallet-proof";
 import { timed } from "./request-context";
 import { normalizeEmailValue } from "./email-normalize";
 import { TEAM_INVITE_ACTIVE_LIMIT } from "./team-invites";
@@ -28,6 +30,11 @@ export type StoredProfile = {
 };
 /** A Solana wallet proven for this account. Timestamps are milliseconds. */
 export type StoredSolanaWallet = { address: string; linkedAt: number };
+type StoredBitcoinWallet = {
+  address: string;
+  linkedAt: number;
+  credentialId: string;
+};
 type StoredWalletProof = {
   kind: "eoa" | "contract";
   chainId: SupportSiweChainId;
@@ -64,6 +71,7 @@ export type AccountIdentity = {
   profile?: StoredProfile;
   /** Solana wallets on the account, absent until one is proven. */
   solana?: StoredSolanaWallet[];
+  bitcoin?: StoredBitcoinWallet[];
   /** A contract wallet that signed in to the support
    * widget on one chain. The account belongs to that chain and address
    * alone; no other chain, key or alias reaches it. */
@@ -278,17 +286,16 @@ const conflict = () =>
     409,
     "That sign-in belongs to another Templ account. Sign in to that account instead.",
   );
-// One account holds up to five EVM wallets and up to five Solana
-// wallets, and any of them signs in. Passkey (`identity-passkeys:`,
+// Each wallet family has its own link limit. Passkey (`identity-passkeys:`,
 // `identity-passkey:`) and X (`identity-x:`) records written before sign-in
 // became wallet-only stay in storage untouched; nothing reads them.
 export const LINKED_WALLETS_PREFIX = "identity-linked-wallets:";
 export const LAST_WALLET_ERROR = "Keep at least one wallet to sign in.";
-export const MAX_ACCOUNT_WALLETS = 5;
+export const MAX_ACCOUNT_WALLETS = ACCOUNT_METHOD_LIMITS.wallets;
 // Solana wallets: up to five per account, indexed by public key, each one
 // signs in; one key belongs to one account.
 export const SOLANA_INDEX_PREFIX = "identity-solana:";
-export const MAX_ACCOUNT_SOLANA_WALLETS = 5;
+export const MAX_ACCOUNT_SOLANA_WALLETS = ACCOUNT_METHOD_LIMITS.solanaWallets;
 export const SOLANA_ELSEWHERE_ERROR =
   "That Solana wallet belongs to another Templ account.";
 export const SOLANA_ALREADY_ON_ACCOUNT_ERROR =
@@ -298,6 +305,27 @@ export const SOLANA_NOT_ON_ACCOUNT_ERROR =
 export const SOLANA_LIMIT_ERROR = `This account already has ${MAX_ACCOUNT_SOLANA_WALLETS} Solana wallets. Remove one first.`;
 const solanaIndexKey = (address: string) => `${SOLANA_INDEX_PREFIX}${address}`;
 const SOLANA_ADDRESS = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
+function validStoredBitcoin(value: unknown): value is StoredBitcoinWallet[] {
+  if (
+    !Array.isArray(value) ||
+    value.length > ACCOUNT_METHOD_LIMITS.bitcoinWallets
+  )
+    return false;
+  return (
+    value.every(
+      (entry: StoredBitcoinWallet | null) =>
+        entry &&
+        typeof entry.address === "string" &&
+        canonicalBitcoinProofAddress(entry.address) === entry.address &&
+        Number.isSafeInteger(entry.linkedAt) &&
+        entry.linkedAt > 0 &&
+        typeof entry.credentialId === "string" &&
+        /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/.test(
+          entry.credentialId,
+        ),
+    ) && new Set(value.map((entry) => entry.address)).size === value.length
+  );
+}
 function validStoredSolana(value: unknown): value is StoredSolanaWallet[] {
   return (
     Array.isArray(value) &&
@@ -345,7 +373,9 @@ export function identityStore(env: Env) {
 export async function identityRequest(env: Env, body: Record<string, unknown>) {
   const response = await timed(
     env,
-    body.op === "wallet-login" || body.op === "solana-login"
+    body.op === "wallet-login" ||
+      body.op === "solana-login" ||
+      body.op === "bitcoin-login"
       ? "identity-login"
       : "identity",
     identityStore(env).fetch(
@@ -392,6 +422,8 @@ function validProfile(value: AccountIdentity, id: ChatPrincipalId) {
       (!isAccount(id) || !validEmailLogin(value.emailLogin)))
   )
     throw new HttpError(503, "Account details are temporarily unavailable.");
+  if (value.bitcoin !== undefined && !validStoredBitcoin(value.bitcoin))
+    throw new HttpError(503, "Account details are temporarily unavailable.");
   const { profile, solana, ...credentials } = value;
   if (solana !== undefined && !validStoredSolana(solana))
     throw new HttpError(503, "Account details are temporarily unavailable.");
@@ -410,6 +442,15 @@ async function rawProfile(
   const value = await storage.get<AccountIdentity>(profileKey(id));
   if (!value) return empty(id);
   const identity = validProfile(value, id);
+  if (identity.bitcoin?.length) {
+    const owners = await Promise.all(
+      identity.bitcoin.map((entry) =>
+        storage.get(`identity-bitcoin:${entry.address}`),
+      ),
+    );
+    if (owners.some((owner) => owner !== id))
+      throw new HttpError(503, "Account details are temporarily unavailable.");
+  }
   if (
     identity.emailLogin &&
     (await storage.get(
@@ -472,7 +513,7 @@ export async function ensureAccount(
 }
 /** How many wallets sign in to this account: every proven EVM wallet (the
  * original alias plus linked wallets, wherever the record still lives) and
- * every Solana wallet. Removal always leaves one wallet, of either kind. */
+ * every Solana and Bitcoin wallet. Removal always leaves one wallet. */
 export async function countWallets(
   storage: Pick<DurableObjectTransaction, "get">,
   identity: AccountIdentity,
@@ -493,15 +534,34 @@ export async function countWallets(
   return {
     wallets: Math.min(wallets.size, MAX_ACCOUNT_WALLETS),
     solana: identity.solana?.length ?? 0,
+    bitcoin: identity.bitcoin?.length ?? 0,
   };
 }
-/** Throws 409 when removing one wallet would leave the account none. */
+export function removableAccountWallets(
+  count: { wallets: number; solana: number; bitcoin: number },
+  bitcoinAvailable: boolean,
+) {
+  const available =
+    count.wallets + count.solana + (bitcoinAvailable ? count.bitcoin : 0);
+  return {
+    wallets: count.wallets > 0 && available > 1,
+    solanaWallets: count.solana > 0 && available > 1,
+    bitcoinWallets: count.bitcoin > 0 && available > (bitcoinAvailable ? 1 : 0),
+  };
+}
+/** Count inside the removal transaction, including the active release policy. */
 export async function requireAnotherWallet(
   storage: Pick<DurableObjectTransaction, "get">,
   identity: AccountIdentity,
+  family: "wallets" | "solanaWallets" | "bitcoinWallets",
+  bitcoinAvailable: boolean,
 ) {
-  const count = await countWallets(storage, identity);
-  if (count.wallets + count.solana <= 1)
+  if (
+    !removableAccountWallets(
+      await countWallets(storage, identity),
+      bitcoinAvailable,
+    )[family]
+  )
     throw new HttpError(409, LAST_WALLET_ERROR);
 }
 const EMAIL_LOGIN_INDEX_PREFIX = "identity-email-login:";
@@ -758,57 +818,100 @@ async function removeAlertEmail(
   await storage.put(profileKey(identity.principalId), updated);
   return updated;
 }
-/** Solana sign-in: the public key resolves to its account, or a new account
- * is minted with the wallet as its only method. An index that names an
- * account not listing the key fails closed. */
-async function solanaLogin(
+type AccountChain = "solana" | "bitcoin";
+const chainName = { solana: "Solana", bitcoin: "Bitcoin" };
+function indexedWallet(chain: AccountChain, value: unknown) {
+  if (
+    typeof value !== "string" ||
+    (chain === "solana"
+      ? !SOLANA_ADDRESS.test(value)
+      : canonicalBitcoinProofAddress(value) !== value)
+  )
+    throw new HttpError(400, `Invalid ${chainName[chain]} wallet.`);
+  return { address: value, key: `identity-${chain}:${value}` };
+}
+function addChainWallet(
+  account: AccountIdentity,
+  chain: AccountChain,
+  wallet: string,
+  now: number,
+): AccountIdentity {
+  const entry = { address: wallet, linkedAt: now };
+  if (chain === "solana")
+    return { ...account, solana: [...(account.solana ?? []), entry] };
+  return {
+    ...account,
+    bitcoin: [
+      ...(account.bitcoin ?? []),
+      { ...entry, credentialId: crypto.randomUUID() },
+    ],
+  };
+}
+
+/** An indexed wallet signs in to one canonical account. Index and credential
+ * change in the same identity-store transaction. */
+async function chainLogin(
   storage: WritableStorage,
+  chain: AccountChain,
   raw: unknown,
   now: number,
-): Promise<{ identity: AccountIdentity; created: boolean }> {
-  if (typeof raw !== "string" || !SOLANA_ADDRESS.test(raw))
-    throw new HttpError(400, "Invalid Solana wallet.");
-  const owner = await storage.get<ChatPrincipalId>(solanaIndexKey(raw));
+) {
+  const wallet = indexedWallet(chain, raw);
+  const owner = await storage.get<ChatPrincipalId>(wallet.key);
   if (owner) {
     const identity = await accountIdentity(storage, principal(owner));
-    if (!identity.solana?.some((entry) => entry.address === raw))
+    if (!identity[chain]?.some((entry) => entry.address === wallet.address))
       throw conflict();
     return { identity, created: false };
   }
-  const id = newAccountId();
-  const minted: AccountIdentity = {
-    ...empty(id),
-    solana: [{ address: raw, linkedAt: now }],
-  };
-  await storage.put(profileKey(id), minted);
-  await storage.put(solanaIndexKey(raw), id);
+  const minted = addChainWallet(
+    empty(newAccountId()),
+    chain,
+    wallet.address,
+    now,
+  );
+  await storage.put(profileKey(minted.principalId), minted);
+  await storage.put(wallet.key, minted.principalId);
   return { identity: minted, created: true };
 }
-/** Link: adds a proven Solana wallet to the session's account. A key owned
- * elsewhere is refused, never merged; a bare EVM wallet gains its account id. */
-async function solanaLink(
+async function chainLink(
   storage: WritableStorage,
+  chain: AccountChain,
   id: ChatPrincipalId,
   raw: unknown,
   now: number,
 ) {
-  if (typeof raw !== "string" || !SOLANA_ADDRESS.test(raw))
-    throw new HttpError(400, "Invalid Solana wallet.");
+  const wallet = indexedWallet(chain, raw);
   const identity = await accountIdentity(storage, id);
-  if (identity.solana?.some((entry) => entry.address === raw))
-    throw new HttpError(409, SOLANA_ALREADY_ON_ACCOUNT_ERROR);
-  if ((identity.solana?.length ?? 0) >= MAX_ACCOUNT_SOLANA_WALLETS)
-    throw new HttpError(409, SOLANA_LIMIT_ERROR);
-  const owner = await storage.get<ChatPrincipalId>(solanaIndexKey(raw));
+  if (identity[chain]?.some((entry) => entry.address === wallet.address))
+    throw new HttpError(
+      409,
+      `This ${chainName[chain]} wallet is already on the account.`,
+    );
+  const limit =
+    chain === "bitcoin"
+      ? ACCOUNT_METHOD_LIMITS.bitcoinWallets
+      : ACCOUNT_METHOD_LIMITS.solanaWallets;
+  if ((identity[chain]?.length ?? 0) >= limit)
+    throw new HttpError(
+      409,
+      `This account already has ${limit} ${chainName[chain]} wallets. Remove one first.`,
+    );
+  const owner = await storage.get<ChatPrincipalId>(wallet.key);
   if (owner && !identity.servicePrincipals.includes(principal(owner)))
-    throw new HttpError(409, SOLANA_ELSEWHERE_ERROR);
-  const account = await ensureAccount(storage, identity);
-  const updated: AccountIdentity = {
-    ...account,
-    solana: [...(account.solana ?? []), { address: raw, linkedAt: now }],
-  };
-  await storage.put(profileKey(account.principalId), updated);
-  await storage.put(solanaIndexKey(raw), account.principalId);
+    throw new HttpError(
+      409,
+      `That ${chainName[chain]} wallet belongs to another Templ account.`,
+    );
+  if (chain === "bitcoin" && owner) throw conflict();
+  const updated = addChainWallet(
+    await ensureAccount(storage, identity),
+    chain,
+    wallet.address,
+    now,
+  );
+  await storage.put(profileKey(updated.principalId), updated);
+  await storage.put(wallet.key, updated.principalId);
   return updated;
 }
 /** Lookup only: the account a proven Solana wallet signs in to, or null for
@@ -830,24 +933,35 @@ async function solanaOwner(
     : null;
 }
 /** Removal keeps at least one wallet on the account. */
-async function solanaRemove(
+async function chainRemove(
   storage: WritableStorage,
+  chain: AccountChain,
   id: ChatPrincipalId,
   raw: unknown,
+  bitcoinAvailable: boolean,
 ) {
-  if (typeof raw !== "string" || !SOLANA_ADDRESS.test(raw))
-    throw new HttpError(400, "Invalid Solana wallet.");
+  const wallet = indexedWallet(chain, raw);
   const identity = await accountIdentity(storage, id);
-  if (!identity.solana?.some((entry) => entry.address === raw))
-    throw new HttpError(404, SOLANA_NOT_ON_ACCOUNT_ERROR);
-  await requireAnotherWallet(storage, identity);
-  const indexed = await storage.get<ChatPrincipalId>(solanaIndexKey(raw));
+  if (!identity[chain]?.some((entry) => entry.address === wallet.address))
+    throw new HttpError(
+      404,
+      `That ${chainName[chain]} wallet is not on this account.`,
+    );
+  await requireAnotherWallet(
+    storage,
+    identity,
+    chain === "solana" ? "solanaWallets" : "bitcoinWallets",
+    bitcoinAvailable,
+  );
+  const indexed = await storage.get<ChatPrincipalId>(wallet.key);
   if (indexed && identity.servicePrincipals.includes(principal(indexed)))
-    await storage.delete(solanaIndexKey(raw));
-  const rest = identity.solana.filter((entry) => entry.address !== raw);
-  const updated: AccountIdentity = { ...identity };
-  if (rest.length) updated.solana = rest;
-  else delete updated.solana;
+    await storage.delete(wallet.key);
+  const updated = { ...identity };
+  const rest = updated[chain]!.filter(
+    (entry) => entry.address !== wallet.address,
+  );
+  if (rest.length) Object.assign(updated, { [chain]: rest });
+  else delete updated[chain];
   await storage.put(profileKey(identity.principalId), updated);
   return updated;
 }
@@ -930,8 +1044,27 @@ export async function identityRecordRequest(
     }
     if (body.op === "alert-email-remove")
       return json(await removeAlertEmail(storage, principal(body.principalId)));
-    if (body.op === "solana-login")
-      return json(await solanaLogin(storage, body.address, now));
+    if (body.op === "solana-login" || body.op === "bitcoin-login")
+      return json(
+        await chainLogin(
+          storage,
+          body.op === "bitcoin-login" ? "bitcoin" : "solana",
+          body.address,
+          now,
+        ),
+      );
+    if (body.op === "bitcoin-preview-login") {
+      const wallet = indexedWallet("bitcoin", body.address);
+      const owner = await storage.get<ChatPrincipalId>(wallet.key);
+      const actor = await accountIdentity(storage, principal(body.principalId));
+      if (
+        !owner ||
+        owner !== actor.principalId ||
+        !actor.bitcoin?.some((entry) => entry.address === wallet.address)
+      )
+        return json({ identity: null, created: false });
+      return json({ identity: actor, created: false });
+    }
     if (body.op === "contract-login") {
       // A widget contract wallet, verified by the worker on this chain: its
       // own account, found by chain and address, never linked or merged.
@@ -959,10 +1092,11 @@ export async function identityRecordRequest(
       await storage.put(profileKey(id), created);
       return json(created);
     }
-    if (body.op === "solana-link")
+    if (body.op === "solana-link" || body.op === "bitcoin-link")
       return json(
-        await solanaLink(
+        await chainLink(
           storage,
+          body.op === "bitcoin-link" ? "bitcoin" : "solana",
           principal(body.principalId),
           body.address,
           now,
@@ -1004,9 +1138,15 @@ export async function identityRecordRequest(
         );
       return json({ principalId: held ? identity.principalId : null });
     }
-    if (body.op === "solana-remove")
+    if (body.op === "solana-remove" || body.op === "bitcoin-remove")
       return json(
-        await solanaRemove(storage, principal(body.principalId), body.address),
+        await chainRemove(
+          storage,
+          body.op === "bitcoin-remove" ? "bitcoin" : "solana",
+          principal(body.principalId),
+          body.address,
+          body.bitcoinAvailable === true,
+        ),
       );
     throw new HttpError(400, "Invalid account operation.");
   });

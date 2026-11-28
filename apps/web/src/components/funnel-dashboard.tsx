@@ -22,6 +22,7 @@ import { OnboardingDashboard } from "./onboarding-dashboard";
 const METHODS: Record<FunnelSignInMethod, string> = {
   wallet: "EVM wallet",
   solana: "Solana wallet",
+  bitcoin: "Bitcoin wallet",
   email: "Email",
 };
 const count = (value: number) => new Intl.NumberFormat("en-US").format(value);

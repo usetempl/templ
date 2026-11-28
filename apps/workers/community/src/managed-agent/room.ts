@@ -3,8 +3,12 @@ import { CRYPTO_MONTHLY_BUDGET_CENTS, CRYPTO_SUPPORT_MODEL, prepaidSupportModel 
 import { CRYPTO_SUPPORT_WORKSPACE } from "../crypto-support";
 import type { SupportAiGrounding } from "@templ/chat/support-drafts";
 import { cryptoServiceReplies } from "./crypto-triage";
+import { CRYPTO_LINK_LIMITS, cryptoLinkProblem } from "../crypto-links";
 import type { StandardPrepaidPeriod } from "@templ/chat/standard-plan";
-import { GROUNDED_POLICY } from "./grounded";
+import { GROUNDED_POLICY, groundedMemberTurn } from "./grounded";
+import { cryptoCaseWallets, resolveCryptoLookup } from "../crypto-lookup-target";
+import { chainTargetSha256, lookupState, type CryptoLookupState } from "./crypto-chain-facts";
+import { cryptoChatLanguageState } from "../crypto-chat-language";
 import { canManageWorkspace } from "@templ/chat/moderation-permissions";
 import { prepaidAiMode } from "../product-prepaid-ai";
 import {
@@ -340,6 +344,54 @@ async function profileBindings(
 async function cryptoResearchGrant(storage: Pick<Storage, "get">, env: WorkspaceFlagEnv, room?: string) {
   return room === "room:" + CRYPTO_SUPPORT_WORKSPACE && await sponsoredSupport(storage) && await featureOn(env, storage, "cryptoSupportResearch");
 }
+/** Network reads need the desk's research grant and their own audited desk flag. */
+async function cryptoChainFactsOn(storage: Storage, context: ConversationContext) {
+  return (await cryptoResearchGrant(storage, envOf(context), context.room)) &&
+    (await featureOn(envOf(context), storage, "cryptoDeskChainFacts"));
+}
+/** The member's current turn, read as written, selects at most one target from
+ * its own text and the wallets verified in this thread. Staff text, other
+ * threads and an incomplete turn select nothing. */
+export async function cryptoLookupState(
+  storage: Pick<Storage, "list">,
+  record: TeamConversationRecord,
+  current: { openedAt: number; memberMessages: number },
+): Promise<CryptoLookupState | null> {
+  const rows = [...(await storage.list<ChatMessage>({
+    prefix: `channel-message:${record.id}:`,
+    reverse: true,
+    limit: MANAGED_AGENT_LIMITS.messagesRead,
+  })).values()].reverse();
+  const latest = rows.at(-1);
+  const members = new Set<string>([record.member, ...(record.formerMembers ?? [])]);
+  if (!latest || !members.has(latest.author)) return null;
+  const turn = groundedMemberTurn(rows, members, current.openedAt, current.memberMessages);
+  if (turn.incomplete || !turn.text) return null;
+  // A short follow-up such as "Ethereum" can complete the member's previous turn in this case.
+  let at = rows.length - 1;
+  while (at >= 0 && members.has(rows[at].author)) at--;
+  while (at >= 0 && !members.has(rows[at].author)) at--;
+  const previous: string[] = [];
+  for (; at >= 0 && members.has(rows[at].author) && Date.parse(rows[at].createdAt) >= current.openedAt; at--)
+    previous.unshift(rows[at].text);
+  return lookupState(
+    resolveCryptoLookup(turn.text, cryptoCaseWallets(record), previous.length ? previous.join("\n") : undefined),
+    { id: latest.id, revision: latest.revision ?? 1 },
+  );
+}
+/** A chain answer holds only while the same message selects the same case target. */
+export async function chainLookupMatches(
+  lookup: CryptoLookupState | null,
+  thread: string,
+  seq: number,
+  latestId: string | null,
+  binding: { from?: unknown; targetSha256?: unknown },
+) {
+  return lookup?.selection.kind === "lookup" &&
+    lookup.latest.id === latestId &&
+    lookup.selection.from === binding.from &&
+    (await chainTargetSha256(thread, seq, lookup.selection)) === binding.targetSha256;
+}
 async function groundedPeriod(storage: Storage, context: ConversationContext) {
   if (await cryptoResearchGrant(storage, envOf(context), context.room)) return "sponsored" as const;
   const selected = await prepaidAiMode(storage, context.now, envOf(context));
@@ -416,6 +468,7 @@ async function groundedVerdict(
     ok: boolean;
     clarifying?: boolean;
     summaryOnly?: boolean;
+    chain?: { from?: unknown; targetSha256?: unknown };
   }>(envOf(context), context.room, "grounded.verify", {
     receipt: token,
     thread: record.id,
@@ -444,6 +497,31 @@ async function groundedVerdict(
       undefined,
       "grounded-answer-unverified",
     );
+  // Network facts answer only the turn and wallets that selected them. A revoked
+  // flag, removed wallet, edited or newer message, or new case refuses the reply.
+  if (checked.chain !== undefined) {
+    const current = await readCase(storage, { thread: record.id as CaseThreadId, seq });
+    if (
+      !current ||
+      !(await cryptoChainFactsOn(storage, context)) ||
+      !(await chainLookupMatches(
+        await cryptoLookupState(storage, record, {
+          openedAt: current.case.openedAt,
+          memberMessages: current.case.counts.memberMessages,
+        }),
+        record.id,
+        seq,
+        latestId ? String(latestId) : null,
+        checked.chain,
+      ))
+    )
+      throw new HttpError(
+        409,
+        "This answer needs a current source check.",
+        undefined,
+        "grounded-answer-unverified",
+      );
+  }
   if (
     raw.clarifying &&
     (await clarifyingAsked(
@@ -513,6 +591,18 @@ async function verdictFor(
       ? await clarifyingAsked(storage, record.id, seq, principal, context.room === "room:" + CRYPTO_SUPPORT_WORKSPACE)
       : 0,
   });
+}
+
+const CRYPTO_LINK_REFUSAL = "AI replies on this desk can link only to reviewed pages.";
+/** The desk's AI links only to reviewed pages, whatever its sources say.
+ * Fixed desk replies are Templ's own text. */
+function unreviewedCryptoLink(context: ConversationContext) {
+  return (
+    context.room === "room:" + CRYPTO_SUPPORT_WORKSPACE &&
+    typeof context.body.text === "string" &&
+    !cryptoServiceReplies.has(context.body.text) &&
+    cryptoLinkProblem(context.body.text, CRYPTO_LINK_LIMITS.inline + CRYPTO_LINK_LIMITS.sources) !== null
+  );
 }
 
 function isLead(context: ConversationContext, team: boolean) {
@@ -727,6 +817,11 @@ export async function managedRoomRoute(
     if (method !== "POST" || context.isBot) throw notFound();
     const { record, role } = await deps.authorize(check[1]);
     if (role !== "team") throw notFound();
+    if (unreviewedCryptoLink(context))
+      return json(
+        { error: CRYPTO_LINK_REFUSAL, reason: "crypto-link-unreviewed", problems: [], then: "handoff" },
+        409,
+      );
     const principal = await managedPrincipal(context.room);
     const verdict = await verdictFor(
       storage,
@@ -785,6 +880,8 @@ export async function managedRoomRoute(
   ) {
     const { record, role } = await deps.authorize(write[1]);
     if (role !== "team") throw notFound();
+    if (unreviewedCryptoLink(context))
+      throw new HttpError(409, CRYPTO_LINK_REFUSAL, undefined, "crypto-link-unreviewed");
     const env = envOf(context);
     const provenance = context.body.provenance as
       | { reason?: unknown }
@@ -1006,8 +1103,22 @@ async function runnerState(
   const evidence = seq
     ? (await readCaseEvidence(storage, record.id, seq)).rows
     : [];
+  const cryptoLookup =
+    paidPeriod === "sponsored" && currentCase && effective.mode === "answers" &&
+    (await cryptoChainFactsOn(storage, context))
+      ? await cryptoLookupState(storage, record, {
+          openedAt: currentCase.case.openedAt,
+          memberMessages: currentCase.case.counts.memberMessages,
+        })
+      : null;
+  // The chat language the member chose on the desk's page, bound to the newest message.
+  const cryptoLanguage = paidPeriod === "sponsored" && currentCase
+    ? await cryptoChatLanguageState(storage, context, record.id, seq)
+    : null;
   return {
     ...base,
+    ...(cryptoLookup ? { cryptoLookup } : {}),
+    ...(cryptoLanguage ? { cryptoLanguage } : {}),
     thread: record.id,
     member: record.member,
     formerMembers: record.formerMembers ?? [],

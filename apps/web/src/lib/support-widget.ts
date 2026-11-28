@@ -118,6 +118,9 @@ export type SupportWidgetOptions = {
   /** Start the assistant's typing row once the visitor's send is acknowledged. */
   replyAfterReceipt?: boolean;
   decorateOwnMenu?(host: TailHost, actions: HTMLElement): () => void;
+  walletShareHint?: string;
+  namedLinks?(href: string): string | undefined;
+  reviewSources?(sources: { title: string; url?: string }[], answer: string): { title: string; url: string }[];
   /** The frame adapter receives public display settings only. */
   appearanceChanged?(value: SupportWidgetAppearance): void;
   accountWalletRequired?(required: boolean): void;

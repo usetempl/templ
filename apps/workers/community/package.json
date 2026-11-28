@@ -6,7 +6,7 @@
   "description": "Wallet support, private cases and team workflows",
   "scripts": {
     "type-check": "tsc --noEmit",
-    "test": "vitest run test/support-widget-session-workerd.test.ts --maxWorkers=2"
+    "test": "vitest run test/support-widget-session-workerd.test.ts test/bitcoin-account-auth.test.ts --maxWorkers=2"
   },
   "dependencies": {
     "@orangecheck/bip322": "1.2.0",

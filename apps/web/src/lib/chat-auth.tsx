@@ -24,6 +24,7 @@ import {
   signInCommunity,
   startEmailCommunitySignIn,
   verifyEmailCommunitySignIn,
+  signInWithBitcoin,
   signInWithSolana,
   signOutCommunity,
   subscribeCommunitySession,
@@ -36,7 +37,8 @@ import {
   type SignInMethod,
 } from "./last-sign-in-method";
 import { connectSolanaWallet, type SolanaSigner } from "./solana-wallet";
-import { addSolanaWallet, readAccountMethods } from "./account-methods";
+import type { BitcoinSigner } from "./bitcoin-wallet";
+import { addBitcoinWallet, addSolanaWallet, readAccountMethods } from "./account-methods";
 import { trackEvent } from "./analytics";
 import { CommunityApiError } from "./community-client";
 import { WalletHandoffRequired } from "./wallet-handoff";
@@ -45,6 +47,12 @@ import { copy as t } from "@/lib/copy";
 import { useRelease } from "./release-context";
 import { useDismissDialog } from "./use-dismiss-dialog";
 import styles from "@/components/chat-sign-in.module.css";
+
+async function selectMessageWallet(network: "solana" | "bitcoin"): Promise<ConnectedWallet> {
+  if (network === "solana") return { method: network, signer: await connectSolanaWallet() };
+  const { connectBitcoinWallet } = await import("./bitcoin-wallet");
+  return { method: network, signer: await connectBitcoinWallet("sign-in") };
+}
 
 type Auth = {
   session?: CommunitySession;
@@ -61,12 +69,14 @@ const Context = createContext<Auth | null>(null);
 type SignInAction =
   | "wallet"
   | "solana"
+  | "bitcoin"
   | "sign"
   | "email-start"
   | "email-verify";
 type ConnectedWallet =
   | { method: "wallet"; address: `0x${string}` }
-  | { method: "solana"; signer: SolanaSigner };
+  | { method: "solana"; signer: SolanaSigner }
+  | { method: "bitcoin"; signer: BitcoinSigner };
 
 function verifiedWalletSession(address: `0x${string}`) {
   const value = peekCommunitySession();
@@ -111,9 +121,6 @@ export function ChatAuthProvider({ children }: { children: ReactNode }) {
   /** True while the dialog runs a wallet action; a session found by the
    * background check then waits for that action instead of closing it. */
   const dialogBusy = useRef(false);
-  // The worker always offers the EVM wallet. Its capabilities only say
-  // whether Solana is offered, so they are read once per provider and never
-  // hold the wallet button back. A failed read is tried again next time.
   const capabilities = useRef<Promise<ChatCapabilities> | null>(null);
   const loadCapabilities = useCallback((force = false) => {
     if (force || !capabilities.current) {
@@ -308,6 +315,9 @@ function SignInDialog({
     }, 1_000);
     return () => clearInterval(timer);
   }, [emailChallenge]);
+  const [bitcoinOffered, setBitcoinOffered] = useState(false);
+  const bitcoinEnabled =
+    release.bitcoinAccountSignInVerified === true && bitcoinOffered;
   const [solanaOffered, setSolanaOffered] = useState(false);
   const solanaEnabled = release.solana.signIn && solanaOffered;
   const [activeAction, setActiveAction] = useState<SignInAction | null>(null);
@@ -318,7 +328,7 @@ function SignInDialog({
   );
   useEffect(() => {
     setConnected((current) =>
-      current?.method === "solana"
+      current && current.method !== "wallet"
         ? current
         : wallet.account && !wallet.walletChoiceRequired
           ? { method: "wallet", address: wallet.account }
@@ -328,6 +338,7 @@ function SignInDialog({
   const actionPending = useRef(false);
   const busy = activeAction !== null;
   const selectedMethodEnabled =
+    connected?.method === "bitcoin" ? bitcoinEnabled :
     connected?.method === "solana" ? solanaEnabled : walletEnabled;
   const [changingMethod, setChangingMethod] = useState(false);
   const [error, setError] = useState("");
@@ -340,11 +351,10 @@ function SignInDialog({
           setWalletEnabled(value.wallet);
           setEmailOffered(value.emailSignIn);
           setSolanaOffered(value.solana.signIn);
+          setBitcoinOffered(value.bitcoin?.signIn === true);
           setMethodsAvailability("ready");
         }
       } catch {
-        // Without an answer the wallet stays offered, Solana stays hidden
-        // and the dialog offers to read the options again.
         if (alive.current) setMethodsAvailability("failed");
       }
     },
@@ -372,7 +382,7 @@ function SignInDialog({
   const readAccountWallets = useCallback(async () => {
     if (!emailAccount) return undefined;
     const { methods } = await readAccountMethods(emailAccount);
-    const addresses = [...methods.wallets, ...methods.solanaWallets].map(
+    const addresses = [...methods.wallets, ...methods.solanaWallets, ...(methods.bitcoinWallets ?? [])].map(
       ({ address }) => address,
     );
     if (alive.current) setAccountWallets(addresses);
@@ -389,7 +399,7 @@ function SignInDialog({
     setError("");
     if (
       !strongOnly &&
-      (name === "sign" || name === "wallet" || name === "solana")
+      (name === "sign" || name === "wallet" || name === "solana" || name === "bitcoin")
     )
       trackEvent(
         name === "sign"
@@ -448,7 +458,7 @@ function SignInDialog({
     rememberSignInMethod(method);
     onComplete(session);
   }
-  const anyMethod = walletEnabled || solanaEnabled || emailEnabled;
+  const anyMethod = walletEnabled || solanaEnabled || bitcoinEnabled || emailEnabled;
   const usingEmail = emailEnabled && method === "email";
   const checkingEmail = methodsAvailability === "unknown" &&
     release.emailSignInVerified === true && !strongOnly && !connectCode;
@@ -625,7 +635,7 @@ function SignInDialog({
               </button>
             </>
           )}
-          {(walletEnabled || solanaEnabled) && (
+          {(walletEnabled || solanaEnabled || bitcoinEnabled) && (
             <button
               type="button"
               className={styles.textButton}
@@ -647,7 +657,7 @@ function SignInDialog({
           !changingMethod ? (
             <div className={styles.wallets}>
               <p className={styles.account}>
-                {connected.method === "wallet" ? "Ethereum" : "Solana"} ·{" "}
+                {{ wallet: "Ethereum", solana: "Solana", bitcoin: "Bitcoin" }[connected.method]} ·{" "}
                 <span title={connectedAddress}>{connectedLabel}</span>
               </p>
               <button
@@ -666,7 +676,9 @@ function SignInDialog({
                       !onAccount.includes(accountAddress)
                     ) {
                       if (!newWallet) return;
-                      if (connected.method === "solana")
+                      if (connected.method === "bitcoin")
+                        await addBitcoinWallet(emailAccount, async () => connected.signer);
+                      else if (connected.method === "solana")
                         await addSolanaWallet(
                           emailAccount,
                           async () => connected.signer,
@@ -681,7 +693,10 @@ function SignInDialog({
                       if (alive.current)
                         setAccountWallets([...onAccount, accountAddress]);
                     }
-                    if (connected.method === "solana") {
+                    if (connected.method === "bitcoin") {
+                      const value = await signInWithBitcoin(async () => connected.signer, connectCode);
+                      completeSignIn("bitcoin", value);
+                    } else if (connected.method === "solana") {
                       const value = await signInWithSolana(
                         async () => connected.signer,
                         connectCode,
@@ -767,30 +782,28 @@ function SignInDialog({
                   Continue with Ethereum
                 </button>
               )}
-              {solanaEnabled && (
-                <button
-                  type="button"
-                  className={showEmailChoice ? `${styles.walletOption} secondary` : styles.walletOption}
-                  disabled={busy}
-                  aria-busy={activeAction === "solana"}
-                  onClick={() =>
-                    void perform("solana", async () => {
-                      const signer = await connectSolanaWallet();
+              {(["solana", "bitcoin"] as const).map(network => {
+                if (!(network === "solana" ? solanaEnabled : bitcoinEnabled)) return null;
+                return (
+                  <button
+                    key={network}
+                    type="button"
+                    className={showEmailChoice ? `${styles.walletOption} secondary` : styles.walletOption}
+                    disabled={busy}
+                    aria-busy={activeAction === network}
+                    onClick={() => void perform(network, async () => {
+                      const selected = await selectMessageWallet(network);
                       if (alive.current) {
-                        setConnected({ method: "solana", signer });
+                        setConnected(selected);
                         setChangingMethod(false);
                       }
-                    })
-                  }
-                >
-                  {activeAction === "solana" ? (
-                    <LoadingSpinner />
-                  ) : (
-                    <IconWallet size={19} aria-hidden="true" />
-                  )}
-                  Continue with Solana
-                </button>
-              )}
+                    })}
+                  >
+                    {activeAction === network ? <LoadingSpinner /> : <IconWallet size={19} aria-hidden="true" />}
+                    {network === "solana" ? "Continue with Solana" : "Continue with Bitcoin"}
+                  </button>
+                );
+              })}
             </div>
           )}
           {(methodsAvailability === "failed" ||

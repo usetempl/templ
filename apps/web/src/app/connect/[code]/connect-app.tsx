@@ -5,6 +5,7 @@ import { useChatAuth } from "@/lib/chat-auth";
 import { isChatSignInCanceled } from "@/lib/chat-auth-cancellation";
 import {
   peekCommunitySession,
+  sameCommunitySession,
   type CommunitySession,
 } from "@/lib/community-auth";
 import { CommunityApiError } from "@/lib/community-client";
@@ -81,17 +82,6 @@ function failure(reason: unknown, step: Step) {
     : "The app request could not be checked. Try again.";
 }
 
-function sameSession(expected: CommunitySession, actual?: CommunitySession) {
-  return (
-    actual?.principalId === expected.principalId &&
-    actual.authenticatedAt === expected.authenticatedAt &&
-    actual.authMethod === expected.authMethod &&
-    actual.walletRevision === expected.walletRevision &&
-    actual.address === expected.address &&
-    actual.solanaAddress === expected.solanaAddress
-  );
-}
-
 export function ConnectApp({ code }: { code: string }) {
   const auth = useChatAuth();
   const [request, setRequest] = useState<ConnectRequest>();
@@ -110,7 +100,7 @@ export function ConnectApp({ code }: { code: string }) {
   const inFlight = useRef(false);
   const lifetime = useRef(true);
   const current = Boolean(
-    boundSession && sameSession(boundSession, auth.session),
+    boundSession && sameCommunitySession(boundSession, auth.session),
   );
 
   useEffect(() => {
@@ -147,7 +137,7 @@ export function ConnectApp({ code }: { code: string }) {
   }, [request, completed, expired]);
 
   function assertCurrent(session: CommunitySession, checkExpiry = true) {
-    if (!lifetime.current || !sameSession(session, peekCommunitySession()))
+    if (!lifetime.current || !sameCommunitySession(session, peekCommunitySession()))
       throw new CommunityApiError("The wallet changed.", 401);
     if (checkExpiry && (!request || request.expiresAt <= Date.now()))
       throw new CommunityApiError("The link expired.", 410);

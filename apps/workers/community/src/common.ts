@@ -38,6 +38,7 @@ export interface Env extends WorkspaceFlagEnv {
   SUPPORT_NOTIFICATIONS_ENABLED?: string;
   /** Passwordless account sign-in stays off until its hosted access proof passes. */
   EMAIL_SIGN_IN_ENABLED?: string;
+  BITCOIN_ACCOUNT_SIGN_IN_ENABLED?: string;
   SUPPORT_HOSTED_PAGE_ENABLED?: string;
   /** "Check my install": its routes and preview cases answer only when "true". */
   SUPPORT_INSTALL_CHECK_ENABLED?: string;

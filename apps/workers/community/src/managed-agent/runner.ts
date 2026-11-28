@@ -8,13 +8,25 @@ import {
   cryptoTopic,
   type CryptoTopic,
 } from "./crypto-triage";
+import { cryptoReplyLanguageRule, localizedFixedReply, turnLanguage } from "./crypto-language";
 import { HOSTED_SOCIAL_REPLIES, requestsTokenPadding } from "@templ/chat/support-ai-interactions";
+import {
+  CRYPTO_CHAIN_LIMITS,
+  CRYPTO_LOOKUP_REPLIES,
+  CRYPTO_NETWORK_FACTS_RULE,
+  chainReplySafe,
+  checkedLookupState,
+  maskLookupTarget,
+  readCaseChainFacts,
+  type CryptoChainReader,
+  type GroundedChainFacts,
+} from "./crypto-chain-facts";
 import {
   GROUNDED_POLICY,
   GROUNDED_SYSTEM,
   CRYPTO_GROUNDED_SYSTEM,
-  GROUNDED_VERIFIER_SYSTEM,
   GROUNDED_SUMMARY,
+  groundedVerifierSystem,
   groundedContext,
   groundedPassages,
   isScopeRefusal,
@@ -30,6 +42,7 @@ import {
   type GroundedContext,
 } from "./grounded";
 import { readKnowledgeContext } from "../support-knowledge-kb";
+import { withCryptoSources } from "../crypto-links";
 import {
   storageAuthorizedManager,
   type StorageUploadGrant,
@@ -196,6 +209,8 @@ export type RunnerDeps = {
   /** This workspace's monthly cap in cents; FEATURE_LIMITS when absent. */
   workspaceCap?: number;
   onCostAttempt?: import("./anthropic").ModelRequest["onCostAttempt"];
+  /** The crypto desk's read-only network reader. Absent: no network reads. */
+  chainRead?: CryptoChainReader;
 };
 const capOf = (deps: Pick<RunnerDeps, "workspaceCap">) =>
   deps.workspaceCap ?? workspaceCapCents();
@@ -257,6 +272,10 @@ type RoomState = {
     evidence: unknown[];
   })[];
   clarifyingAsked?: number;
+  /** The desk's selected network target for the latest member turn. */
+  cryptoLookup?: unknown;
+  /** The desk visitor's chosen chat language, bound to the newest message. */
+  cryptoLanguage?: unknown;
 };
 type EvidenceRow = {
   n: number;
@@ -769,12 +788,30 @@ async function runGroundedAnswer(input: {
   storeSummary(): Promise<boolean>;
   recoverFromFaq?(hits: KnowledgeHitRow[]): Promise<ManagedAnswer | null>;
   pages(): Promise<boolean>;
+  /** Network facts the model read for this turn, and the target they describe. */
+  chain?: { facts: GroundedChainFacts; target: string } | null;
 }): Promise<JobOutcome> {
-  const { deps, client, job, state, answer, context, latest } = input;
+  const { deps, client, job, state, context, latest } = input;
+  // A fixed desk reply goes in the visitor's chosen chat language when Templ has checked that translation.
+  const chosen = input.writeAs === "ask-ai" ? null : turnLanguage(deps, state, latest);
+  const language = chosen === "stale" ? null : chosen;
+  const answer = language ? localizedFixedReply(input.answer, language) : input.answer;
   const model = roomSupportModel(state, deps.room);
+  const cryptoDesk = deps.room === "room:" + CRYPTO_SUPPORT_WORKSPACE;
   const scopeRefusal = state.sponsoredResearch && isScopeRefusal(answer, true);
-  const hits = scopeRefusal ? [] : groundedSources(answer, context);
-  if (!latest || !state.caseSeq || !hits || !answer.text.trim() ||
+  // Cited network facts are checked beside the knowledge sources, never as one of them.
+  const chain = !scopeRefusal && input.chain && answer.sources.includes(input.chain.facts.sourceId)
+    ? input.chain.facts
+    : null;
+  const hits = scopeRefusal
+    ? []
+    : groundedSources(
+        chain ? { ...answer, sources: answer.sources.filter((id) => id !== chain.sourceId) } : answer,
+        context,
+        // The sponsored desk may answer from its reviewed wallet basics alone.
+        Boolean(chain) || model === CRYPTO_SUPPORT_MODEL,
+      );
+  if (!latest || !state.caseSeq || !hits || (chain && hits.length > 7) || !answer.text.trim() ||
       (await detectStoredSecret(answer.text)))
     return input.toPerson(answer.handoffReason ?? "unsure", "unavailable");
 
@@ -783,35 +820,42 @@ async function runGroundedAnswer(input: {
     if (input.recoverFromFaq && faqs.length && (answer.action === "reply" || answer.action === "resolve")) {
       const revised = await input.recoverFromFaq(faqs);
       if (revised) return runGroundedAnswer({
-        ...input, answer: revised, context: { version: context.version, hits: faqs }, recoverFromFaq: undefined,
+        ...input, answer: revised, context: { version: context.version, hits: faqs }, recoverFromFaq: undefined, chain: null,
       });
     }
     return input.toPerson(answer.handoffReason ?? "unsure", "unavailable");
   };
   if ((state.sponsoredResearch && [...answer.text].length > CRYPTO_REPLY_LIMIT) ||
-      !groundedSafeText(answer.text, hits)) return tryCitedFaq();
+      !groundedSafeText(answer.text, hits, cryptoDesk && !scopeRefusal) ||
+      (input.chain && !chainReplySafe(answer.text, input.chain.target))) return tryCitedFaq();
   if (!scopeRefusal) {
     const verification = await meteredCall(
       deps,
-      GROUNDED_VERIFIER_SYSTEM,
+      groundedVerifierSystem(model, language?.code),
       JSON.stringify({
+        ...(model === CRYPTO_SUPPORT_MODEL ? { question: input.memberText } : {}),
         answer: answer.text,
-        passages: hits.map((hit) => ({
-          sourceId: hit.sourceId,
-          ...(state.sponsoredResearch ? { title: hit.title } : {}),
-          text: hit.excerpt,
-          url: hit.url,
-        })),
+        passages: [
+          ...hits.map((hit) => ({
+            sourceId: hit.sourceId,
+            ...(state.sponsoredResearch ? { title: hit.title } : {}),
+            text: hit.excerpt,
+            url: hit.url,
+          })),
+          ...(chain ? [{ sourceId: chain.sourceId, title: chain.title, text: chain.text }] : []),
+        ],
       }),
       state.sharedHashes,
       "other",
     );
     if (verification.kind !== "answer" || verification.model !== model) return input.toPerson("unsure", "unavailable");
-    if (!groundedVerifierAccepted(verification, hits, model)) return tryCitedFaq();
+    if (!groundedVerifierAccepted(verification, chain ? [...hits, chain] : hits, model)) return tryCitedFaq();
   }
   const highWater = Math.max(0, ...(state.evidence ?? []).map((row) => row.n));
-  const built = groundedFigures(answer.text, hits, highWater);
+  const built = groundedFigures(answer.text, hits, highWater, chain);
   if (!built) return input.toPerson("unsure", "unavailable");
+  // The crypto desk lists the reviewed pages behind an answer, never a saved address.
+  const text = cryptoDesk && answer.action !== "clarify" ? withCryptoSources(built.text, hits, language?.code) : built.text;
   const partial =
     answer.action === "handoff" ||
     answer.confidence !== "high" ||
@@ -822,7 +866,7 @@ async function runGroundedAnswer(input: {
     model,
     context,
     hits,
-    text: built.text,
+    text,
     thread: job.thread!,
     case: state.caseSeq,
     latest: { id: latest.id, revision: latest.revision ?? 1 },
@@ -830,8 +874,10 @@ async function runGroundedAnswer(input: {
     approved: true,
     audience: input.writeAs === "reply" ? "member" : "team",
     resolvable:
-      input.writeAs === "reply" && answer.action === "resolve" && !partial,
+      input.writeAs === "reply" && answer.action === "resolve" && !partial && !chain,
     clarifying: answer.action === "clarify" && !scopeRefusal,
+    chain,
+    language: language?.code ?? null,
   });
   const provenance = {
     reason:
@@ -840,11 +886,11 @@ async function runGroundedAnswer(input: {
           ? "clarifying-question"
           : "answer"
         : "draft",
-    sources: groundedProvenanceSources(hits),
+    sources: groundedProvenanceSources(hits, chain),
     confidence: partial ? "medium" : answer.confidence,
     model,
     ...(answer.summary ? { summary: titleBytes(answer.summary, 500) } : {}),
-    tools: ["knowledge", "source-check"],
+    tools: ["knowledge", "source-check", ...(chain ? ["chain-read"] : []), ...(language ? ["chat-language"] : [])],
     grounding: groundedProvenance(deps.db, token),
   };
   if (built.rows.length) {
@@ -876,7 +922,7 @@ async function runGroundedAnswer(input: {
   const result = await client.post(
     `/conversations/${job.thread}/${input.writeAs === "reply" ? "messages" : "workflow"}`,
     {
-      text: built.text,
+      text,
       clientId: uuidv7(deps.now()),
       provenance,
       managed,
@@ -915,8 +961,9 @@ async function runGroundedAnswer(input: {
     return handoff(client, job.thread!, job.handoff, job.technicalHandoff);
   }
   if (answer.action === "clarify") return "clarified";
-  // A partial answer that pages no one still never resolves the case.
-  if (answer.action !== "resolve" || partial) return "answered";
+  // A partial answer that pages no one still never resolves the case. Network
+  // facts describe one moment, so a chain answer keeps the case open.
+  if (answer.action !== "resolve" || partial || chain) return "answered";
   const message = result.body.message as Message | undefined;
   if (!message || !/^[1-9][0-9]{0,14}$/.test(message.id)) return "answered";
   job.close = {
@@ -1087,6 +1134,9 @@ export async function runJob(
       ? redactForModel(request.instruction).text
       : null;
   } else if (!latest || !member.has(latest.author)) return "skipped";
+  // The visitor's chosen chat language holds only for the message the room bound it to.
+  const language = askAi ? null : turnLanguage(deps, state, latest);
+  if (language === "stale") return "retry";
   const late =
     !askAi &&
     now - job.at > MANAGED_AGENT_LIMITS.handoffDeadlineMs &&
@@ -1096,9 +1146,16 @@ export async function runJob(
   const lastMember = [...messages]
     .reverse()
     .find((message) => member.has(message.author));
-  const memberText = redactForModel(
+  // Only a member's own desk turn reads the network, and only with a reader.
+  const lookup =
+    paidGrounded && state.sponsoredResearch && !askAi && deps.chainRead &&
+    deps.room === "room:" + CRYPTO_SUPPORT_WORKSPACE &&
+    featureOn(deps.env, undefined, "cryptoDeskChainFacts")
+      ? checkedLookupState(state.cryptoLookup)
+      : null;
+  const memberText = maskLookupTarget(redactForModel(
     currentTurn ? currentTurn.text : (lastMember?.text ?? ""),
-  ).text;
+  ).text, lookup);
   const caseMessages = () =>
     promptMessages(
       messages
@@ -1110,7 +1167,7 @@ export async function runJob(
       member,
       deps.principal,
       state.sharedHashes,
-    ).map((message) => ({ ...message, text: message.text.slice(-1000) }));
+    ).map((message) => ({ ...message, text: maskLookupTarget(message.text, lookup).slice(-1000) }));
   const callDeps = paidGrounded ? prepaidRunnerDeps(deps, client, state) ?? deps : deps;
   let paidContext: GroundedContext | null = null;
   const storeSummary = async () => {
@@ -1346,9 +1403,34 @@ export async function runJob(
     const refusal: ManagedAnswer = { action: "clarify", text: HOSTED_SOCIAL_REPLIES.offTopic, confidence: "high", sources: [], facts: [], claims: [], comparisons: [], handoffReason: null, summary: "" };
     return runGroundedAnswer({ deps: callDeps, client, job, state, latest: latest!, answer: refusal, context: paidContext, memberText, writeAs, toPerson, storeSummary, pages });
   }
+  let chain: { facts: GroundedChainFacts; target: string } | null = null;
+  if (lookup && paidContext && writeAs === "reply" && state.caseSeq && !groundedSensitive(memberText)) {
+    // The room chose this target for one message. A newer read waits for the next run.
+    if (!latest || lookup.latest.id !== latest.id || lookup.latest.revision !== (latest.revision ?? 1))
+      return "retry";
+    const fixed = (text: string) => runGroundedAnswer({
+      deps: callDeps, client, job, state, latest: latest!,
+      answer: { action: "clarify", text, confidence: "high", sources: [], facts: [], claims: [], comparisons: [], handoffReason: null, summary: "" },
+      context: paidContext!, memberText, writeAs: "reply",
+      // A fixed desk reply never pages anyone, even when it cannot be sent.
+      toPerson: async () => "skipped", storeSummary: async () => false, pages: async () => false,
+    });
+    if (lookup.selection.kind === "clarify") return fixed(CRYPTO_LOOKUP_REPLIES[lookup.selection.reason]);
+    const read = await readCaseChainFacts({
+      db: deps.db, read: deps.chainRead!, thread: job.thread, seq: state.caseSeq,
+      latest: lookup.latest, lookup: lookup.selection, now: () => deps.now(),
+      remainingMs: MANAGED_AGENT_LIMITS.handoffDeadlineMs - CRYPTO_CHAIN_LIMITS.answerReserveMs - (deps.now() - job.at),
+    });
+    if ("reply" in read) return fixed(read.reply);
+    chain = { facts: read.facts, target: lookup.selection.target };
+  }
   const result = await meteredCall(
     callDeps,
-    paidGrounded ? (state.sponsoredResearch ? CRYPTO_GROUNDED_SYSTEM : GROUNDED_SYSTEM) : MANAGED_SYSTEM_PROMPT,
+    paidGrounded
+      ? state.sponsoredResearch
+        ? CRYPTO_GROUNDED_SYSTEM + (chain ? CRYPTO_NETWORK_FACTS_RULE : "") + (language ? cryptoReplyLanguageRule(language) : "")
+        : GROUNDED_SYSTEM
+      : MANAGED_SYSTEM_PROMPT,
     paidGrounded
       ? JSON.stringify({
           question: memberText,
@@ -1356,6 +1438,9 @@ export async function runJob(
           guidance: { ...guidance, text: redactForModel(guidance.text).text },
           messages: caseMessages(),
           passages: hits,
+          ...(chain
+            ? { networkFacts: [{ sourceId: chain.facts.sourceId, title: chain.facts.title, text: chain.facts.text }] }
+            : {}),
           clarifyingAsked,
         })
       : promptUser({
@@ -1398,7 +1483,10 @@ export async function runJob(
   let answer: ManagedAnswer;
   try {
     answer = checkedManagedAnswer(result.value, {
-      sourceIds: new Set(hits.map((hit) => hit.sourceId)),
+      sourceIds: new Set([
+        ...hits.map((hit) => hit.sourceId),
+        ...(chain ? [chain.facts.sourceId] : []),
+      ]),
     });
   } catch (error) {
     if (error instanceof ManagedAnswerError) return toPerson("unsure", "other");
@@ -1418,13 +1506,15 @@ export async function runJob(
       toPerson,
       storeSummary,
       pages,
+      chain,
       recoverFromFaq: state.sponsoredResearch && deps.room === "room:" + CRYPTO_SUPPORT_WORKSPACE && writeAs === "reply"
         ? async (faqs) => {
             if (deps.now() - job.at >= MANAGED_AGENT_LIMITS.handoffDeadlineMs ||
                 !(await pages()) || deps.now() - job.at >= MANAGED_AGENT_LIMITS.handoffDeadlineMs)
               return null;
             const response = await meteredCall(callDeps,
-              CRYPTO_GROUNDED_SYSTEM + "\nAnswer the visitor's current question using only the supplied FAQs. Give the first useful read-only check in one or two short sentences in the visitor's language. Preserve conditions. Leave out unrelated precautions. Never claim you inspected a transaction. Keep the case open. If the FAQs cannot answer the question, hand off.",
+              CRYPTO_GROUNDED_SYSTEM + "\nAnswer the visitor's current question using only the supplied FAQs. Give the first useful read-only check in one or two short sentences in the visitor's language. Preserve conditions. Leave out unrelated precautions. Never claim you inspected a transaction. Keep the case open. If the FAQs cannot answer the question, hand off." +
+                (language ? cryptoReplyLanguageRule(language) : ""),
               JSON.stringify({ question: memberText, guidance: { ...guidance, text: redactForModel(guidance.text).text }, messages: caseMessages(), passages: faqs }),
               state.sharedHashes, "answer");
             if (response.kind !== "answer" || response.model !== CRYPTO_SUPPORT_MODEL ||

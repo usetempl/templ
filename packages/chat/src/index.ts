@@ -425,19 +425,21 @@ export type { ChatBot, ChatBots } from "./bots";
 
 /** POST /realtime/ticket {expectedPrincipalId?} -> RealtimeTicket; the socket hello frame carries {type:"hello",ticket,after}; 503 while realtime is unavailable, so clients poll GET /events instead */
 
-/** Sign-in methods on one account (DTOs in ./wallets): GET /auth/account -> ChatAccount whose `methods` lists the proven EVM wallets and Solana wallets with canRemove.
- * POST /auth/wallets/remove {address} and POST /auth/solana/remove {address} answer 409 "Keep at least one wallet to sign in." for the account's last wallet.
+/** Sign-in methods on one account (DTOs in ./wallets): GET /auth/account -> ChatAccount whose `methods` lists proven wallets and which families can remove a method.
+ * POST /auth/wallets/remove, /auth/solana/remove and /auth/bitcoin/remove answer 409 "Keep at least one wallet to sign in." for the account's last wallet.
  * ChatAccount.emailVerified and emailMasked describe the optional alert address; it receives support alerts and never signs in. */
 export type {
   AccountMethods,
   AccountSolanaWalletMethod,
+  AccountBitcoinWalletMethod,
   AccountWalletMethod,
   ChatAccount,
 } from "./wallets";
 
-/** One account, two kinds of wallet. Sessions carry `authMethod` "wallet" (Sign In With Ethereum) or "solana" (Sign In With Solana), and every proven wallet
+/** Account wallet sign-in. Sessions carry `authMethod` "wallet" (Sign In With Ethereum), "solana" (Sign In With Solana), or "bitcoin" (BIP-322), and every proven wallet
  * resolves to the same `account:<uuid>` principal. POST /auth/verify signs in with any proven EVM wallet of the account (session.address is the signing wallet);
  * POST /auth/solana/verify signs in with any Solana wallet of the account (session.solanaAddress is the signing wallet, address null).
+ * POST /auth/bitcoin/verify signs in with a mainnet SegWit or Taproot account credential (session.bitcoinAddress is the signing address).
  * Adding a second wallet to a bare EVM wallet mints the account id; that wallet stays servicePrincipals[1]. A stored session of any other kind answers 401.
  * Removing a wallet ends the sessions it signed in (POST /auth/wallets/remove answers {...AccountWallets, sessionEnded:true} and clears the cookie for the current one). */
 export type { AuthMethod } from "./principal";

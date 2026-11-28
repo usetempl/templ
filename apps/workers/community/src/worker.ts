@@ -1,3 +1,8 @@
+import { bitcoinAccountAvailable } from "./bitcoin-account-availability";
+import {
+  bitcoinAccountRoute,
+  bitcoinSessionAuthorized,
+} from "./bitcoin-account-auth";
 import { guestOnboardingRoute } from "./guest-onboarding";
 export { WorkspaceCostWriter, WorkspaceCostWriterOwn, WorkspaceCostWriterFlex, WorkspaceCostWriterColosseum } from "./workspace-cost-writer";
 export { OwnEncryptionCheckpoint } from "./own-encryption-checkpoint";
@@ -1081,6 +1086,33 @@ async function scopeNativeBudget(
 ) {
   (env as RpcBudgetEnv)[RPC_BUDGET]!.setRoom(context.room, context.record.room.id);
 }
+async function authorizeAccountPreview(
+  env: Env,
+  body: Record<string, unknown>,
+  session: Session,
+  unavailable = "Email sign-in preview is not available.",
+) {
+  requireExpectedPrincipal(body, session);
+  requireWalletAuth(session, body.confirmed);
+  if (
+    !isTrialOperatorAdmin(env, session.principalId, sessionPrincipals(session))
+  )
+    throw new HttpError(403, unavailable);
+  const anchor = await nativeRecord(env, nativeRoomId(body.workspaceId));
+  if (
+    !anchor.record.trialOperator ||
+    !sessionPrincipals(session).includes(anchor.record.trialOperator) ||
+    !sessionPrincipals(session).includes(anchor.record.room.manager)
+  )
+    throw new HttpError(403, "Use your disposable test workspace.");
+  refuseClosedWorkspace(anchor.record, "/widget", env as never);
+  await requireSafetyAccess(
+    env as SafetyEnv,
+    `room:${anchor.record.room.id}`,
+    session.principalId,
+    sessionPrincipals(session),
+  );
+}
 function requireExpectedPrincipal(
   body: Record<string, unknown>,
   session: Session,
@@ -1147,6 +1179,9 @@ function sessionData(data: AuthData, token: string): Session {
     // Only a Solana session names a Solana wallet; other sessions keep the
     // shape agents and tests have relied on.
     ...(data.solanaAddress ? { solanaAddress: data.solanaAddress } : {}),
+    ...(authMethod === "bitcoin"
+      ? { bitcoinAddress: data.bitcoinAddress }
+      : {}),
     ...(authMethod === "guest" &&
     data.walletConsent === true &&
     readStoredWidgetWallet(data.guestClaim)
@@ -1234,6 +1269,16 @@ function validCurrentSessionRecord(data: AuthData): data is CurrentAuthData {
       (typeof data.address === "string" &&
         /^0x[0-9a-f]{40}$/.test(data.address))) &&
     (data.authMethod !== "wallet" || data.address !== null) &&
+    (data.authMethod === "bitcoin"
+      ? !!data.bitcoinAddress &&
+        !!data.bitcoinAuthorization &&
+        !data.widgetScope &&
+        !data.solanaAddress &&
+        !data.solanaAuthorization &&
+        !data.bitcoinChallenge
+      : data.bitcoinAddress === undefined &&
+        data.bitcoinAuthorization === undefined &&
+        data.bitcoinChallenge === undefined) &&
     (data.authMethod !== "email" ||
       (data.purpose === "email-session" &&
         data.address === null &&
@@ -1511,6 +1556,16 @@ async function currentSession(
   // The identity and its linked wallets in one round trip.
   const read = await identity;
   const { identity: account, linked } = read;
+  if (
+    data.authMethod === "bitcoin" &&
+    !bitcoinSessionAuthorized(data, account, siteOrigins(env).appOrigin)
+  ) {
+    await sessionRecord.fetch(internalPost("/revoke"));
+    throw new HttpError(
+      401,
+      "Your Bitcoin wallet sign-in has expired. Sign in again.",
+    );
+  }
   // A Solana session ends once its wallet leaves the account.
   if (
     data.authMethod === "solana" &&
@@ -2726,6 +2781,9 @@ async function route(
       smartWalletChainIds: [SMART_WALLET_AUTH_CHAIN_ID],
       // Solana: sign-in needs no provider.
       solana: { signIn: true },
+      ...((await bitcoinAccountAvailable(env))
+        ? { bitcoin: { signIn: true } }
+        : {}),
     });
   const emailLogin = /^\/auth\/email\/login\/(preview\/)?(start|verify)$/.exec(
     url.pathname,
@@ -2740,30 +2798,7 @@ async function route(
         deps.verifySessionAuthority,
       );
       const body = await readJson(request.clone(), 4096);
-      requireExpectedPrincipal(body, session);
-      requireWalletAuth(session, body.confirmed);
-      if (
-        !isTrialOperatorAdmin(
-          env,
-          session.principalId,
-          sessionPrincipals(session),
-        )
-      )
-        throw new HttpError(403, "Email sign-in preview is not available.");
-      const anchor = await nativeRecord(env, nativeRoomId(body.workspaceId));
-      if (
-        !anchor.record.trialOperator ||
-        !sessionPrincipals(session).includes(anchor.record.trialOperator) ||
-        !sessionPrincipals(session).includes(anchor.record.room.manager)
-      )
-        throw new HttpError(403, "Use your disposable test workspace.");
-      refuseClosedWorkspace(anchor.record, "/widget", env as never);
-      await requireSafetyAccess(
-        env as SafetyEnv,
-        `room:${anchor.record.room.id}`,
-        session.principalId,
-        sessionPrincipals(session),
-      );
+      await authorizeAccountPreview(env, body, session);
     } else {
       emailEnv = await publicEmailSignInEnv(env);
     }
@@ -2928,7 +2963,8 @@ async function route(
       wallets: session.wallets?.length ?? 0,
       methods: await accountMethodsView(env, {
         principalId: session.principalId,
-        address: session.solanaAddress ?? session.address,
+        address:
+          session.bitcoinAddress ?? session.solanaAddress ?? session.address,
       }),
     });
   }
@@ -3041,6 +3077,24 @@ async function route(
       });
     throw new HttpError(404, "Not found.");
   }
+  if (url.pathname.startsWith("/auth/bitcoin/"))
+    return bitcoinAccountRoute(request, env, {
+      preview: (body, session) =>
+        authorizeAccountPreview(
+          env,
+          body,
+          session,
+          "Bitcoin sign-in preview is not available.",
+        ),
+      session: () =>
+        currentSession(request, env, false, deps.verifySessionAuthority),
+      guard: requireExpectedPrincipal,
+      saveNonce: (nonce, data) => saveRecord(env, "nonce", nonce, data),
+      startSession: async (token, data) => {
+        await replaceSession(request, env, token, data);
+        return sessionView(sessionData(data, token));
+      },
+    });
   // Sign in with a Solana wallet: the worker writes the Sign In With Solana
   // text, the wallet signs it, and the Ed25519 signature opens a session on
   // the account the public key belongs to (a new account on first use).
@@ -3259,7 +3313,10 @@ async function route(
           address: challenge.solanaAddress,
           methods: await accountMethodsView(env, {
             principalId: session.principalId,
-            address: session.solanaAddress ?? session.address,
+            address:
+              session.bitcoinAddress ??
+              session.solanaAddress ??
+              session.address,
           }),
         },
         200,
@@ -3268,6 +3325,7 @@ async function route(
     }
     await identityRequest(env, {
       op: "solana-remove",
+      bitcoinAvailable: await bitcoinAccountAvailable(env),
       principalId: session.principalId,
       address: solanaAddress(body.address),
     });
@@ -3275,7 +3333,8 @@ async function route(
       ok: true,
       methods: await accountMethodsView(env, {
         principalId: session.principalId,
-        address: session.solanaAddress ?? session.address,
+        address:
+          session.bitcoinAddress ?? session.solanaAddress ?? session.address,
       }),
     });
   }

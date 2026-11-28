@@ -37,7 +37,14 @@ export default async function TrustPage() {
         <p>Support messages cannot move funds or ask your wallet to sign.</p>
         <ul>
           <li>Templ never asks for a private key or recovery phrase.</li>
-          <li>The widget asks your wallet only to connect and sign in.</li>
+          <li>
+            In chat, you can sign a message to show support that you control a wallet address. This does not sign you in to Templ or send a transaction.
+          </li>
+          {RELEASE.bitcoinAccountSignInVerified && (
+            <li>
+              To sign in with Bitcoin, use the sign-in button and approve a separate message in your wallet.
+            </li>
+          )}
           <li>
             A support message can&apos;t start a signature, an approval or a
             transaction.
@@ -124,6 +131,7 @@ export default async function TrustPage() {
           <Link href="/availability">Feature availability</Link> lists every
           feature and whether it&apos;s on.
         </p>
+        <p>When you ask the Crypto Help Desk to check a wallet or transaction, Templ sends the public address or transaction ID to the services it uses for that network. These include mempool.space, Blockstream, Blockscout, dRPC, PublicNode and Solana’s public RPC. They do not receive your chat messages.</p>
         <ul className={styles.providers}>
           <li className={styles.provider}>
             <div className={styles.providerHead}><strong>Plausible</strong></div>

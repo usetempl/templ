@@ -6,6 +6,7 @@ import type { TeamInvitePreview } from "@templ/chat/team-invite";
 import { useChatAuth } from "@/lib/chat-auth";
 import {
   peekCommunitySession,
+  sameCommunitySession,
   type CommunitySession,
 } from "@/lib/community-auth";
 import { chatMutation } from "@/lib/chat-api";
@@ -15,16 +16,6 @@ import { CommunityApiError } from "@/lib/community-client";
 import { Card, Callout, Spinner } from "@/components/ui/ui";
 import styles from "./team-invite-app.module.css";
 
-function sameSession(expected: CommunitySession, actual?: CommunitySession) {
-  return (
-    actual?.principalId === expected.principalId &&
-    actual.authenticatedAt === expected.authenticatedAt &&
-    actual.authMethod === expected.authMethod &&
-    actual.walletRevision === expected.walletRevision &&
-    actual.address === expected.address &&
-    actual.solanaAddress === expected.solanaAddress
-  );
-}
 function failure(reason: unknown) {
   if (emailProofRequired(reason))
     return "Sign in with email again. Then review this link.";
@@ -62,7 +53,7 @@ export function TeamInviteApp({ workspace }: { workspace: string }) {
   const lifetime = useRef(true);
   const fragmentRead = useRef(false);
   const validWorkspace = isNativeRoomId(workspace);
-  const current = boundSession && sameSession(boundSession, auth.session);
+  const current = boundSession && sameCommunitySession(boundSession, auth.session);
   useEffect(() => {
     lifetime.current = true;
     if (!fragmentRead.current) {
@@ -94,7 +85,7 @@ export function TeamInviteApp({ workspace }: { workspace: string }) {
         ? auth.signIn({ refreshEmail: true })
         : auth.signIn());
       const assertCurrent = () => {
-        if (!lifetime.current || !sameSession(session, peekCommunitySession()))
+        if (!lifetime.current || !sameCommunitySession(session, peekCommunitySession()))
           throw new CommunityApiError("Account changed.", 401);
       };
       assertCurrent();
@@ -134,7 +125,7 @@ export function TeamInviteApp({ workspace }: { workspace: string }) {
       const assertCurrent = () => {
         if (
           !lifetime.current ||
-          !sameSession(boundSession, peekCommunitySession())
+          !sameCommunitySession(boundSession, peekCommunitySession())
         )
           throw new CommunityApiError("Account changed.", 401);
       };

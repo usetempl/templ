@@ -1,3 +1,4 @@
+import { bitcoinAccountAvailable } from "./bitcoin-account-availability";
 import { isHex, recoverMessageAddress, type Address, type Hex } from "viem";
 import { createSiweMessage, parseSiweMessage } from "viem/siwe";
 import {
@@ -368,7 +369,12 @@ export async function linkedWalletsRequest(
         identity.servicePrincipals.includes(wallet);
       if (!primary && !record.wallets.some((w) => w.address === wallet))
         throw new HttpError(404, WALLET_NOT_LINKED_ERROR);
-      await requireAnotherWallet(storage, identity);
+      await requireAnotherWallet(
+        storage,
+        identity,
+        "wallets",
+        body.bitcoinAvailable === true,
+      );
       record.wallets = record.wallets.filter((w) => w.address !== wallet);
       if (record.primary?.address === wallet) delete record.primary;
       await releaseOwner(storage, identity, wallet);
@@ -839,8 +845,8 @@ export async function linkedWalletsRoute<S extends LinkedSession>(
       ...(await provenWalletFacts(body.message, body.signature as Hex, wallet)),
       provenAt: Date.now(),
     });
-    if (session.authMethod === "solana" && !session.address) {
-      // A Solana session without an EVM wallet gains the one it
+    if ((session.authMethod === "solana" || session.authMethod === "bitcoin") && !session.address) {
+      // A non-EVM wallet session gains the EVM wallet it
       // just proved as its verified wallet, with this proof, until the
       // session ends. Wallet authority never comes from a stored link.
       const attached = await (
@@ -870,6 +876,7 @@ export async function linkedWalletsRoute<S extends LinkedSession>(
     const wallet = address(body.address);
     await linkedWalletsCall(env, {
       op: "wallet-remove",
+      bitcoinAvailable: await bitcoinAccountAvailable(env),
       principalId: session.principalId,
       address: wallet,
     });

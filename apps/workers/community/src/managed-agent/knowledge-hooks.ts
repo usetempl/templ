@@ -2,6 +2,7 @@ import { CRYPTO_MONTHLY_BUDGET_CENTS, CRYPTO_SUPPORT_MODEL, LEGACY_SUPPORT_MODEL
 import { CRYPTO_SUPPORT_WORKSPACE } from "../crypto-support";
 import { trialPractice, templFundedInference } from "./trial-practice";
 import { verifyGroundedReceipt } from "./grounded";
+import { cryptoChainReader } from "./crypto-chain-reader";
 import { workspaceFeatureEnvFor } from "../workspace-flags";
 import { recordWorkspaceCost } from "../workspace-cost-recording";
 import type { WorkspaceCostEvent } from "@templ/chat/workspace-costs";
@@ -281,6 +282,7 @@ export async function runnerDeps(
     env,
     room,
     principal,
+    ...(room === "room:" + CRYPTO_SUPPORT_WORKSPACE ? { chainRead: cryptoChainReader() } : {}),
     ...(env.AI &&
     /^[a-z0-9][a-z0-9-]{0,63}$/.test(env.MANAGED_AGENT_GATEWAY_ID ?? "")
       ? {

@@ -11,6 +11,7 @@ import {
 import { principalLabel, type ChatPrincipalId } from "@templ/chat/principal";
 import { shortSolanaAddress } from "@templ/chat/solana";
 import type {
+  AccountBitcoinWalletMethod,
   AccountMethods,
   AccountSolanaWalletMethod,
   AccountWalletMethod,
@@ -22,16 +23,20 @@ import {
   readChatCapabilities,
   readCommunitySession,
 } from "@/lib/community-auth";
+import { useRelease } from "@/lib/release-context";
 import { useWallet, walletError } from "@/lib/wallet";
 import {
   connectSolanaWallet,
   solanaWalletAvailable,
 } from "@/lib/solana-wallet";
+import { connectBitcoinWallet } from "@/lib/bitcoin-wallet";
 import {
   ACCOUNT_METHOD_LIMITS,
+  addBitcoinWallet,
   addSolanaWallet,
   readAccountMethods,
   removeAccountEmail,
+  removeBitcoinWallet,
   removeSolanaWallet,
   startEmailLink,
   verifyEmailLink,
@@ -44,8 +49,8 @@ import { LoadingSpinner, Skeleton } from "./loading-state";
 import { copy as t } from "@/lib/copy";
 import styles from "./account-methods.module.css";
 
-/** The /settings/account screen. One account, signed in by any
- * of its proven EVM or Solana wallets, plus an optional alert email that
+/** The /settings/account screen. One account, signed in by any of its
+ * proven EVM, Solana or Bitcoin wallets, plus an optional alert email that
  * receives support alerts and never signs in. Nothing here spends, signs
  * transactions or grants a permission, and no field ever takes a key. */
 const dateLabel = (iso: string | null) => {
@@ -189,6 +194,8 @@ type Busy =
   | "wallet-remove"
   | "solana-add"
   | "solana-remove"
+  | "bitcoin-add"
+  | "bitcoin-remove"
   | null;
 type AlertEmail = Pick<
   ChatAccount,
@@ -225,6 +232,9 @@ export function AccountMethodsPanel({
   useEffect(() => {
     setSolanaAvailable(solanaWalletAvailable());
   }, []);
+  const [bitcoinOffered, setBitcoinOffered] = useState(false);
+  const bitcoinSignIn =
+    useRelease().bitcoinAccountSignInVerified === true && bitcoinOffered;
 
   useEffect(() => {
     const controller = new AbortController();
@@ -244,10 +254,14 @@ export function AccountMethodsPanel({
       });
     void readChatCapabilities()
       .then((value) => {
-        if (!controller.signal.aborted) setSolanaSignIn(value.solana.signIn);
+        if (controller.signal.aborted) return;
+        setSolanaSignIn(value.solana.signIn);
+        setBitcoinOffered(value.bitcoin?.signIn === true);
       })
       .catch(() => {
-        if (!controller.signal.aborted) setSolanaSignIn(false);
+        if (controller.signal.aborted) return;
+        setSolanaSignIn(false);
+        setBitcoinOffered(false);
       });
     return () => controller.abort();
   }, [principal, retry]);
@@ -329,6 +343,18 @@ export function AccountMethodsPanel({
     );
     if (ok) setNotice(t("shell.account.solanaRemoved"));
   }
+  async function addBitcoin() {
+    const ok = await run("bitcoin-add", () =>
+      addBitcoinWallet(principal, () => connectBitcoinWallet("attach")),
+    );
+    if (ok) setNotice(t("shell.account.bitcoinAdded"));
+  }
+  async function dropBitcoin(address: string) {
+    const ok = await run("bitcoin-remove", () =>
+      removeBitcoinWallet(principal, address),
+    );
+    if (ok) setNotice(t("shell.account.bitcoinRemoved"));
+  }
   async function copyAccountId() {
     setError("");
     setNotice("");
@@ -362,6 +388,11 @@ export function AccountMethodsPanel({
         )}
       </div>
     );
+  const bitcoinWallets = methods.bitcoinWallets ?? [];
+  const canRemoveWhileBitcoinPaused =
+    bitcoinSignIn ||
+    bitcoinWallets.length === 0 ||
+    methods.wallets.length + methods.solanaWallets.length > 1;
   return (
     <div>
       {error && (
@@ -404,7 +435,7 @@ export function AccountMethodsPanel({
               <WalletRow
                 key={entry.address}
                 entry={entry}
-                allowed={methods.canRemove.wallets}
+                allowed={methods.canRemove.wallets && canRemoveWhileBitcoinPaused}
                 confirming={confirming === `wallet:${entry.address}`}
                 pending={pending}
                 onAsk={() => {
@@ -483,10 +514,11 @@ export function AccountMethodsPanel({
               aria-label={t("shell.account.solanaWallets")}
             >
               {methods.solanaWallets.map((entry) => (
-                <SolanaWalletRow
+                <AccountAddressRow
+                  chain="Solana"
                   key={entry.address}
                   entry={entry}
-                  allowed={methods.canRemove.solanaWallets}
+                  allowed={methods.canRemove.solanaWallets && canRemoveWhileBitcoinPaused}
                   confirming={confirming === `solana:${entry.address}`}
                   pending={pending}
                   onAsk={() => {
@@ -528,6 +560,67 @@ export function AccountMethodsPanel({
               </span>
             )}
           </div>
+        </section>
+      )}
+
+      {(bitcoinSignIn || bitcoinWallets.length > 0) && (
+        <section className={styles.section} aria-labelledby="account-bitcoin">
+          <h2 id="account-bitcoin">{t("shell.account.bitcoinWallets")}</h2>
+          {bitcoinSignIn && (
+            <p className={styles.hint}>
+              {t("shell.account.bitcoinHint", {
+                count: ACCOUNT_METHOD_LIMITS.bitcoinWallets,
+              })}
+            </p>
+          )}
+          {bitcoinWallets.length === 0 ? (
+            <p className={styles.empty}>{t("shell.account.noBitcoinWallet")}</p>
+          ) : (
+            <ul
+              className={styles.list}
+              aria-label={t("shell.account.bitcoinWallets")}
+            >
+              {bitcoinWallets.map((entry) => (
+                <AccountAddressRow
+                  chain="Bitcoin"
+                  key={entry.address}
+                  entry={entry}
+                  allowed={methods.canRemove.bitcoinWallets === true}
+                  confirming={confirming === `bitcoin:${entry.address}`}
+                  pending={pending}
+                  onAsk={() => {
+                    setError("");
+                    setNotice("");
+                    setConfirming(`bitcoin:${entry.address}`);
+                  }}
+                  onKeep={() => setConfirming(null)}
+                  onConfirm={() => void dropBitcoin(entry.address)}
+                />
+              ))}
+            </ul>
+          )}
+          {bitcoinSignIn && (
+            <div className={styles.actions}>
+              <button
+                type="button"
+                className={styles.secondary}
+                disabled={
+                  pending ||
+                  bitcoinWallets.length >= ACCOUNT_METHOD_LIMITS.bitcoinWallets
+                }
+                onClick={() => void addBitcoin()}
+              >
+                {busy === "bitcoin-add" ? (
+                  <LoadingSpinner />
+                ) : (
+                  <IconWallet size={16} aria-hidden="true" />
+                )}
+                {busy === "bitcoin-add"
+                  ? t("shell.account.waitingWallet")
+                  : t("shell.account.addBitcoinWallet")}
+              </button>
+            </div>
+          )}
         </section>
       )}
 
@@ -775,11 +868,13 @@ function WalletRow({
   );
 }
 
-function SolanaWalletRow({
+function AccountAddressRow({
+  chain,
   entry,
   ...control
 }: {
-  entry: AccountSolanaWalletMethod;
+  chain: "Bitcoin" | "Solana";
+  entry: AccountBitcoinWalletMethod | AccountSolanaWalletMethod;
   allowed: boolean;
   confirming: boolean;
   pending: boolean;
@@ -792,19 +887,21 @@ function SolanaWalletRow({
     <li className={styles.row}>
       <div className={styles.rowHead}>
         <span className={styles.address} title={entry.address}>
-          {shortSolanaAddress(entry.address)}
+          {chain === "Bitcoin"
+            ? `${entry.address.slice(0, 6)}…${entry.address.slice(-4)}`
+            : shortSolanaAddress(entry.address)}
         </span>
         {entry.current && (
           <span className={styles.badge}>{t("shell.account.current")}</span>
         )}
       </div>
       <p className={styles.meta}>
-        <span>Solana</span>
+        <span>{chain}</span>
         {added && <span>{t("shell.common.added", { date: added })}</span>}
       </p>
       <RemoveControl
-        label={t("shell.account.removeSolanaWallet")}
-        notice={t("shell.account.solanaRemoveNotice")}
+        label={t(chain === "Bitcoin" ? "shell.account.removeBitcoinWallet" : "shell.account.removeSolanaWallet")}
+        notice={t("shell.account.walletRemoveNotice")}
         {...control}
       />
     </li>

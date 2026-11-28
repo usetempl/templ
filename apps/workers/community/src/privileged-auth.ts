@@ -4,9 +4,9 @@ import type { AuthMethod } from "@templ/chat/principal";
 export const AUTHENTICATED_AT_HEADER = "X-Session-Authenticated-At";
 export const AUTH_METHOD_HEADER = "X-Session-Auth-Method";
 /** The caller must validate the current session and current permissions first.
- * A valid EVM or Solana wallet session needs no additional age cutoff.
+ * A valid EVM, Solana or Bitcoin account session needs no additional age cutoff.
  * Attaching a wallet and widget guest sessions never qualify. */
-const STRONG_METHODS: readonly AuthMethod[] = ["wallet", "solana"];
+const STRONG_METHODS: readonly AuthMethod[] = ["wallet", "solana", "bitcoin"];
 export function requireWalletAuth(
   auth: { authenticatedAt?: number; authMethod?: AuthMethod },
   confirmed: unknown,

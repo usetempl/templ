@@ -137,27 +137,3 @@ body:has(.fullPage),
 
 .fullPage .network button:hover { color: var(--at, currentColor); }
 .fullPage .network button:focus-visible { outline-color: var(--af, currentColor); }
-
-.cryptoFooter {
-  flex: none;
-  padding: 0 12px max(2px, env(safe-area-inset-bottom));
-  text-align: center;
-  font-size: 0.8125rem;
-  line-height: 1.4;
-  color: light-dark(#525252, #bfbfbf);
-}
-
-.cryptoFooter a {
-  display: inline-flex;
-  gap: 0.3em;
-  align-items: center;
-  min-height: 28px;
-  color: inherit;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-
-.cryptoFooter a:hover,
-.cryptoFooter a:focus-visible {
-  color: light-dark(#181818, #f2f2f2);
-}

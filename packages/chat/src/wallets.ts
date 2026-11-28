@@ -36,10 +36,11 @@ export function emptyAccountWallets(
 }
 
 // Sign-in methods on one account, as GET /auth/account reports them.
-/** One account holds at most five proven EVM wallets and five Solana wallets. */
+/** Each wallet family has an independent account limit. */
 export const ACCOUNT_METHOD_LIMITS = {
   wallets: 5,
   solanaWallets: 5,
+  bitcoinWallets: 5,
 } as const;
 export type AccountWalletMethod = {
   address: `0x${string}`;
@@ -57,14 +58,22 @@ export type AccountSolanaWalletMethod = {
   /** The wallet that signed this session in. */
   current: boolean;
 };
+export type AccountBitcoinWalletMethod = {
+  address: string;
+  addedAt: string;
+  current: boolean;
+};
 export type AccountMethods = {
   wallets: AccountWalletMethod[];
   solanaWallets: AccountSolanaWalletMethod[];
+  /** Absent on older services. Addresses use lowercase Bitcoin mainnet encoding. */
+  bitcoinWallets?: AccountBitcoinWalletMethod[];
   /** Whether one more wallet of that kind can be removed. False when it
-   * would remove the account's last wallet, EVM and Solana counted together. */
+   * would remove the account's last wallet across the supported families. */
   canRemove: {
     wallets: boolean;
     solanaWallets: boolean;
+    bitcoinWallets?: boolean;
   };
 };
 /** GET /auth/account. */

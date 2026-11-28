@@ -186,10 +186,10 @@ export async function drawerWallet(host: TailHost, menu: HTMLElement, signal: Ab
     const encrypted = id ? !!host.walletCase?.()?.encryption : host.policy?.chatMode === "encrypted";
     section.hidden = !account && (session?.level === "signed" || encrypted || (disabled && !addresses.length));
     list.hidden = !!account || !addresses.length;
-    hint.textContent = account ? (session?.level === "signed" ? "You’re signed in with your wallet." : "This chat requires a wallet. Sign a message to verify it.")
-      : addresses.length ? (!id ? "Your first message will share these addresses with this team." : "")
-      : choices.length ? "Sign a message to share your verified address with the support team in this chat."
-      : "Open this chat in a supported wallet browser to verify your address.";
+    hint.textContent = view.walletHint({
+      account: !!account, signed: session?.level === "signed", hasAddresses: !!addresses.length,
+      hasConversation: !!id, canVerify: !!choices.length, shared: host.options.walletShareHint,
+    });
     add.textContent = account?.textContent ?? (addresses.length ? "+ Verify another wallet" : "Verify and share address");
     const showChoices = choices.length > 1 && (choosing || (choices.includes("bitcoin") && !addresses.length));
     add.hidden = !account && (disabled || !!removing || (!rules && addresses.length > 0) || showChoices);

@@ -1,3 +1,4 @@
+import { isBitcoinAccountAddress } from "./bitcoin-account-auth";
 /** Node/server client. Cookies and signer material never belong in browser bundles. */
 import {
   createPublicKey,
@@ -944,6 +945,18 @@ function validAccountMethods(value: unknown): value is AccountMethods {
     isRecord(canRemove) &&
     typeof canRemove.wallets === "boolean" &&
     typeof canRemove.solanaWallets === "boolean" &&
+    ((value.bitcoinWallets === undefined &&
+      canRemove.bitcoinWallets === undefined) ||
+      (typeof canRemove.bitcoinWallets === "boolean" &&
+        Array.isArray(value.bitcoinWallets) &&
+        value.bitcoinWallets.length <= ACCOUNT_METHOD_LIMITS.bitcoinWallets &&
+        value.bitcoinWallets.every(
+          (item) =>
+            isRecord(item) &&
+            isBitcoinAccountAddress(item.address) &&
+            typeof item.addedAt === "string" &&
+            typeof item.current === "boolean",
+        ))) &&
     Array.isArray(value.solanaWallets) &&
     value.solanaWallets.length <= ACCOUNT_METHOD_LIMITS.solanaWallets &&
     value.solanaWallets.every(

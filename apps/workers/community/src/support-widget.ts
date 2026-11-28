@@ -2,6 +2,7 @@ import { bitcoinWalletProofMessage } from "@templ/chat/bitcoin-wallet-proof";
 import { canonicalBitcoinProofAddress, verifyBitcoinWalletProof } from "./bitcoin-wallet-proof";
 import { CRYPTO_SUPPORT_WORKSPACE } from "@templ/chat/support-models";
 import { cryptoDeskWalletProofsOn } from "./crypto-desk-wallet-proofs";
+import { cryptoChatLanguageOn } from "./crypto-chat-language";
 import { requireConnectDeadline } from "./connect-deadline";
 import { readSupportJson } from "./support-body";
 import {
@@ -2188,6 +2189,8 @@ export async function supportWidgetRoute(
           // The manager's "We never DM you first." line; off unless set.
           ...(current.safetyLine === true ? { safetyLine: true } : {}),
           ...(featureOn(env, undefined, "supportDiagnostics") ? { diagnostics: true } : {}),
+          // The crypto desk's own page may send a chosen `preferredLanguage` with each message.
+          ...(hosted && !frame && cryptoChatLanguageOn(env, room, origin) ? { cryptoChatLanguage: true } : {}),
           ...(featureOn(env, undefined, "supportSingleConversation") ? { singleConversation: true } : {}),
           ...(featureOn(env, undefined, "supportChatFirst") ? { chatFirst: true } : {}),
           ...(featureOn(env, undefined, "supportParallelConversations") ? { newConversation: true } : {}),

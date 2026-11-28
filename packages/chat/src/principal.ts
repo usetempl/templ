@@ -5,14 +5,15 @@ export type ChatPrincipalId = Address | `account:${string}`;
 export type ChatVisibility = "public" | "private";
 /** How a session was opened. "wallet" is an EVM wallet proven with a signed
  * Sign In With Ethereum text; "solana" is a Solana wallet proven with a signed
- * Sign In With Solana text. Both resolve to the same account principal.
+ * Sign In With Solana text. "bitcoin" uses a first-party BIP-322 account challenge.
  * "guest" is a support-widget visitor with no proof at all; the worker accepts
  * it only inside the widget scope that created it, never as an app session.
  * A stored session of any other kind is refused. */
-export type AuthMethod = "wallet" | "solana" | "email" | "guest";
+export type AuthMethod = "wallet" | "solana" | "bitcoin" | "email" | "guest";
 export const AUTH_METHODS: readonly AuthMethod[] = [
   "wallet",
   "solana",
+  "bitcoin",
   "email",
   "guest",
 ];
@@ -29,6 +30,7 @@ export type ChatSession = {
   address: Address | null;
   /** The Solana wallet that opened a "solana" session; absent otherwise. */
   solanaAddress?: string | null;
+  bitcoinAddress?: string;
   expiresAt: number;
   authenticatedAt: number;
   walletRevision: number;

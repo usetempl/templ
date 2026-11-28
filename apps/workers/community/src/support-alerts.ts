@@ -542,7 +542,7 @@ async function alertTicket(storage: Tx, context: ConversationContext) {
   const widget = context.headers.get("X-Support-Widget") === "member";
   // Guests hold no proven identity to keep an address for.
   if (widget && context.headers.get("X-Support-Access-Level") !== "signed") throw notFound();
-  if (!widget && !["wallet", "solana"].includes(context.headers.get("X-Session-Auth-Method") ?? ""))
+  if (!widget && !["wallet", "solana", "bitcoin"].includes(context.headers.get("X-Session-Auth-Method") ?? ""))
     throw notFound();
   if (!(await storage.get(`conversation-member-v1:${actor}`))) throw notFound();
   const ticket = randomToken();

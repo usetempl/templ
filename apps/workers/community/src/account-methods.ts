@@ -1,7 +1,9 @@
+import { bitcoinAccountAvailable } from "./bitcoin-account-availability";
 import type { AccountMethods } from "@templ/chat/wallets";
 import {
   accountIdentity,
   countWallets,
+  removableAccountWallets,
   type AccountIdentity,
 } from "./account-identity";
 import { json, readJson, type Env } from "./common";
@@ -23,11 +25,10 @@ export async function accountMethods(
   storage: Storage,
   identity: AccountIdentity,
   current: unknown,
+  bitcoinAvailable: boolean,
 ): Promise<AccountMethods> {
   const linked = await readLinkedWallets(storage, identity);
   const count = await countWallets(storage, identity);
-  // The last wallet of either kind stays: it is the only way in.
-  const another = count.wallets + count.solana > 1;
   const currentWallet =
     typeof current === "string" ? current.toLowerCase() : null;
   return {
@@ -42,10 +43,12 @@ export async function accountMethods(
       addedAt: iso(entry.linkedAt),
       current: typeof current === "string" && current === entry.address,
     })),
-    canRemove: {
-      wallets: count.wallets > 0 && another,
-      solanaWallets: count.solana > 0 && another,
-    },
+    bitcoinWallets: (identity.bitcoin ?? []).map((entry) => ({
+      address: entry.address,
+      addedAt: iso(entry.linkedAt),
+      current: current === entry.address,
+    })),
+    canRemove: removableAccountWallets(count, bitcoinAvailable),
   };
 }
 
@@ -68,7 +71,12 @@ export async function accountMethodsRecordRequest(
       principal(body.principalId),
     );
     return json({
-      methods: await accountMethods(storage, identity, body.current),
+      methods: await accountMethods(
+        storage,
+        identity,
+        body.current,
+        body.bitcoinAvailable === true,
+      ),
     });
   });
 }
@@ -85,6 +93,7 @@ export async function accountMethodsView(
     op: "methods-read",
     principalId: session.principalId,
     current: session.address,
+    bitcoinAvailable: await bitcoinAccountAvailable(env),
   });
   return result.methods;
 }

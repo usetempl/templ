@@ -95,6 +95,12 @@ const FUNNEL_ROUTES: readonly FunnelRoute[] = [
   },
   {
     method: "POST",
+    path: /^\/auth\/bitcoin\/verify$/,
+    step: "signed_in",
+    signIn: "bitcoin",
+  },
+  {
+    method: "POST",
     path: /^\/auth\/email\/login\/verify$/,
     step: "signed_in",
     signIn: "email",

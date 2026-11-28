@@ -1,6 +1,7 @@
 /** Message links, team join lines, the key warning and action-result consent.
  * The consent chunk loads these helpers when a message or draft needs them. */
 import { ambiguousHexValues } from "@templ/chat/support-safety-hex";
+import { namedLinks } from "./support-widget-named-links";
 import type { SupportClient, TailHost, WidgetMessage } from "./support-widget";
 type JoinLine = { at: string; name?: string };
 import type { CheckHost } from "./support-widget-check";
@@ -94,6 +95,9 @@ export function ops({ host, form, thread }: { host: TailHost; form: HTMLFormElem
      * Report this answer. */
     linkify(node: HTMLElement, message: WidgetMessage) {
       if (message.id) node.dataset.messageId = message.id;
+      const approved = host.options.namedLinks;
+      if (approved && !node.classList.contains("own"))
+        return namedLinks(node, message.text, approved);
       const text = message.text.replace(
         /\[([^\]\n]{1,200})\]\((https?:\/\/[^\s)]+)\)/gi,
         "$1: $2",

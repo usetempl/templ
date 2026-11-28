@@ -13,6 +13,7 @@ const helper = (name) =>
 /** Inlined in this order: a helper may import only "viem" and helpers listed before it. */
 export const dependencyPaths = {
   "./chains": helper("chains"),
+  "./bitcoin-account-auth": helper("bitcoin-account-auth"),
   "./knowledge": helper("knowledge"),
   "./solana": helper("solana"),
   "./plans": helper("plans"),

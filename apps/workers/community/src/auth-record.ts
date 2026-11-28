@@ -1,3 +1,4 @@
+import type { BitcoinAccountChallenge } from "@templ/chat/bitcoin-account-auth";
 import { previewRecord, expirePreview, previewAdmission, expirePreviewAdmissions } from "./guest-onboarding";
 import { connectRecordRequest, expireConnectRequests } from "./connect";
 import { releaseActivationRecordRequest } from "./release-activation";
@@ -65,6 +66,14 @@ export type AuthData = {
    * Every read verifies that proof. App and widget proofs use canonical padded base64.
    * Each challenge names the signing wallet. */
   solanaAddress?: string;
+  bitcoinAddress?: string;
+  bitcoinChallenge?: BitcoinAccountChallenge;
+  bitcoinPreviewSession?: string;
+  bitcoinAuthorization?: {
+    challenge: BitcoinAccountChallenge;
+    signature: string;
+    credentialId: string;
+  };
   solanaAuthorization?: { message: string; signature: string };
   /** A widget-login challenge or widget session: the wallet family that
    * signs, "evm" (SIWE, `address` set) or "solana" (SIWS, `address` null and
@@ -107,6 +116,8 @@ export type AuthData = {
     | "widget-session"
     | "widget-guest"
     | "wallet-add"
+    | "bitcoin-login"
+    | "bitcoin-attach"
     | "solana-login"
     | "solana-attach"
     | "email-session";
@@ -381,11 +392,11 @@ export class AuthRecord {
           entry.message
         )
           return json({ error: "Session expired." }, 401);
-        // Only a Solana session attaches a proven EVM wallet: an EVM
+        // A Solana or Bitcoin account session may attach a proved EVM wallet. An EVM
         // session already has one, a guest never holds one, and a stored
         // session of any other kind gains nothing.
         if (
-          entry.authMethod !== "solana" ||
+          (entry.authMethod !== "solana" && entry.authMethod !== "bitcoin") ||
           entry.principalId !== expectedPrincipalId
         )
           return json(

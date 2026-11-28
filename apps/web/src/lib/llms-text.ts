@@ -54,7 +54,7 @@ The widget works on public HTTPS websites without website approval.
 Review the files the tool adds. Send a test question, then answer it in your inbox.
 Open your workspaces at ${SITE.origin}/inbox.
 Users can ask without a wallet by default. A manager can require a connected or verified wallet.
-A connected wallet is not proof. Users verify a wallet by signing in.
+In chats that offer wallet verification, visitors can sign a message to share proof of an address with support. They can stay signed out of Templ.
 Templ never asks for a private key or recovery phrase.
 
 ## Availability
@@ -64,6 +64,7 @@ Templ never asks for a private key or recovery phrase.
 - Connect your app: ${state(release.support.connectVerified)}.
 - Support widget on EVM networks: ${state(release.support.widgetVerified)}.
 - Sign in with Solana in the widget: ${state(flags.supportWidgetSolanaVerified === true)}.
+- Sign in to a Templ account with Bitcoin: ${state(release.accounts.bitcoinSignIn)}.
 - Transaction checks: ${state(flags.supportDiagnosisVerified === true)}.
 - AI drafts: ${state(flags.aiDraftsProved === true)}.
 - Your own AI agent: ${state(release.agents.sdkVerified)}.
@@ -144,7 +145,7 @@ Read ${SITE.origin}/privacy, ${SITE.origin}/terms, ${SITE.origin}/dpa and ${SITE
 - [Set up your Templ workspace](${SITE.docs}/setup): Try a conversation, claim a name and add AI sources.
 - [Team roles and access](${SITE.docs}/team): See who can read, answer, export and bill.
 - [Chat on your site](${SITE.docs}/widget): What users see and share.
-- [Connected and verified wallets](${SITE.docs}/wallet-verification): What wallet sign-in proves.
+- [Connected and verified wallets](${SITE.docs}/wallet-verification): How sign-in and sharing proof in chat work.
 - [Answer cases in the team inbox](${SITE.docs}/inbox): Review an AI draft, reply and clear spam.
 - [Transaction checks on EVM networks and Solana](${SITE.docs}/transaction-checks): What the chain shows and what stays unknown.
 - [AI answers and drafts](${SITE.docs}/ai): Choose who answers each case.

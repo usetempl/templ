@@ -154,6 +154,18 @@
     "killSwitch": "MANAGED_AGENT_ENABLED",
     "name": "Public crypto support research"
   },
+  "cryptoDeskChainFacts": {
+    "releaseFlag": "managedAgentVerified",
+    "workspaceOnly": true,
+    "killSwitch": "MANAGED_AGENT_ENABLED",
+    "name": "Crypto desk network reads"
+  },
+  "cryptoChatLanguage": {
+    "releaseFlag": "managedAgentVerified",
+    "workspaceOnly": true,
+    "killSwitch": "MANAGED_AGENT_ENABLED",
+    "name": "Crypto desk chat language"
+  },
   "managedAgent": {
     "releaseFlag": "managedAgentVerified",
     "killSwitch": "MANAGED_AGENT_ENABLED",

@@ -132,8 +132,14 @@ export const shell = {
   "shell.account.solanaAdded": "Solana wallet added.",
   "shell.account.solanaRemoved": "Solana wallet removed.",
   "shell.account.removeSolanaWallet": "Remove Solana wallet",
-  "shell.account.solanaRemoveNotice":
-    "Removing this wallet ends its access to this account and signs out any session it opened.",
+  "shell.account.bitcoinWallets": "Bitcoin wallets",
+  "shell.account.bitcoinHint":
+    "Sign in with up to {count} Bitcoin wallets. Adding a wallet is free.",
+  "shell.account.noBitcoinWallet": "No Bitcoin wallet on this account yet.",
+  "shell.account.addBitcoinWallet": "Add a Bitcoin wallet",
+  "shell.account.bitcoinAdded": "Bitcoin wallet added.",
+  "shell.account.bitcoinRemoved": "Bitcoin wallet removed.",
+  "shell.account.removeBitcoinWallet": "Remove Bitcoin wallet",
   "shell.account.confirm": "Confirm {label}",
   "shell.account.current": "Current",
   "shell.account.removeWallet": "Remove wallet",

@@ -40,3 +40,15 @@ On a configured crypto desk, open the wallet verification option in the chat men
 For a self-hosted installation, configure the desk workspace in `packages/chat/src/support-models.ts` and serve the hosted chat at the HTTPS application origin. The public default leaves the desk workspace empty. Enable wallet identification and the audited, workspace-only `cryptoDeskWalletProofs` override for the intended workspace. A separate network setting and the Solana verification switch control Solana guest proof. Existing account sign-in settings continue to apply.
 
 The worker verifies Bitcoin using the pinned `@orangecheck/bip322` package. The package documents audits of its underlying cryptographic primitives. This snapshot includes the public BIP-322 signature vectors and seeded guest-message simulations. Run `pnpm test:simulation` from the source checkout.
+
+## Bitcoin account sign-in
+
+Where your release enables Bitcoin sign-in, select **Sign in**, then **Continue with Bitcoin**. The wallet signs a BIP-322 text message for your Templ origin. Mainnet native SegWit and key-path Taproot addresses are supported. To add a Bitcoin wallet to an existing account, sign in with an existing method first and open **Settings → Account → Add a Bitcoin wallet**. You can remove it while another sign-in method remains. Removing the wallet also revokes sessions signed in with that address.
+
+The self-hosted default keeps Bitcoin account sign-in closed. The worker requires `BITCOIN_ACCOUNT_SIGN_IN_ENABLED` set to `"true"` and a signed release with `bitcoinAccountSignInVerified` set to `true`. The web app checks that release and the worker’s capabilities before it offers the option. A wallet shared inside a guest support request stays attached to that request. The account protocol and guest proof use different challenges. [Worker release check](../apps/workers/community/src/bitcoin-account-availability.ts) · [Account protocol scenarios](../apps/workers/community/test/bitcoin-account-auth.test.ts)
+
+## Crypto Help Desk languages
+
+The standalone desk starts in English. Open **Language** to choose from 114 translations. The menu lets visitors search for a language by name and switch without losing a draft. The desk saves a selection in the browser for that workspace. When the visitor sends a message, the desk records the language code with the message so the support agent can answer in that language.
+
+On your installation, configure the desk workspace and HTTPS origin, then enable the workspace-only `cryptoChatLanguage` flag for that workspace. The portable default leaves the desk unconfigured. Run `pnpm test:simulation` to check each language’s 231 interface strings and 11 fixed service replies, along with the guest and neighboring-workspace cases. The review records two model-assisted checks of every translation and lists the languages sampled for generated answers. [Language registry](../packages/chat/src/crypto-languages.ts) · [Reviewed catalog hashes](../apps/web/test/fixtures/crypto-chat-language-review.json)

@@ -69,6 +69,12 @@ function topicTerms(question: string) {
   );
 }
 
+// Choosing or making a first wallet starts from the network's own wallet guide.
+const newWallet =
+  /\b(?:(?:create|make(?! sure)|set ?up|choose|pick)\b[^.?!\n]{0,24}\bwallets?|(?:new|which|best) (?:\w+ )?wallets?)\b/i;
+const newWalletTranslated =
+  /\b(?:(?:criar|crio|escolher|crear|creo|elegir|escoger)\b[^.?!\n]{0,24}\b(?:carteira|billetera|cartera|monedero)s?|(?:nova|nueva|melhor|mejor) (?:\w+ )?(?:carteira|billetera|cartera|monedero)s?|(?:qual|cual|que) (?:carteira|billetera|cartera|monedero)s?|(?:carteira|billetera|cartera|monedero) (?:nova|nueva))\b/;
+
 // These first-party pages explain visitor terminology that does not appear in
 // their titles. A guide is eligible only while its own index still lists it.
 const supportGuides: Record<string, [RegExp, string, RegExp][]> = {
@@ -78,7 +84,10 @@ const supportGuides: Record<string, [RegExp, string, RegExp][]> = {
       "/en/faq",
       /\b(?:confirmac(?:ao|oes|ion|iones)|(?:nao|no) confirmad[ao]s?|sin confirmar)\b/,
     ],
+    [newWallet, "/en/choose-your-wallet", newWalletTranslated],
   ],
+  "ethereum.org": [[newWallet, "/wallets/find-wallet", newWalletTranslated]],
+  "solana.com": [[newWallet, "/learn/what-is-a-wallet", newWalletTranslated]],
   "aave.com": [
     [
       /\b(?:health factor|liquidat(?:ion|ions|ed))\b/i,

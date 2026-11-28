@@ -27,6 +27,8 @@ import {
 } from "@templ/chat/solana";
 import { SITE } from "./release-public";
 import type { SolanaSigner } from "./solana-wallet";
+import type { BitcoinSigner } from "./bitcoin-wallet";
+import { isBitcoinAccountAddress, validateBitcoinAccountChallenge } from "@templ/chat/bitcoin-account-auth";
 import { setPrincipalHintSession } from "./principal-hint";
 import { dropDevicePushAlerts } from "./push-device";
 
@@ -40,6 +42,7 @@ export type ChatCapabilities = {
   emailSignIn: boolean;
   /** Solana sign-in needs no provider. */
   solana: { signIn: boolean };
+  bitcoin?: { signIn: boolean };
 };
 const SESSION_CHECK_INTERVAL = 5 * 60_000;
 let remembered: { session: CommunitySession; checkedAt: number } | undefined;
@@ -55,8 +58,8 @@ let signing:
   | undefined;
 let authenticationRevision = 0;
 let verifying: Promise<CommunitySession> | undefined;
-let solanaSigning:
-  | { revision: number; promise: Promise<CommunitySession> }
+let messageWalletSigning:
+  | { revision: number; promise: Promise<unknown> }
   | undefined;
 let emailOperation: Promise<unknown> | undefined;
 let emailChallengeRevision: number | undefined;
@@ -136,6 +139,17 @@ export function sessionMatches(
     !principal || session.principalId.toLowerCase() === principal.toLowerCase()
   );
 }
+export function sameCommunitySession(expected: CommunitySession, actual?: CommunitySession) {
+  return (
+    actual?.principalId === expected.principalId &&
+    actual.authenticatedAt === expected.authenticatedAt &&
+    actual.authMethod === expected.authMethod &&
+    actual.walletRevision === expected.walletRevision &&
+    actual.address === expected.address &&
+    actual.solanaAddress === expected.solanaAddress &&
+    actual.bitcoinAddress === expected.bitcoinAddress
+  );
+}
 export function peekCommunitySession(account?: ChatPrincipalId) {
   const session = remembered?.session;
   return !logoutRequested &&
@@ -166,10 +180,11 @@ export function validatedSession(raw: unknown): CommunitySession {
     value.address.toLowerCase() !== zeroAddress
       ? getAddress(value.address)
       : null;
-  // A Solana session names the Solana wallet that signed it in; such a
-  // wallet only ever belongs to an opaque account.
   const solanaAddress = isSolanaAddress(value.solanaAddress)
     ? value.solanaAddress
+    : null;
+  const bitcoinAddress = isBitcoinAccountAddress(value.bitcoinAddress)
+    ? value.bitcoinAddress
     : null;
   // A wallet session names the wallet that signed it in. A bare wallet account
   // is that wallet; an opaque account may be signed in by any of its proven
@@ -185,8 +200,10 @@ export function validatedSession(raw: unknown): CommunitySession {
     value.authenticatedAt! > Date.now() ||
     !Number.isSafeInteger(value.walletRevision) ||
     value.walletRevision! < 0 ||
-    !isAuthMethod(authMethod) ||
+    !isAuthMethod(authMethod) || authMethod === "guest" ||
     (value.solanaAddress != null && !solanaAddress) ||
+    (value.bitcoinAddress != null && (!bitcoinAddress || authMethod !== "bitcoin")) ||
+    (authMethod === "bitcoin" && (!bitcoinAddress || solanaAddress || !principalId.startsWith("account:"))) ||
     (authMethod === "solana" &&
       (!solanaAddress || !principalId.startsWith("account:"))) ||
     (authMethod === "email" &&
@@ -230,6 +247,7 @@ export function validatedSession(raw: unknown): CommunitySession {
     walletRevision: value.walletRevision!,
     walletAuthorizationExpiresAt: capability,
     ...(solanaAddress ? { solanaAddress } : {}),
+    ...(bitcoinAddress ? { bitcoinAddress } : {}),
   };
 }
 async function settledSession(raw: unknown): Promise<CommunitySession> {
@@ -273,8 +291,8 @@ export function readCommunitySession(
     return signing.promise
       .catch(() => {})
       .then(() => readCommunitySession(force, expectedAccount));
-  if (solanaSigning && solanaSigning.revision === authenticationRevision)
-    return solanaSigning.promise
+  if (messageWalletSigning && messageWalletSigning.revision === authenticationRevision)
+    return messageWalletSigning.promise
       .catch(() => {})
       .then(() => readCommunitySession(force, expectedAccount));
   return checkCommunitySession(force, expectedAccount);
@@ -315,9 +333,7 @@ function fetchCommunitySession(
       const session = await settledSession(value);
       if (started === revision) {
         const changed =
-          remembered?.session.principalId !== session.principalId ||
-          remembered?.session.address !== session.address ||
-          remembered?.session.walletRevision !== session.walletRevision ||
+          !sameCommunitySession(session, remembered?.session) ||
           JSON.stringify(remembered?.session.servicePrincipals) !==
             JSON.stringify(session.servicePrincipals);
         remembered = { session, checkedAt: Date.now() };
@@ -348,6 +364,7 @@ export async function readChatCapabilities(): Promise<ChatCapabilities> {
     wallet: result.wallet === true,
     emailSignIn: result.emailSignIn === true,
     solana: { signIn: result.solana?.signIn === true },
+    ...(result.bitcoin?.signIn === true ? { bitcoin: { signIn: true } } : {}),
   };
 }
 
@@ -361,7 +378,7 @@ function assertEmailOperationAvailable() {
     emailOperation ||
     verifying ||
     signing ||
-    solanaSigning ||
+    messageWalletSigning ||
     attaching ||
     detaching ||
     logoutRequested
@@ -483,41 +500,81 @@ export function checkSolanaChallenge(
   )
     throw new Error(SOLANA_CHALLENGE_UNVERIFIED);
 }
-/** Signs in with a Solana wallet: a challenge for the wallet's address, the
- * wallet's signature over it, then the worker's session. `connect` is the
- * wallet prompt (`connectSolanaWallet`), injected so tests need no wallet. */
-export async function signInWithSolana(
-  connect: () => Promise<SolanaSigner>,
-  connectCode?: string,
-): Promise<CommunitySession> {
+export type BitcoinPreview = {
+  expectedPrincipalId: ChatPrincipalId;
+  workspaceId: string;
+  workerVersion: string;
+};
+export async function verifyBitcoinPreview(scope: BitcoinPreview, signal?: AbortSignal) {
+  const params = new URLSearchParams(scope);
+  const result = await communityFetch<{ eligible: boolean; workerVersion: string }>(
+    `/auth/bitcoin/preview/capability?${params}`, undefined, signal,
+  );
+  return result.eligible === true && result.workerVersion === scope.workerVersion;
+}
+
+type MessageWallet = "bitcoin" | "solana";
+type ConnectMessageWallet = () => Promise<Pick<SolanaSigner, "address" | "signMessage">>;
+
+export function signInWithSolana(connect: () => Promise<SolanaSigner>, connectCode?: string) {
+  return withMessageWallet(() => authenticateMessageWallet("solana", connect, connectCode));
+}
+
+export function signInWithBitcoin(connect: () => Promise<BitcoinSigner>, connectCode?: string) {
+  return withMessageWallet(() => authenticateMessageWallet("bitcoin", connect, connectCode));
+}
+
+export function previewBitcoinAccount(
+  operation: "add" | "sign-in",
+  scope: BitcoinPreview,
+  connect: () => Promise<BitcoinSigner>,
+) {
+  return withMessageWallet(async () => {
+    if (peekCommunitySession()?.principalId !== scope.expectedPrincipalId ||
+        !await verifyBitcoinPreview(scope))
+      throw new Error("Bitcoin sign-in preview is unavailable.");
+    if (operation === "add") {
+      await attachMessageWallet("bitcoin", scope.expectedPrincipalId, connect, scope);
+    } else {
+      await authenticateMessageWallet("bitcoin", connect, undefined, scope);
+    }
+  });
+}
+
+async function withMessageWallet<T>(operation: () => Promise<T>): Promise<T> {
   if (
     verifying ||
     signing ||
-    solanaSigning ||
+    messageWalletSigning ||
     emailOperation ||
     attaching ||
+    detaching ||
     logoutRequested
   )
     throw new Error("Wait for the current sign-in.");
   const entry = {
     revision: authenticationRevision,
-    promise: authenticateSolana(connect, connectCode),
+    promise: operation(),
   };
-  solanaSigning = entry;
+  messageWalletSigning = entry;
   try {
     return await entry.promise;
   } finally {
-    if (solanaSigning === entry) solanaSigning = undefined;
+    if (messageWalletSigning === entry) messageWalletSigning = undefined;
   }
 }
 
-async function authenticateSolana(
-  connect: () => Promise<SolanaSigner>,
+async function authenticateMessageWallet(
+  network: MessageWallet,
+  connect: ConnectMessageWallet,
   connectCode?: string,
+  preview?: BitcoinPreview,
 ): Promise<CommunitySession> {
+  const route = preview ? "/auth/bitcoin/preview" : `/auth/${network}`;
   const started = authenticationRevision;
   const assertCurrent = () => {
-    if (started !== authenticationRevision)
+    if (started !== authenticationRevision ||
+        (preview && peekCommunitySession()?.principalId !== preview.expectedPrincipalId))
       throw new Error("Sign-in was canceled.");
   };
   // A session read can renew its cookie. It settles before a valid signed-in session;
@@ -526,24 +583,18 @@ async function authenticateSolana(
   assertCurrent();
   const signer = await connect();
   assertCurrent();
-  const { message } = await communityFetch<{ message: string }>(
-    "/auth/solana/nonce",
-    { address: signer.address, ...(connectCode ? { connectCode } : {}) },
+  const challenge = await communityFetch<{ message: string }>(
+    `${route}/nonce`,
+    { address: signer.address, ...(connectCode ? { connectCode } : {}), ...(preview && { ...preview, confirmed: true }) },
   );
   assertCurrent();
-  checkSolanaChallenge(message, {
-    address: signer.address,
-    statement: connectCode
-      ? CONNECT_SIGN_IN_STATEMENT
-      : SOLANA_SIGN_IN_STATEMENT,
-    connectCode,
-  });
-  const signed = await signer.signMessage(message);
+  const { message } = challenge;
+  const signature = await signWalletChallenge(network, signer, challenge, { connectCode });
   assertCurrent();
-  const signature = solanaSignInSignature(signed);
-  const task = communityFetch<unknown>("/auth/solana/verify", {
+  const task = communityFetch<unknown>(`${route}/verify`, {
     message,
     signature,
+    ...(preview && { ...preview, confirmed: true }),
   }).then(settledSession);
   verifying = task;
   let session: CommunitySession;
@@ -554,33 +605,59 @@ async function authenticateSolana(
   }
   assertCurrent();
   if (
-    session.authMethod !== "solana" ||
-    session.solanaAddress !== signer.address
+    session.authMethod !== network ||
+    (preview && session.principalId !== preview.expectedPrincipalId) ||
+    (network === "bitcoin" && (session.address !== null || session.walletAuthorizationExpiresAt !== null)) ||
+    (network === "bitcoin" ? session.bitcoinAddress : session.solanaAddress) !== signer.address
   )
     throw new Error("The signed-in account could not be verified.");
   rememberCommunitySession(session);
   return session;
 }
-/** Adds a Solana wallet to the signed-in account with a proof bound to this
- * account and session. Answers with the worker's response, which carries
- * the added address and the account's whole method list. */
-export async function attachSolanaWallet(
+async function signWalletChallenge(
+  network: MessageWallet,
+  signer: Awaited<ReturnType<ConnectMessageWallet>>,
+  challenge: { message: string },
+  expected: { principalId?: ChatPrincipalId; connectCode?: string },
+) {
+  const { message } = challenge;
+  if (network === "bitcoin") {
+    if (!validateBitcoinAccountChallenge(challenge, {
+      origin: window.location.origin,
+      address: signer.address,
+      purpose: expected.principalId ? "attach" : expected.connectCode ? "connect" : "login",
+      ...expected,
+    })) throw new Error("The wallet request expired or changed. Try again.");
+    return signer.signMessage(message);
+  }
+  checkSolanaChallenge(message, {
+    address: signer.address,
+    statement: expected.principalId ? SOLANA_ATTACH_STATEMENT :
+      expected.connectCode ? CONNECT_SIGN_IN_STATEMENT : SOLANA_SIGN_IN_STATEMENT,
+    ...expected,
+  });
+  return solanaSignInSignature(await signer.signMessage(message));
+}
+
+export function attachSolanaWallet(principal: ChatPrincipalId, connect: () => Promise<SolanaSigner>) {
+  return withMessageWallet(() => attachMessageWallet("solana", principal, connect));
+}
+
+export function attachBitcoinWallet(principal: ChatPrincipalId, connect: () => Promise<BitcoinSigner>) {
+  return withMessageWallet(() => attachMessageWallet("bitcoin", principal, connect));
+}
+
+async function attachMessageWallet(
+  network: MessageWallet,
   principal: ChatPrincipalId,
-  connect: () => Promise<SolanaSigner>,
+  connect: ConnectMessageWallet,
+  preview?: BitcoinPreview,
 ): Promise<{ address: string; methods: unknown }> {
-  if (
-    signing ||
-    solanaSigning ||
-    emailOperation ||
-    verifying ||
-    detaching ||
-    logoutRequested
-  )
-    throw new Error("Wait for the current sign-in.");
+  const route = preview ? "/auth/bitcoin/preview/attach" : `/auth/${network}/attach`;
+  const started = authenticationRevision;
   const previous = await fetchCommunitySession(true);
   if (!previous || previous.principalId !== principal)
     throw new Error("Sign in before adding a wallet.");
-  const started = authenticationRevision;
   const assertCurrent = () => {
     if (
       started !== authenticationRevision ||
@@ -588,29 +665,26 @@ export async function attachSolanaWallet(
     )
       throw new Error("The signed-in account changed. Try again.");
   };
+  assertCurrent();
   const signer = await connect();
   assertCurrent();
-  const { message } = await communityFetch<{ message: string }>(
-    "/auth/solana/attach/nonce",
-    { address: signer.address, expectedPrincipalId: previous.principalId },
+  const challenge = await communityFetch<{ message: string }>(
+    `${route}/nonce`,
+    { address: signer.address, expectedPrincipalId: previous.principalId, ...(preview && { ...preview, confirmed: true }) },
   );
   assertCurrent();
-  checkSolanaChallenge(message, {
-    address: signer.address,
-    statement: SOLANA_ATTACH_STATEMENT,
-    principalId: previous.principalId,
-  });
-  const signed = await signer.signMessage(message);
+  const { message } = challenge;
+  const signature = await signWalletChallenge(network, signer, challenge, { principalId: previous.principalId });
   assertCurrent();
-  const signature = solanaSignInSignature(signed);
   const result = await communityFetch<{
     ok?: boolean;
     address?: string;
     methods?: unknown;
-  }>("/auth/solana/attach/verify", {
+  }>(`${route}/verify`, {
     message,
     signature,
     expectedPrincipalId: previous.principalId,
+    ...(preview && { ...preview, confirmed: true }),
   });
   assertCurrent();
   if (result?.ok !== true || result.address !== signer.address)
@@ -624,7 +698,7 @@ export async function attachSolanaWallet(
  * in; signing out is the way to drop that one. */
 export function detachCommunityWallet(): Promise<CommunitySession> {
   if (detaching) return detaching;
-  if (solanaSigning || emailOperation)
+  if (messageWalletSigning || emailOperation)
     return Promise.reject(new Error("Wait for the current sign-in."));
   const previous = peekCommunitySession();
   if (!previous) return Promise.reject(new Error("Sign in first."));
@@ -803,7 +877,7 @@ async function attachWallet(
 ) {
   if (
     signing ||
-    solanaSigning ||
+    messageWalletSigning ||
     emailOperation ||
     verifying ||
     detaching ||
@@ -908,7 +982,7 @@ export function signInCommunity(
     return signOutCommunity().then(() =>
       signInCommunity(account, ready, fresh, connectCode),
     );
-  if (attaching || solanaSigning || emailOperation || (verifying && !signing))
+  if (attaching || messageWalletSigning || emailOperation || (verifying && !signing))
     return Promise.reject(new Error("Wait for the current sign-in."));
   if (signing) {
     if (signing.revision !== authenticationRevision)

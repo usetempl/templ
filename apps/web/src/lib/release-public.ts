@@ -37,6 +37,7 @@ export type PublicRelease = Omit<
   PrivateField | "productOffer" | "templSupport" | "supportDiagnosis"
 > & {
   indexingEnabled?: boolean;
+  bitcoinAccountSignInVerified?: boolean;
   productOffer: Omit<Manifest["productOffer"], "evidence">;
   templSupport: Omit<Manifest["templSupport"], "evidence">;
   /** The projection publishes only `chains`. */

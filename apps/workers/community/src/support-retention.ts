@@ -67,6 +67,7 @@ import { dropOpenIndex } from "./support-open-index";
 import { deleteThreadFollowUps } from "./support-follow-ups";
 import { deleteThreadPositions } from "./support-positions";
 import { deleteThreadPriority } from "./support-priority";
+import { deleteThreadCryptoChatLanguage } from "./crypto-chat-language";
 import { clearThreadAwaiting, deleteThreadCases } from "./support-cases";
 import { deleteThreadDrafts } from "./support-drafts";
 import { deleteThreadEvidence } from "./support-evidence-store";
@@ -275,6 +276,7 @@ export async function sweepSupportRetention(
     `conversation-v1:${pending}`,
   );
   if (record) {
+    await deleteThreadCryptoChatLanguage(storage, record.room, pending);
     const workflow = await supportRecord(storage, record);
     for (const attachment of workflow.attachments) {
       const reference = workflow.attachmentMedia[attachment.id];
