@@ -97,7 +97,7 @@
     {
       "topic": "exchanges",
       "question": "Como eu compro bitcoin? How do I buy bitcoin (BTC)?",
-      "answer": "Onde a Coinbase está disponível, abra Comprar e vender, escolha Comprar e Bitcoin (BTC). Informe o valor na sua moeda e escolha uma forma de pagamento disponível na sua conta. A prévia mostra as taxas e quanto BTC você recebe. Você pode sair antes de confirmar.",
+      "answer": "Você pode comprar bitcoin (BTC) em uma corretora, como a Coinbase onde ela estiver disponível. No app, abra Comprar e vender, toque em Comprar e escolha Bitcoin. Informe o valor na sua moeda e escolha como pagar. Antes de confirmar, confira o total, as taxas e quanto BTC vai receber.",
       "references": [
         "https://help.coinbase.com/en/coinbase/trading-and-funding/buying-selling-or-converting-crypto/how-do-i-buy-digital-currency"
       ]
@@ -415,10 +415,10 @@
     {
       "topic": "exchanges",
       "question": "I'm new and can't tell whether I need an exchange or a wallet.",
-      "answer": "To buy crypto with money from a bank, start with an exchange that supports your country and payment method. To control the crypto yourself, set up a self-custody wallet. You can buy on an exchange and withdraw to your wallet later.",
+      "answer": "If you want to buy with money from your bank, an exchange such as Coinbase is one option where available. The exchange holds the crypto for you. With a self-custody wallet, you hold the keys and look after the backup. You can buy on an exchange and move your crypto to your own wallet later.",
       "references": [
-        "https://ethereum.org/wallets/",
-        "https://help.coinbase.com/en/coinbase/trading-and-funding/buying-selling-or-converting-crypto/how-do-i-buy-digital-currency"
+        "https://help.coinbase.com/en/coinbase/trading-and-funding/buying-selling-or-converting-crypto/how-do-i-buy-digital-currency",
+        "https://help.coinbase.com/en/coinbase/getting-started/crypto-education/exchanges-self-custody-wallets"
       ]
     },
     {

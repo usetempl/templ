@@ -119,6 +119,7 @@ export const CRYPTO_LINKS: readonly CryptoLink[] = [
   { label: "Cash out on Coinbase", url: "https://help.coinbase.com/en/coinbase/trading-and-funding/buying-selling-or-converting-crypto/cash-out-funds", kind: "guide", networks: [] },
   { label: "Sell crypto on Coinbase", url: "https://help.coinbase.com/en/coinbase/trading-and-funding/buying-selling-or-converting-crypto/how-do-i-sell-or-cash-out-my-digital-currency", kind: "guide", networks: [] },
   { label: "Coinbase payment availability", url: "https://help.coinbase.com/en/coinbase/trading-and-funding/depositing-or-withdrawing-fiat-money/available-services", kind: "guide", networks: [] },
+  { label: "Exchanges and self-custody wallets", url: "https://help.coinbase.com/en/coinbase/getting-started/crypto-education/exchanges-self-custody-wallets", kind: "guide", networks: [] },
   { label: "Coinbase fees and spreads", url: "https://help.coinbase.com/en/coinbase/trading-and-funding/pricing-and-fees/fees", kind: "guide", networks: [] },
   { label: "Coinbase available balance", url: "https://help.coinbase.com/en/coinbase/trading-and-funding/sending-or-receiving-cryptocurrency/available-balance-faq", kind: "guide", networks: [] },
   { label: "Coinbase tags and memos", url: "https://help.coinbase.com/en/coinbase/trading-and-funding/sending-or-receiving-cryptocurrency/destination-tag-memo-faq", kind: "guide", networks: [] },
